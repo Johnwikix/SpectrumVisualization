@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<winex:WindowEx
+    x:Class="WinExSpectrumTest.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WinExSpectrumTest"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:winex="using:WinUIEx"
+    Title="WinExSpectrumTest"
+    MinWidth="1024"
+    MinHeight="768"
+    mc:Ignorable="d">
+
+    <winex:WindowEx.SystemBackdrop>
+        <winex:TransparentTintBackdrop />
+    </winex:WindowEx.SystemBackdrop>
+
+    <Grid>
+        <Grid>
+            <Button Click="Button_Click" Content="FullScreen" />
+        </Grid>
+    </Grid>
+</winex:WindowEx>

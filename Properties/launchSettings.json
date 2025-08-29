@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "WinExSpectrumTest (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "WinExSpectrumTest (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
