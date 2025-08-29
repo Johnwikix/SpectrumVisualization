@@ -72,9 +72,9 @@ namespace WinExSpectrumTest.Analyzer
                 float real = (float)_fftData[i].X;
                 float imaginary = (float)_fftData[i].Y;
                 float magnitude = (float)Math.Sqrt(real * real + imaginary * imaginary);
-                float frequency = i * _sampleRate /_fftLength;
-                float compensationFactor = GetCompensationFactor(frequency);
-                _spectrumData[i] = magnitude * compensationFactor;
+                //float frequency = i * _sampleRate /_fftLength;
+                //float compensationFactor = GetCompensationFactor(frequency);
+                _spectrumData[i] = magnitude;
             }
 
             // 触发事件
