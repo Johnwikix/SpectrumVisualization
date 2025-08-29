@@ -49,12 +49,12 @@ namespace WinExSpectrumTest.Analyzer
             if (_disposed || e.BytesRecorded == 0) return;
 
             // 将字节转换为浮点数
-            int samples = e.BytesRecorded / (4 * 2); 
+            int samples = e.BytesRecorded / (4 ); 
             if (samples < _fftLength) return;
 
             for (int i = 0; i < _fftLength; i++)
             {
-                _fftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 2 * 4);
+                _fftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 4);
             }
             // 准备FFT数据
             for (int i = 0; i < _fftLength; i++)
