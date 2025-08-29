@@ -12,6 +12,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using WinExSpectrumTest.Helper;
 using WinUIEx;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -32,8 +33,19 @@ namespace WinExSpectrumTest
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            var fullScreenPresenter = Microsoft.UI.Windowing.FullScreenPresenter.Create();
-            AppWindow.SetPresenter(fullScreenPresenter);
+            TopCommand.Opacity = 0;
+            WindowHelper.SetClickThrough(this,true);
+            this.SetIsAlwaysOnTop(true);
+        }
+
+        private void TopCommand_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            TopCommand.Opacity = 1;
+        }
+
+        private void TopCommand_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            TopCommand.Opacity = 0;
         }
     }
 }

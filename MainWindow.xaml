@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinExSpectrumTest"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
     xmlns:winex="using:WinUIEx"
     Title="WinExSpectrumTest"
     MinWidth="1024"
@@ -17,8 +18,22 @@
     </winex:WindowEx.SystemBackdrop>
 
     <Grid>
-        <Grid>
-            <Button Click="Button_Click" Content="FullScreen" />
+        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
+            <myCanvas:CanvasPanel x:Name="MyCanvas" />
+        </Grid>
+        <Grid
+            x:Name="TopCommand"
+            Margin="5,0,0,0"
+            VerticalAlignment="Top"
+            Canvas.ZIndex="999"
+            PointerEntered="TopCommand_PointerEntered"
+            PointerExited="TopCommand_PointerExited">
+            <Grid.OpacityTransition>
+                <ScalarTransition />
+            </Grid.OpacityTransition>
+            <Button Click="Button_Click">
+                <FontIcon FontSize="16" Glyph="&#xE72E;" />
+            </Button>
         </Grid>
     </Grid>
 </winex:WindowEx>
