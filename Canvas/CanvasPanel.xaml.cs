@@ -138,15 +138,15 @@ namespace WinExSpectrumTest.Canvas
         {
             // 根据强度创建彩虹色彩效果
             if (intensity < 0.2f)
-                return Color.FromArgb(64, 0, 100, 255); // 蓝色
+                return Color.FromArgb(128, 0, 100, 255); // 蓝色
             else if (intensity < 0.4f)
-                return Color.FromArgb(64, 0, 255, 200); // 青色
+                return Color.FromArgb(128, 0, 255, 200); // 青色
             else if (intensity < 0.6f)
-                return Color.FromArgb(64, 100, 255, 0); // 绿色
+                return Color.FromArgb(128, 100, 255, 0); // 绿色
             else if (intensity < 0.8f)
-                return Color.FromArgb(64, 255, 200, 0); // 黄色
+                return Color.FromArgb(128, 255, 200, 0); // 黄色
             else
-                return Color.FromArgb(64, 255, 100, 100); // 红色
+                return Color.FromArgb(128, 255, 100, 100); // 红色
         }
         public void Dispose()
         {

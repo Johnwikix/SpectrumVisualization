@@ -1,6 +1,7 @@
 ﻿using NAudio.Dsp;
 using NAudio.Wave;
 using System;
+using System.Diagnostics;
 using System.Threading.Channels;
 
 namespace WinExSpectrumTest.Analyzer
@@ -8,11 +9,11 @@ namespace WinExSpectrumTest.Analyzer
     public class SpectrumAnalyzer : IDisposable
     {
         private WasapiLoopbackCapture _capture;
-        private readonly int _fftLength = 1024;
-        private readonly int _sampleRate = 48000;
+        private int _sampleRate = 48000;
+        private readonly int _fftLength = 4096;        
         private readonly float[] _fftBuffer;
         private readonly Complex[] _fftData;
-        private readonly float[] _spectrumData;
+        private float[] _spectrumData;
         private bool _disposed = false;
 
         public event Action<float[]> SpectrumDataUpdated;
@@ -21,7 +22,7 @@ namespace WinExSpectrumTest.Analyzer
         {
             _fftBuffer = new float[_fftLength];
             _fftData = new Complex[_fftLength];
-            _spectrumData = new float[_fftLength / 2];
+            
         }
 
         public void StartCapture()
@@ -29,6 +30,9 @@ namespace WinExSpectrumTest.Analyzer
             try
             {
                 _capture = new WasapiLoopbackCapture();
+                _sampleRate = _capture.WaveFormat.SampleRate;
+                _spectrumData = new float[(int)(24000.0f / _sampleRate * _fftLength)/2];
+                Debug.WriteLine($"捕获设备: {_sampleRate}");
                 _capture.DataAvailable += OnDataAvailable;
                 _capture.RecordingStopped += OnRecordingStopped;
                 _capture.StartRecording();
@@ -49,12 +53,12 @@ namespace WinExSpectrumTest.Analyzer
             if (_disposed || e.BytesRecorded == 0) return;
 
             // 将字节转换为浮点数
-            int samples = e.BytesRecorded / (4 ); 
+            int samples = e.BytesRecorded / 8; 
             if (samples < _fftLength) return;
 
             for (int i = 0; i < _fftLength; i++)
             {
-                _fftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 4);
+                _fftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 8);
             }
             // 准备FFT数据
             for (int i = 0; i < _fftLength; i++)
@@ -64,8 +68,7 @@ namespace WinExSpectrumTest.Analyzer
             }
 
             // 执行FFT
-            FastFourierTransform.FFT(true, (int)Math.Log(_fftLength, 2), _fftData);
-
+            FastFourierTransform.FFT(true, (int)Math.Log(_fftLength, 2), _fftData);            
             // 计算频谱幅度
             for (int i = 0; i < _spectrumData.Length; i++)
             {
@@ -76,7 +79,6 @@ namespace WinExSpectrumTest.Analyzer
                 //float compensationFactor = GetCompensationFactor(frequency);
                 _spectrumData[i] = magnitude;
             }
-
             // 触发事件
             SpectrumDataUpdated?.Invoke(_spectrumData);
         }
