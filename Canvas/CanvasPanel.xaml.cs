@@ -29,8 +29,9 @@ namespace WinExSpectrumTest.Canvas
         private float[] _currentSpectrum;
         private float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
-        private readonly float _smoothingFactor = 0.8f;
+        private readonly float _smoothingFactor = 0.5f;
         private bool _disposed = false;
+        private float _rotationOffset = 0f;
         public CanvasPanel()
         {
             InitializeComponent();
@@ -53,7 +54,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 5000f;
+                    _currentSpectrum[i] = spectrumData[index] * 2500f;
                 }
             }
         }
@@ -113,21 +114,55 @@ namespace WinExSpectrumTest.Canvas
         private void DrawWaveform(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             if (_smoothedSpectrum == null) return;
-
+            _rotationOffset += 0.001f;
+            if (_rotationOffset >= 2 * (float)Math.PI)
+            {
+                _rotationOffset -= 0f;
+            }
             var points = new Vector2[_barCount];
-            float width = (float)size.Width;
+            float centerX = (float)size.Width * 0.5f;
             float centerY = (float)size.Height * 0.5f;
+            Vector2 center = new Vector2(centerX, centerY);            
+            // 计算基础半径，确保圆形波形图在画布内
+            float baseRadius = Math.Min(centerX, centerY) * 0.5f;
 
             for (int i = 0; i < _barCount; i++)
             {
-                float x = (float)i / (_barCount - 1) * width;
-                float y = centerY - (_smoothedSpectrum[i] * 0.3f);
+                float angle = (float)i / (_barCount - 1) * 2 * (float)Math.PI - _rotationOffset;
+                float radius = baseRadius + _smoothedSpectrum[i]*0.5f;
+                // 将极坐标转换为笛卡尔坐标
+                float x = centerX + radius * (float)Math.Cos(angle);
+                float y = centerY + radius * (float)Math.Sin(angle);
                 points[i] = new Vector2(x, y);
-            }            
+            }
+
+            // 绘制圆心折线图
             for (int i = 0; i < points.Length - 1; i++)
             {
                 session.DrawLine(points[i], points[i + 1], Color.FromArgb(128, 0, 255, 200), 2f);
             }
+
+            // 将最后一个点与第一个点连接，形成闭合图形
+            if (_barCount > 1)
+            {
+                session.DrawLine(points[points.Length - 1], points[0], Color.FromArgb(128, 0, 255, 200), 2f);
+            }
+            //if (_smoothedSpectrum == null) return;
+
+            //var points = new Vector2[_barCount];
+            //float width = (float)size.Width;
+            //float centerY = (float)size.Height * 0.5f;
+
+            //for (int i = 0; i < _barCount; i++)
+            //{
+            //    float x = (float)i / (_barCount - 1) * width;
+            //    float y = centerY - (_smoothedSpectrum[i] * 0.3f);
+            //    points[i] = new Vector2(x, y);
+            //}            
+            //for (int i = 0; i < points.Length - 1; i++)
+            //{
+            //    session.DrawLine(points[i], points[i + 1], Color.FromArgb(128, 0, 255, 200), 2f);
+            //}
         }
 
         private Color GetSpectrumColor(float intensity)
