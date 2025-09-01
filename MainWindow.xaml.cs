@@ -14,6 +14,7 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
 using WinUIEx;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -29,13 +30,14 @@ namespace WinExSpectrumTest
         {
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
+            this.SetIcon("Assets/icon.ico");
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             TopCommand.Opacity = 0;
-            WindowHelper.SetClickThrough(this,true);
-            this.SetIsAlwaysOnTop(true);
+            WindowHelper.Enable(this);
+            WindowHelper.SetClickThrough(this,true);            
         }
 
         private void TopCommand_PointerEntered(object sender, PointerRoutedEventArgs e)

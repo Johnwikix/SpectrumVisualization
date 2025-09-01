@@ -14,6 +14,65 @@ namespace WinExSpectrumTest.Helper
     public class WindowHelper
     {
         private static readonly Dictionary<IntPtr, WindowStyle> _originalWindowStyles = [];
+        private static readonly Dictionary<IntPtr, bool> _originalTopmostStates = [];
+        private static readonly Dictionary<IntPtr, (double X, double Y, double Width, double Height)> _originalWindowBounds = [];
+        public static void Enable(Window window)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+
+            //// 记录原始窗口位置和大小
+            //if (!_originalWindowBounds.ContainsKey(hwnd))
+            //{
+            //    _originalWindowBounds[hwnd] = (
+            //        window.AppWindow.Position.X,
+            //        window.AppWindow.Position.Y,
+            //        window.AppWindow.Size.Width,
+            //        window.AppWindow.Size.Height
+            //    );
+            //}
+
+            //// 设置窗口大小和位置
+            //window.AppWindow.MoveAndResize(
+            //    new Windows.Graphics.RectInt32(window.AppWindow.Position.X, window.AppWindow.Position.Y, window.AppWindow.Size.Width, window.AppWindow.Size.Height)
+            //);
+
+            // 记忆原TopMost状态
+            if (!_originalTopmostStates.ContainsKey(hwnd))
+                _originalTopmostStates[hwnd] = window.GetIsAlwaysOnTop();
+
+            // 设置窗口置顶
+            window.SetIsAlwaysOnTop(true);
+
+            window.SetIsShownInSwitchers(false);
+        }
+
+        public static void Disable(Window window)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+
+            // 恢复TopMost状态
+            if (_originalTopmostStates.TryGetValue(hwnd, out var wasTopMost))
+            {
+                window.SetIsAlwaysOnTop(wasTopMost);
+                _originalTopmostStates.Remove(hwnd);
+            }
+
+            // 恢复窗口位置和大小
+            //if (_originalWindowBounds.TryGetValue(hwnd, out var bounds))
+            //{
+            //    window.AppWindow.MoveAndResize(
+            //        new Windows.Graphics.RectInt32(
+            //            (int)bounds.X,
+            //            (int)bounds.Y,
+            //            (int)bounds.Width,
+            //            (int)bounds.Height
+            //        )
+            //    );
+            //    _originalWindowBounds.Remove(hwnd);
+            //}
+            //window.SetIsAlwaysOnTop(false);
+            window.SetIsShownInSwitchers(true);
+        }
         public static void SetClickThrough(Window window, bool enable)
         {
             IntPtr hwnd = WindowNative.GetWindowHandle(window);
