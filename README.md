@@ -46,7 +46,9 @@ WinExSpectrumTest/
 └─ WinExSpectrumTest.sln # 解决方案文件：Visual Studio 项目入口 / Solution file: Visual Studio entry point
 ```
 
-- 
+
+## 5. 感谢 / Thanks to
+[BetterLyrics](https://github.com/jayfunc/BetterLyrics)
 
 ## 6. 许可证 / License
 

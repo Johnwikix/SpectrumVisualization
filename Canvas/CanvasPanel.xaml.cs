@@ -1,4 +1,5 @@
 using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -63,7 +64,13 @@ namespace WinExSpectrumTest.Canvas
         {
             var session = args.DrawingSession;
             var size = sender.Size;
+            DrawPlainSpectrum(session, size);
+            DrawRoundSpectrum(session, size);
+            DrawWaveform(session, size);
+        }
 
+        private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
+        {
             if (_smoothedSpectrum == null) return;
 
             // 绘制频谱条
@@ -73,7 +80,7 @@ namespace WinExSpectrumTest.Canvas
             for (int i = 0; i < _barCount; i++)
             {
                 float x = i * barWidth;
-                float height = Math.Max(Math.Min(_smoothedSpectrum[i], maxHeight),0);
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i], maxHeight), 0);
                 float y = (float)size.Height - height;
 
                 // 创建渐变色彩效果
@@ -97,7 +104,83 @@ namespace WinExSpectrumTest.Canvas
                     session.FillRectangle(glowRect, glowColor);
                 }
             }
-            DrawWaveform(session, size);
+        }
+
+        private void DrawRoundSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
+        {
+            if (_smoothedSpectrum == null) return;
+
+            float centerX = (float)size.Width * 0.5f;
+            float centerY = (float)size.Height * 0.5f;
+            float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 10;
+            float angleStep = 2 * (float)Math.PI / _barCount;
+            float angleOffset = 0.01f;
+            for (int i = 0; i < _barCount; i++)
+            {
+                // 频谱条的高度现在代表径向的长度
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.025f, 0.5f), 0);
+                float currentRadius = baseRadius + (height * baseRadius);
+
+                // 计算扇形的起始和结束角度
+                float startAngle = i * angleStep + angleOffset - _rotationOffset;
+                float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
+
+                // 根据频谱高度获取颜色
+                var color = GetSpectrumColor(height);
+
+                // 创建多边形的顶点
+                var polygonPoints = new List<Vector2>();
+
+                // 1. 添加内圆的起始点和结束点
+                polygonPoints.Add(new Vector2(
+                    centerX + baseRadius * (float)Math.Cos(startAngle),
+                    centerY + baseRadius * (float)Math.Sin(startAngle)));
+
+                polygonPoints.Add(new Vector2(
+                    centerX + baseRadius * (float)Math.Cos(endAngle),
+                    centerY + baseRadius * (float)Math.Sin(endAngle)));
+
+                // 2. 添加外圆的结束点和起始点，注意顺序，以形成闭合的多边形
+                polygonPoints.Add(new Vector2(
+                    centerX + currentRadius * (float)Math.Cos(endAngle),
+                    centerY + currentRadius * (float)Math.Sin(endAngle)));
+
+                polygonPoints.Add(new Vector2(
+                    centerX + currentRadius * (float)Math.Cos(startAngle),
+                    centerY + currentRadius * (float)Math.Sin(startAngle)));
+
+                // 绘制多边形，模拟频谱条
+                session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints.ToArray()), color);
+
+                // --- 增加发光效果 ---
+                if (height > 0.05f)
+                {
+                    var glowColor = Color.FromArgb(30, color.R, color.G, color.B);
+
+                    // 重新计算外圆半径，增加发光效果的宽度
+                    float glowRadius = currentRadius + 10;
+
+                    var glowPoints = new List<Vector2>();
+
+                    glowPoints.Add(new Vector2(
+                        centerX + currentRadius * (float)Math.Cos(startAngle),
+                        centerY + currentRadius * (float)Math.Sin(startAngle)));
+
+                    glowPoints.Add(new Vector2(
+                        centerX + currentRadius * (float)Math.Cos(endAngle),
+                        centerY + currentRadius * (float)Math.Sin(endAngle)));
+
+                    glowPoints.Add(new Vector2(
+                        centerX + glowRadius * (float)Math.Cos(endAngle),
+                        centerY + glowRadius * (float)Math.Sin(endAngle)));
+
+                    glowPoints.Add(new Vector2(
+                        centerX + glowRadius * (float)Math.Cos(startAngle),
+                        centerY + glowRadius * (float)Math.Sin(startAngle)));
+
+                    session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints.ToArray()), glowColor);
+                }
+            }
         }
 
         private void SpectrumCanvasControl_Update(Microsoft.Graphics.Canvas.UI.Xaml.ICanvasAnimatedControl sender, Microsoft.Graphics.Canvas.UI.Xaml.CanvasAnimatedUpdateEventArgs args)
@@ -124,7 +207,7 @@ namespace WinExSpectrumTest.Canvas
             float centerY = (float)size.Height * 0.5f;
             Vector2 center = new Vector2(centerX, centerY);            
             // 计算基础半径，确保圆形波形图在画布内
-            float baseRadius = Math.Min(centerX, centerY) * 0.5f;
+            float baseRadius = Math.Min(centerX, centerY) * 0.6f;
 
             for (int i = 0; i < _barCount; i++)
             {
@@ -168,13 +251,13 @@ namespace WinExSpectrumTest.Canvas
         private Color GetSpectrumColor(float intensity)
         {
             // 根据强度创建彩虹色彩效果
-            if (intensity < 0.2f)
+            if (intensity < 0.1f)
                 return Color.FromArgb(128, 0, 100, 255); // 蓝色
-            else if (intensity < 0.4f)
+            else if (intensity < 0.2f)
                 return Color.FromArgb(128, 0, 255, 200); // 青色
-            else if (intensity < 0.6f)
+            else if (intensity < 0.3f)
                 return Color.FromArgb(128, 100, 255, 0); // 绿色
-            else if (intensity < 0.8f)
+            else if (intensity < 0.4f)
                 return Color.FromArgb(128, 255, 200, 0); // 黄色
             else
                 return Color.FromArgb(128, 255, 100, 100); // 红色
