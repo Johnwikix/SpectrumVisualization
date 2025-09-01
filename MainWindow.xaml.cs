@@ -1,3 +1,4 @@
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -13,6 +14,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
+using WinExSpectrumTest.Model;
 using WinUIEx;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -31,13 +33,21 @@ namespace WinExSpectrumTest
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             this.SetIcon("Assets/icon.ico");
+            this.AppWindow.Closing += AppWindow_Closing;
+        }
+
+        private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+        {
+            args.Cancel = true;
+            this.Hide();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             TopCommand.Opacity = 0;
             WindowHelper.Enable(this);
-            WindowHelper.SetClickThrough(this,true);            
+            WindowHelper.SetClickThrough(this,true); 
+            AppSettings.IsLocked = true;
         }
 
         private void TopCommand_PointerEntered(object sender, PointerRoutedEventArgs e)

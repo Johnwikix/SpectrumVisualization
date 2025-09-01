@@ -1,4 +1,5 @@
 ﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +9,8 @@ using Vanara.PInvoke;
 using Windows.System;
 using WinRT.Interop;
 using WinUIEx;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using Window = Microsoft.UI.Xaml.Window;
 
 namespace WinExSpectrumTest.Helper
 {
@@ -63,6 +66,30 @@ namespace WinExSpectrumTest.Helper
                     _originalWindowStyles.Remove(hwnd);
                 }
             }
+        }
+
+        public static bool IsWindowVisible(Window window)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+            return User32.IsWindowVisible(hwnd);
+        }
+
+        public static bool IsIconic(Window window)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+            return User32.IsIconic(hwnd);
+        }
+
+        public static void ShowWindow(Window window, ShowWindowCommand nCmdShow)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+            User32.ShowWindow(hwnd, nCmdShow);
+        }
+
+        public static bool SetForegroundWindow(Window window)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(window);
+            return User32.SetForegroundWindow(hwnd);
         }
     }
 }

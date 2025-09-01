@@ -16,6 +16,7 @@
             ContextMenuMode="SecondWindow"
             DataContext="{Binding}"
             IconSource="/Assets/icon.ico"
+            LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>

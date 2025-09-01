@@ -11,9 +11,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Vanara.PInvoke;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
+using WinExSpectrumTest.Model;
+using WinUIEx;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -26,6 +30,30 @@ namespace WinExSpectrumTest.Control
         {
             InitializeComponent();
         }
+        [RelayCommand]
+        public void ShowMainWindow()
+        {
+            if (App.MainWindow == null) return;
+            if (!AppSettings.IsLocked) {
+                if (WindowHelper.IsWindowVisible(App.MainWindow))
+                {
+                    // 如果窗口最小化，则恢复它
+                    if (WindowHelper.IsIconic(App.MainWindow))
+                    {
+                        WindowHelper.ShowWindow(App.MainWindow, ShowWindowCommand.SW_RESTORE);
+                    }
+                    // 将窗口置于前台
+                    WindowHelper.SetForegroundWindow(App.MainWindow);
+                }
+                else
+                {
+                    if (!App.MainWindow.Visible)
+                    {
+                        App.MainWindow.Show();
+                    }
+                }
+            }           
+        }
 
         [RelayCommand]
         public void UnlockWindow()
@@ -34,6 +62,7 @@ namespace WinExSpectrumTest.Control
             if (window == null) return;
             WindowHelper.SetClickThrough(window, false);
             WindowHelper.Disable(window);
+            AppSettings.IsLocked = false;
         }
 
         [RelayCommand]
