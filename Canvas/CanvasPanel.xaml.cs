@@ -64,6 +64,11 @@ namespace WinExSpectrumTest.Canvas
         {
             var session = args.DrawingSession;
             var size = sender.Size;
+            _rotationOffset += 0.001f;
+            if (_rotationOffset >= 2 * (float)Math.PI)
+            {
+                _rotationOffset -= 0f;
+            }
             DrawPlainSpectrum(session, size);
             DrawRoundSpectrum(session, size);
             DrawWaveform(session, size);
@@ -189,12 +194,7 @@ namespace WinExSpectrumTest.Canvas
         // 绘制波形线条
         private void DrawWaveform(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
-            if (_smoothedSpectrum == null) return;
-            _rotationOffset += 0.001f;
-            if (_rotationOffset >= 2 * (float)Math.PI)
-            {
-                _rotationOffset -= 0f;
-            }
+            if (_smoothedSpectrum == null) return;            
             var points = new Vector2[_barCount];
             float centerX = (float)size.Width * 0.5f;
             float centerY = (float)size.Height * 0.5f;
