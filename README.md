@@ -2,7 +2,7 @@
 
 A WinUI3-Based Audio Visualization Tool
 
-![example](\doc\pic\example.gif)
+![example](doc/pic/example.gif)
 
 ## 1. 项目简介 / Project Introduction
 
