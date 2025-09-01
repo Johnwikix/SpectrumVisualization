@@ -53,7 +53,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 30000f;
+                    _currentSpectrum[i] = spectrumData[index] * 10000f;
                 }
             }
         }

@@ -3,6 +3,7 @@ using NAudio.Wave;
 using System;
 using System.Diagnostics;
 using System.Threading.Channels;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WinExSpectrumTest.Analyzer
 {
@@ -10,9 +11,13 @@ namespace WinExSpectrumTest.Analyzer
     {
         private WasapiLoopbackCapture _capture;
         private int _sampleRate = 48000;
-        private readonly int _fftLength = 4096;        
-        private readonly float[] _fftBuffer;
-        private readonly Complex[] _fftData;
+        private readonly int _fftLength = 2048;
+        private readonly float[] _fftLeftBuffer;
+        private readonly float[] _fftRightBuffer;
+        private readonly Complex[] _fftLeftData;
+        private readonly Complex[] _fftRightData;
+        private float[] _spectrumLeftData;
+        private float[] _spectrumRightData;
         private float[] _spectrumData;
         private bool _disposed = false;
 
@@ -20,9 +25,10 @@ namespace WinExSpectrumTest.Analyzer
 
         public SpectrumAnalyzer()
         {
-            _fftBuffer = new float[_fftLength];
-            _fftData = new Complex[_fftLength];
-            
+            _fftLeftBuffer = new float[_fftLength];
+            _fftLeftData = new Complex[_fftLength];
+            _fftRightBuffer = new float[_fftLength];
+            _fftRightData = new Complex[_fftLength];
         }
 
         public void StartCapture()
@@ -31,7 +37,9 @@ namespace WinExSpectrumTest.Analyzer
             {
                 _capture = new WasapiLoopbackCapture();
                 _sampleRate = _capture.WaveFormat.SampleRate;
-                _spectrumData = new float[(int)(24000.0f / _sampleRate * _fftLength)/2];
+                _spectrumLeftData = new float[(int)(24000.0f / _sampleRate * _fftLength) / 2];
+                _spectrumRightData = new float[(int)(24000.0f / _sampleRate * _fftLength) / 2];
+                _spectrumData = new float[(int)(24000.0f / _sampleRate * _fftLength)];
                 Debug.WriteLine($"捕获设备: {_sampleRate}");
                 _capture.DataAvailable += OnDataAvailable;
                 _capture.RecordingStopped += OnRecordingStopped;
@@ -53,42 +61,48 @@ namespace WinExSpectrumTest.Analyzer
             if (_disposed || e.BytesRecorded == 0) return;
 
             // 将字节转换为浮点数
-            int samples = e.BytesRecorded / 8; 
+            int samples = e.BytesRecorded / 8;
             if (samples < _fftLength) return;
 
             for (int i = 0; i < _fftLength; i++)
             {
-                _fftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 8);
+                _fftLeftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 8);
+                _fftRightBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 8 + 4);
             }
-            // 准备FFT数据
             for (int i = 0; i < _fftLength; i++)
             {
-                _fftData[i].X = _fftBuffer[i]; // Real part
-                _fftData[i].Y = 0;             // Imaginary part
+                _fftLeftData[i].X = _fftLeftBuffer[i]; // Real part
+                _fftLeftData[i].Y = 0;             // Imaginary part
+                _fftRightData[i].X = _fftRightBuffer[i];
+                _fftRightData[i].Y = 0;
             }
 
-            // 执行FFT
-            FastFourierTransform.FFT(true, (int)Math.Log(_fftLength, 2), _fftData);            
-            // 计算频谱幅度
-            for (int i = 0; i < _spectrumData.Length; i++)
+            // FFT
+            FastFourierTransform.FFT(true, (int)Math.Log(_fftLength, 2), _fftLeftData);
+            FastFourierTransform.FFT(true, (int)Math.Log(_fftLength, 2), _fftRightData);
+            for (int i = 0; i < _spectrumLeftData.Length; i++)
             {
-                float real = (float)_fftData[i].X;
-                float imaginary = (float)_fftData[i].Y;
+                float real = (float)_fftLeftData[i].X;
+                float imaginary = (float)_fftLeftData[i].Y;
                 float magnitude = (float)Math.Sqrt(real * real + imaginary * imaginary);
-                //float frequency = i * _sampleRate /_fftLength;
-                //float compensationFactor = GetCompensationFactor(frequency);
-                _spectrumData[i] = magnitude;
+                float frequency = i * _sampleRate / _fftLength;
+                float compensationFactor = GetCompensationFactor(frequency);
+                _spectrumLeftData[i] = magnitude * compensationFactor;
+                _spectrumRightData[i] = (float)Math.Sqrt((float)_fftRightData[i].X * (float)_fftRightData[i].X + (float)_fftRightData[i].Y * (float)_fftRightData[i].Y) * compensationFactor;
+                for (int j = 0; j < _spectrumLeftData.Length; j++)
+                {
+                    _spectrumData[j] = _spectrumLeftData[_spectrumLeftData.Length - 1 - j];
+                }
+                Array.Copy(_spectrumRightData, 0, _spectrumData, _spectrumLeftData.Length, _spectrumRightData.Length);
             }
-            // 触发事件
             SpectrumDataUpdated?.Invoke(_spectrumData);
         }
 
         private float GetCompensationFactor(float freq)
         {
-            // 定义关键频率点和对应的补偿值
-            // 这个数组定义了你的补偿曲线
+            // 补偿曲线
             float[] frequencies = { 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 16000, 20000 };
-            float[] gains = { 0.2f, 0.3f, 0.4f, 0.6f, 0.8f, 1.0f, 1.2f, 1.3f, 1.1f, 0.9f, 0.8f };
+            float[] gains = { 1f, 0.5f, 0.6f, 0.6f, 0.8f, 1.0f, 1.2f, 1.3f, 1.1f, 0.9f, 0.8f };
             if (freq <= frequencies[0])
             {
                 return gains[0];
@@ -97,13 +111,12 @@ namespace WinExSpectrumTest.Analyzer
             {
                 return gains[gains.Length - 1];
             }
-            // 查找当前频率所在的区间
             int i = 0;
             while (freq > frequencies[i + 1])
             {
                 i++;
             }
-            // 在区间内进行线性插值
+            // 线性插值
             float x1 = frequencies[i];
             float y1 = gains[i];
             float x2 = frequencies[i + 1];
