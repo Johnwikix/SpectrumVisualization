@@ -117,17 +117,14 @@ namespace WinExSpectrumTest.Canvas
             float angleOffset = 0.01f;
             for (int i = 0; i < _barCount; i++)
             {
-                // 频谱条的高度现在代表径向的长度
+                // 径向长度
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.025f, 0.5f), 0);
                 float currentRadius = baseRadius + (height * baseRadius);
 
-                // 计算扇形的起始和结束角度
+                // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
-
-                // 根据频谱高度获取颜色
                 var color = GetSpectrumColor(height);
-
                 // 创建多边形的顶点
                 var polygonPoints = new List<Vector2>();
 
@@ -152,14 +149,10 @@ namespace WinExSpectrumTest.Canvas
                 // 绘制多边形，模拟频谱条
                 session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints.ToArray()), color);
 
-                // --- 增加发光效果 ---
                 if (height > 0.05f)
                 {
                     var glowColor = Color.FromArgb(30, color.R, color.G, color.B);
-
-                    // 重新计算外圆半径，增加发光效果的宽度
                     float glowRadius = currentRadius + 10;
-
                     var glowPoints = new List<Vector2>();
 
                     glowPoints.Add(new Vector2(
@@ -230,22 +223,6 @@ namespace WinExSpectrumTest.Canvas
             {
                 session.DrawLine(points[points.Length - 1], points[0], Color.FromArgb(128, 0, 255, 200), 2f);
             }
-            //if (_smoothedSpectrum == null) return;
-
-            //var points = new Vector2[_barCount];
-            //float width = (float)size.Width;
-            //float centerY = (float)size.Height * 0.5f;
-
-            //for (int i = 0; i < _barCount; i++)
-            //{
-            //    float x = (float)i / (_barCount - 1) * width;
-            //    float y = centerY - (_smoothedSpectrum[i] * 0.3f);
-            //    points[i] = new Vector2(x, y);
-            //}            
-            //for (int i = 0; i < points.Length - 1; i++)
-            //{
-            //    session.DrawLine(points[i], points[i + 1], Color.FromArgb(128, 0, 255, 200), 2f);
-            //}
         }
 
         private Color GetSpectrumColor(float intensity)
