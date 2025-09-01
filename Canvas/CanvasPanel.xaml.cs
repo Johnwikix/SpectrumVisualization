@@ -53,7 +53,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 10000f;
+                    _currentSpectrum[i] = spectrumData[index] * 5000f;
                 }
             }
         }
@@ -67,7 +67,7 @@ namespace WinExSpectrumTest.Canvas
 
             // 绘制频谱条
             float barWidth = (float)size.Width / _barCount;
-            float maxHeight = (float)size.Height * 0.8f;
+            float maxHeight = (float)size.Height * 0.4f;
 
             for (int i = 0; i < _barCount; i++)
             {
@@ -96,9 +96,7 @@ namespace WinExSpectrumTest.Canvas
                     session.FillRectangle(glowRect, glowColor);
                 }
             }
-
-            // 绘制顶部装饰线条
-            //DrawWaveform(session, size);
+            DrawWaveform(session, size);
         }
 
         private void SpectrumCanvasControl_Update(Microsoft.Graphics.Canvas.UI.Xaml.ICanvasAnimatedControl sender, Microsoft.Graphics.Canvas.UI.Xaml.CanvasAnimatedUpdateEventArgs args)
@@ -111,26 +109,24 @@ namespace WinExSpectrumTest.Canvas
                                      _currentSpectrum[i] * (1 - _smoothingFactor);
             }
         }
-
+        // 绘制波形线条
         private void DrawWaveform(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             if (_smoothedSpectrum == null) return;
 
             var points = new Vector2[_barCount];
             float width = (float)size.Width;
-            float centerY = (float)size.Height * 0.1f;
+            float centerY = (float)size.Height * 0.5f;
 
             for (int i = 0; i < _barCount; i++)
             {
                 float x = (float)i / (_barCount - 1) * width;
                 float y = centerY - (_smoothedSpectrum[i] * 0.3f);
                 points[i] = new Vector2(x, y);
-            }
-
-            // 绘制波形线条
+            }            
             for (int i = 0; i < points.Length - 1; i++)
             {
-                session.DrawLine(points[i], points[i + 1], Colors.Cyan, 2f);
+                session.DrawLine(points[i], points[i + 1], Color.FromArgb(128, 0, 255, 200), 2f);
             }
         }
 

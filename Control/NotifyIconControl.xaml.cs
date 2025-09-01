@@ -30,6 +30,7 @@ namespace WinExSpectrumTest.Control
         {
             InitializeComponent();
         }
+
         [RelayCommand]
         public void ShowMainWindow()
         {
@@ -37,12 +38,10 @@ namespace WinExSpectrumTest.Control
             if (!AppSettings.IsLocked) {
                 if (WindowHelper.IsWindowVisible(App.MainWindow))
                 {
-                    // 如果窗口最小化，则恢复它
                     if (WindowHelper.IsIconic(App.MainWindow))
                     {
                         WindowHelper.ShowWindow(App.MainWindow, ShowWindowCommand.SW_RESTORE);
                     }
-                    // 将窗口置于前台
                     WindowHelper.SetForegroundWindow(App.MainWindow);
                 }
                 else
