@@ -2,6 +2,8 @@
 
 A WinUI3-Based Audio Visualization Tool
 
+![example](\doc\pic\example.gif)
+
 ## 1. 项目简介 / Project Introduction
 
 SpectrumVisualization是一款基于 **WinUI3 框架**开发的轻量级音频可视化应用，采用 C# 实现核心逻辑。该工具可实时捕获系统或麦克风音频信号，通过动态波形等效果直观展示音频频谱特征，同时集成系统托盘功能，兼顾操作便捷性与 Windows 系统设计风格一致性。
