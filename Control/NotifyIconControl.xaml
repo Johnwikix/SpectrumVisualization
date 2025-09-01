@@ -22,7 +22,7 @@
                 <MenuFlyout>
                     <MenuFlyoutItem
                         x:Name="Unlock"
-                        Width="200"
+                        Width="120"
                         Command="{x:Bind UnlockWindowCommand}"
                         Text="解锁窗口">
                         <MenuFlyoutItem.Icon>

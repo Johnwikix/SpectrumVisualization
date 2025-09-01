@@ -10,8 +10,8 @@
     xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
     xmlns:winex="using:WinUIEx"
     Title="WinExSpectrumTest"
-    MinWidth="1024"
-    MinHeight="768"
+    MinWidth="512"
+    MinHeight="512"
     mc:Ignorable="d">
 
     <winex:WindowEx.SystemBackdrop>
@@ -19,7 +19,7 @@
     </winex:WindowEx.SystemBackdrop>
 
     <Grid>
-        <controls:NotifyIconControl x:Name="AppNotifyIconControl" />
+        <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
             <myCanvas:CanvasPanel x:Name="MyCanvas" />
         </Grid>

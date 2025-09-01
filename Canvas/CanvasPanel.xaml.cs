@@ -129,7 +129,7 @@ namespace WinExSpectrumTest.Canvas
             for (int i = 0; i < _barCount; i++)
             {
                 float angle = (float)i / (_barCount - 1) * 2 * (float)Math.PI - _rotationOffset;
-                float radius = baseRadius + _smoothedSpectrum[i]*0.5f;
+                float radius = baseRadius + _smoothedSpectrum.Average() + _smoothedSpectrum[i]*0.5f;
                 // 将极坐标转换为笛卡尔坐标
                 float x = centerX + radius * (float)Math.Cos(angle);
                 float y = centerY + radius * (float)Math.Sin(angle);
