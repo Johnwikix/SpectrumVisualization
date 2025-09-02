@@ -8,14 +8,18 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Media.Control;
+using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
 
@@ -33,10 +37,17 @@ namespace WinExSpectrumTest.Canvas
         private readonly float _smoothingFactor = 0.5f;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
+        private int _middleNum = 0;
+        private bool _isMiddleIncreasing = true;
+        private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
+        private GlobalSystemMediaTransportControlsSession _currentSession;
+        private IRandomAccessStreamWithContentType _albumStream;
+        private CanvasBitmap _albumArtBitmap;
         public CanvasPanel()
         {
             InitializeComponent();
             InitializeAudio();
+            _ = InitializeSMTCAsync();
         }
 
         private void InitializeAudio()
@@ -48,6 +59,92 @@ namespace WinExSpectrumTest.Canvas
             _analyzer.StartCapture();
         }
 
+        public async Task InitializeSMTCAsync()
+        {
+            try
+            {
+                _sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+                if (_sessionManager != null)
+                {
+                    _sessionManager.SessionsChanged += OnSessionsChanged;
+                    await UpdateCurrentSession();
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private async void OnSessionsChanged(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
+        {
+            await UpdateCurrentSession();
+        }
+
+        private async Task UpdateCurrentSession()
+        {
+            try
+            {
+                if (_currentSession != null)
+                {
+                    _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                    _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                }
+                var sessions = _sessionManager.GetSessions();
+                _currentSession = sessions.Count > 0 ? sessions[0] : null;
+                if (_currentSession != null)
+                {
+                    _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                    _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    await GetCurrentMediaInfo();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"更新会话失败: {ex.Message}");
+            }
+        }
+
+        private async void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
+        {
+            await GetCurrentMediaInfo();
+        }
+
+        private async void OnPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
+        {
+            await GetCurrentMediaInfo();
+        }
+
+        public async Task GetCurrentMediaInfo()
+        {
+            if (_currentSession == null)
+            {
+                _albumArtBitmap = null;
+                return;
+            }
+
+            try
+            {
+                GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
+                //var playbackInfo = _currentSession.GetPlaybackInfo();
+
+                // 获取并加载封面
+                if (mediaProperties != null && mediaProperties.Thumbnail != null)
+                {
+                    _albumStream = await mediaProperties.Thumbnail.OpenReadAsync();
+                    //await LoadAlbumArtAsync(mediaProperties.Thumbnail);
+                }
+                else
+                {
+                    _albumArtBitmap = null;
+                }
+            }
+            catch (Exception)
+            {
+                _albumArtBitmap = null;
+            }
+        }
+
+
         private void OnSpectrumDataUpdated(float[] spectrumData)
         {
             for (int i = 0; i < _barCount; i++)
@@ -55,7 +152,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 2500f;
+                    _currentSpectrum[i] = spectrumData[index] * 2000f;
                 }
             }
         }
@@ -67,11 +164,32 @@ namespace WinExSpectrumTest.Canvas
             _rotationOffset += 0.001f;
             if (_rotationOffset >= 2 * (float)Math.PI)
             {
-                _rotationOffset -= 0f;
+                _rotationOffset = 0f;
+            }
+            if (_isMiddleIncreasing)
+            {
+                if (_middleNum >= 255)
+                {
+                    _isMiddleIncreasing = false;
+                }
+                else {
+                    _middleNum += 1;
+                }               
+            }
+            else {
+                if (_middleNum <= 0)
+                {
+                    _isMiddleIncreasing = true;
+                }
+                else
+                {
+                    _middleNum -= 1;
+                }
             }
             DrawPlainSpectrum(session, size);
             DrawRoundSpectrum(session, size);
-            DrawWaveform(session, size);
+            //DrawAlbumArt(session, size);
+            //DrawWaveform(session, size);
         }
 
         private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
@@ -123,13 +241,13 @@ namespace WinExSpectrumTest.Canvas
             for (int i = 0; i < _barCount; i++)
             {
                 // 径向长度
-                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.025f, 0.5f), 0);
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.4f), 0);
                 float currentRadius = baseRadius + (height * baseRadius);
 
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
-                var color = GetSpectrumColor(height);
+                var color = GetSpectrumColorLoop(height,i);
                 // 创建多边形的顶点
                 var polygonPoints = new List<Vector2>();
 
@@ -225,6 +343,24 @@ namespace WinExSpectrumTest.Canvas
             }
         }
 
+        private async void DrawAlbumArt(CanvasDrawingSession session, Windows.Foundation.Size size)
+        {
+           DispatcherQueue.TryEnqueue(async () => {
+               _albumArtBitmap = await CanvasBitmap.LoadAsync(session.Device, _albumStream);
+               if (_albumArtBitmap == null)
+               {
+                   return;
+               }
+               session.DrawImage(_albumArtBitmap);
+           });            
+        }
+
+        private Color GetSpectrumColorLoop(float intensity, int i = 0)
+        {
+            float coe = 256 / _barCount;
+            return Color.FromArgb(128, (byte)(i * coe), (byte)_middleNum, (byte)(255 - i * coe));
+        }
+
         private Color GetSpectrumColor(float intensity)
         {
             // 根据强度创建彩虹色彩效果
@@ -237,7 +373,7 @@ namespace WinExSpectrumTest.Canvas
             else if (intensity < 0.4f)
                 return Color.FromArgb(128, 255, 200, 0); // 黄色
             else
-                return Color.FromArgb(128, 255, 100, 100); // 红色
+                return Color.FromArgb(128, 255, 100, 0);
         }
         public void Dispose()
         {

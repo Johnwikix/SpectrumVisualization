@@ -20,6 +20,7 @@ namespace WinExSpectrumTest.Analyzer
         private float[] _spectrumRightData;
         private float[] _spectrumData;
         private bool _disposed = false;
+        private double[] _hammingWindow;
 
         public event Action<float[]> SpectrumDataUpdated;
 
@@ -29,6 +30,12 @@ namespace WinExSpectrumTest.Analyzer
             _fftLeftData = new Complex[_fftLength];
             _fftRightBuffer = new float[_fftLength];
             _fftRightData = new Complex[_fftLength];
+            _hammingWindow = new double[_fftLength];
+            //汉明窗
+            for (int i = 0; i < _fftLength; i++)
+            {
+                _hammingWindow[i] = 0.54 - 0.46 * Math.Cos((2 * Math.PI * i) / (_fftLength - 1));
+            }
         }
 
         public void StartCapture()
@@ -59,11 +66,9 @@ namespace WinExSpectrumTest.Analyzer
         private void OnDataAvailable(object sender, WaveInEventArgs e)
         {
             if (_disposed || e.BytesRecorded == 0) return;
-
             // 将字节转换为浮点数
             int samples = e.BytesRecorded / 8;
             if (samples < _fftLength) return;
-
             for (int i = 0; i < _fftLength; i++)
             {
                 _fftLeftBuffer[i] = BitConverter.ToSingle(e.Buffer, i * 8);
@@ -71,9 +76,9 @@ namespace WinExSpectrumTest.Analyzer
             }
             for (int i = 0; i < _fftLength; i++)
             {
-                _fftLeftData[i].X = _fftLeftBuffer[i]; // Real part
+                _fftLeftData[i].X = _fftLeftBuffer[i] * (float)_hammingWindow[i]; // Real part
                 _fftLeftData[i].Y = 0;             // Imaginary part
-                _fftRightData[i].X = _fftRightBuffer[i];
+                _fftRightData[i].X = _fftRightBuffer[i] * (float)_hammingWindow[i];
                 _fftRightData[i].Y = 0;
             }
 
@@ -102,7 +107,7 @@ namespace WinExSpectrumTest.Analyzer
         {
             // 补偿曲线
             float[] frequencies = { 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 16000, 20000 };
-            float[] gains = { 1f, 0.5f, 0.6f, 0.6f, 0.8f, 1.0f, 1.2f, 1.3f, 1.1f, 0.9f, 0.8f };
+            float[] gains = { 0.5f, 0.3f, 0.4f, 0.6f, 0.8f, 1.0f, 1.2f, 1.3f, 1.1f, 0.9f, 0.8f };
             if (freq <= frequencies[0])
             {
                 return gains[0];
@@ -122,15 +127,6 @@ namespace WinExSpectrumTest.Analyzer
             float x2 = frequencies[i + 1];
             float y2 = gains[i + 1];
             return y1 + (freq - x1) * ((y2 - y1) / (x2 - x1));
-        }
-
-        private void ApplyHammingWindow(float[] data, int length)
-        {
-            for (int i = 0; i < length; i++)
-            {
-                double window = 0.54 - 0.46 * Math.Cos(2.0 * Math.PI * i / (length - 1));
-                data[i] *= (float)window;
-            }
         }
 
         private void OnRecordingStopped(object sender, StoppedEventArgs e)
