@@ -154,7 +154,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 2000f;
+                    _currentSpectrum[i] = spectrumData[index] * 5000f;
                 }
             }
         }
@@ -381,7 +381,12 @@ namespace WinExSpectrumTest.Canvas
                 session.Transform = Matrix3x2.CreateRotation(-_rotationOffset, new Vector2(centerX, centerY)) * session.Transform;
                 using (session.CreateLayer(1.0f, circleGeometry))
                 {
-                    session.DrawImage(_albumArtBitmap, new Rect(drawX, drawY, drawWidth, drawHeight));
+                    session.DrawImage(
+                        _albumArtBitmap,
+                        new Rect(drawX, drawY, drawWidth, drawHeight),
+                        new Rect(0, 0, _albumArtBitmap.SizeInPixels.Width, _albumArtBitmap.SizeInPixels.Height),
+                        1.0f,
+                        CanvasImageInterpolation.HighQualityCubic);
                 }
 
             }
