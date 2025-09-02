@@ -10,8 +10,10 @@
     xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
     xmlns:winex="using:WinUIEx"
     Title="WinExSpectrumTest"
-    MinWidth="512"
-    MinHeight="512"
+    Width="512"
+    Height="512"
+    MinWidth="384"
+    MinHeight="384"
     mc:Ignorable="d">
 
     <winex:WindowEx.SystemBackdrop>

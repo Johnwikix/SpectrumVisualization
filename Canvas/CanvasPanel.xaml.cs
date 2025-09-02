@@ -1,3 +1,4 @@
+using ABI.Microsoft.UI.Xaml;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.UI;
@@ -16,6 +17,7 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Media.Control;
@@ -28,13 +30,13 @@ using WinExSpectrumTest.Analyzer;
 
 namespace WinExSpectrumTest.Canvas
 {
-    public sealed partial class CanvasPanel : UserControl
+    public sealed partial class CanvasPanel : Microsoft.UI.Xaml.Controls.UserControl
     {
         private SpectrumAnalyzer _analyzer;
         private float[] _currentSpectrum;
         private float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
-        private readonly float _smoothingFactor = 0.5f;
+        private readonly float _smoothingFactor = 0.9f;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
         private int _middleNum = 0;
@@ -42,6 +44,7 @@ namespace WinExSpectrumTest.Canvas
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
         private GlobalSystemMediaTransportControlsSession _currentSession;
         private IRandomAccessStreamWithContentType _albumStream;
+        private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
         public CanvasPanel()
         {
@@ -126,12 +129,11 @@ namespace WinExSpectrumTest.Canvas
             {
                 GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
                 //var playbackInfo = _currentSession.GetPlaybackInfo();
-
                 // 获取并加载封面
                 if (mediaProperties != null && mediaProperties.Thumbnail != null)
                 {
-                    _albumStream = await mediaProperties.Thumbnail.OpenReadAsync();
-                    //await LoadAlbumArtAsync(mediaProperties.Thumbnail);
+                    var stream = await mediaProperties.Thumbnail.OpenReadAsync();
+                    _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, stream);
                 }
                 else
                 {
@@ -159,6 +161,7 @@ namespace WinExSpectrumTest.Canvas
 
         private void SpectrumCanvasControl_Draw(Microsoft.Graphics.Canvas.UI.Xaml.ICanvasAnimatedControl sender, Microsoft.Graphics.Canvas.UI.Xaml.CanvasAnimatedDrawEventArgs args)
         {
+            _device = sender.Device;
             var session = args.DrawingSession;
             var size = sender.Size;
             _rotationOffset += 0.001f;
@@ -188,7 +191,7 @@ namespace WinExSpectrumTest.Canvas
             }
             DrawPlainSpectrum(session, size);
             DrawRoundSpectrum(session, size);
-            //DrawAlbumArt(session, size);
+            DrawAlbumArt(session, size);
             //DrawWaveform(session, size);
         }
 
@@ -235,7 +238,7 @@ namespace WinExSpectrumTest.Canvas
 
             float centerX = (float)size.Width * 0.5f;
             float centerY = (float)size.Height * 0.5f;
-            float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 10;
+            float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 5;
             float angleStep = 2 * (float)Math.PI / _barCount;
             float angleOffset = 0.01f;
             for (int i = 0; i < _barCount; i++)
@@ -345,14 +348,45 @@ namespace WinExSpectrumTest.Canvas
 
         private async void DrawAlbumArt(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
-           DispatcherQueue.TryEnqueue(async () => {
-               _albumArtBitmap = await CanvasBitmap.LoadAsync(session.Device, _albumStream);
-               if (_albumArtBitmap == null)
-               {
-                   return;
-               }
-               session.DrawImage(_albumArtBitmap);
-           });            
+            try
+            {                
+                if (_albumArtBitmap == null)
+                {
+                    return;
+                }
+                float centerX = (float)size.Width * 0.5f;
+                float centerY = (float)size.Height * 0.5f;
+                float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 5;
+                var circleGeometry = CanvasGeometry.CreateCircle(session, centerX, centerY, baseRadius);
+
+                // 计算图片缩放和位置，使其居中并覆盖圆形区域
+                float imageAspectRatio = (float)_albumArtBitmap.SizeInPixels.Width / _albumArtBitmap.SizeInPixels.Height;
+                float targetWidth = baseRadius * 2;
+                float targetHeight = baseRadius * 2;
+
+                float drawX, drawY, drawWidth, drawHeight;
+
+                if (imageAspectRatio > 1)
+                {
+                    drawHeight = targetHeight;
+                    drawWidth = drawHeight * imageAspectRatio;
+                }
+                else 
+                {
+                    drawWidth = targetWidth;
+                    drawHeight = drawWidth / imageAspectRatio;
+                }
+                drawX = centerX - drawWidth / 2;
+                drawY = centerY - drawHeight / 2;
+                session.Transform = Matrix3x2.CreateRotation(-_rotationOffset, new Vector2(centerX, centerY)) * session.Transform;
+                using (session.CreateLayer(1.0f, circleGeometry))
+                {
+                    session.DrawImage(_albumArtBitmap, new Rect(drawX, drawY, drawWidth, drawHeight));
+                }
+
+            }
+            catch (Exception) {
+            }                
         }
 
         private Color GetSpectrumColorLoop(float intensity, int i = 0)
