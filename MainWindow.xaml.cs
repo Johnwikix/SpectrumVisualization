@@ -15,6 +15,7 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
 using WinExSpectrumTest.Model;
+using WinExSpectrumTest.Service;
 using WinUIEx;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -34,6 +35,13 @@ namespace WinExSpectrumTest
             ExtendsContentIntoTitleBar = true;
             this.SetIcon("Assets/icon.ico");
             this.AppWindow.Closing += AppWindow_Closing;
+            InitializeData();
+        }
+
+        private async void InitializeData()
+        {
+            await DataService.Initialize();
+            await DataService.LoadSettingAsync();
         }
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)

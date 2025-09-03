@@ -26,7 +26,12 @@
                         Command="{x:Bind UnlockWindowCommand}"
                         Text="解锁窗口">
                         <MenuFlyoutItem.Icon>
-                            <FontIcon Glyph="&#xE705;" />
+                            <FontIcon Glyph="&#xE785;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem x:Name="Settings" Command="{x:Bind SettingCommand}" Text="设置">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator />

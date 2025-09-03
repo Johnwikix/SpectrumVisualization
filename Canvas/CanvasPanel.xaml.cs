@@ -27,6 +27,7 @@ using Windows.Media.Control;
 using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
+using WinExSpectrumTest.Model;
 using static Vanara.PInvoke.Kernel32;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -54,10 +55,15 @@ namespace WinExSpectrumTest.Canvas
         private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
         private float _average = 0f;
+        private CanvasTextFormat _titleTextFormat;
+        private CanvasTextFormat _artistTextFormat;
+        private float _centerX = 0f;
+        private float _centerY = 0f;
         public CanvasPanel()
         {
             InitializeComponent();
             InitializeAudio();
+            InitializeText();
             _ = InitializeSMTCAsync();
         }
 
@@ -68,6 +74,28 @@ namespace WinExSpectrumTest.Canvas
             _currentSpectrum = new float[_barCount];
             _smoothedSpectrum = new float[_barCount];
             _analyzer.StartCapture();
+        }
+
+        private void InitializeText()
+        {
+            _titleTextFormat = new()
+            {
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
+            _artistTextFormat = new()
+            {
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
         }
 
         public async Task InitializeSMTCAsync()
@@ -132,21 +160,24 @@ namespace WinExSpectrumTest.Canvas
                 _albumArtBitmap = null;
                 return;
             }
-
             try
             {
-                _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();                
+                _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
+                _title = _mediaProperties?.Title;
+                _artist = _mediaProperties?.Artist;
                 // 获取并加载封面
                 if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
-                {
-                   
-                    _title = _mediaProperties.Title;
-                    _artist = _mediaProperties.Artist;
+                { 
                     DispatcherQueue.TryEnqueue(async () => {
-                        _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
-                        _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
-                    });
-                    
+                        try
+                        {
+                            _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
+                            _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
+                        }
+                        catch (Exception) {
+                            _albumArtBitmap = null;
+                        }                        
+                    });                    
                 }
                 else
                 {
@@ -179,7 +210,7 @@ namespace WinExSpectrumTest.Canvas
             var size = sender.Size;
             _average = _smoothedSpectrum.Average();
             if (_average > 0) {
-                _rotationOffset += 0.001f;
+                _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
                 if (_rotationOffset >= 2 * (float)Math.PI)
                 {
                     _rotationOffset = 0f;
@@ -206,12 +237,14 @@ namespace WinExSpectrumTest.Canvas
                         _middleNum -= 1;
                     }
                 }
+                _centerX = (float)size.Width * 0.5f;
+                _centerY = (float)size.Height * 0.5f;
                 //DrawPlainSpectrum(session, size);
                 DrawRoundSpectrum(session, size);
                 DrawAlbumArt(session, size);
                 DrawTitleAndArtist(session,size);
-            }            
-            //DrawWaveform(session, size);
+                //DrawWaveform(session, size);
+            }
         }
 
         private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
@@ -253,11 +286,8 @@ namespace WinExSpectrumTest.Canvas
 
         private void DrawRoundSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
         {
-            if (_smoothedSpectrum == null) return;
-
-            float centerX = (float)size.Width * 0.5f;
-            float centerY = (float)size.Height * 0.5f;
-            float baseRadius = Math.Min(centerX, centerY) * 0.5f;
+            if (_smoothedSpectrum == null) return;           
+            float baseRadius = Math.Min(_centerX, _centerY) * 0.5f;
             float angleStep = 2 * (float)Math.PI / _barCount;
             float angleOffset = 0.01f;
             for (int i = 0; i < _barCount; i++)
@@ -275,21 +305,21 @@ namespace WinExSpectrumTest.Canvas
 
                 // 1. 添加内圆的起始点和结束点
                 polygonPoints.Add(new Vector2(
-                    centerX + baseRadius * (float)Math.Cos(startAngle),
-                    centerY + baseRadius * (float)Math.Sin(startAngle)));
+                    _centerX + baseRadius * (float)Math.Cos(startAngle),
+                    _centerY + baseRadius * (float)Math.Sin(startAngle)));
 
                 polygonPoints.Add(new Vector2(
-                    centerX + baseRadius * (float)Math.Cos(endAngle),
-                    centerY + baseRadius * (float)Math.Sin(endAngle)));
+                    _centerX + baseRadius * (float)Math.Cos(endAngle),
+                    _centerY + baseRadius * (float)Math.Sin(endAngle)));
 
                 // 2. 添加外圆的结束点和起始点，注意顺序，以形成闭合的多边形
                 polygonPoints.Add(new Vector2(
-                    centerX + currentRadius * (float)Math.Cos(endAngle),
-                    centerY + currentRadius * (float)Math.Sin(endAngle)));
+                    _centerX + currentRadius * (float)Math.Cos(endAngle),
+                    _centerY + currentRadius * (float)Math.Sin(endAngle)));
 
                 polygonPoints.Add(new Vector2(
-                    centerX + currentRadius * (float)Math.Cos(startAngle),
-                    centerY + currentRadius * (float)Math.Sin(startAngle)));
+                    _centerX + currentRadius * (float)Math.Cos(startAngle),
+                    _centerY + currentRadius * (float)Math.Sin(startAngle)));
 
                 // 绘制多边形，模拟频谱条
                 session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints.ToArray()), color);
@@ -301,20 +331,20 @@ namespace WinExSpectrumTest.Canvas
                     var glowPoints = new List<Vector2>();
 
                     glowPoints.Add(new Vector2(
-                        centerX + currentRadius * (float)Math.Cos(startAngle),
-                        centerY + currentRadius * (float)Math.Sin(startAngle)));
+                        _centerX + currentRadius * (float)Math.Cos(startAngle),
+                        _centerY + currentRadius * (float)Math.Sin(startAngle)));
 
                     glowPoints.Add(new Vector2(
-                        centerX + currentRadius * (float)Math.Cos(endAngle),
-                        centerY + currentRadius * (float)Math.Sin(endAngle)));
+                        _centerX + currentRadius * (float)Math.Cos(endAngle),
+                        _centerY + currentRadius * (float)Math.Sin(endAngle)));
 
                     glowPoints.Add(new Vector2(
-                        centerX + glowRadius * (float)Math.Cos(endAngle),
-                        centerY + glowRadius * (float)Math.Sin(endAngle)));
+                        _centerX + glowRadius * (float)Math.Cos(endAngle),
+                        _centerY + glowRadius * (float)Math.Sin(endAngle)));
 
                     glowPoints.Add(new Vector2(
-                        centerX + glowRadius * (float)Math.Cos(startAngle),
-                        centerY + glowRadius * (float)Math.Sin(startAngle)));
+                        _centerX + glowRadius * (float)Math.Cos(startAngle),
+                        _centerY + glowRadius * (float)Math.Sin(startAngle)));
 
                     session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints.ToArray()), glowColor);
                 }
@@ -373,10 +403,8 @@ namespace WinExSpectrumTest.Canvas
                 {
                     return;
                 }
-                float centerX = (float)size.Width * 0.5f;
-                float centerY = (float)size.Height * 0.5f;
-                float baseRadius = Math.Min(centerX, centerY) * 0.5f ;
-                var circleGeometry = CanvasGeometry.CreateCircle(session, centerX, centerY, baseRadius);
+                float baseRadius = Math.Min(_centerX, _centerY) * 0.5f ;
+                var circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, baseRadius);
 
                 // 计算图片缩放和位置，使其居中并覆盖圆形区域
                 float imageAspectRatio = (float)_albumArtBitmap.SizeInPixels.Width / _albumArtBitmap.SizeInPixels.Height;
@@ -395,19 +423,18 @@ namespace WinExSpectrumTest.Canvas
                     drawWidth = targetWidth;
                     drawHeight = drawWidth / imageAspectRatio;
                 }
-                drawX = centerX - drawWidth / 2;
-                drawY = centerY - drawHeight / 2;
-                session.Transform = Matrix3x2.CreateRotation(-_rotationOffset, new Vector2(centerX, centerY)) * session.Transform;
+                drawX = _centerX - drawWidth / 2;
+                drawY = _centerY - drawHeight / 2;
+                session.Transform = Matrix3x2.CreateRotation(-_rotationOffset, new Vector2(_centerX, _centerY)) * session.Transform;
                 using (session.CreateLayer(1.0f, circleGeometry))
                 {
                     session.DrawImage(
                         _albumArtBitmap,
                         new Rect(drawX, drawY, drawWidth, drawHeight),
                         new Rect(0, 0, _albumArtBitmap.SizeInPixels.Width, _albumArtBitmap.SizeInPixels.Height),
-                        1.0f,
+                        AppSettings.CoverOpacity,
                         CanvasImageInterpolation.HighQualityCubic);
                 }
-
             }
             catch (Exception) {
             }                
@@ -417,26 +444,12 @@ namespace WinExSpectrumTest.Canvas
         {
             if (string.IsNullOrEmpty(_title) && string.IsNullOrEmpty(_artist)) return;
             float maxTextWidth = Math.Min((float)size.Width, (float)size.Height) * 0.4f;
-            float centerX = (float)size.Width * 0.5f - maxTextWidth/2;
-            float centerY = (float)size.Height * 0.5f-20;
-            CanvasTextFormat _titleTextFormat = new()
-            {
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = CanvasHorizontalAlignment.Center,
-                WordWrapping = CanvasWordWrapping.NoWrap,
-                TrimmingSign = CanvasTrimmingSign.Ellipsis,
-                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
-            };
-            CanvasTextFormat _artistTextFormat = new()
-            {
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = CanvasHorizontalAlignment.Center,
-                WordWrapping = CanvasWordWrapping.NoWrap,
-                TrimmingSign = CanvasTrimmingSign.Ellipsis,
-                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
-            };
+            float baseFontSize = 18f;
+            float newFontSize = baseFontSize * (maxTextWidth / 200f);
+            float centerX = _centerX - maxTextWidth/2;
+            float centerY = _centerY - newFontSize;
+            _titleTextFormat.FontSize = newFontSize;
+            _artistTextFormat.FontSize = newFontSize * 0.9f;
             CanvasTextLayout titleLayout = new(
                _device, _title ?? string.Empty,
                _titleTextFormat, maxTextWidth, 20
@@ -448,33 +461,33 @@ namespace WinExSpectrumTest.Canvas
             session.DrawTextLayout(
                 titleLayout,
                 new Vector2(centerX, centerY),
-                Color.FromArgb(255, 255, 255, 255)
+                Color.FromArgb((byte)(255 * AppSettings.FontOpacity), 255, 255, 255)
                 );
             session.DrawTextLayout(
                 artistLayout,
                 new Vector2(centerX, centerY + (float)titleLayout.LayoutBounds.Height),
-                Color.FromArgb(255, 255, 255, 255));
+                Color.FromArgb((byte)(255 * AppSettings.FontOpacity), 255, 255, 255));
         }
 
         private Color GetSpectrumColorLoop(float intensity, int i = 0)
         {
             float coe = 256 / _barCount;
-            return Color.FromArgb(128, (byte)(i * coe), (byte)_middleNum, (byte)(255 - i * coe));
+            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)(i * coe), (byte)_middleNum, (byte)(255 - i * coe));
         }
 
         private Color GetSpectrumColor(float intensity)
         {
             // 根据强度创建彩虹色彩效果
             if (intensity < 0.1f)
-                return Color.FromArgb(128, 0, 100, 255); // 蓝色
+                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 0, 100, 255); // 蓝色
             else if (intensity < 0.2f)
-                return Color.FromArgb(128, 0, 255, 200); // 青色
+                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 0, 255, 200); // 青色
             else if (intensity < 0.3f)
-                return Color.FromArgb(128, 100, 255, 0); // 绿色
+                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 100, 255, 0); // 绿色
             else if (intensity < 0.4f)
-                return Color.FromArgb(128, 255, 200, 0); // 黄色
+                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 255, 200, 0); // 黄色
             else
-                return Color.FromArgb(128, 255, 100, 0);
+                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 255, 100, 0);
         }
         public void Dispose()
         {

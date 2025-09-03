@@ -17,6 +17,7 @@ SpectrumVisualization is a lightweight audio visualization application developed
 | 实时音频可视化                 | 支持波浪线等动态效果，实时反映音频频率、强度变化 / Supports dynamic effects like wave lines, reflecting audio frequency and intensity changes in real-time |
 | 系统托盘集成                   | 可最小化至托盘，通过右键菜单快速执行 “显示窗口”“退出” 等操作 / Minimizable to system tray, with right-click menu for quick operations like "Show Window" and "Exit" |
 | 轻量化架构                     | 基于 WinUI3 现代 UI 框架，界面流畅、资源占用低，适配 Windows 11/10 设计规范 / Built on WinUI3 modern UI framework, with smooth interface, low resource usage, and compatibility with Windows 11/10 design standards |
+| SMTC读取                       | 读取当前SMTC中正在播放的音乐封面，标题和艺术家 / Read the music cover, title, and artist that is currently playing in SMTC |
 
 ## 3. 技术栈 / Technology Stack
 

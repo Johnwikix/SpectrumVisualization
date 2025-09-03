@@ -16,6 +16,7 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
 using WinExSpectrumTest.Model;
+using WinExSpectrumTest.View;
 using WinUIEx;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -52,6 +53,11 @@ namespace WinExSpectrumTest.Control
                     }
                 }
             }           
+        }
+        [RelayCommand]
+        public void Setting() {
+            var settingWindow = new SettingWindow();
+            settingWindow.Activate();
         }
 
         [RelayCommand]
