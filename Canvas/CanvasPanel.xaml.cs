@@ -1,7 +1,10 @@
 using ABI.Microsoft.UI.Xaml;
 using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
 using Microsoft.Graphics.Canvas.Geometry;
+using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -24,6 +27,7 @@ using Windows.Media.Control;
 using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
+using static Vanara.PInvoke.Kernel32;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -43,9 +47,13 @@ namespace WinExSpectrumTest.Canvas
         private bool _isMiddleIncreasing = true;
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
         private GlobalSystemMediaTransportControlsSession _currentSession;
-        private IRandomAccessStreamWithContentType _albumStream;
+        private GlobalSystemMediaTransportControlsSessionMediaProperties _mediaProperties;
+        private IRandomAccessStreamWithContentType _thumbnail;
+        private string _title;
+        private string _artist;
         private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
+        private float _average = 0f;
         public CanvasPanel()
         {
             InitializeComponent();
@@ -127,13 +135,18 @@ namespace WinExSpectrumTest.Canvas
 
             try
             {
-                GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
-                //var playbackInfo = _currentSession.GetPlaybackInfo();
+                _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();                
                 // 获取并加载封面
-                if (mediaProperties != null && mediaProperties.Thumbnail != null)
+                if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
                 {
-                    var stream = await mediaProperties.Thumbnail.OpenReadAsync();
-                    _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, stream);
+                   
+                    _title = _mediaProperties.Title;
+                    _artist = _mediaProperties.Artist;
+                    DispatcherQueue.TryEnqueue(async () => {
+                        _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
+                        _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
+                    });
+                    
                 }
                 else
                 {
@@ -154,7 +167,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 5000f;
+                    _currentSpectrum[i] = spectrumData[index] * 2500f;
                 }
             }
         }
@@ -164,34 +177,40 @@ namespace WinExSpectrumTest.Canvas
             _device = sender.Device;
             var session = args.DrawingSession;
             var size = sender.Size;
-            _rotationOffset += 0.001f;
-            if (_rotationOffset >= 2 * (float)Math.PI)
-            {
-                _rotationOffset = 0f;
-            }
-            if (_isMiddleIncreasing)
-            {
-                if (_middleNum >= 255)
+            _average = _smoothedSpectrum.Average();
+            if (_average > 0) {
+                _rotationOffset += 0.001f;
+                if (_rotationOffset >= 2 * (float)Math.PI)
                 {
-                    _isMiddleIncreasing = false;
+                    _rotationOffset = 0f;
                 }
-                else {
-                    _middleNum += 1;
-                }               
-            }
-            else {
-                if (_middleNum <= 0)
+                if (_isMiddleIncreasing)
                 {
-                    _isMiddleIncreasing = true;
+                    if (_middleNum >= 255)
+                    {
+                        _isMiddleIncreasing = false;
+                    }
+                    else
+                    {
+                        _middleNum += 1;
+                    }
                 }
                 else
                 {
-                    _middleNum -= 1;
+                    if (_middleNum <= 0)
+                    {
+                        _isMiddleIncreasing = true;
+                    }
+                    else
+                    {
+                        _middleNum -= 1;
+                    }
                 }
-            }
-            DrawPlainSpectrum(session, size);
-            DrawRoundSpectrum(session, size);
-            DrawAlbumArt(session, size);
+                //DrawPlainSpectrum(session, size);
+                DrawRoundSpectrum(session, size);
+                DrawAlbumArt(session, size);
+                DrawTitleAndArtist(session,size);
+            }            
             //DrawWaveform(session, size);
         }
 
@@ -238,14 +257,14 @@ namespace WinExSpectrumTest.Canvas
 
             float centerX = (float)size.Width * 0.5f;
             float centerY = (float)size.Height * 0.5f;
-            float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 5;
+            float baseRadius = Math.Min(centerX, centerY) * 0.5f;
             float angleStep = 2 * (float)Math.PI / _barCount;
             float angleOffset = 0.01f;
             for (int i = 0; i < _barCount; i++)
             {
                 // 径向长度
-                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.4f), 0);
-                float currentRadius = baseRadius + (height * baseRadius);
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.5f), 0);
+                float currentRadius = baseRadius + _average +(height * baseRadius);
 
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
@@ -356,7 +375,7 @@ namespace WinExSpectrumTest.Canvas
                 }
                 float centerX = (float)size.Width * 0.5f;
                 float centerY = (float)size.Height * 0.5f;
-                float baseRadius = Math.Min(centerX, centerY) * 0.5f + _smoothedSpectrum.Average() * 5;
+                float baseRadius = Math.Min(centerX, centerY) * 0.5f ;
                 var circleGeometry = CanvasGeometry.CreateCircle(session, centerX, centerY, baseRadius);
 
                 // 计算图片缩放和位置，使其居中并覆盖圆形区域
@@ -392,6 +411,49 @@ namespace WinExSpectrumTest.Canvas
             }
             catch (Exception) {
             }                
+        }
+
+        private void DrawTitleAndArtist(CanvasDrawingSession session, Windows.Foundation.Size size)
+        {
+            if (string.IsNullOrEmpty(_title) && string.IsNullOrEmpty(_artist)) return;
+            float maxTextWidth = Math.Min((float)size.Width, (float)size.Height) * 0.4f;
+            float centerX = (float)size.Width * 0.5f - maxTextWidth/2;
+            float centerY = (float)size.Height * 0.5f-20;
+            CanvasTextFormat _titleTextFormat = new()
+            {
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
+            CanvasTextFormat _artistTextFormat = new()
+            {
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
+            CanvasTextLayout titleLayout = new(
+               _device, _title ?? string.Empty,
+               _titleTextFormat, maxTextWidth, 20
+           );
+            CanvasTextLayout artistLayout = new(
+                _device, _artist ?? string.Empty,
+                _artistTextFormat, maxTextWidth, 16
+            );
+            session.DrawTextLayout(
+                titleLayout,
+                new Vector2(centerX, centerY),
+                Color.FromArgb(255, 255, 255, 255)
+                );
+            session.DrawTextLayout(
+                artistLayout,
+                new Vector2(centerX, centerY + (float)titleLayout.LayoutBounds.Height),
+                Color.FromArgb(255, 255, 255, 255));
         }
 
         private Color GetSpectrumColorLoop(float intensity, int i = 0)
