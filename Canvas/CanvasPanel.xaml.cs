@@ -178,7 +178,13 @@ namespace WinExSpectrumTest.Canvas
                             _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
                         }
                         catch (Exception) {
-                            _albumArtBitmap = null;
+                            try
+                            {
+                                _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
+                                _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
+                            }
+                            catch (Exception) {
+                            }                            
                         }                        
                     });                    
                 }
@@ -215,7 +221,7 @@ namespace WinExSpectrumTest.Canvas
                 var size = sender.Size;
                 _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
                 _smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
-                if (_currentAverage > 0.0001f)
+                if (_currentAverage > 0)
                 {
                     _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
                     if (_rotationOffset >= 2 * (float)Math.PI)
@@ -247,7 +253,7 @@ namespace WinExSpectrumTest.Canvas
                     _centerX = (float)size.Width * 0.5f;
                     _centerY = (float)size.Height * 0.5f;                    
                 }
-                if (_smoothAverage > 0) {
+                if (_smoothAverage > 0.0001f) {
                     if (AppSettings.IsDrawPlainSpectrum)
                     {
                         DrawPlainSpectrum(session, size);
