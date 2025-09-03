@@ -49,6 +49,33 @@ namespace WinExSpectrumTest.ViewModel
                 _ = DataService.SaveSettingAsync();
             }
         }
+        [ObservableProperty]
+        private float _smoothingFactor = 95f;
+        partial void OnSmoothingFactorChanged(float value) { 
+            AppSettings.SmoothingFactor = value/100;
+            if (_isInitialized)
+            {
+                _ = DataService.SaveSettingAsync();
+            }
+        }
+        [ObservableProperty]
+        private bool _isDrawPlainSpectrum = false;
+        partial void OnIsDrawPlainSpectrumChanged(bool value) { 
+            AppSettings.IsDrawPlainSpectrum = value;
+            if (_isInitialized)
+            {
+                _ = DataService.SaveSettingAsync();
+            }
+        }
+        [ObservableProperty]
+        private bool _isDrawRoundSpectrum = true;
+        partial void OnIsDrawRoundSpectrumChanged(bool value) { 
+            AppSettings.IsDrawRoundSpectrum = value;
+            if (_isInitialized)
+            {
+                _ = DataService.SaveSettingAsync();
+            }
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -56,6 +83,9 @@ namespace WinExSpectrumTest.ViewModel
             CoverOpacity = AppSettings.CoverOpacity * 100;
             SpectrumOpacity = AppSettings.SpectrumOpacity * 100;
             FontOpacity = AppSettings.FontOpacity * 100;
+            SmoothingFactor = AppSettings.SmoothingFactor * 100;
+            IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum;
+            IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum;
             _isInitialized = true;
         }
     }

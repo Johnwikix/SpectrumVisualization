@@ -29,6 +29,9 @@ namespace WinExSpectrumTest.Service
             AppSettings.CoverOpacity = settings.FirstOrDefault()?.CoverOpacity ?? 1.0f;
             AppSettings.SpectrumOpacity = settings.FirstOrDefault()?.SpectrumOpacity ?? 1.0f;   
             AppSettings.FontOpacity = settings.FirstOrDefault()?.FontOpacity ?? 1.0f;
+            AppSettings.SmoothingFactor = settings.FirstOrDefault()?.SmoothingFactor ?? 0.95f;
+            AppSettings.IsDrawPlainSpectrum = settings.FirstOrDefault()?.IsDrawPlainSpectrum ?? false;
+            AppSettings.IsDrawRoundSpectrum = settings.FirstOrDefault()?.IsDrawRoundSpectrum ?? true;
         }
 
         public static async Task SaveSettingAsync()
@@ -38,7 +41,10 @@ namespace WinExSpectrumTest.Service
                 RotationSpeed = AppSettings.RotationSpeed,
                 CoverOpacity = AppSettings.CoverOpacity,
                 SpectrumOpacity = AppSettings.SpectrumOpacity,
-                FontOpacity = AppSettings.FontOpacity
+                FontOpacity = AppSettings.FontOpacity,
+                SmoothingFactor = AppSettings.SmoothingFactor,
+                IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum,
+                IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum
             };
             var existingSettings = await _dbConnection.Table<SaveSetting>().ToListAsync();
             if (existingSettings.Count > 0)

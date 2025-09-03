@@ -41,7 +41,7 @@ namespace WinExSpectrumTest.Canvas
         private float[] _currentSpectrum;
         private float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
-        private readonly float _smoothingFactor = 0.9f;
+        //private readonly float _smoothingFactor = 0.9f;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
         private int _middleNum = 0;
@@ -205,50 +205,63 @@ namespace WinExSpectrumTest.Canvas
 
         private void SpectrumCanvasControl_Draw(Microsoft.Graphics.Canvas.UI.Xaml.ICanvasAnimatedControl sender, Microsoft.Graphics.Canvas.UI.Xaml.CanvasAnimatedDrawEventArgs args)
         {
-            _device = sender.Device;
-            var session = args.DrawingSession;
-            var size = sender.Size;
-            _average = _smoothedSpectrum.Average();
-            if (_average > 0) {
-                _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
-                if (_rotationOffset >= 2 * (float)Math.PI)
+            try
+            {
+                _device = sender.Device;
+                var session = args.DrawingSession;
+                var size = sender.Size;
+                _average = _smoothedSpectrum.Average();
+                if (_average > 0)
                 {
-                    _rotationOffset = 0f;
-                }
-                if (_isMiddleIncreasing)
-                {
-                    if (_middleNum >= 255)
+                    _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
+                    if (_rotationOffset >= 2 * (float)Math.PI)
                     {
-                        _isMiddleIncreasing = false;
+                        _rotationOffset = 0f;
+                    }
+                    if (_isMiddleIncreasing)
+                    {
+                        if (_middleNum >= 255)
+                        {
+                            _isMiddleIncreasing = false;
+                        }
+                        else
+                        {
+                            _middleNum += 1;
+                        }
                     }
                     else
                     {
-                        _middleNum += 1;
+                        if (_middleNum <= 0)
+                        {
+                            _isMiddleIncreasing = true;
+                        }
+                        else
+                        {
+                            _middleNum -= 1;
+                        }
                     }
-                }
-                else
-                {
-                    if (_middleNum <= 0)
+                    _centerX = (float)size.Width * 0.5f;
+                    _centerY = (float)size.Height * 0.5f;
+                    if (AppSettings.IsDrawPlainSpectrum)
                     {
-                        _isMiddleIncreasing = true;
+                        DrawPlainSpectrum(session, size);
                     }
-                    else
+                    if (AppSettings.IsDrawRoundSpectrum)
                     {
-                        _middleNum -= 1;
+                        DrawRoundSpectrum(session, size);
+                        DrawAlbumArt(session, size);
+                        DrawTitleAndArtist(session, size);
                     }
+                    //DrawWaveform(session, size);
                 }
-                _centerX = (float)size.Width * 0.5f;
-                _centerY = (float)size.Height * 0.5f;
-                //DrawPlainSpectrum(session, size);
-                DrawRoundSpectrum(session, size);
-                DrawAlbumArt(session, size);
-                DrawTitleAndArtist(session,size);
-                //DrawWaveform(session, size);
             }
+            catch (Exception) { }            
         }
 
         private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
         {
+            try {
+            } catch (Exception) { }
             if (_smoothedSpectrum == null) return;
 
             // 绘制频谱条
@@ -259,27 +272,36 @@ namespace WinExSpectrumTest.Canvas
             {
                 float x = i * barWidth;
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i], maxHeight), 0);
-                float y = (float)size.Height - height;
+                float y = (float)size.Height/2 - height;
 
                 // 创建渐变色彩效果
                 var color = GetSpectrumColor(height / maxHeight);
 
                 // 绘制频谱条
-                var rect = new Windows.Foundation.Rect(
+                var rectUp = new Windows.Foundation.Rect(
                     x + 1, y,
                     barWidth - 2, height);
 
-                session.FillRectangle(rect, color);
+                var rectDown = new Windows.Foundation.Rect(
+                    x + 1, (float)size.Height/2,
+                    barWidth - 2, height);
+
+                session.FillRectangle(rectUp, color);
+                session.FillRectangle(rectDown, color);
 
                 // 添加发光效果
                 if (height > 10)
                 {
-                    var glowRect = new Windows.Foundation.Rect(
+                    var glowRectUp = new Windows.Foundation.Rect(
                         x, y - 5,
                         barWidth, height + 10);
+                    var glowRectDown = new Windows.Foundation.Rect(
+                        x, (float)size.Height/2 - 5,
+                        barWidth, height + 10);
 
-                    var glowColor = Color.FromArgb(30, color.R, color.G, color.B);
-                    session.FillRectangle(glowRect, glowColor);
+                    var glowColor = Color.FromArgb((byte)(32*AppSettings.SpectrumOpacity), color.R, color.G, color.B);
+                    session.FillRectangle(glowRectUp, glowColor);
+                    session.FillRectangle(glowRectDown, glowColor);
                 }
             }
         }
@@ -326,7 +348,7 @@ namespace WinExSpectrumTest.Canvas
 
                 if (height > 0.05f)
                 {
-                    var glowColor = Color.FromArgb(30, color.R, color.G, color.B);
+                    var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
                     float glowRadius = currentRadius + 10;
                     var glowPoints = new List<Vector2>();
 
@@ -357,8 +379,8 @@ namespace WinExSpectrumTest.Canvas
             // 平滑处理频谱数据
             for (int i = 0; i < _barCount; i++)
             {
-                _smoothedSpectrum[i] = _smoothedSpectrum[i] * _smoothingFactor +
-                                     _currentSpectrum[i] * (1 - _smoothingFactor);
+                _smoothedSpectrum[i] = _smoothedSpectrum[i] * AppSettings.SmoothingFactor +
+                                     _currentSpectrum[i] * (1 - AppSettings.SmoothingFactor);
             }
         }
         // 绘制波形线条

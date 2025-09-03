@@ -12,8 +12,8 @@
     Title="WinExSpectrumTest"
     Width="512"
     Height="512"
-    MinWidth="256"
-    MinHeight="256"
+    MinWidth="384"
+    MinHeight="384"
     mc:Ignorable="d">
 
     <winex:WindowEx.SystemBackdrop>
