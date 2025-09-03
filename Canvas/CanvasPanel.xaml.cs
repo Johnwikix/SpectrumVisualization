@@ -215,7 +215,7 @@ namespace WinExSpectrumTest.Canvas
                 var size = sender.Size;
                 _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
                 _smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
-                if (_currentAverage > 0)
+                if (_currentAverage > 0.0001f)
                 {
                     _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
                     if (_rotationOffset >= 2 * (float)Math.PI)
@@ -245,7 +245,9 @@ namespace WinExSpectrumTest.Canvas
                         }
                     }
                     _centerX = (float)size.Width * 0.5f;
-                    _centerY = (float)size.Height * 0.5f;
+                    _centerY = (float)size.Height * 0.5f;                    
+                }
+                if (_smoothAverage > 0) {
                     if (AppSettings.IsDrawPlainSpectrum)
                     {
                         DrawPlainSpectrum(session, size);
