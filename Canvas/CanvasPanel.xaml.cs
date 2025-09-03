@@ -198,7 +198,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 2500f;
+                    _currentSpectrum[i] = spectrumData[index] * 250f * AppSettings.Sensitivity;
                 }
             }
         }
@@ -315,7 +315,7 @@ namespace WinExSpectrumTest.Canvas
             for (int i = 0; i < _barCount; i++)
             {
                 // 径向长度
-                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.5f), 0);
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.8f), 0);
                 float currentRadius = baseRadius + _average +(height * baseRadius);
 
                 // 起始和结束角度

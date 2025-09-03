@@ -9,7 +9,7 @@ using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.ViewModel
 {
-    public partial class SettingViewModel: ObservableObject
+    public partial class SettingViewModel : ObservableObject
     {
         private bool _isInitialized = false;
         [ObservableProperty]
@@ -17,64 +17,52 @@ namespace WinExSpectrumTest.ViewModel
         partial void OnRotationSpeedChanged(float value)
         {
             AppSettings.RotationSpeed = value;
-            if (_isInitialized) {
-                _ = DataService.SaveSettingAsync();
-            }
+            //if (_isInitialized) {
+            //    _ = DataService.SaveSettingAsync();
+            //}
         }
         [ObservableProperty]
         private float _coverOpacity = 100.0f;
         partial void OnCoverOpacityChanged(float value)
         {
-            AppSettings.CoverOpacity = value/100;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
+            AppSettings.CoverOpacity = value / 100;
         }
         [ObservableProperty]
         private float _spectrumOpacity = 100.0f;
-        partial void OnSpectrumOpacityChanged(float value) { 
+        partial void OnSpectrumOpacityChanged(float value)
+        {
             AppSettings.SpectrumOpacity = value / 100;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
         }
         [ObservableProperty]
         private float _fontOpacity = 100.0f;
-        partial void OnFontOpacityChanged(float value) { 
+        partial void OnFontOpacityChanged(float value)
+        {
             AppSettings.FontOpacity = value / 100;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
         }
         [ObservableProperty]
         private float _smoothingFactor = 95f;
-        partial void OnSmoothingFactorChanged(float value) { 
-            AppSettings.SmoothingFactor = value/100;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
+        partial void OnSmoothingFactorChanged(float value)
+        {
+            AppSettings.SmoothingFactor = value / 100;
         }
         [ObservableProperty]
         private bool _isDrawPlainSpectrum = false;
-        partial void OnIsDrawPlainSpectrumChanged(bool value) { 
+        partial void OnIsDrawPlainSpectrumChanged(bool value)
+        {
             AppSettings.IsDrawPlainSpectrum = value;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
         }
         [ObservableProperty]
         private bool _isDrawRoundSpectrum = true;
-        partial void OnIsDrawRoundSpectrumChanged(bool value) { 
+        partial void OnIsDrawRoundSpectrumChanged(bool value)
+        {
             AppSettings.IsDrawRoundSpectrum = value;
-            if (_isInitialized)
-            {
-                _ = DataService.SaveSettingAsync();
-            }
+
+        }
+        [ObservableProperty]
+        private float _sensitivity = 10.0f;
+        partial void OnSensitivityChanged(float value)
+        {
+            AppSettings.Sensitivity = value;
         }
         public SettingViewModel()
         {
@@ -86,7 +74,13 @@ namespace WinExSpectrumTest.ViewModel
             SmoothingFactor = AppSettings.SmoothingFactor * 100;
             IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum;
             IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum;
+            Sensitivity = AppSettings.Sensitivity;
             _isInitialized = true;
+        }
+
+        public void SaveSettings()
+        {
+            _ = DataService.SaveSettingAsync();
         }
     }
 }

@@ -15,6 +15,7 @@ namespace WinExSpectrumTest.Model
         public static float CoverOpacity { get; set; } = 1.0f;
         public static float SpectrumOpacity { get; set; } = 1.0f;
         public static float FontOpacity { get; set; } = 1.0f;
-        public static float SmoothingFactor = 0.95f;
+        public static float SmoothingFactor { get; set; } = 0.95f;
+        public static float Sensitivity { get; set; } = 10.0f;
     }
 }

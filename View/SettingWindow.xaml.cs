@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -32,6 +33,12 @@ namespace WinExSpectrumTest.View
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             ViewModel = new SettingViewModel();
+            this.AppWindow.Closing += AppWindow_Closing;
+        }
+
+        private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+        {
+            ViewModel.SaveSettings();
         }
     }
 }

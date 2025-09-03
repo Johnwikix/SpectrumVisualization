@@ -32,6 +32,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.SmoothingFactor = settings.FirstOrDefault()?.SmoothingFactor ?? 0.95f;
             AppSettings.IsDrawPlainSpectrum = settings.FirstOrDefault()?.IsDrawPlainSpectrum ?? false;
             AppSettings.IsDrawRoundSpectrum = settings.FirstOrDefault()?.IsDrawRoundSpectrum ?? true;
+            AppSettings.Sensitivity = settings.FirstOrDefault()?.Sensitivity ?? 10.0f;
         }
 
         public static async Task SaveSettingAsync()
@@ -44,7 +45,8 @@ namespace WinExSpectrumTest.Service
                 FontOpacity = AppSettings.FontOpacity,
                 SmoothingFactor = AppSettings.SmoothingFactor,
                 IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum,
-                IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum
+                IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum,
+                Sensitivity = AppSettings.Sensitivity
             };
             var existingSettings = await _dbConnection.Table<SaveSetting>().ToListAsync();
             if (existingSettings.Count > 0)
