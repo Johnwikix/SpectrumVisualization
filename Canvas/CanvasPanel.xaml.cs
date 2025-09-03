@@ -253,18 +253,15 @@ namespace WinExSpectrumTest.Canvas
                     _centerX = (float)size.Width * 0.5f;
                     _centerY = (float)size.Height * 0.5f;                    
                 }
-                if (_smoothAverage > 0.0001f) {
-                    if (AppSettings.IsDrawPlainSpectrum)
-                    {
-                        DrawPlainSpectrum(session, size);
-                    }
-                    if (AppSettings.IsDrawRoundSpectrum)
-                    {
-                        DrawRoundSpectrum(session, size);
-                        DrawAlbumArt(session, size);
-                        DrawTitleAndArtist(session, size);
-                    }
-                    //DrawWaveform(session, size);
+                if (AppSettings.IsDrawPlainSpectrum)
+                {
+                    DrawPlainSpectrum(session, size);
+                }
+                if (AppSettings.IsDrawRoundSpectrum)
+                {
+                    DrawRoundSpectrum(session, size);
+                    DrawAlbumArt(session, size);
+                    DrawTitleAndArtist(session, size);
                 }
             }
             catch (Exception) { }            
