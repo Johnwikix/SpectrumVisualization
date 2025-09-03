@@ -15,6 +15,7 @@ using Microsoft.UI.Xaml.Navigation;
 using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -28,6 +29,7 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
 using WinExSpectrumTest.Model;
+using ZLinq;
 using static Vanara.PInvoke.Kernel32;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -54,7 +56,8 @@ namespace WinExSpectrumTest.Canvas
         private string _artist;
         private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
-        private float _average = 0f;
+        private float _smoothAverage = 0f;
+        private float _currentAverage = 0f;
         private CanvasTextFormat _titleTextFormat;
         private CanvasTextFormat _artistTextFormat;
         private float _centerX = 0f;
@@ -210,8 +213,9 @@ namespace WinExSpectrumTest.Canvas
                 _device = sender.Device;
                 var session = args.DrawingSession;
                 var size = sender.Size;
-                _average = _smoothedSpectrum.Average();
-                if (_average > 0)
+                _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
+                _smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
+                if (_currentAverage > 0)
                 {
                     _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
                     if (_rotationOffset >= 2 * (float)Math.PI)
@@ -316,7 +320,7 @@ namespace WinExSpectrumTest.Canvas
             {
                 // 径向长度
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.8f), 0);
-                float currentRadius = baseRadius + _average +(height * baseRadius);
+                float currentRadius = baseRadius + _smoothAverage + (height * baseRadius);
 
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
@@ -417,7 +421,7 @@ namespace WinExSpectrumTest.Canvas
             }
         }
 
-        private async void DrawAlbumArt(CanvasDrawingSession session, Windows.Foundation.Size size)
+        private void DrawAlbumArt(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             try
             {                
