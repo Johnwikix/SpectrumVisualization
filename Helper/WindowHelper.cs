@@ -46,26 +46,43 @@ namespace WinExSpectrumTest.Helper
             window.SetIsAlwaysOnTop(false);
             window.SetIsShownInSwitchers(true);
         }
-        public static void SetClickThrough(Window window, bool enable)
+        public static void SetLock(Window window, bool enable)
         {
             IntPtr hwnd = WindowNative.GetWindowHandle(window);
-            int exStyle = User32.GetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE);
+            //int exStyle = User32.GetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE);
             if (enable)
             {
                 if (!_originalWindowStyles.ContainsKey(hwnd))
                     _originalWindowStyles[hwnd] = window.GetWindowStyle();
                 window.ToggleWindowStyle(true, WindowStyle.Popup | WindowStyle.Visible);
-                User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle | (int)User32.WindowStylesEx.WS_EX_TRANSPARENT | (int)User32.WindowStylesEx.WS_EX_LAYERED);
+                //User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle | (int)User32.WindowStylesEx.WS_EX_TRANSPARENT | (int)User32.WindowStylesEx.WS_EX_LAYERED);
             }
             else
             {
-                User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle & ~(int)User32.WindowStylesEx.WS_EX_TRANSPARENT);
+                //User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle & ~(int)User32.WindowStylesEx.WS_EX_TRANSPARENT);
                 if (_originalWindowStyles.TryGetValue(hwnd, out var style))
                 {
                     window.SetWindowStyle(style);
                     _originalWindowStyles.Remove(hwnd);
                 }
             }
+        }
+
+        public static IntPtr GetWindowHandle(Window window)
+        {
+            return WindowNative.GetWindowHandle(window);
+        }
+
+        public static void EnableClickThrough(IntPtr hwnd)
+        {
+            int exStyle = User32.GetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE);
+            User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle | (int)User32.WindowStylesEx.WS_EX_TRANSPARENT | (int)User32.WindowStylesEx.WS_EX_LAYERED);
+        }
+
+        public static void DisableClickThrough(IntPtr hwnd)
+        {
+            int exStyle = User32.GetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE);
+            User32.SetWindowLong(hwnd, User32.WindowLongFlags.GWL_EXSTYLE, exStyle & ~(int)User32.WindowStylesEx.WS_EX_TRANSPARENT);
         }
 
         public static bool IsWindowVisible(Window window)

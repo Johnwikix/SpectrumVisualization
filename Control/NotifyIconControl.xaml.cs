@@ -65,7 +65,7 @@ namespace WinExSpectrumTest.Control
         {
             var window = App.MainWindow;
             if (window == null) return;
-            WindowHelper.SetClickThrough(window, false);
+            WindowHelper.SetLock(window, false);
             WindowHelper.Disable(window);
             AppSettings.IsLocked = false;
         }

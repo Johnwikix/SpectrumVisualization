@@ -20,7 +20,7 @@
         <winex:TransparentTintBackdrop />
     </winex:WindowEx.SystemBackdrop>
 
-    <Grid>
+    <Grid x:Name="MyMainwindow" PointerEntered="MyMainwindow_PointerEntered" PointerExited="MyMainwindow_PointerExited">
         <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
             <myCanvas:CanvasPanel x:Name="MyCanvas" />

@@ -16,6 +16,7 @@ using Windows.Foundation.Collections;
 using WinExSpectrumTest.Helper;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Service;
+using WinRT.Interop;
 using WinUIEx;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -29,12 +30,14 @@ namespace WinExSpectrumTest
     /// </summary>
     public sealed partial class MainWindow : WinUIEx.WindowEx
     {
+        private IntPtr _hwnd;
         public MainWindow()
         {
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             this.SetIcon("Assets/icon.ico");
             this.AppWindow.Closing += AppWindow_Closing;
+            _hwnd = WindowNative.GetWindowHandle(this);
             InitializeData();
         }
 
@@ -54,18 +57,39 @@ namespace WinExSpectrumTest
         {
             TopCommand.Opacity = 0;
             WindowHelper.Enable(this);
-            WindowHelper.SetClickThrough(this,true); 
+            WindowHelper.SetLock(this,true);
             AppSettings.IsLocked = true;
         }
 
         private void TopCommand_PointerEntered(object sender, PointerRoutedEventArgs e)
         {
-            TopCommand.Opacity = 1;
+            if (!AppSettings.IsLocked) {
+                TopCommand.Opacity = 1;
+            }            
         }
 
         private void TopCommand_PointerExited(object sender, PointerRoutedEventArgs e)
         {
-            TopCommand.Opacity = 0;
+            if (!AppSettings.IsLocked)
+            {
+                TopCommand.Opacity = 0;
+            }            
+        }
+
+        private void MyMainwindow_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (AppSettings.IsLocked)
+            {
+                WindowHelper.EnableClickThrough(_hwnd);
+            }           
+        }
+
+        private void MyMainwindow_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (AppSettings.IsLocked)
+            {
+                WindowHelper.DisableClickThrough(_hwnd);
+            }
         }
     }
 }

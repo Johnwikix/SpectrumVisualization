@@ -15,11 +15,11 @@ namespace WinExSpectrumTest.ViewModel
         [ObservableProperty]
         private float _rotationSpeed = 10.0f;
         partial void OnRotationSpeedChanged(float value)
-        {
-            AppSettings.RotationSpeed = value;
-            //if (_isInitialized) {
-            //    _ = DataService.SaveSettingAsync();
-            //}
+        {            
+            if (_isInitialized)
+            {
+                AppSettings.RotationSpeed = value;
+            }
         }
         [ObservableProperty]
         private float _coverOpacity = 100.0f;

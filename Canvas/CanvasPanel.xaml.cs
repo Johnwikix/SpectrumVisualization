@@ -29,6 +29,7 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
 using WinExSpectrumTest.Model;
+using WinRT;
 using ZLinq;
 using static Vanara.PInvoke.Kernel32;
 
@@ -253,16 +254,16 @@ namespace WinExSpectrumTest.Canvas
                     _centerX = (float)size.Width * 0.5f;
                     _centerY = (float)size.Height * 0.5f;                    
                 }
-                if (AppSettings.IsDrawPlainSpectrum)
-                {
-                    DrawPlainSpectrum(session, size);
-                }
                 if (AppSettings.IsDrawRoundSpectrum)
                 {
                     DrawRoundSpectrum(session, size);
                     DrawAlbumArt(session, size);
                     DrawTitleAndArtist(session, size);
                 }
+                if (AppSettings.IsDrawPlainSpectrum)
+                {
+                    DrawPlainSpectrum(session, size);
+                }                
             }
             catch (Exception) { }            
         }
@@ -284,7 +285,7 @@ namespace WinExSpectrumTest.Canvas
                 float y = (float)size.Height/2 - height;
 
                 // 创建渐变色彩效果
-                var color = GetSpectrumColor(height / maxHeight);
+                var color = GetSpectrumColorLoop(height / maxHeight,i);
 
                 // 绘制频谱条
                 var rectUp = new Windows.Foundation.Rect(
@@ -502,8 +503,8 @@ namespace WinExSpectrumTest.Canvas
 
         private Color GetSpectrumColorLoop(float intensity, int i = 0)
         {
-            float coe = 256 / _barCount;
-            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)(i * coe), (byte)_middleNum, (byte)(255 - i * coe));
+            float coe = 2 * 256 / _barCount;
+            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)Math.Abs(i * coe-255), (byte)_middleNum, (byte)Math.Abs(255 - i * coe));
         }
 
         private Color GetSpectrumColor(float intensity)
