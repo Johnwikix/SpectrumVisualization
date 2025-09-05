@@ -12,9 +12,8 @@
     Title="WinExSpectrumTest"
     Width="512"
     Height="512"
-    MinWidth="384"
-    MinHeight="384"
-    mc:Ignorable="d">
+    MinWidth="256"
+    MinHeight="256">
 
     <winex:WindowEx.SystemBackdrop>
         <winex:TransparentTintBackdrop />
@@ -22,7 +21,7 @@
 
     <Grid x:Name="MyMainwindow" PointerEntered="MyMainwindow_PointerEntered" PointerExited="MyMainwindow_PointerExited">
         <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
-        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
+        <Grid Margin="1,1,1,1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
             <myCanvas:CanvasPanel x:Name="MyCanvas" />
         </Grid>
         <Grid

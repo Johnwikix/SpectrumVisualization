@@ -277,7 +277,7 @@ namespace WinExSpectrumTest.Canvas
             // 绘制频谱条
             float barWidth = (float)size.Width / _barCount;
             float maxHeight = (float)size.Height * 0.3f;
-
+            if (barWidth <= 2) return;
             for (int i = 0; i < _barCount; i++)
             {
                 float x = i * barWidth;
@@ -356,30 +356,25 @@ namespace WinExSpectrumTest.Canvas
                 // 绘制多边形，模拟频谱条
                 session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints.ToArray()), color);
 
-                if (height > 0.05f)
-                {
-                    var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
-                    float glowRadius = currentRadius + 10;
-                    var glowPoints = new List<Vector2>();
+                var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
+                float glowRadius = (float)(currentRadius * 1.05);
+                var glowPoints = new List<Vector2>();
+                glowPoints.Add(new Vector2(
+                    _centerX + currentRadius * (float)Math.Cos(startAngle),
+                    _centerY + currentRadius * (float)Math.Sin(startAngle)));
 
-                    glowPoints.Add(new Vector2(
-                        _centerX + currentRadius * (float)Math.Cos(startAngle),
-                        _centerY + currentRadius * (float)Math.Sin(startAngle)));
+                glowPoints.Add(new Vector2(
+                    _centerX + currentRadius * (float)Math.Cos(endAngle),
+                    _centerY + currentRadius * (float)Math.Sin(endAngle)));
 
-                    glowPoints.Add(new Vector2(
-                        _centerX + currentRadius * (float)Math.Cos(endAngle),
-                        _centerY + currentRadius * (float)Math.Sin(endAngle)));
+                glowPoints.Add(new Vector2(
+                    _centerX + glowRadius * (float)Math.Cos(endAngle),
+                    _centerY + glowRadius * (float)Math.Sin(endAngle)));
 
-                    glowPoints.Add(new Vector2(
-                        _centerX + glowRadius * (float)Math.Cos(endAngle),
-                        _centerY + glowRadius * (float)Math.Sin(endAngle)));
-
-                    glowPoints.Add(new Vector2(
-                        _centerX + glowRadius * (float)Math.Cos(startAngle),
-                        _centerY + glowRadius * (float)Math.Sin(startAngle)));
-
-                    session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints.ToArray()), glowColor);
-                }
+                glowPoints.Add(new Vector2(
+                    _centerX + glowRadius * (float)Math.Cos(startAngle),
+                    _centerY + glowRadius * (float)Math.Sin(startAngle)));
+                session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints.ToArray()), glowColor);
             }
         }
 

@@ -1,3 +1,4 @@
+using CommunityToolkit.WinUI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,6 +14,9 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI;
+using Windows.UI.ViewManagement;
+using WinExSpectrumTest.Backdrop;
 using WinExSpectrumTest.Helper;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Service;
@@ -31,6 +35,8 @@ namespace WinExSpectrumTest
     public sealed partial class MainWindow : WinUIEx.WindowEx
     {
         private IntPtr _hwnd;
+        private ThemeStyleHelper themeStyleHelper;
+        private UISettings uiSettings;
         public MainWindow()
         {
             InitializeComponent();
@@ -38,13 +44,16 @@ namespace WinExSpectrumTest
             this.SetIcon("Assets/icon.ico");
             this.AppWindow.Closing += AppWindow_Closing;
             _hwnd = WindowNative.GetWindowHandle(this);
-            InitializeData();
+            themeStyleHelper = new ThemeStyleHelper(this, this.AppWindow);           
+            InitializeData();            
         }
+
 
         private async void InitializeData()
         {
             await DataService.Initialize();
             await DataService.LoadSettingAsync();
+            themeStyleHelper.SetAppStyle();
         }
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -90,6 +99,21 @@ namespace WinExSpectrumTest
             {
                 WindowHelper.DisableClickThrough(_hwnd);
             }
+        }
+
+        public void SetAppStyle()
+        {
+            themeStyleHelper.SetAppStyle();
+        }
+
+        public void SetCustomAppStyle()
+        {
+            themeStyleHelper.ChangeCustomAcrylicStyle();
+        }
+        public void SetAppTheme()
+        {
+            themeStyleHelper.SetAppStyle();
+            themeStyleHelper.SetAppTheme();
         }
     }
 }

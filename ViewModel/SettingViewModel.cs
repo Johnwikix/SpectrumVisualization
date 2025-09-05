@@ -1,9 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.UI;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Service;
 
@@ -64,6 +67,45 @@ namespace WinExSpectrumTest.ViewModel
         {
             AppSettings.Sensitivity = value;
         }
+        [ObservableProperty]
+        private string _backdropType = "TransparentAcrylic";
+        partial void OnBackdropTypeChanged(string value)
+        {
+            if (_isInitialized)
+            {
+                AppSettings.AppStyle = value;
+            }            
+        }
+        [ObservableProperty]
+        private bool _isColorPickerVisible = false;
+        [ObservableProperty]
+        private Color _customColor = Color.FromArgb(255, 128, 128, 128);
+        partial void OnCustomColorChanged(Color value) {
+            if (_isInitialized)
+            {
+                AppSettings.CustomColorAlpha = value.A;
+                AppSettings.CustomColorRed = value.R;
+                AppSettings.CustomColorGreen = value.G;
+                AppSettings.CustomColorBlue = value.B;
+            }
+        }
+        [ObservableProperty]
+        private float _customOpacity = 50f;
+        partial void OnCustomOpacityChanged(float value) {
+            if (_isInitialized)
+            {
+                AppSettings.CustomAcrylicOpacity = value / 100;
+                App.MainWindow?.SetCustomAppStyle();
+            }
+        }
+        [ObservableProperty]
+        private bool _isUpdateBackDrop = false;
+        partial void OnIsUpdateBackDropChanged(bool value) {
+            if (_isInitialized)
+            {
+                AppSettings.IsUpdateBackDrop = value;
+            }
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -81,6 +123,43 @@ namespace WinExSpectrumTest.ViewModel
         public void SaveSettings()
         {
             _ = DataService.SaveSettingAsync();
+        }
+
+
+        [RelayCommand]
+        private void ChangeBackdropType(string type)
+        {
+            try
+            {
+                switch (type)
+                {
+                    case "Acrylic":
+                        AppSettings.AppStyle = "Acrylic";
+                        IsColorPickerVisible = false;
+                        break;
+                    case "TransparentAcrylic":
+                        AppSettings.AppStyle = "TransparentAcrylic";
+                        IsColorPickerVisible = false;
+                        break;
+                    case "Mica":
+                        AppSettings.AppStyle = "Mica";
+                        IsColorPickerVisible = false;
+                        break;
+                    case "TransparentTint":
+                        AppSettings.AppStyle = "TransparentTint";
+                        IsColorPickerVisible = false;
+                        break;
+                    case "CustomAcrylicStyle":
+                        AppSettings.AppStyle = "CustomAcrylicStyle";
+                        IsColorPickerVisible = true;
+                        break;
+                }
+                App.MainWindow?.SetAppStyle();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error setting backdrop type: {ex.Message}");
+            }
         }
     }
 }

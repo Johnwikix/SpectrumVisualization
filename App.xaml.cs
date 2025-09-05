@@ -62,8 +62,9 @@ namespace WinExSpectrumTest
         /// Invoked when the application is launched.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            await _host.StartAsync();
             MainWindow = new MainWindow();
             MainWindow.Activate();
         }
