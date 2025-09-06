@@ -19,23 +19,57 @@
         <winex:TransparentTintBackdrop />
     </winex:WindowEx.SystemBackdrop>
 
-    <Grid x:Name="MyMainwindow" PointerEntered="MyMainwindow_PointerEntered" PointerExited="MyMainwindow_PointerExited">
+    <Grid
+        x:Name="MyMainwindow"
+        PointerEntered="MyMainwindow_PointerEntered"
+        PointerExited="MyMainwindow_PointerExited">
         <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
-        <Grid Margin="1,1,1,1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Canvas.ZIndex="1">
+        <Grid
+            Margin="1,1,1,1"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Canvas.ZIndex="1">
             <myCanvas:CanvasPanel x:Name="MyCanvas" />
         </Grid>
         <Grid
             x:Name="TopCommand"
-            Margin="5,0,0,0"
+            Margin="5,5,0,0"
             VerticalAlignment="Top"
             Canvas.ZIndex="999"
             PointerEntered="TopCommand_PointerEntered"
             PointerExited="TopCommand_PointerExited">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <Grid.OpacityTransition>
                 <ScalarTransition />
             </Grid.OpacityTransition>
-            <Button Click="Button_Click">
+            <Button
+                x:Name="LockBtn"
+                Grid.Column="0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="Button_Click">
                 <FontIcon FontSize="16" Glyph="&#xE72E;" />
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="L" />
+                </Button.KeyboardAccelerators>
+            </Button>
+            <Button
+                x:Name="FullScreenBtn"
+                Grid.Column="1"
+                Margin="5,0,0,0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="FullScreen_Click">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="F" />
+                </Button.KeyboardAccelerators>
+                <FontIcon
+                    x:Name="FullScreenIcon"
+                    FontSize="16"
+                    Glyph="&#xE740;" />
             </Button>
         </Grid>
     </Grid>

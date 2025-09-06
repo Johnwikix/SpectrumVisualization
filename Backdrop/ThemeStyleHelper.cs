@@ -29,6 +29,19 @@ namespace WinExSpectrumTest.Backdrop
             _appWindow = appWindow;
 
         }
+
+        public void SetTransparent()
+        {
+            try
+            {
+                _window.SystemBackdrop = null;
+                _window.SystemBackdrop = new TransparentTintBackdrop(Colors.Transparent);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SetTransparentTitleBar error: {ex.Message}");
+            }
+        }
         public void SetAppStyle()
         {
             try

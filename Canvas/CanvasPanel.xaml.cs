@@ -469,6 +469,10 @@ namespace WinExSpectrumTest.Canvas
 
         private void DrawTitleAndArtist(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
+            if (_albumArtBitmap == null)
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(_title) && string.IsNullOrEmpty(_artist)) return;
             float maxTextWidth = Math.Min((float)size.Width, (float)size.Height) * 0.4f;
             float baseFontSize = 18f;
