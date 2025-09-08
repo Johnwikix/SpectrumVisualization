@@ -41,8 +41,8 @@ namespace WinExSpectrumTest.Canvas
     public sealed partial class CanvasPanel : Microsoft.UI.Xaml.Controls.UserControl
     {
         private SpectrumAnalyzer _analyzer;
-        private float[] _currentSpectrum;
-        private float[] _smoothedSpectrum;
+        private readonly float[] _currentSpectrum;
+        private readonly float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
         //private readonly float _smoothingFactor = 0.9f;
         private bool _disposed = false;
@@ -63,20 +63,31 @@ namespace WinExSpectrumTest.Canvas
         private CanvasTextFormat _artistTextFormat;
         private float _centerX = 0f;
         private float _centerY = 0f;
+        private Vector2[][] _polygonPointsPool;
+        private Vector2[][] _glowPointsPool;
+        private readonly CanvasGeometry[] _spectrumGeometries;
+        private readonly CanvasGeometry[] _glowGeometries;
         public CanvasPanel()
         {
             InitializeComponent();
             InitializeAudio();
             InitializeText();
+            _currentSpectrum = new float[_barCount];
+            _smoothedSpectrum = new float[_barCount];
+            _polygonPointsPool = new Vector2[_barCount][];
+            _glowPointsPool = new Vector2[_barCount][];
+            for (int i = 0; i < _barCount; i++)
+            {
+                _polygonPointsPool[i] = new Vector2[4];
+                _glowPointsPool[i] = new Vector2[4];
+            }
             _ = InitializeSMTCAsync();
         }
 
         private void InitializeAudio()
         {
             _analyzer = new SpectrumAnalyzer();
-            _analyzer.SpectrumDataUpdated += OnSpectrumDataUpdated;
-            _currentSpectrum = new float[_barCount];
-            _smoothedSpectrum = new float[_barCount];
+            _analyzer.SpectrumDataUpdated += OnSpectrumDataUpdated;            
             _analyzer.StartCapture();
         }
 
@@ -332,49 +343,26 @@ namespace WinExSpectrumTest.Canvas
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
                 var color = GetSpectrumColorLoop(height,i);
-                // 创建多边形的顶点
-                var polygonPoints = new List<Vector2>();
+                var polygonPoints = _polygonPointsPool[i];
 
-                // 1. 添加内圆的起始点和结束点
-                polygonPoints.Add(new Vector2(
-                    _centerX + baseRadius * (float)Math.Cos(startAngle),
-                    _centerY + baseRadius * (float)Math.Sin(startAngle)));
-
-                polygonPoints.Add(new Vector2(
-                    _centerX + baseRadius * (float)Math.Cos(endAngle),
-                    _centerY + baseRadius * (float)Math.Sin(endAngle)));
-
-                // 2. 添加外圆的结束点和起始点，注意顺序，以形成闭合的多边形
-                polygonPoints.Add(new Vector2(
-                    _centerX + currentRadius * (float)Math.Cos(endAngle),
-                    _centerY + currentRadius * (float)Math.Sin(endAngle)));
-
-                polygonPoints.Add(new Vector2(
-                    _centerX + currentRadius * (float)Math.Cos(startAngle),
-                    _centerY + currentRadius * (float)Math.Sin(startAngle)));
+                // 直接更新数组中的元素，不进行任何新的内存分配
+                polygonPoints[0] = new Vector2(_centerX + baseRadius * (float)Math.Cos(startAngle), _centerY + baseRadius * (float)Math.Sin(startAngle));
+                polygonPoints[1] = new Vector2(_centerX + baseRadius * (float)Math.Cos(endAngle), _centerY + baseRadius * (float)Math.Sin(endAngle));
+                polygonPoints[2] = new Vector2(_centerX + currentRadius * (float)Math.Cos(endAngle), _centerY + currentRadius * (float)Math.Sin(endAngle));
+                polygonPoints[3] = new Vector2(_centerX + currentRadius * (float)Math.Cos(startAngle), _centerY + currentRadius * (float)Math.Sin(startAngle));
 
                 // 绘制多边形，模拟频谱条
-                session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints.ToArray()), color);
+                //session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints), color);
 
                 var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
                 float glowRadius = (float)(currentRadius * 1.05);
-                var glowPoints = new List<Vector2>();
-                glowPoints.Add(new Vector2(
-                    _centerX + currentRadius * (float)Math.Cos(startAngle),
-                    _centerY + currentRadius * (float)Math.Sin(startAngle)));
-
-                glowPoints.Add(new Vector2(
-                    _centerX + currentRadius * (float)Math.Cos(endAngle),
-                    _centerY + currentRadius * (float)Math.Sin(endAngle)));
-
-                glowPoints.Add(new Vector2(
-                    _centerX + glowRadius * (float)Math.Cos(endAngle),
-                    _centerY + glowRadius * (float)Math.Sin(endAngle)));
-
-                glowPoints.Add(new Vector2(
-                    _centerX + glowRadius * (float)Math.Cos(startAngle),
-                    _centerY + glowRadius * (float)Math.Sin(startAngle)));
-                session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints.ToArray()), glowColor);
+                var glowPoints = _glowPointsPool[i];
+                // 直接更新数组中的元素
+                glowPoints[0] = new Vector2(_centerX + currentRadius * (float)Math.Cos(startAngle), _centerY + currentRadius * (float)Math.Sin(startAngle));
+                glowPoints[1] = new Vector2(_centerX + currentRadius * (float)Math.Cos(endAngle), _centerY + currentRadius * (float)Math.Sin(endAngle));
+                glowPoints[2] = new Vector2(_centerX + glowRadius * (float)Math.Cos(endAngle), _centerY + glowRadius * (float)Math.Sin(endAngle));
+                glowPoints[3] = new Vector2(_centerX + glowRadius * (float)Math.Cos(startAngle), _centerY + glowRadius * (float)Math.Sin(startAngle));
+                //session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints), glowColor);
             }
         }
 
