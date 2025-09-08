@@ -55,6 +55,9 @@ namespace WinExSpectrumTest.Canvas
         private IRandomAccessStreamWithContentType _thumbnail;
         private string _title;
         private string _artist;
+        private CanvasTextLayout _titleLayout;
+        private CanvasTextLayout _artistLayout;
+        private float _lastMaxTextWidth = 0f;
         private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
         private float _smoothAverage = 0f;
@@ -65,15 +68,22 @@ namespace WinExSpectrumTest.Canvas
         private float _centerY = 0f;
         private Vector2[][] _polygonPointsPool;
         private Vector2[][] _glowPointsPool;
-        private readonly CanvasGeometry[] _spectrumGeometries;
-        private readonly CanvasGeometry[] _glowGeometries;
+        private CanvasGeometry _circleGeometry;
+        private float _baseRadius = 0f;
+        private float _lastBaseRadius = 0f;
         public CanvasPanel()
         {
+            _currentSpectrum = new float[_barCount];
+            _smoothedSpectrum = new float[_barCount];
             InitializeComponent();
             InitializeAudio();
             InitializeText();
-            _currentSpectrum = new float[_barCount];
-            _smoothedSpectrum = new float[_barCount];
+            InitializeVectors();   
+            _ = InitializeSMTCAsync();
+        }
+
+        private void InitializeVectors()
+        {
             _polygonPointsPool = new Vector2[_barCount][];
             _glowPointsPool = new Vector2[_barCount][];
             for (int i = 0; i < _barCount; i++)
@@ -81,7 +91,6 @@ namespace WinExSpectrumTest.Canvas
                 _polygonPointsPool[i] = new Vector2[4];
                 _glowPointsPool[i] = new Vector2[4];
             }
-            _ = InitializeSMTCAsync();
         }
 
         private void InitializeAudio()
@@ -263,7 +272,8 @@ namespace WinExSpectrumTest.Canvas
                         }
                     }
                     _centerX = (float)size.Width * 0.5f;
-                    _centerY = (float)size.Height * 0.5f;                    
+                    _centerY = (float)size.Height * 0.5f;
+                    _baseRadius = Math.Min(_centerX, _centerY) * 0.5f;
                 }
                 if (AppSettings.IsDrawRoundSpectrum)
                 {
@@ -329,40 +339,46 @@ namespace WinExSpectrumTest.Canvas
 
         private void DrawRoundSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
         {
-            if (_smoothedSpectrum == null) return;           
-            float baseRadius = Math.Min(_centerX, _centerY) * 0.5f;
+            if (_smoothedSpectrum == null) return;
             float angleStep = 2 * (float)Math.PI / _barCount;
             float angleOffset = 0.01f;
+
+            // 计算线宽，基于角度步长
+            float lineWidth = angleStep * _baseRadius * 0.8f;
+
             for (int i = 0; i < _barCount; i++)
             {
                 // 径向长度
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.8f), 0);
-                float currentRadius = baseRadius + _smoothAverage + (height * baseRadius);
-
+                float currentRadius = _baseRadius + _smoothAverage + (height * _baseRadius);
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
-                var color = GetSpectrumColorLoop(height,i);
-                var polygonPoints = _polygonPointsPool[i];
+                var color = GetSpectrumColorLoop(height, i);
 
-                // 直接更新数组中的元素，不进行任何新的内存分配
-                polygonPoints[0] = new Vector2(_centerX + baseRadius * (float)Math.Cos(startAngle), _centerY + baseRadius * (float)Math.Sin(startAngle));
-                polygonPoints[1] = new Vector2(_centerX + baseRadius * (float)Math.Cos(endAngle), _centerY + baseRadius * (float)Math.Sin(endAngle));
-                polygonPoints[2] = new Vector2(_centerX + currentRadius * (float)Math.Cos(endAngle), _centerY + currentRadius * (float)Math.Sin(endAngle));
-                polygonPoints[3] = new Vector2(_centerX + currentRadius * (float)Math.Cos(startAngle), _centerY + currentRadius * (float)Math.Sin(startAngle));
+                // 计算中心角度，用一条线代替四边形
+                float centerAngle = (startAngle + endAngle) / 2;
+                Vector2 innerPoint = new Vector2(
+                    _centerX + _baseRadius * (float)Math.Cos(centerAngle),
+                    _centerY + _baseRadius * (float)Math.Sin(centerAngle)
+                );
+                Vector2 outerPoint = new Vector2(
+                    _centerX + currentRadius * (float)Math.Cos(centerAngle),
+                    _centerY + currentRadius * (float)Math.Sin(centerAngle)
+                );
 
-                // 绘制多边形，模拟频谱条
-                //session.FillGeometry(CanvasGeometry.CreatePolygon(session, polygonPoints), color);
+                // 用粗线替代多边形
+                session.DrawLine(innerPoint, outerPoint, color, lineWidth);
 
+                // 发光效果
                 var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
                 float glowRadius = (float)(currentRadius * 1.05);
-                var glowPoints = _glowPointsPool[i];
-                // 直接更新数组中的元素
-                glowPoints[0] = new Vector2(_centerX + currentRadius * (float)Math.Cos(startAngle), _centerY + currentRadius * (float)Math.Sin(startAngle));
-                glowPoints[1] = new Vector2(_centerX + currentRadius * (float)Math.Cos(endAngle), _centerY + currentRadius * (float)Math.Sin(endAngle));
-                glowPoints[2] = new Vector2(_centerX + glowRadius * (float)Math.Cos(endAngle), _centerY + glowRadius * (float)Math.Sin(endAngle));
-                glowPoints[3] = new Vector2(_centerX + glowRadius * (float)Math.Cos(startAngle), _centerY + glowRadius * (float)Math.Sin(startAngle));
-                //session.FillGeometry(CanvasGeometry.CreatePolygon(session, glowPoints), glowColor);
+                Vector2 glowPoint = new Vector2(
+                    _centerX + glowRadius * (float)Math.Cos(centerAngle),
+                    _centerY + glowRadius * (float)Math.Sin(centerAngle)
+                );
+
+                session.DrawLine(outerPoint, glowPoint, glowColor, lineWidth * 1.2f);
             }
         }
 
@@ -418,13 +434,16 @@ namespace WinExSpectrumTest.Canvas
                 {
                     return;
                 }
-                float baseRadius = Math.Min(_centerX, _centerY) * 0.5f ;
-                var circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, baseRadius);
+                if (_circleGeometry == null ||Math.Abs(_baseRadius - _lastBaseRadius) > float.Epsilon) {
+                    _circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, _baseRadius);
+                    _lastBaseRadius = _baseRadius;
+                }
+                
 
                 // 计算图片缩放和位置，使其居中并覆盖圆形区域
                 float imageAspectRatio = (float)_albumArtBitmap.SizeInPixels.Width / _albumArtBitmap.SizeInPixels.Height;
-                float targetWidth = baseRadius * 2;
-                float targetHeight = baseRadius * 2;
+                float targetWidth = _baseRadius * 2;
+                float targetHeight = _baseRadius * 2;
 
                 float drawX, drawY, drawWidth, drawHeight;
 
@@ -441,7 +460,12 @@ namespace WinExSpectrumTest.Canvas
                 drawX = _centerX - drawWidth / 2;
                 drawY = _centerY - drawHeight / 2;
                 session.Transform = Matrix3x2.CreateRotation(-_rotationOffset, new Vector2(_centerX, _centerY)) * session.Transform;
-                using (session.CreateLayer(1.0f, circleGeometry))
+                if (_circleGeometry == null || Math.Abs(_baseRadius - _lastBaseRadius) > float.Epsilon)
+                {
+                    _circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, _baseRadius);
+                    _lastBaseRadius = _baseRadius;
+                }
+                using (session.CreateLayer(1.0f, _circleGeometry))
                 {
                     session.DrawImage(
                         _albumArtBitmap,
@@ -469,22 +493,36 @@ namespace WinExSpectrumTest.Canvas
             float centerY = _centerY - newFontSize;
             _titleTextFormat.FontSize = newFontSize;
             _artistTextFormat.FontSize = newFontSize * 0.9f;
-            CanvasTextLayout titleLayout = new(
-               _device, _title ?? string.Empty,
-               _titleTextFormat, maxTextWidth, 20
-           );
-            CanvasTextLayout artistLayout = new(
-                _device, _artist ?? string.Empty,
-                _artistTextFormat, maxTextWidth, 16
-            );
+            if (_titleLayout == null || Math.Abs(maxTextWidth - _lastMaxTextWidth) > float.Epsilon)
+            {
+                // 销毁旧的布局对象以释放资源
+                _titleLayout?.Dispose();
+                _artistLayout?.Dispose();
+
+                _titleTextFormat.FontSize = newFontSize;
+                _artistTextFormat.FontSize = newFontSize * 0.9f;
+
+                // 创建新的布局对象
+                _titleLayout = new CanvasTextLayout(
+                    _device, _title ?? string.Empty,
+                    _titleTextFormat, maxTextWidth, 20
+                );
+                _artistLayout = new CanvasTextLayout(
+                    _device, _artist ?? string.Empty,
+                    _artistTextFormat, maxTextWidth, 16
+                );
+
+                // 更新上次的宽度值
+                _lastMaxTextWidth = maxTextWidth;
+            }
             session.DrawTextLayout(
-                titleLayout,
+                _titleLayout,
                 new Vector2(centerX, centerY),
                 Color.FromArgb((byte)(255 * AppSettings.FontOpacity), 255, 255, 255)
                 );
             session.DrawTextLayout(
-                artistLayout,
-                new Vector2(centerX, centerY + (float)titleLayout.LayoutBounds.Height),
+                _artistLayout,
+                new Vector2(centerX, centerY + (float)_titleLayout.LayoutBounds.Height),
                 Color.FromArgb((byte)(255 * AppSettings.FontOpacity), 255, 255, 255));
         }
 
