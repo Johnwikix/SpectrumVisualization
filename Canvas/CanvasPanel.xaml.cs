@@ -178,25 +178,36 @@ namespace WinExSpectrumTest.Canvas
                 return;
             }
             try
-            {                
+            {
                 _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
                 _title = _mediaProperties?.Title;
                 _artist = _mediaProperties?.Artist;
                 _isSMTCUpdated = true;
+            }
+            catch (Exception)
+            {
+            }            
+            try
+            {   
+                
                 // 获取并加载封面
                 if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
                 { 
                     DispatcherQueue.TryEnqueue(async () => {
                         try
                         {
-                            _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
-                            _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
+                            using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
+                            {
+                                _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+                            }
                         }
                         catch (Exception) {
                             try
                             {
-                                _thumbnail = await _mediaProperties.Thumbnail.OpenReadAsync();
-                                _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, _thumbnail);
+                                using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
+                                {
+                                    _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+                                }
                             }
                             catch (Exception) {
                             }                            
