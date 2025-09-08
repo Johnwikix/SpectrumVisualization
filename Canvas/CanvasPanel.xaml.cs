@@ -295,7 +295,7 @@ namespace WinExSpectrumTest.Canvas
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i], maxHeight), 0);
 
                 // 创建渐变色彩效果
-                var color = GetSpectrumColorLoop(height / maxHeight, i);
+                var color = GetSpectrumColor(height / maxHeight, i);
 
                 // 上半部分频谱条
                 Vector2 upStart = new Vector2(x, centerY);
@@ -348,7 +348,7 @@ namespace WinExSpectrumTest.Canvas
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
-                var color = GetSpectrumColorLoop(height, i);
+                var color = GetSpectrumColor(height, i);
 
                 float centerAngle = (startAngle + endAngle) / 2;
                 Vector2 innerPoint = new Vector2(
@@ -520,19 +520,20 @@ namespace WinExSpectrumTest.Canvas
             return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)Math.Abs(i * coe - 255), (byte)_middleNum, (byte)Math.Abs(255 - i * coe));
         }
 
-        private Color GetSpectrumColor(float intensity)
+        private Color GetSpectrumColor(float intensity, int i = 0)
         {
-            // 根据强度创建彩虹色彩效果
-            if (intensity < 0.1f)
-                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 0, 100, 255); // 蓝色
-            else if (intensity < 0.2f)
-                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 0, 255, 200); // 青色
-            else if (intensity < 0.3f)
-                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 100, 255, 0); // 绿色
-            else if (intensity < 0.4f)
-                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 255, 200, 0); // 黄色
-            else
-                return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), 255, 100, 0);
+            intensity = Math.Min(1.0f, Math.Max(0.0f, intensity));
+            float coe = 2f * 256f / _barCount;
+            byte baseBlue = (byte)Math.Abs(255 - i * coe);
+            // 2. 根据强度 `intensity` 平滑调整红色通道
+            byte finalRed = (byte)(255 * intensity);
+            // 4. 返回最终颜色，并应用不透明度
+            return Color.FromArgb(
+                (byte)(255 * AppSettings.SpectrumOpacity),
+                finalRed,
+                (byte)_middleNum,
+                baseBlue
+            );
         }
         public void Dispose()
         {
