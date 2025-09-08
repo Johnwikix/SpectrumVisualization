@@ -178,11 +178,11 @@ namespace WinExSpectrumTest.Canvas
                 return;
             }
             try
-            {
-                _isSMTCUpdated = true;
+            {                
                 _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
                 _title = _mediaProperties?.Title;
                 _artist = _mediaProperties?.Artist;
+                _isSMTCUpdated = true;
                 // 获取并加载封面
                 if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
                 { 

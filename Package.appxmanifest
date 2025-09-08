@@ -15,7 +15,7 @@
   <mp:PhoneIdentity PhoneProductId="51d2cb19-4833-41d6-83af-5a8c0aed6dcb" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>WinExSpectrumTest</DisplayName>
+    <DisplayName>SpectrumVisualization</DisplayName>
     <PublisherDisplayName>90684</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
