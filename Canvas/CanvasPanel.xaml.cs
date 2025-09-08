@@ -66,8 +66,6 @@ namespace WinExSpectrumTest.Canvas
         private CanvasTextFormat _artistTextFormat;
         private float _centerX = 0f;
         private float _centerY = 0f;
-        private Vector2[][] _polygonPointsPool;
-        private Vector2[][] _glowPointsPool;
         private CanvasGeometry _circleGeometry;
         private float _baseRadius = 0f;
         private float _lastBaseRadius = 0f;
@@ -77,20 +75,8 @@ namespace WinExSpectrumTest.Canvas
             _smoothedSpectrum = new float[_barCount];
             InitializeComponent();
             InitializeAudio();
-            InitializeText();
-            InitializeVectors();   
+            InitializeText(); 
             _ = InitializeSMTCAsync();
-        }
-
-        private void InitializeVectors()
-        {
-            _polygonPointsPool = new Vector2[_barCount][];
-            _glowPointsPool = new Vector2[_barCount][];
-            for (int i = 0; i < _barCount; i++)
-            {
-                _polygonPointsPool[i] = new Vector2[4];
-                _glowPointsPool[i] = new Vector2[4];
-            }
         }
 
         private void InitializeAudio()
@@ -356,7 +342,6 @@ namespace WinExSpectrumTest.Canvas
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;
                 var color = GetSpectrumColorLoop(height, i);
 
-                // 计算中心角度，用一条线代替四边形
                 float centerAngle = (startAngle + endAngle) / 2;
                 Vector2 innerPoint = new Vector2(
                     _centerX + _baseRadius * (float)Math.Cos(centerAngle),
@@ -367,7 +352,6 @@ namespace WinExSpectrumTest.Canvas
                     _centerY + currentRadius * (float)Math.Sin(centerAngle)
                 );
 
-                // 用粗线替代多边形
                 session.DrawLine(innerPoint, outerPoint, color, lineWidth);
 
                 // 发光效果
@@ -434,12 +418,7 @@ namespace WinExSpectrumTest.Canvas
                 {
                     return;
                 }
-                if (_circleGeometry == null ||Math.Abs(_baseRadius - _lastBaseRadius) > float.Epsilon) {
-                    _circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, _baseRadius);
-                    _lastBaseRadius = _baseRadius;
-                }
-                
-
+                _circleGeometry = CanvasGeometry.CreateCircle(session, _centerX, _centerY, _baseRadius);
                 // 计算图片缩放和位置，使其居中并覆盖圆形区域
                 float imageAspectRatio = (float)_albumArtBitmap.SizeInPixels.Width / _albumArtBitmap.SizeInPixels.Height;
                 float targetWidth = _baseRadius * 2;
