@@ -69,6 +69,7 @@ namespace WinExSpectrumTest.Canvas
         private CanvasGeometry _circleGeometry;
         private float _baseRadius = 0f;
         private float _lastBaseRadius = 0f;
+        private bool _isSMTCUpdated = true;
         public CanvasPanel()
         {
             _currentSpectrum = new float[_barCount];
@@ -172,6 +173,7 @@ namespace WinExSpectrumTest.Canvas
             }
             try
             {
+                _isSMTCUpdated = true;
                 _mediaProperties = await _currentSession.TryGetMediaPropertiesAsync();
                 _title = _mediaProperties?.Title;
                 _artist = _mediaProperties?.Artist;
@@ -277,48 +279,54 @@ namespace WinExSpectrumTest.Canvas
 
         private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
         {
-            try {
-            } catch (Exception) { }
+            if (_smoothedSpectrum == null) return;
+
             if (_smoothedSpectrum == null) return;
 
             // 绘制频谱条
             float barWidth = (float)size.Width / _barCount;
             float maxHeight = (float)size.Height * 0.3f;
-            if (barWidth <= 2) return;
+
+            float centerY = (float)size.Height / 2;
+
             for (int i = 0; i < _barCount; i++)
             {
-                float x = i * barWidth;
+                float x = i * barWidth + barWidth / 2; // 线的中心位置
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i], maxHeight), 0);
-                float y = (float)size.Height/2 - height;
 
                 // 创建渐变色彩效果
-                var color = GetSpectrumColorLoop(height / maxHeight,i);
+                var color = GetSpectrumColorLoop(height / maxHeight, i);
 
-                // 绘制频谱条
-                var rectUp = new Windows.Foundation.Rect(
-                    x + 1, y,
-                    barWidth - 2, height);
+                // 上半部分频谱条
+                Vector2 upStart = new Vector2(x, centerY);
+                Vector2 upEnd = new Vector2(x, centerY - height);
 
-                var rectDown = new Windows.Foundation.Rect(
-                    x + 1, (float)size.Height/2,
-                    barWidth - 2, height);
+                // 下半部分频谱条
+                Vector2 downStart = new Vector2(x, centerY);
+                Vector2 downEnd = new Vector2(x, centerY + height);
 
-                session.FillRectangle(rectUp, color);
-                session.FillRectangle(rectDown, color);
+                // 使用线宽替代矩形宽度
+                float lineWidth = barWidth - 2; // 减去原来的边距
+
+                session.DrawLine(upStart, upEnd, color, lineWidth);
+                session.DrawLine(downStart, downEnd, color, lineWidth);
 
                 // 添加发光效果
                 if (height > 10)
                 {
-                    var glowRectUp = new Windows.Foundation.Rect(
-                        x, y - 5,
-                        barWidth, height + 10);
-                    var glowRectDown = new Windows.Foundation.Rect(
-                        x, (float)size.Height/2 - 5,
-                        barWidth, height + 10);
+                    var glowColor = Color.FromArgb((byte)(32 * AppSettings.SpectrumOpacity), color.R, color.G, color.B);
+                    float glowWidth = barWidth; // 发光效果稍宽一些
 
-                    var glowColor = Color.FromArgb((byte)(32*AppSettings.SpectrumOpacity), color.R, color.G, color.B);
-                    session.FillRectangle(glowRectUp, glowColor);
-                    session.FillRectangle(glowRectDown, glowColor);
+                    // 发光效果上半部分
+                    Vector2 glowUpStart = new Vector2(x, centerY);
+                    Vector2 glowUpEnd = new Vector2(x, centerY - height - 5);
+
+                    // 发光效果下半部分  
+                    Vector2 glowDownStart = new Vector2(x, centerY);
+                    Vector2 glowDownEnd = new Vector2(x, centerY + height + 5);
+
+                    session.DrawLine(glowUpStart, glowUpEnd, glowColor, glowWidth);
+                    session.DrawLine(glowDownStart, glowDownEnd, glowColor, glowWidth);
                 }
             }
         }
@@ -472,7 +480,7 @@ namespace WinExSpectrumTest.Canvas
             float centerY = _centerY - newFontSize;
             _titleTextFormat.FontSize = newFontSize;
             _artistTextFormat.FontSize = newFontSize * 0.9f;
-            if (_titleLayout == null || Math.Abs(maxTextWidth - _lastMaxTextWidth) > float.Epsilon)
+            if (_titleLayout == null || Math.Abs(maxTextWidth - _lastMaxTextWidth) > float.Epsilon || _isSMTCUpdated)
             {
                 // 销毁旧的布局对象以释放资源
                 _titleLayout?.Dispose();
@@ -490,9 +498,9 @@ namespace WinExSpectrumTest.Canvas
                     _device, _artist ?? string.Empty,
                     _artistTextFormat, maxTextWidth, 16
                 );
-
                 // 更新上次的宽度值
                 _lastMaxTextWidth = maxTextWidth;
+                _isSMTCUpdated = false;
             }
             session.DrawTextLayout(
                 _titleLayout,
