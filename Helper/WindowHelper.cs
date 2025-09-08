@@ -1,16 +1,10 @@
 ﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Vanara.PInvoke;
-using Windows.System;
 using WinExSpectrumTest.View;
 using WinRT.Interop;
 using WinUIEx;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Window = Microsoft.UI.Xaml.Window;
 
 namespace WinExSpectrumTest.Helper
@@ -81,9 +75,9 @@ namespace WinExSpectrumTest.Helper
                     TrackWindow(window);
                     var castedWindow = (Window)window;
                     castedWindow.Restore();
-                    castedWindow.Activate();                   
-                }               
-                          
+                    castedWindow.Activate();
+                }
+
             }
             else
             {

@@ -2,8 +2,6 @@
 using NAudio.Wave;
 using System;
 using System.Diagnostics;
-using System.Threading.Channels;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WinExSpectrumTest.Analyzer
 {

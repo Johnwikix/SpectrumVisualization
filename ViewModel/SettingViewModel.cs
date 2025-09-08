@@ -1,11 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Windows.UI;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Service;
@@ -18,7 +14,7 @@ namespace WinExSpectrumTest.ViewModel
         [ObservableProperty]
         private float _rotationSpeed = 10.0f;
         partial void OnRotationSpeedChanged(float value)
-        {            
+        {
             if (_isInitialized)
             {
                 AppSettings.RotationSpeed = value;
@@ -74,13 +70,14 @@ namespace WinExSpectrumTest.ViewModel
             if (_isInitialized)
             {
                 AppSettings.AppStyle = value;
-            }            
+            }
         }
         [ObservableProperty]
         private bool _isColorPickerVisible = false;
         [ObservableProperty]
         private Color _customColor = Color.FromArgb(255, 128, 128, 128);
-        partial void OnCustomColorChanged(Color value) {
+        partial void OnCustomColorChanged(Color value)
+        {
             if (_isInitialized)
             {
                 AppSettings.CustomColorAlpha = value.A;
@@ -91,7 +88,8 @@ namespace WinExSpectrumTest.ViewModel
         }
         [ObservableProperty]
         private float _customOpacity = 50f;
-        partial void OnCustomOpacityChanged(float value) {
+        partial void OnCustomOpacityChanged(float value)
+        {
             if (_isInitialized)
             {
                 AppSettings.CustomAcrylicOpacity = value / 100;
@@ -100,7 +98,8 @@ namespace WinExSpectrumTest.ViewModel
         }
         [ObservableProperty]
         private bool _isUpdateBackDrop = false;
-        partial void OnIsUpdateBackDropChanged(bool value) {
+        partial void OnIsUpdateBackDropChanged(bool value)
+        {
             if (_isInitialized)
             {
                 AppSettings.IsUpdateBackDrop = value;
@@ -108,8 +107,10 @@ namespace WinExSpectrumTest.ViewModel
         }
         [ObservableProperty]
         private float _refreshRate = 60.0f;
-        partial void OnRefreshRateChanged(float value) {
-            if (_isInitialized) {
+        partial void OnRefreshRateChanged(float value)
+        {
+            if (_isInitialized)
+            {
                 AppSettings.RefreshRate = value;
                 App.MainWindow?.ChangeRefreshRate();
             }

@@ -1,10 +1,6 @@
 ﻿using SQLite;
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Windows.Media.Playlists;
 using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Service
@@ -27,7 +23,7 @@ namespace WinExSpectrumTest.Service
             var settings = await _dbConnection.Table<SaveSetting>().ToListAsync();
             AppSettings.RotationSpeed = settings.FirstOrDefault()?.RotationSpeed ?? 10.0f;
             AppSettings.CoverOpacity = settings.FirstOrDefault()?.CoverOpacity ?? 1.0f;
-            AppSettings.SpectrumOpacity = settings.FirstOrDefault()?.SpectrumOpacity ?? 1.0f;   
+            AppSettings.SpectrumOpacity = settings.FirstOrDefault()?.SpectrumOpacity ?? 1.0f;
             AppSettings.FontOpacity = settings.FirstOrDefault()?.FontOpacity ?? 1.0f;
             AppSettings.SmoothingFactor = settings.FirstOrDefault()?.SmoothingFactor ?? 0.95f;
             AppSettings.IsDrawPlainSpectrum = settings.FirstOrDefault()?.IsDrawPlainSpectrum ?? false;

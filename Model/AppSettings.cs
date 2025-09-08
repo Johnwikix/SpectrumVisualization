@@ -1,9 +1,4 @@
 ﻿using Microsoft.UI.Xaml;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WinExSpectrumTest.Model
 {
@@ -25,7 +20,7 @@ namespace WinExSpectrumTest.Model
         public static byte CustomColorGreen { get; set; } = 128;
         public static byte CustomColorBlue { get; set; } = 128;
         public static bool IsUpdateBackDrop { get; set; } = false;
-        public static string AppTheme { get;set; } = "Default";
+        public static string AppTheme { get; set; } = "Default";
         public static ElementTheme elementTheme { get; set; } = ElementTheme.Default;
         public static float RefreshRate { get; set; } = 60.0f;
     }

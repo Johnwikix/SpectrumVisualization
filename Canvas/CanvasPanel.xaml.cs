@@ -1,37 +1,18 @@
-using ABI.Microsoft.UI.Xaml;
 using Microsoft.Graphics.Canvas;
-using Microsoft.Graphics.Canvas.Brushes;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
-using Microsoft.UI;
 using Microsoft.UI.Text;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using NAudio.CoreAudioApi;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Analyzer;
 using WinExSpectrumTest.Model;
-using WinRT;
 using ZLinq;
-using static Vanara.PInvoke.Kernel32;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -44,7 +25,6 @@ namespace WinExSpectrumTest.Canvas
         private readonly float[] _currentSpectrum;
         private readonly float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
-        //private readonly float _smoothingFactor = 0.9f;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
         private int _middleNum = 0;
@@ -71,13 +51,13 @@ namespace WinExSpectrumTest.Canvas
         private float _lastBaseRadius = 0f;
         private bool _isSMTCUpdated = true;
         public CanvasPanel()
-        {    
+        {
             InitializeComponent();
             _currentSpectrum = new float[_barCount];
             _smoothedSpectrum = new float[_barCount];
             SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
             InitializeAudio();
-            InitializeText(); 
+            InitializeText();
             _ = InitializeSMTCAsync();
         }
 
@@ -89,7 +69,7 @@ namespace WinExSpectrumTest.Canvas
         private void InitializeAudio()
         {
             _analyzer = new SpectrumAnalyzer();
-            _analyzer.SpectrumDataUpdated += OnSpectrumDataUpdated;            
+            _analyzer.SpectrumDataUpdated += OnSpectrumDataUpdated;
             _analyzer.StartCapture();
         }
 
@@ -186,14 +166,15 @@ namespace WinExSpectrumTest.Canvas
             }
             catch (Exception)
             {
-            }            
+            }
             try
-            {   
-                
+            {
+
                 // 获取并加载封面
                 if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
-                { 
-                    DispatcherQueue.TryEnqueue(async () => {
+                {
+                    DispatcherQueue.TryEnqueue(async () =>
+                    {
                         try
                         {
                             using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
@@ -201,7 +182,8 @@ namespace WinExSpectrumTest.Canvas
                                 _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
                             }
                         }
-                        catch (Exception) {
+                        catch (Exception)
+                        {
                             try
                             {
                                 using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
@@ -209,10 +191,11 @@ namespace WinExSpectrumTest.Canvas
                                     _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
                                 }
                             }
-                            catch (Exception) {
-                            }                            
-                        }                        
-                    });                    
+                            catch (Exception)
+                            {
+                            }
+                        }
+                    });
                 }
                 else
                 {
@@ -289,12 +272,12 @@ namespace WinExSpectrumTest.Canvas
                 if (AppSettings.IsDrawPlainSpectrum)
                 {
                     DrawPlainSpectrum(session, size);
-                }                
+                }
             }
-            catch (Exception) { }            
+            catch (Exception) { }
         }
 
-        private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
+        private void DrawPlainSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             if (_smoothedSpectrum == null) return;
 
@@ -348,7 +331,7 @@ namespace WinExSpectrumTest.Canvas
             }
         }
 
-        private void DrawRoundSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size) 
+        private void DrawRoundSpectrum(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             if (_smoothedSpectrum == null) return;
             float angleStep = 2 * (float)Math.PI / _barCount;
@@ -404,11 +387,11 @@ namespace WinExSpectrumTest.Canvas
         // 绘制波形线条
         private void DrawWaveform(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
-            if (_smoothedSpectrum == null) return;            
+            if (_smoothedSpectrum == null) return;
             var points = new Vector2[_barCount];
             float centerX = (float)size.Width * 0.5f;
             float centerY = (float)size.Height * 0.5f;
-            Vector2 center = new Vector2(centerX, centerY);            
+            Vector2 center = new Vector2(centerX, centerY);
             // 计算基础半径，确保圆形波形图在画布内
             float baseRadius = Math.Min(centerX, centerY) * 0.6f;
 
@@ -438,7 +421,7 @@ namespace WinExSpectrumTest.Canvas
         private void DrawAlbumArt(CanvasDrawingSession session, Windows.Foundation.Size size)
         {
             try
-            {                
+            {
                 if (_albumArtBitmap == null)
                 {
                     return;
@@ -456,7 +439,7 @@ namespace WinExSpectrumTest.Canvas
                     drawHeight = targetHeight;
                     drawWidth = drawHeight * imageAspectRatio;
                 }
-                else 
+                else
                 {
                     drawWidth = targetWidth;
                     drawHeight = drawWidth / imageAspectRatio;
@@ -479,8 +462,9 @@ namespace WinExSpectrumTest.Canvas
                         CanvasImageInterpolation.HighQualityCubic);
                 }
             }
-            catch (Exception) {
-            }                
+            catch (Exception)
+            {
+            }
         }
 
         private void DrawTitleAndArtist(CanvasDrawingSession session, Windows.Foundation.Size size)
@@ -493,7 +477,7 @@ namespace WinExSpectrumTest.Canvas
             float maxTextWidth = Math.Min((float)size.Width, (float)size.Height) * 0.4f;
             float baseFontSize = 18f;
             float newFontSize = baseFontSize * (maxTextWidth / 200f);
-            float centerX = _centerX - maxTextWidth/2;
+            float centerX = _centerX - maxTextWidth / 2;
             float centerY = _centerY - newFontSize;
             _titleTextFormat.FontSize = newFontSize;
             _artistTextFormat.FontSize = newFontSize * 0.9f;
@@ -533,7 +517,7 @@ namespace WinExSpectrumTest.Canvas
         private Color GetSpectrumColorLoop(float intensity, int i = 0)
         {
             float coe = 2 * 256 / _barCount;
-            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)Math.Abs(i * coe-255), (byte)_middleNum, (byte)Math.Abs(255 - i * coe));
+            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)Math.Abs(i * coe - 255), (byte)_middleNum, (byte)Math.Abs(255 - i * coe));
         }
 
         private Color GetSpectrumColor(float intensity)
