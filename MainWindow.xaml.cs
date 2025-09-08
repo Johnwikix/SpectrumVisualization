@@ -60,7 +60,8 @@ namespace WinExSpectrumTest
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
             args.Cancel = true;
-            this.Hide();
+            App.Current_Exit();
+            //this.Hide();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
