@@ -19,6 +19,7 @@ using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.System.UserProfile;
+using WinExSpectrumTest.Service;
 using WinExSpectrumTest.ViewModel;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -65,6 +66,8 @@ namespace WinExSpectrumTest
         protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             await _host.StartAsync();
+            await DataService.Initialize();
+            await DataService.LoadSettingAsync();
             MainWindow = new MainWindow();
             MainWindow.Activate();
         }

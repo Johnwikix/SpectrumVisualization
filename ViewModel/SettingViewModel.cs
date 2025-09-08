@@ -106,6 +106,14 @@ namespace WinExSpectrumTest.ViewModel
                 AppSettings.IsUpdateBackDrop = value;
             }
         }
+        [ObservableProperty]
+        private float _refreshRate = 60.0f;
+        partial void OnRefreshRateChanged(float value) {
+            if (_isInitialized) {
+                AppSettings.RefreshRate = value;
+                App.MainWindow?.ChangeRefreshRate();
+            }
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -132,6 +140,7 @@ namespace WinExSpectrumTest.ViewModel
                                                  AppSettings.CustomColorGreen,
                                                  AppSettings.CustomColorBlue);
             IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
+            RefreshRate = AppSettings.RefreshRate;
             _isInitialized = true;
         }
 

@@ -56,8 +56,7 @@ namespace WinExSpectrumTest.Control
         }
         [RelayCommand]
         public void Setting() {
-            var settingWindow = new SettingWindow();
-            settingWindow.Activate();
+            WindowHelper.OpenWindow<SettingWindow>();
         }
 
         [RelayCommand]

@@ -27,5 +27,6 @@ namespace WinExSpectrumTest.Model
         public static bool IsUpdateBackDrop { get; set; } = false;
         public static string AppTheme { get;set; } = "Default";
         public static ElementTheme elementTheme { get; set; } = ElementTheme.Default;
+        public static float RefreshRate { get; set; } = 60.0f;
     }
 }

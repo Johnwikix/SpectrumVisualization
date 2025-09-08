@@ -14,7 +14,6 @@
             x:Name="SpectrumCanvasControl"
             VerticalAlignment="Stretch"
             Draw="SpectrumCanvasControl_Draw"
-            TargetElapsedTime="0:0:0.0166"
             Update="SpectrumCanvasControl_Update" />
     </Grid>
 </UserControl>

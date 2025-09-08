@@ -71,13 +71,19 @@ namespace WinExSpectrumTest.Canvas
         private float _lastBaseRadius = 0f;
         private bool _isSMTCUpdated = true;
         public CanvasPanel()
-        {
+        {    
+            InitializeComponent();
             _currentSpectrum = new float[_barCount];
             _smoothedSpectrum = new float[_barCount];
-            InitializeComponent();
+            SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
             InitializeAudio();
             InitializeText(); 
             _ = InitializeSMTCAsync();
+        }
+
+        public void ChangeRefreshRate()
+        {
+            SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
         }
 
         private void InitializeAudio()

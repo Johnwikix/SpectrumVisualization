@@ -42,6 +42,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.IsUpdateBackDrop = settings.FirstOrDefault()?.IsUpdateBackDrop ?? false;
             AppSettings.AppTheme = settings.FirstOrDefault()?.AppTheme ?? "Default";
             AppSettings.elementTheme = settings.FirstOrDefault()?.elementTheme == "Light" ? Microsoft.UI.Xaml.ElementTheme.Light : settings.FirstOrDefault()?.elementTheme == "Dark" ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Default;
+            AppSettings.RefreshRate = settings.FirstOrDefault()?.RefreshRate ?? 60.0f;
         }
 
         public static async Task SaveSettingAsync()
@@ -64,7 +65,8 @@ namespace WinExSpectrumTest.Service
                 CustomColorBlue = AppSettings.CustomColorBlue,
                 IsUpdateBackDrop = AppSettings.IsUpdateBackDrop,
                 AppTheme = AppSettings.AppTheme,
-                elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default"
+                elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default",
+                RefreshRate = AppSettings.RefreshRate
             };
             var existingSettings = await _dbConnection.Table<SaveSetting>().ToListAsync();
             if (existingSettings.Count > 0)

@@ -45,15 +45,7 @@ namespace WinExSpectrumTest
             this.SetIcon("Assets/icon.ico");
             this.AppWindow.Closing += AppWindow_Closing;
             _hwnd = WindowNative.GetWindowHandle(this);
-            themeStyleHelper = new ThemeStyleHelper(this, this.AppWindow);           
-            InitializeData();            
-        }
-
-
-        private async void InitializeData()
-        {
-            await DataService.Initialize();
-            await DataService.LoadSettingAsync();
+            themeStyleHelper = new ThemeStyleHelper(this, this.AppWindow);
             themeStyleHelper.SetAppStyle();
         }
 
@@ -102,6 +94,11 @@ namespace WinExSpectrumTest
             {
                 WindowHelper.DisableClickThrough(_hwnd);
             }
+        }
+
+        public void ChangeRefreshRate()
+        {
+            MyCanvas.ChangeRefreshRate();
         }
 
         public void SetAppStyle()

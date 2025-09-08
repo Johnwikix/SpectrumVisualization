@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Vanara.PInvoke;
 using Windows.System;
+using WinExSpectrumTest.View;
 using WinRT.Interop;
 using WinUIEx;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
@@ -18,6 +19,7 @@ namespace WinExSpectrumTest.Helper
     {
         private static readonly Dictionary<IntPtr, WindowStyle> _originalWindowStyles = [];
         private static readonly Dictionary<IntPtr, bool> _originalTopmostStates = [];
+        private static List<object> _activeWindows = [];
         private static readonly Dictionary<IntPtr, (double X, double Y, double Width, double Height)> _originalWindowBounds = [];
         public static void Enable(Window window)
         {
@@ -65,6 +67,48 @@ namespace WinExSpectrumTest.Helper
                     window.SetWindowStyle(style);
                     _originalWindowStyles.Remove(hwnd);
                 }
+            }
+        }
+
+        public static void OpenWindow<T>()
+        {
+            var window = _activeWindows.Find(w => w is T);
+            if (window == null)
+            {
+                if (typeof(T) == typeof(SettingWindow))
+                {
+                    window = new SettingWindow();
+                    TrackWindow(window);
+                    var castedWindow = (Window)window;
+                    castedWindow.Restore();
+                    castedWindow.Activate();                   
+                }               
+                          
+            }
+            else
+            {
+                var castedWindow = (Window)window;
+                castedWindow.Restore();
+                castedWindow.Activate();
+                castedWindow.SetForegroundWindow();
+            }
+        }
+
+        private static void TrackWindow(object window)
+        {
+            if (!_activeWindows.Contains(window))
+            {
+                _activeWindows.Add(window);
+                var castedWindow = (Window)window;
+                castedWindow.Closed += WindowHelper_Closed;
+            }
+        }
+
+        private static void WindowHelper_Closed(object sender, WindowEventArgs args)
+        {
+            if (_activeWindows.Contains(sender))
+            {
+                _activeWindows.Remove(sender);
             }
         }
 
