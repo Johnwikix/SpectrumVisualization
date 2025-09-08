@@ -37,6 +37,7 @@ namespace WinExSpectrumTest
         private IntPtr _hwnd;
         private ThemeStyleHelper themeStyleHelper;
         private UISettings uiSettings;
+        private bool IsFullScreen = false;
         public MainWindow()
         {
             InitializeComponent();
@@ -65,6 +66,7 @@ namespace WinExSpectrumTest
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             TopCommand.Opacity = 0;
+            themeStyleHelper?.SetTransparent();
             WindowHelper.Enable(this);
             WindowHelper.SetLock(this,true);
             AppSettings.IsLocked = true;
@@ -114,6 +116,23 @@ namespace WinExSpectrumTest
         {
             themeStyleHelper.SetAppStyle();
             themeStyleHelper.SetAppTheme();
+        }
+
+        private void FullScreen_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsFullScreen)
+            {
+                this.AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+                FullScreenIcon.Glyph = "\uE740";
+                LockBtn.IsEnabled = true;
+            }
+            else
+            {
+                this.AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+                FullScreenIcon.Glyph = "\uE73F";
+                LockBtn.IsEnabled = false;
+            }
+            IsFullScreen = !IsFullScreen;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using SQLite;
+﻿using Microsoft.UI.Xaml;
+using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,5 +20,14 @@ namespace WinExSpectrumTest.Model
         public float FontOpacity { get; set; } = 1.0f;
         public float SmoothingFactor { get; set; } = 0.95f;
         public float Sensitivity { get; set; } = 10.0f;
+        public string AppStyle { get; set; } = "Acrylic";
+        public float CustomAcrylicOpacity { get; set; } = 0.5f;
+        public byte CustomColorAlpha { get; set; } = 255;
+        public byte CustomColorRed { get; set; } = 128;
+        public byte CustomColorGreen { get; set; } = 128;
+        public byte CustomColorBlue { get; set; } = 128;
+        public bool IsUpdateBackDrop { get; set; } = false;
+        public string AppTheme { get; set; } = "Default";
+        public string elementTheme { get; set; } = "Default";
     }
 }

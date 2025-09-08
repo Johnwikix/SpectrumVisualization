@@ -33,6 +33,15 @@ namespace WinExSpectrumTest.Service
             AppSettings.IsDrawPlainSpectrum = settings.FirstOrDefault()?.IsDrawPlainSpectrum ?? false;
             AppSettings.IsDrawRoundSpectrum = settings.FirstOrDefault()?.IsDrawRoundSpectrum ?? true;
             AppSettings.Sensitivity = settings.FirstOrDefault()?.Sensitivity ?? 10.0f;
+            AppSettings.AppStyle = settings.FirstOrDefault()?.AppStyle ?? "Acrylic";
+            AppSettings.CustomAcrylicOpacity = settings.FirstOrDefault()?.CustomAcrylicOpacity ?? 0.5f;
+            AppSettings.CustomColorAlpha = settings.FirstOrDefault()?.CustomColorAlpha ?? 255;
+            AppSettings.CustomColorRed = settings.FirstOrDefault()?.CustomColorRed ?? 128;
+            AppSettings.CustomColorGreen = settings.FirstOrDefault()?.CustomColorGreen ?? 128;
+            AppSettings.CustomColorBlue = settings.FirstOrDefault()?.CustomColorBlue ?? 128;
+            AppSettings.IsUpdateBackDrop = settings.FirstOrDefault()?.IsUpdateBackDrop ?? false;
+            AppSettings.AppTheme = settings.FirstOrDefault()?.AppTheme ?? "Default";
+            AppSettings.elementTheme = settings.FirstOrDefault()?.elementTheme == "Light" ? Microsoft.UI.Xaml.ElementTheme.Light : settings.FirstOrDefault()?.elementTheme == "Dark" ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Default;
         }
 
         public static async Task SaveSettingAsync()
@@ -46,7 +55,16 @@ namespace WinExSpectrumTest.Service
                 SmoothingFactor = AppSettings.SmoothingFactor,
                 IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum,
                 IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum,
-                Sensitivity = AppSettings.Sensitivity
+                Sensitivity = AppSettings.Sensitivity,
+                AppStyle = AppSettings.AppStyle,
+                CustomAcrylicOpacity = AppSettings.CustomAcrylicOpacity,
+                CustomColorAlpha = AppSettings.CustomColorAlpha,
+                CustomColorRed = AppSettings.CustomColorRed,
+                CustomColorGreen = AppSettings.CustomColorGreen,
+                CustomColorBlue = AppSettings.CustomColorBlue,
+                IsUpdateBackDrop = AppSettings.IsUpdateBackDrop,
+                AppTheme = AppSettings.AppTheme,
+                elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default"
             };
             var existingSettings = await _dbConnection.Table<SaveSetting>().ToListAsync();
             if (existingSettings.Count > 0)

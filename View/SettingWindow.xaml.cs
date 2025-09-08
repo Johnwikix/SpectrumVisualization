@@ -41,5 +41,12 @@ namespace WinExSpectrumTest.View
         {
             ViewModel.SaveSettings();
         }
+
+        private bool GetIsChecked(string style,string currentOption) {
+            if (style == currentOption) 
+                return true;
+            else
+                return false;
+        }
     }
 }

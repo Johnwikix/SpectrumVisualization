@@ -67,6 +67,7 @@ namespace WinExSpectrumTest.Control
             if (window == null) return;
             WindowHelper.SetLock(window, false);
             WindowHelper.Disable(window);
+            window.SetAppStyle();
             AppSettings.IsLocked = false;
         }
 

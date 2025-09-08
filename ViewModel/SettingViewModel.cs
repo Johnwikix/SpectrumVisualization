@@ -117,6 +117,21 @@ namespace WinExSpectrumTest.ViewModel
             IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum;
             IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum;
             Sensitivity = AppSettings.Sensitivity;
+            BackdropType = AppSettings.AppStyle;
+            if (BackdropType != "CustomAcrylicStyle")
+            {
+                IsColorPickerVisible = false;
+            }
+            else
+            {
+                IsColorPickerVisible = true;
+            }
+            CustomOpacity = AppSettings.CustomAcrylicOpacity * 100;
+            CustomColor = Color.FromArgb(AppSettings.CustomColorAlpha,
+                                                 AppSettings.CustomColorRed,
+                                                 AppSettings.CustomColorGreen,
+                                                 AppSettings.CustomColorBlue);
+            IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
             _isInitialized = true;
         }
 
