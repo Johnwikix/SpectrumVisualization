@@ -478,7 +478,7 @@ namespace WinExSpectrumTest.Canvas
             float baseFontSize = 18f;
             float newFontSize = baseFontSize * (maxTextWidth / 200f);
             float centerX = _centerX - maxTextWidth / 2;
-            float centerY = _centerY - newFontSize;
+            float centerY = (float)(_centerY - (newFontSize * 1.4));
             _titleTextFormat.FontSize = newFontSize;
             _artistTextFormat.FontSize = newFontSize * 0.9f;
             if (_titleLayout == null || Math.Abs(maxTextWidth - _lastMaxTextWidth) > float.Epsilon || _isSMTCUpdated)

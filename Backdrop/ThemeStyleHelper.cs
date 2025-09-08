@@ -89,7 +89,7 @@ namespace WinExSpectrumTest.Backdrop
                             var customAcrylic = new CustomAcrylicSystemBackdrop
                             {
                                 TintOpacity = 0,
-                                LuminosityOpacity = colorOpacity,
+                                LuminosityOpacity = 0,
                                 TintColor = uiColor
                             };
                             _window.SystemBackdrop = customAcrylic;
