@@ -266,11 +266,11 @@ namespace WinExSpectrumTest.Canvas
                         {
                             _middleNum -= 1;
                         }
-                    }
-                    _centerX = (float)size.Width * 0.5f;
-                    _centerY = (float)size.Height * 0.5f;
-                    _baseRadius = Math.Min(_centerX, _centerY) * 0.5f;
+                    }                    
                 }
+                _centerX = (float)size.Width * 0.5f;
+                _centerY = (float)size.Height * 0.5f;
+                _baseRadius = Math.Min(_centerX, _centerY) * 0.5f;
                 if (AppSettings.IsDrawRoundSpectrum)
                 {
                     DrawRoundSpectrum(session, size);

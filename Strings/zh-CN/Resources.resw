@@ -139,7 +139,7 @@
     <value>刷新率</value>
   </data>
   <data name="RotationSpeed.Header" xml:space="preserve">
-    <value>选择速度</value>
+    <value>旋转速度</value>
   </data>
   <data name="SettingsAbout.Text" xml:space="preserve">
     <value>关于</value>
