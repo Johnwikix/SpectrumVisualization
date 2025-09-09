@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="51d2cb19-4833-41d6-83af-5a8c0aed6dcb"
-    Publisher="CN=90684"
+    Name="SennpaiStudio.548925A91D69A"
+    Publisher="CN=CF259542-70C0-4852-9523-066A80212473"
     Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="51d2cb19-4833-41d6-83af-5a8c0aed6dcb" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="9bf0696b-08cc-432c-b4da-6bc9941200cd" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>SpectrumVisualization</DisplayName>
-    <PublisherDisplayName>90684</PublisherDisplayName>
+    <DisplayName>音频可视化</DisplayName>
+    <PublisherDisplayName>Sennpai Studio</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

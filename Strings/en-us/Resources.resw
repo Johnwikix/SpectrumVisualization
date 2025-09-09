@@ -120,8 +120,17 @@
   <data name="AppMainTitle" xml:space="preserve">
     <value>SpectrumVisualization</value>
   </data>
+  <data name="AppTitleHeader.Header" xml:space="preserve">
+    <value>SpectrumVisualization</value>
+  </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>MainWindow Material</value>
+  </data>
+  <data name="MusicPlayer.Text" xml:space="preserve">
+    <value>MusicPlayer</value>
+  </data>
+  <data name="OriginalSound.Header" xml:space="preserve">
+    <value>OriginalSound HQ Player</value>
   </data>
   <data name="PictureOpacity.Header" xml:space="preserve">
     <value>Picture Opacity</value>
@@ -131,6 +140,9 @@
   </data>
   <data name="RotationSpeed.Header" xml:space="preserve">
     <value>Rotation Speed</value>
+  </data>
+  <data name="SettingsAbout.Text" xml:space="preserve">
+    <value>About</value>
   </data>
   <data name="SpectrumAmplitude.Header" xml:space="preserve">
     <value>Spectrum Amplitude</value>

@@ -3,6 +3,7 @@ using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI.Text;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -127,6 +128,13 @@ namespace WinExSpectrumTest.Canvas
                 }
                 var sessions = _sessionManager.GetSessions();
                 _currentSession = sessions.Count > 0 ? sessions[0] : null;
+                for (int i = 0; i < sessions.Count; i++)
+                {
+                    if (sessions[i].SourceAppUserModelId.Contains("SennpaiStudio.528762A6196EF_z79ft30j24epr"))
+                    {
+                        _currentSession = sessions[i];
+                    }                
+                }
                 if (_currentSession != null)
                 {
                     _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;

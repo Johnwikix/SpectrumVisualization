@@ -13,6 +13,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Assets\HQplayer.png" />
     <None Remove="Canvas\CanvasPanel.xaml" />
     <None Remove="Style\ConverterDictionary.xaml" />
     <None Remove="View\SettingWindow.xaml" />
@@ -94,5 +95,14 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>Spectrum</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
+    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
 </Project>

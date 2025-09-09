@@ -120,8 +120,17 @@
   <data name="AppMainTitle" xml:space="preserve">
     <value>音频可视化</value>
   </data>
+  <data name="AppTitleHeader.Header" xml:space="preserve">
+    <value>音频可视化</value>
+  </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>主窗口材质</value>
+  </data>
+  <data name="MusicPlayer.Text" xml:space="preserve">
+    <value>音乐播放器</value>
+  </data>
+  <data name="OriginalSound.Header" xml:space="preserve">
+    <value>原音HQ播放器</value>
   </data>
   <data name="PictureOpacity.Header" xml:space="preserve">
     <value>图片不透明度</value>
@@ -131,6 +140,9 @@
   </data>
   <data name="RotationSpeed.Header" xml:space="preserve">
     <value>选择速度</value>
+  </data>
+  <data name="SettingsAbout.Text" xml:space="preserve">
+    <value>关于</value>
   </data>
   <data name="SpectrumAmplitude.Header" xml:space="preserve">
     <value>频谱幅度系数</value>

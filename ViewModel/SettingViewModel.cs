@@ -115,6 +115,8 @@ namespace WinExSpectrumTest.ViewModel
                 App.MainWindow?.ChangeRefreshRate();
             }
         }
+        [ObservableProperty]
+        private string _appVersion;
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -142,6 +144,7 @@ namespace WinExSpectrumTest.ViewModel
                                                  AppSettings.CustomColorBlue);
             IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
             RefreshRate = AppSettings.RefreshRate;
+            AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
             _isInitialized = true;
         }
 

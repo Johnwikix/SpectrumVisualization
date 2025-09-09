@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using System;
+using Windows.System;
 using WinExSpectrumTest.ViewModel;
 using WinUIEx;
 
@@ -34,6 +35,12 @@ namespace WinExSpectrumTest.View
                 return true;
             else
                 return false;
+        }
+
+        private void OriginalSound_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            string storeUri = $"ms-windows-store://pdp/?ProductId=9NFW1RPPT999";
+            _=Launcher.LaunchUriAsync(new Uri(storeUri));
         }
     }
 }
