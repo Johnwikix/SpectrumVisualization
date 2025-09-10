@@ -39,8 +39,12 @@ namespace WinExSpectrumTest.View
 
         private void OriginalSound_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
         {
-            string storeUri = $"ms-windows-store://pdp/?ProductId=9NFW1RPPT999";
-            _=Launcher.LaunchUriAsync(new Uri(storeUri));
+            string storeUri = "originalsoundhqplayer:";
+            LauncherOptions options = new LauncherOptions
+            {
+                FallbackUri = new Uri("ms-windows-store://pdp/?ProductId=9NFW1RPPT999")
+            };
+            _ = Launcher.LaunchUriAsync(new Uri(storeUri), options);
         }
     }
 }
