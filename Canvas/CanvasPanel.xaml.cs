@@ -4,8 +4,10 @@ using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI.Text;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media.Control;
@@ -51,6 +53,7 @@ namespace WinExSpectrumTest.Canvas
         private float _baseRadius = 0f;
         private float _lastBaseRadius = 0f;
         private bool _isSMTCUpdated = true;
+        private byte[] _thumbnailByte;
         public CanvasPanel()
         {
             InitializeComponent();
@@ -175,9 +178,86 @@ namespace WinExSpectrumTest.Canvas
             catch (Exception)
             {
             }
+            await GetCover();
+            //try
+            //{
+
+            //    // 获取并加载封面
+            //    if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
+            //    {
+            //        DispatcherQueue.TryEnqueue(async () =>
+            //        {
+            //            try
+            //            {
+            //                using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
+            //                {
+            //                    //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+            //                    using (var memoryStream = new MemoryStream())
+            //                    {
+            //                        // Copy the contents of the IRandomAccessStream to a MemoryStream
+            //                        await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
+            //                        // Return the byte array from the MemoryStream
+            //                        _thumbnailByte = memoryStream.ToArray();
+            //                        _albumArtBitmap = await CreateCanvasBitmapFromBytesAsync(_device, _thumbnailByte);
+            //                    }
+            //                }
+            //            }
+            //            catch (Exception)
+            //            {
+            //                try
+            //                {
+            //                    using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
+            //                    {
+            //                        //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+            //                        using (var memoryStream = new MemoryStream())
+            //                        {
+            //                            await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
+            //                            _thumbnailByte = memoryStream.ToArray();
+            //                            _albumArtBitmap = await CreateCanvasBitmapFromBytesAsync(_device, _thumbnailByte);
+            //                        }
+            //                    }
+            //                }
+            //                catch (Exception)
+            //                {
+            //                }
+            //            }
+            //        });
+            //    }
+            //    else
+            //    {
+            //        _albumArtBitmap = null;
+            //    }
+            //}
+            //catch (Exception)
+            //{
+            //    _albumArtBitmap = null;
+            //}
+        }
+
+        private async Task<CanvasBitmap> CreateCanvasBitmapFromBytesAsync(ICanvasResourceCreator resourceCreator, byte[] imageData)
+        {
+            if (imageData == null || imageData.Length == 0)
+            {
+                return null;
+            }
             try
             {
+                using (var stream = new InMemoryRandomAccessStream())
+                {
+                    await stream.WriteAsync(imageData.AsBuffer());
+                    stream.Seek(0);
+                    return await CanvasBitmap.LoadAsync(resourceCreator, stream);
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
 
+        private async Task GetCover() {
+            try
+            {
                 // 获取并加载封面
                 if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
                 {
@@ -187,21 +267,17 @@ namespace WinExSpectrumTest.Canvas
                         {
                             using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
                             {
-                                _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+                                //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
+                                using (var memoryStream = new MemoryStream())
+                                {
+                                    await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
+                                    _thumbnailByte = memoryStream.ToArray();
+                                    _albumArtBitmap = await CreateCanvasBitmapFromBytesAsync(_device, _thumbnailByte);
+                                }
                             }
                         }
                         catch (Exception)
-                        {
-                            try
-                            {
-                                using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
-                                {
-                                    _albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
-                                }
-                            }
-                            catch (Exception)
-                            {
-                            }
+                        {                           
                         }
                     });
                 }
@@ -236,6 +312,9 @@ namespace WinExSpectrumTest.Canvas
                 _device = sender.Device;
                 var session = args.DrawingSession;
                 var size = sender.Size;
+                if (_albumArtBitmap == null) {
+                    _ = GetCover();
+                }
                 _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
                 _smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
                 if (_currentAverage > 0)
