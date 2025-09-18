@@ -179,59 +179,6 @@ namespace WinExSpectrumTest.Canvas
             {
             }
             await GetCover();
-            //try
-            //{
-
-            //    // 获取并加载封面
-            //    if (_mediaProperties != null && _mediaProperties.Thumbnail != null)
-            //    {
-            //        DispatcherQueue.TryEnqueue(async () =>
-            //        {
-            //            try
-            //            {
-            //                using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
-            //                {
-            //                    //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
-            //                    using (var memoryStream = new MemoryStream())
-            //                    {
-            //                        // Copy the contents of the IRandomAccessStream to a MemoryStream
-            //                        await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
-            //                        // Return the byte array from the MemoryStream
-            //                        _thumbnailByte = memoryStream.ToArray();
-            //                        _albumArtBitmap = await CreateCanvasBitmapFromBytesAsync(_device, _thumbnailByte);
-            //                    }
-            //                }
-            //            }
-            //            catch (Exception)
-            //            {
-            //                try
-            //                {
-            //                    using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
-            //                    {
-            //                        //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
-            //                        using (var memoryStream = new MemoryStream())
-            //                        {
-            //                            await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
-            //                            _thumbnailByte = memoryStream.ToArray();
-            //                            _albumArtBitmap = await CreateCanvasBitmapFromBytesAsync(_device, _thumbnailByte);
-            //                        }
-            //                    }
-            //                }
-            //                catch (Exception)
-            //                {
-            //                }
-            //            }
-            //        });
-            //    }
-            //    else
-            //    {
-            //        _albumArtBitmap = null;
-            //    }
-            //}
-            //catch (Exception)
-            //{
-            //    _albumArtBitmap = null;
-            //}
         }
 
         private async Task<CanvasBitmap> CreateCanvasBitmapFromBytesAsync(ICanvasResourceCreator resourceCreator, byte[] imageData)
