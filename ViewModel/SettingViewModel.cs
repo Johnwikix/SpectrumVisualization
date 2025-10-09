@@ -11,112 +11,219 @@ namespace WinExSpectrumTest.ViewModel
     public partial class SettingViewModel : ObservableObject
     {
         private bool _isInitialized = false;
-        [ObservableProperty]
+        
         private float _rotationSpeed = 10.0f;
-        partial void OnRotationSpeedChanged(float value)
+        public float RotationSpeed
         {
-            if (_isInitialized)
+            get => _rotationSpeed;
+            set
             {
-                AppSettings.RotationSpeed = value;
+                if (SetProperty(ref _rotationSpeed, value)) {
+                    if (_isInitialized)
+                    {
+                        AppSettings.RotationSpeed = value;
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private float _coverOpacity = 100.0f;
-        partial void OnCoverOpacityChanged(float value)
+        public float CoverOpacity
         {
-            AppSettings.CoverOpacity = value / 100;
+            get => _coverOpacity;
+            set
+            {
+                if (SetProperty(ref _coverOpacity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.CoverOpacity = value / 100;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private float _spectrumOpacity = 100.0f;
-        partial void OnSpectrumOpacityChanged(float value)
+        public float SpectrumOpacity
         {
-            AppSettings.SpectrumOpacity = value / 100;
+            get => _spectrumOpacity;
+            set
+            {
+                if (SetProperty(ref _spectrumOpacity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SpectrumOpacity = value / 100;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private float _fontOpacity = 100.0f;
-        partial void OnFontOpacityChanged(float value)
+        public float FontOpacity
         {
-            AppSettings.FontOpacity = value / 100;
+            get => _fontOpacity;
+            set
+            {
+                if (SetProperty(ref _fontOpacity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.FontOpacity = value / 100;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private float _smoothingFactor = 95f;
-        partial void OnSmoothingFactorChanged(float value)
+        public float SmoothingFactor
         {
-            AppSettings.SmoothingFactor = value / 100;
+            get => _smoothingFactor;
+            set
+            {
+                if (SetProperty(ref _smoothingFactor, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SmoothingFactor = value / 100;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private bool _isDrawPlainSpectrum = false;
-        partial void OnIsDrawPlainSpectrumChanged(bool value)
+        public bool IsDrawPlainSpectrum
         {
-            AppSettings.IsDrawPlainSpectrum = value;
+            get => _isDrawPlainSpectrum;
+            set
+            {
+                if (SetProperty(ref _isDrawPlainSpectrum, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.IsDrawPlainSpectrum = value;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private bool _isDrawRoundSpectrum = true;
-        partial void OnIsDrawRoundSpectrumChanged(bool value)
+        public bool IsDrawRoundSpectrum
         {
-            AppSettings.IsDrawRoundSpectrum = value;
+            get => _isDrawRoundSpectrum;
+            set
+            {
+                if (SetProperty(ref _isDrawRoundSpectrum, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.IsDrawRoundSpectrum = value;
+                    }
+                }
+            }
+        }
 
-        }
-        [ObservableProperty]
         private float _sensitivity = 10.0f;
-        partial void OnSensitivityChanged(float value)
+        public float Sensitivity
         {
-            AppSettings.Sensitivity = value;
+            get => _sensitivity;
+            set
+            {
+                if (SetProperty(ref _sensitivity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.Sensitivity = value;
+                    }
+                }
+            }
         }
-        [ObservableProperty]
         private string _backdropType = "TransparentAcrylic";
-        partial void OnBackdropTypeChanged(string value)
+        public string BackdropType
         {
-            if (_isInitialized)
+            get => _backdropType;
+            set
             {
-                AppSettings.AppStyle = value;
+                if (SetProperty(ref _backdropType, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.AppStyle = value;
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private bool _isColorPickerVisible = false;
-        [ObservableProperty]
+        public bool IsColorPickerVisible
+        {
+            get => _isColorPickerVisible;
+            set => SetProperty(ref _isColorPickerVisible, value);
+        }
         private Color _customColor = Color.FromArgb(255, 128, 128, 128);
-        partial void OnCustomColorChanged(Color value)
+        public Color CustomColor
         {
-            if (_isInitialized)
+            get => _customColor;
+            set
             {
-                AppSettings.CustomColorAlpha = value.A;
-                AppSettings.CustomColorRed = value.R;
-                AppSettings.CustomColorGreen = value.G;
-                AppSettings.CustomColorBlue = value.B;
+                if (SetProperty(ref _customColor, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.CustomColorAlpha = value.A;
+                        AppSettings.CustomColorRed = value.R;
+                        AppSettings.CustomColorGreen = value.G;
+                        AppSettings.CustomColorBlue = value.B;
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private float _customOpacity = 50f;
-        partial void OnCustomOpacityChanged(float value)
+        public float CustomOpacity
         {
-            if (_isInitialized)
+            get => _customOpacity;
+            set
             {
-                AppSettings.CustomAcrylicOpacity = value / 100;
-                App.MainWindow?.SetCustomAppStyle();
+                if (SetProperty(ref _customOpacity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.CustomAcrylicOpacity = value / 100;
+                        App.MainWindow?.SetCustomAppStyle();
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private bool _isUpdateBackDrop = false;
-        partial void OnIsUpdateBackDropChanged(bool value)
+        public bool IsUpdateBackDrop
         {
-            if (_isInitialized)
+            get => _isUpdateBackDrop;
+            set
             {
-                AppSettings.IsUpdateBackDrop = value;
+                if (SetProperty(ref _isUpdateBackDrop, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.IsUpdateBackDrop = value;
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private float _refreshRate = 60.0f;
-        partial void OnRefreshRateChanged(float value)
+        public float RefreshRate
         {
-            if (_isInitialized)
+            get => _refreshRate;
+            set
             {
-                AppSettings.RefreshRate = value;
-                App.MainWindow?.ChangeRefreshRate();
+                if (SetProperty(ref _refreshRate, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.RefreshRate = value;
+                        App.MainWindow?.ChangeRefreshRate();
+                    }
+                }
             }
         }
-        [ObservableProperty]
         private string _appVersion;
+        public string AppVersion
+        {
+            get => _appVersion;
+            set => SetProperty(ref _appVersion, value);
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
