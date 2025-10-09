@@ -107,7 +107,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -116,6 +116,5 @@
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>	
     <AppxPackageDir>D:\work\winui\WinExSpectrumTest\bin\x64\Release\net10.0-windows10.0.19041.0\win-x64\AppPackage</AppxPackageDir>	
-    <PackageCertificateThumbprint>1F60660F5106759FB56A3F64693308CBB3C9BF50</PackageCertificateThumbprint>	
   </PropertyGroup>
 </Project>
