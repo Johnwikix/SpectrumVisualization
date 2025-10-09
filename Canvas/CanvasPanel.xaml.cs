@@ -2,8 +2,10 @@ using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI.Text;
+using NAudio.Wave;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -35,7 +37,6 @@ namespace WinExSpectrumTest.Canvas
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
         private GlobalSystemMediaTransportControlsSession _currentSession;
         private GlobalSystemMediaTransportControlsSessionMediaProperties _mediaProperties;
-        private IRandomAccessStreamWithContentType _thumbnail;
         private string _title;
         private string _artist;
         private CanvasTextLayout _titleLayout;

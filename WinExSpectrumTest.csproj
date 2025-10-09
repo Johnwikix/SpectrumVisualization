@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>WinExSpectrumTest</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -76,7 +76,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
-
+  <ItemGroup>
+	  <TrimmerRootAssembly Include="NAudio.Core" />
+      <TrimmerRootAssembly Include="NAudio.Wasapi" />
+      <TrimmerRootAssembly Include="NAudio.WinMM" />
+      <TrimmerRootAssembly Include="NAudio" />
+	  <TrimmerRootAssembly Include="SQLite-net" />
+	  <TrimmerRootAssembly Include="SQLitePCLRaw.core" />
+  </ItemGroup>
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if
@@ -92,20 +99,23 @@
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+	<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+	<PublishAot>False</PublishAot>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>Spectrum</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
-    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundle>Never</AppxBundle>
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>	
-    <AppxPackageDir>G:\SoftwareProject\winui\spectrum\bin\x64\Release\net9.0-windows10.0.19041.0\AppPackages</AppxPackageDir>
+    <AppxPackageDir>D:\work\winui\WinExSpectrumTest\bin\x64\Release\net10.0-windows10.0.19041.0\win-x64\AppPackage</AppxPackageDir>	
+    <PackageCertificateThumbprint>01550CCBCB44BB2F582F78E9E533F6A9D5393873</PackageCertificateThumbprint>
   </PropertyGroup>
 </Project>

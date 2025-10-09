@@ -54,6 +54,7 @@ namespace WinExSpectrumTest.Analyzer
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
                 System.Diagnostics.Debug.WriteLine($"启动音频捕获失败: {ex.Message}");
             }
         }
