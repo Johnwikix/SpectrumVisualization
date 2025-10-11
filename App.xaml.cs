@@ -2,9 +2,10 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using System;
+using System.IO;
 using System.Runtime;
+using System.Threading.Tasks;
 using Windows.System.UserProfile;
-using WinExSpectrumTest.Service;
 using WinExSpectrumTest.ViewModel;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -19,7 +20,7 @@ namespace WinExSpectrumTest
     {
         public static MainWindow MainWindow { get; private set; }
         public static IServiceProvider Services { get; private set; }
-        private static readonly IHost _host = Host.CreateDefaultBuilder()
+        private static readonly IHost _host = Host.CreateDefaultBuilder()            
              .ConfigureServices((context, services) =>
              {
                  services.AddSingleton<SettingViewModel>();
@@ -52,8 +53,8 @@ namespace WinExSpectrumTest
         protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             await _host.StartAsync();
-            await DataService.Initialize();
-            await DataService.LoadSettingAsync();
+            //await DataService.Initialize();
+            //await DataService.LoadSettingAsync();
             MainWindow = new MainWindow();
             MainWindow.Activate();
         }

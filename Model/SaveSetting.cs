@@ -1,10 +1,8 @@
-﻿using SQLite;
-
+﻿
 namespace WinExSpectrumTest.Model
 {
     public class SaveSetting
     {
-        [PrimaryKey]
         public int Id { get; set; } = 1;
         public bool IsDrawPlainSpectrum { get; set; } = false;
         public bool IsDrawRoundSpectrum { get; set; } = true;

@@ -51,7 +51,6 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.250916003" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
     <PackageReference Include="Vanara.PInvoke.User32" Version="4.2.1" />
     <PackageReference Include="WinUIEx" Version="2.8.0" />
     <PackageReference Include="ZLinq" Version="1.5.3" />
@@ -81,8 +80,6 @@
       <TrimmerRootAssembly Include="NAudio.Wasapi" />
       <TrimmerRootAssembly Include="NAudio.WinMM" />
       <TrimmerRootAssembly Include="NAudio" />
-	  <TrimmerRootAssembly Include="SQLite-net" />
-	  <TrimmerRootAssembly Include="SQLitePCLRaw.core" />
   </ItemGroup>
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
@@ -101,13 +98,15 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
 	<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-	<PublishAot>False</PublishAot>
+	<PublishAot>True</PublishAot>
+	<IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+	<IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>Spectrum</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -116,5 +115,6 @@
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>	
     <AppxPackageDir>D:\work\winui\WinExSpectrumTest\bin\x64\Release\net10.0-windows10.0.19041.0\win-x64\AppPackage</AppxPackageDir>	
+    <PackageCertificateThumbprint>01550CCBCB44BB2F582F78E9E533F6A9D5393873</PackageCertificateThumbprint>	
   </PropertyGroup>
 </Project>

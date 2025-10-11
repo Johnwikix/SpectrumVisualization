@@ -7,7 +7,7 @@ using Windows.UI;
 
 namespace WinExSpectrumTest.Backdrop
 {
-    public class CustomAcrylicSystemBackdrop : SystemBackdrop
+    public partial class CustomAcrylicSystemBackdrop : SystemBackdrop
     {
         private DesktopAcrylicController _acrylicController;
         private SystemBackdropConfiguration _backdropConfiguration;

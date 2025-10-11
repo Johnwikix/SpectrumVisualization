@@ -4,7 +4,7 @@ using System;
 using System.Diagnostics;
 using Windows.UI;
 using WinExSpectrumTest.Model;
-using WinExSpectrumTest.Service;
+//using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.ViewModel
 {
@@ -257,7 +257,7 @@ namespace WinExSpectrumTest.ViewModel
 
         public void SaveSettings()
         {
-            _ = DataService.SaveSettingAsync();
+            //_ = DataService.SaveSettingAsync();
         }
 
 
