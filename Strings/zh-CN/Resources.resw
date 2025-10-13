@@ -123,6 +123,9 @@
   <data name="AppTitleHeader.Header" xml:space="preserve">
     <value>音频可视化</value>
   </data>
+  <data name="Exit.Text" xml:space="preserve">
+    <value>退出</value>
+  </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>主窗口材质</value>
   </data>
@@ -141,6 +144,9 @@
   <data name="RotationSpeed.Header" xml:space="preserve">
     <value>旋转速度</value>
   </data>
+  <data name="Settings.Text" xml:space="preserve">
+    <value>设置</value>
+  </data>
   <data name="SettingsAbout.Text" xml:space="preserve">
     <value>关于</value>
   </data>
@@ -158,5 +164,8 @@
   </data>
   <data name="TextOpacity.Header" xml:space="preserve">
     <value>文字不透明度</value>
+  </data>
+  <data name="UnlockWindow.Text" xml:space="preserve">
+    <value>解锁窗口</value>
   </data>
 </root>

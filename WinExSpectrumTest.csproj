@@ -105,9 +105,9 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>Spectrum</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <GenerateTemporaryStoreCertificate>False</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -116,6 +116,6 @@
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
-    <PackageCertificateThumbprint>01550CCBCB44BB2F582F78E9E533F6A9D5393873</PackageCertificateThumbprint>	
+	<PackageCertificateThumbprint>0660D2DEF7CDC38E0AB3C4FDA6F94383F81540FB</PackageCertificateThumbprint>
   </PropertyGroup>
 </Project>

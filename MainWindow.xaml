@@ -9,7 +9,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
     xmlns:winex="using:WinUIEx"
-    xmlns:tb="using:H.NotifyIcon"
     Title="WinExSpectrumTest"
     Width="512"
     Height="512"
@@ -24,14 +23,7 @@
         x:Name="MyMainwindow"
         PointerEntered="MyMainwindow_PointerEntered"
         PointerExited="MyMainwindow_PointerExited">
-        <!--<controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />-->
-        <tb:TaskbarIcon
-            ToolTipText="SpectrumVisualization"
-            IconSource="/Assets/icon.ico"
-            MenuActivation="LeftOrRightClick"
-            PopupActivation="DoubleClick"
-        >            
-        </tb:TaskbarIcon>
+        <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
         <Grid
             Margin="1,1,1,1"
             HorizontalAlignment="Stretch"

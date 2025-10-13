@@ -18,24 +18,34 @@
             IconSource="/Assets/icon.ico"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
+            <!--<tb:TaskbarIcon.IconSource>
+                <tb:GeneratedIconSource
+                    Text="S"
+                    Foreground="Red"
+                    FontFamily="Segoe UI Emoji"
+                    Background="AliceBlue"
+                    FontWeight="Bold"
+                    FontSize="38"
+            />
+            </tb:TaskbarIcon.IconSource>-->
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
                         x:Name="Unlock"
                         Width="120"
                         Command="{x:Bind UnlockWindowCommand}"
-                        Text="解锁窗口">
+                        x:Uid="UnlockWindow">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE785;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="Settings" Command="{x:Bind SettingCommand}" Text="设置">
+                    <MenuFlyoutItem x:Name="Settings" Command="{x:Bind SettingCommand}" x:Uid="Settings">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator />
-                    <MenuFlyoutItem x:Name="Exit" Command="{x:Bind ExitApplicationCommand}" Text="退出">
+                    <MenuFlyoutItem x:Name="Exit" Command="{x:Bind ExitApplicationCommand}" x:Uid="Exit">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE89F;" />
                         </MenuFlyoutItem.Icon>
