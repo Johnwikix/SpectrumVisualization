@@ -20,7 +20,7 @@ namespace WinExSpectrumTest.Analyzer
                 Debug.WriteLine("Bass Init failed: " + Bass.LastError);
                 return;
             }
-            if (!BassWasapi.Init(-3, 12000, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
+            if (!BassWasapi.Init(-3, 6000, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
             {
                 Debug.WriteLine("WASAPI Init failed: " + Bass.LastError);
                 return;
