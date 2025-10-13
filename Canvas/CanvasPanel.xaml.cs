@@ -2,7 +2,6 @@ using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI.Text;
-using NAudio.Wave;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -26,7 +25,7 @@ namespace WinExSpectrumTest.Canvas
 {
     public sealed partial class CanvasPanel : Microsoft.UI.Xaml.Controls.UserControl
     {
-        private SpectrumAnalyzer _analyzer;
+        private SpectrumAnalyzerBass _analyzer;
         private readonly float[] _currentSpectrum;
         private readonly float[] _smoothedSpectrum;
         private readonly int _barCount = 128;
@@ -73,7 +72,7 @@ namespace WinExSpectrumTest.Canvas
 
         private void InitializeAudio()
         {
-            _analyzer = new SpectrumAnalyzer();
+            _analyzer = new SpectrumAnalyzerBass();
             _analyzer.SpectrumDataUpdated += OnSpectrumDataUpdated;
             _analyzer.StartCapture();
         }
@@ -248,7 +247,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 250f * AppSettings.Sensitivity;
+                    _currentSpectrum[i] = spectrumData[index] * 5f * AppSettings.Sensitivity;
                 }
             }
         }

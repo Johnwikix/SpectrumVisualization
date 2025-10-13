@@ -21,7 +21,6 @@ namespace WinExSpectrumTest
     {
         private IntPtr _hwnd;
         private ThemeStyleHelper themeStyleHelper;
-        private UISettings uiSettings;
         private bool IsFullScreen = false;
         public MainWindow()
         {
