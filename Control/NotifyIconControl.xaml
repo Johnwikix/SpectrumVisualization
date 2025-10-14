@@ -15,19 +15,18 @@
             x:FieldModifier="public"
             ContextMenuMode="SecondWindow"
             DataContext="{Binding}"
-            IconSource="/Assets/icon.ico"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
-            <!--<tb:TaskbarIcon.IconSource>
+            <tb:TaskbarIcon.IconSource>
                 <tb:GeneratedIconSource
-                    Text="S"
-                    Foreground="Red"
+                    Text="|│|"
+                    Foreground="#7eb3f6"
                     FontFamily="Segoe UI Emoji"
-                    Background="AliceBlue"
+                    Background="Transparent"
                     FontWeight="Bold"
-                    FontSize="38"
+                    FontSize="42"
             />
-            </tb:TaskbarIcon.IconSource>-->
+            </tb:TaskbarIcon.IconSource>
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
@@ -44,7 +43,6 @@
                             <FontIcon Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutSeparator />
                     <MenuFlyoutItem x:Name="Exit" Command="{x:Bind ExitApplicationCommand}" x:Uid="Exit">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE89F;" />
