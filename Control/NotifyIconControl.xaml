@@ -24,7 +24,7 @@
                     FontFamily="Segoe UI Emoji"
                     Background="Transparent"
                     FontWeight="Bold"
-                    FontSize="42"
+                    FontSize="48"
             />
             </tb:TaskbarIcon.IconSource>
             <tb:TaskbarIcon.ContextFlyout>
