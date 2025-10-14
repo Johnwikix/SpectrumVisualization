@@ -247,7 +247,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = spectrumData[index] * 5f * AppSettings.Sensitivity;
+                    _currentSpectrum[i] = (float)Math.Sqrt(spectrumData[index] * 400f * AppSettings.Sensitivity);
                 }
             }
         }
@@ -263,7 +263,7 @@ namespace WinExSpectrumTest.Canvas
                     _ = GetCover();
                 }
                 _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
-                _smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
+                //_smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
                 if (_currentAverage > 0)
                 {
                     _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
@@ -378,7 +378,7 @@ namespace WinExSpectrumTest.Canvas
             {
                 // 径向长度
                 float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.8f), 0);
-                float currentRadius = _baseRadius + _smoothAverage + (height * _baseRadius);
+                float currentRadius = _baseRadius + (height * _baseRadius);
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
                 float endAngle = (i + 1) * angleStep - angleOffset - _rotationOffset;

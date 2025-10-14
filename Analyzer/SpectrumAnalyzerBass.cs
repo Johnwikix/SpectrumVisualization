@@ -20,7 +20,7 @@ namespace WinExSpectrumTest.Analyzer
                 Debug.WriteLine("Bass Init failed: " + Bass.LastError);
                 return;
             }
-            if (!BassWasapi.Init(-3, 6000, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
+            if (!BassWasapi.Init(-3, 12000, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
             {
                 Debug.WriteLine("WASAPI Init failed: " + Bass.LastError);
                 return;
@@ -34,24 +34,17 @@ namespace WinExSpectrumTest.Analyzer
             {
                 Debug.WriteLine("Error getting spectrum data: " + Bass.LastError);
             }
-            for (int i = 0; i < _spectrumData.Length; i++)
-            {                
-                _spectrumData[i] = (float)(Math.Log10(_spectrumData[i] + 1) * 10); // Convert to dB scale
-            }
-            for (int i = 0; i < 512; i++)
+            for (int i = 512; i < 1024; i++)
             {
-                int sourceIndex = 512 - 1 - i;
-
-                // 目标索引 (顺序): 512, 513, ..., 1022, 1023
-                int destIndex = 512 + i;
-
-                // 镜像赋值
+                int sourceIndex =i-512;
+                int destIndex = i;
                 if (destIndex < _spectrumData.Length) // 避免数组越界，虽然 1023 < 2048
                 {
                     _spectrumData[destIndex] = _spectrumData[sourceIndex];
                 }
             }
 
+            Array.Reverse(_spectrumData, 0, 512);
             SpectrumDataUpdated?.Invoke(_spectrumData);
             return res;
         }
