@@ -26,7 +26,7 @@ namespace WinExSpectrumTest.View
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
-            ViewModel.SaveSettings();
+            _ = ViewModel.SaveSettings();
         }
 
         private bool GetIsChecked(string style, string currentOption)

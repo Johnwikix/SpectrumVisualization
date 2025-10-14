@@ -2,8 +2,10 @@
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Windows.UI;
 using WinExSpectrumTest.Model;
+using WinExSpectrumTest.Service;
 //using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.ViewModel
@@ -255,9 +257,9 @@ namespace WinExSpectrumTest.ViewModel
             _isInitialized = true;
         }
 
-        public void SaveSettings()
+        public async Task SaveSettings()
         {
-            //_ = DataService.SaveSettingAsync();
+            await DataJsonService.SaveSettingAsync();
         }
 
 
