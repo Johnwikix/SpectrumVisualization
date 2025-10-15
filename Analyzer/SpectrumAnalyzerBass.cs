@@ -11,6 +11,8 @@ namespace WinExSpectrumTest.Analyzer
     public class SpectrumAnalyzerBass
     {
         private float[] _spectrumData = new float[1024];
+        float[] leftSpectrum = new float[512];
+        float[] rightSpectrum = new float[512];
         public event Action<float[]> SpectrumDataUpdated;
         private readonly WasapiProcedure _myWasapiProcedure;
         public SpectrumAnalyzerBass() {
@@ -29,22 +31,19 @@ namespace WinExSpectrumTest.Analyzer
 
         private int OnWasapiProc(IntPtr buffer, int length, IntPtr user)
         {
-            var res = BassWasapi.GetData(_spectrumData, (int)DataFlags.FFT1024);
+            var res = BassWasapi.GetData(_spectrumData, (int)DataFlags.FFTIndividual | (int) DataFlags.FFT1024);
             if (res == -1)
             {
                 Debug.WriteLine("Error getting spectrum data: " + Bass.LastError);
             }
-            for (int i = 512; i < 1024; i++)
+            for (int i = 0; i < 512; i++)
             {
-                int sourceIndex =i-512;
-                int destIndex = i;
-                if (destIndex < _spectrumData.Length) // 避免数组越界，虽然 1023 < 2048
-                {
-                    _spectrumData[destIndex] = _spectrumData[sourceIndex];
-                }
+                leftSpectrum[i] = _spectrumData[2 * i];
+                rightSpectrum[i] = _spectrumData[2 * i + 1];
             }
-
-            Array.Reverse(_spectrumData, 0, 512);
+            Array.Reverse(leftSpectrum);
+            Array.Copy(leftSpectrum, 0, _spectrumData, 0, 512);
+            Array.Copy(rightSpectrum, 0, _spectrumData, 512, 512);
             SpectrumDataUpdated?.Invoke(_spectrumData);
             return res;
         }
