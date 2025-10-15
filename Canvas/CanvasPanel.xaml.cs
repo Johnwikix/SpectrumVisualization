@@ -31,7 +31,7 @@ namespace WinExSpectrumTest.Canvas
         private readonly int _barCount = AppSettings.BarCount;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
-        private int _middleNum = 0;
+        private int _middleNum = 192;
         private bool _isMiddleIncreasing = true;
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
         private GlobalSystemMediaTransportControlsSession _currentSession;
@@ -284,7 +284,7 @@ namespace WinExSpectrumTest.Canvas
                     }
                     else
                     {
-                        if (_middleNum <= 0)
+                        if (_middleNum <= 32)
                         {
                             _isMiddleIncreasing = true;
                         }

@@ -24,6 +24,6 @@ namespace WinExSpectrumTest.Model
         public static ElementTheme elementTheme { get; set; } = ElementTheme.Default;
         public static float RefreshRate { get; set; } = 60.0f;
         public static int SampleRate { get; set; } = 12000;
-        public static int BarCount { get; set; } = 128;
+        public static int BarCount { get; set; } = 512;
     }
 }
