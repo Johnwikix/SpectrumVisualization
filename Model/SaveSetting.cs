@@ -10,7 +10,7 @@ namespace WinExSpectrumTest.Model
         public float CoverOpacity { get; set; } = 1.0f;
         public float SpectrumOpacity { get; set; } = 1.0f;
         public float FontOpacity { get; set; } = 1.0f;
-        public float SmoothingFactor { get; set; } = 0.95f;
+        public float SmoothingFactor { get; set; } = 0.9f;
         public float Sensitivity { get; set; } = 10.0f;
         public string AppStyle { get; set; } = "Acrylic";
         public float CustomAcrylicOpacity { get; set; } = 0.5f;
@@ -22,5 +22,6 @@ namespace WinExSpectrumTest.Model
         public string AppTheme { get; set; } = "Default";
         public string elementTheme { get; set; } = "Default";
         public float RefreshRate { get; set; } = 60.0f;
+        public int SampleRate { get; set; } = 12000;
     }
 }

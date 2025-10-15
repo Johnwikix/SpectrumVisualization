@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Analyzer
 {   
@@ -22,7 +23,7 @@ namespace WinExSpectrumTest.Analyzer
                 Debug.WriteLine("Bass Init failed: " + Bass.LastError);
                 return;
             }
-            if (!BassWasapi.Init(-3, 12000, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
+            if (!BassWasapi.Init(-3, AppSettings.SampleRate, 2, WasapiInitFlags.Shared | WasapiInitFlags.Buffer,0,0, _myWasapiProcedure))
             {
                 Debug.WriteLine("WASAPI Init failed: " + Bass.LastError);
                 return;

@@ -31,6 +31,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.AppTheme = settings.AppTheme ?? "Default";
             AppSettings.elementTheme = settings.elementTheme == "Light" ? Microsoft.UI.Xaml.ElementTheme.Light : settings.elementTheme == "Dark" ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Default;
             AppSettings.RefreshRate = settings.RefreshRate;
+            AppSettings.SampleRate = settings.SampleRate;
         }
 
         public static async Task SaveSettingAsync()
@@ -54,7 +55,8 @@ namespace WinExSpectrumTest.Service
                 IsUpdateBackDrop = AppSettings.IsUpdateBackDrop,
                 AppTheme = AppSettings.AppTheme,
                 elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default",
-                RefreshRate = AppSettings.RefreshRate
+                RefreshRate = AppSettings.RefreshRate,
+                SampleRate = AppSettings.SampleRate
             };
             await SettingManager.SaveSettingsAsync(settings);
         }

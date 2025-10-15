@@ -126,6 +126,9 @@
   <data name="Exit.Text" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="LoopBackSampleRate.Header" xml:space="preserve">
+    <value>LoopBackSampleRate(Require Restart App)</value>
+  </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>MainWindow Material</value>
   </data>

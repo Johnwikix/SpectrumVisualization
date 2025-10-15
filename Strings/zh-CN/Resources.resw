@@ -126,6 +126,9 @@
   <data name="Exit.Text" xml:space="preserve">
     <value>退出</value>
   </data>
+  <data name="LoopBackSampleRate.Header" xml:space="preserve">
+    <value>回环采样率（重启生效）</value>
+  </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>主窗口材质</value>
   </data>
