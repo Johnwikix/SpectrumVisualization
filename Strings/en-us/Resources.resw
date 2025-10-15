@@ -123,6 +123,9 @@
   <data name="AppTitleHeader.Header" xml:space="preserve">
     <value>SpectrumVisualization</value>
   </data>
+  <data name="BarCount.Header" xml:space="preserve">
+    <value>BarCount(Require Restart App)</value>
+  </data>
   <data name="Exit.Text" xml:space="preserve">
     <value>Exit</value>
   </data>

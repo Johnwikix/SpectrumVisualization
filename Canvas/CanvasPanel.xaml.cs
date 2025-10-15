@@ -28,7 +28,7 @@ namespace WinExSpectrumTest.Canvas
         private SpectrumAnalyzerBass _analyzer;
         private readonly float[] _currentSpectrum;
         private readonly float[] _smoothedSpectrum;
-        private readonly int _barCount = 128;
+        private readonly int _barCount = AppSettings.BarCount;
         private bool _disposed = false;
         private float _rotationOffset = 0f;
         private int _middleNum = 0;
@@ -548,17 +548,11 @@ namespace WinExSpectrumTest.Canvas
                 Color.FromArgb((byte)(255 * AppSettings.FontOpacity), 255, 255, 255));
         }
 
-        private Color GetSpectrumColorLoop(float intensity, int i = 0)
-        {
-            float coe = 2 * 256 / _barCount;
-            return Color.FromArgb((byte)(255 * AppSettings.SpectrumOpacity), (byte)Math.Abs(i * coe - 255), (byte)_middleNum, (byte)Math.Abs(255 - i * coe));
-        }
-
         private Color GetSpectrumColor(float intensity, int i = 0)
         {
             intensity = Math.Min(1.0f, Math.Max(0.0f, intensity));
-            float coe = 2f * 256f / _barCount;
-            byte baseBlue = (byte)Math.Abs(255 - i * coe);
+            float coe = 512f / _barCount;
+            byte baseBlue = (byte)(Math.Abs(255 - i * coe) >= 255 ? 255: Math.Abs(255 - i * coe));
             // 2. 根据强度 `intensity` 平滑调整红色通道
             byte finalRed = (byte)(255 * intensity);
             // 4. 返回最终颜色，并应用不透明度

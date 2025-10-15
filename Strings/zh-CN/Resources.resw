@@ -123,6 +123,9 @@
   <data name="AppTitleHeader.Header" xml:space="preserve">
     <value>音频可视化</value>
   </data>
+  <data name="BarCount.Header" xml:space="preserve">
+    <value>频谱条数量（重启应用生效）</value>
+  </data>
   <data name="Exit.Text" xml:space="preserve">
     <value>退出</value>
   </data>

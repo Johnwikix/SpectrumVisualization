@@ -242,6 +242,21 @@ namespace WinExSpectrumTest.ViewModel
                 }
             }
         }
+        private int _barCount = 128;
+        public int BarCount
+        {
+            get => _barCount;
+            set
+            {
+                if (SetProperty(ref _barCount, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.BarCount = value;
+                    }
+                }
+            }
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -270,6 +285,7 @@ namespace WinExSpectrumTest.ViewModel
             IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
             RefreshRate = AppSettings.RefreshRate;
             SampleRate = AppSettings.SampleRate;
+            BarCount = AppSettings.BarCount;
             AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
             _isInitialized = true;
         }

@@ -23,5 +23,6 @@ namespace WinExSpectrumTest.Model
         public string elementTheme { get; set; } = "Default";
         public float RefreshRate { get; set; } = 60.0f;
         public int SampleRate { get; set; } = 12000;
+        public int BarCount { get; set; } = 128;
     }
 }
