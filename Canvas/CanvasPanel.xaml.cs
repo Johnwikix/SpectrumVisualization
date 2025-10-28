@@ -214,7 +214,6 @@ namespace WinExSpectrumTest.Canvas
                         {
                             using (var thumbnailStream = await _mediaProperties.Thumbnail.OpenReadAsync())
                             {
-                                //_albumArtBitmap = await CanvasBitmap.LoadAsync(_device, thumbnailStream);
                                 using (var memoryStream = new MemoryStream())
                                 {
                                     await thumbnailStream.AsStreamForRead().CopyToAsync(memoryStream);
