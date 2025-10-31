@@ -15,18 +15,9 @@
             x:FieldModifier="public"
             ContextMenuMode="SecondWindow"
             DataContext="{Binding}"
+            IconSource="/Assets/icon.ico"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
-            <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource
-                    Text="|│|"
-                    Foreground="#7eb3f6"
-                    FontFamily="Segoe UI Emoji"
-                    Background="Transparent"
-                    FontWeight="Bold"
-                    FontSize="48"
-            />
-            </tb:TaskbarIcon.IconSource>
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
