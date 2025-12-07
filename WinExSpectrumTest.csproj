@@ -56,6 +56,7 @@
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7175" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
+    <PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.0" />
     <PackageReference Include="Vanara.PInvoke.User32" Version="4.2.1" />
     <PackageReference Include="WinUIEx" Version="2.9.0" />
     <PackageReference Include="ZLinq" Version="1.5.4" />
@@ -107,7 +108,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>False</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -116,5 +117,6 @@
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
+	<PackageCertificateThumbprint>025672202252D1D92F0E5C741520EEDC584EDE16</PackageCertificateThumbprint>
   </PropertyGroup>
 </Project>
