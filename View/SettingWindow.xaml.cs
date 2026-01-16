@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using System;
+using System.IO;
 using Windows.System;
 using WinExSpectrumTest.ViewModel;
 using WinUIEx;
@@ -21,6 +22,11 @@ namespace WinExSpectrumTest.View
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             ViewModel = App.Services.GetRequiredService<SettingViewModel>();
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets/icon.ico");
+            if (File.Exists(iconPath))
+            {
+                this.SetIcon(iconPath);
+            }
             this.AppWindow.Closing += AppWindow_Closing;
         }
 

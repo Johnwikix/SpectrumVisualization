@@ -37,13 +37,18 @@ namespace WinExSpectrumTest
             InitializeComponent();
             Services = _host.Services;
             var systemLanguages = GlobalizationPreferences.Languages;
-            if (systemLanguages[0].StartsWith("zh"))
+            try
             {
-                Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "zh";
+                if (systemLanguages[0].StartsWith("zh"))
+                {
+                    Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "zh";
+                }
+                else
+                {
+                    Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en";
+                }
             }
-            else
-            {
-                Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en";
+            catch {
             }
         }
 

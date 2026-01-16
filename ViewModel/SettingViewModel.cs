@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Diagnostics;
+using System.Reflection;
 using System.Threading.Tasks;
 using Windows.UI;
 using WinExSpectrumTest.Model;
@@ -286,8 +287,23 @@ namespace WinExSpectrumTest.ViewModel
             RefreshRate = AppSettings.RefreshRate;
             SampleRate = AppSettings.SampleRate;
             BarCount = AppSettings.BarCount;
-            AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
-            _isInitialized = true;
+            try
+            {
+                AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
+            }
+            catch
+            {
+                string assemblyLocation = Assembly.GetExecutingAssembly().Location;
+                if (string.IsNullOrEmpty(assemblyLocation))
+                {
+                    assemblyLocation = Environment.ProcessPath;
+                }
+                FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assemblyLocation);
+                AppVersion = $"{fvi.FileMajorPart}.{fvi.FileMinorPart}.{fvi.FileBuildPart}.{fvi.FilePrivatePart}";
+            }
+            finally {
+                _isInitialized = true;
+            }            
         }
 
         public async Task SaveSettings()

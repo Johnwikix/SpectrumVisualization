@@ -10,6 +10,7 @@ namespace WinExSpectrumTest.Manager
     using System.IO;
     using System.Text.Json;
     using System.Threading.Tasks;
+    using Windows.Storage;
     using WinExSpectrumTest.Model; // 确保引用了你的 SaveSetting 类所在的命名空间
 
     public static class SettingManager
@@ -22,8 +23,14 @@ namespace WinExSpectrumTest.Manager
         /// </summary>
         private static string GetSettingFilePath()
         {
-            var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-            return Path.Combine(localFolder, FileName);
+            try
+            {
+                var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                return Path.Combine(localFolder, FileName);
+            }
+            catch {
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), FileName);
+            }
         }
 
         // -------------------------------------------------------------

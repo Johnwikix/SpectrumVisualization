@@ -15,26 +15,32 @@
             x:FieldModifier="public"
             ContextMenuMode="SecondWindow"
             DataContext="{Binding}"
-            IconSource="/Assets/icon.ico"
+            IconSource="ms-appx:///Assets/icon.ico"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
                         x:Name="Unlock"
+                        x:Uid="UnlockWindow"
                         Width="120"
-                        Command="{x:Bind UnlockWindowCommand}"
-                        x:Uid="UnlockWindow">
+                        Command="{x:Bind UnlockWindowCommand}">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE785;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="Settings" Command="{x:Bind SettingCommand}" x:Uid="Settings">
+                    <MenuFlyoutItem
+                        x:Name="Settings"
+                        x:Uid="Settings"
+                        Command="{x:Bind SettingCommand}">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="Exit" Command="{x:Bind ExitApplicationCommand}" x:Uid="Exit">
+                    <MenuFlyoutItem
+                        x:Name="Exit"
+                        x:Uid="Exit"
+                        Command="{x:Bind ExitApplicationCommand}">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE89F;" />
                         </MenuFlyoutItem.Icon>

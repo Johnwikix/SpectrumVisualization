@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
+using System;
+using System.IO;
 using Vanara.PInvoke;
 using WinExSpectrumTest.Helper;
 using WinExSpectrumTest.Model;
@@ -15,7 +18,7 @@ namespace WinExSpectrumTest.Control
     {
         public NotifyIconControl()
         {
-            InitializeComponent();
+            InitializeComponent();            
         }
 
         [RelayCommand]

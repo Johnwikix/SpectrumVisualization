@@ -2,6 +2,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using System;
+using System.IO;
 using Windows.UI.ViewManagement;
 using WinExSpectrumTest.Backdrop;
 using WinExSpectrumTest.Helper;
@@ -26,7 +27,11 @@ namespace WinExSpectrumTest
         {
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
-            this.SetIcon("Assets/icon.ico");
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets/icon.ico");
+            if (File.Exists(iconPath))
+            {
+                this.SetIcon(iconPath);
+            }            
             this.AppWindow.Closing += AppWindow_Closing;
             _hwnd = WindowNative.GetWindowHandle(this);
             themeStyleHelper = new ThemeStyleHelper(this, this.AppWindow);
