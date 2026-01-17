@@ -29,7 +29,7 @@ namespace WinExSpectrumTest.Manager
                 return Path.Combine(localFolder, FileName);
             }
             catch {
-                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), FileName);
+                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FileName);
             }
         }
 
@@ -46,7 +46,9 @@ namespace WinExSpectrumTest.Manager
             if (!File.Exists(filePath))
             {
                 // 如果文件不存在，返回默认配置
-                return new SaveSetting();
+                var newSetting = new SaveSetting();
+                await SaveSettingsAsync(newSetting);
+                return newSetting;
             }
 
             try
@@ -89,5 +91,6 @@ namespace WinExSpectrumTest.Manager
                 return false;
             }
         }
+
     }
 }
