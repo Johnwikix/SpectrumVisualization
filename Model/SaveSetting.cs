@@ -12,6 +12,7 @@ namespace WinExSpectrumTest.Model
         public float FontOpacity { get; set; } = 1.0f;
         public float SmoothingFactor { get; set; } = 0.9f;
         public float Sensitivity { get; set; } = 10.0f;
+        public int PowCoe { get; set; } = 100;
         public string AppStyle { get; set; } = "Acrylic";
         public float CustomAcrylicOpacity { get; set; } = 0.5f;
         public byte CustomColorAlpha { get; set; } = 255;

@@ -21,6 +21,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.IsDrawPlainSpectrum = settings.IsDrawPlainSpectrum;
             AppSettings.IsDrawRoundSpectrum = settings.IsDrawRoundSpectrum;
             AppSettings.Sensitivity = settings.Sensitivity;
+            AppSettings.PowCoe = settings.PowCoe;
             AppSettings.AppStyle = settings.AppStyle ?? "Acrylic";
             AppSettings.CustomAcrylicOpacity = settings.CustomAcrylicOpacity;
             AppSettings.CustomColorAlpha = settings.CustomColorAlpha;
@@ -47,6 +48,7 @@ namespace WinExSpectrumTest.Service
                 IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum,
                 IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum,
                 Sensitivity = AppSettings.Sensitivity,
+                PowCoe = AppSettings.PowCoe,
                 AppStyle = AppSettings.AppStyle,
                 CustomAcrylicOpacity = AppSettings.CustomAcrylicOpacity,
                 CustomColorAlpha = AppSettings.CustomColorAlpha,

@@ -52,15 +52,14 @@
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageReference Include="ManagedBass" Version="4.0.2" />
     <PackageReference Include="ManagedBass.Wasapi" Version="4.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.3" />
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7463" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
-    <PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
     <PackageReference Include="Vanara.PInvoke.User32" Version="5.0.0" />
     <PackageReference Include="WinUIEx" Version="2.9.0" />
-    <PackageReference Include="ZLinq" Version="1.5.4" />
+    <PackageReference Include="ZLinq" Version="1.5.5" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Canvas\CanvasPanel.xaml">
@@ -123,6 +122,6 @@
 	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>	
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
-	<WindowsPackageType>None</WindowsPackageType>
+	<WindowsPackageType>MSIX</WindowsPackageType>
   </PropertyGroup>
 </Project>

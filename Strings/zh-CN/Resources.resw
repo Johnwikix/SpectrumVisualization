@@ -117,6 +117,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AmplitudeCoe.Header" xml:space="preserve">
+    <value>幅度根指数系数</value>
+  </data>
   <data name="AppMainTitle" xml:space="preserve">
     <value>音频可视化</value>
   </data>

@@ -135,6 +135,20 @@ namespace WinExSpectrumTest.ViewModel
                 }
             }
         }
+        public int PowCoe
+        {
+            get => field;
+            set
+            {
+                if (SetProperty(ref field, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.PowCoe = value;
+                    }
+                }
+            }
+        } = 100;
         private string _backdropType = "TransparentAcrylic";
         public string BackdropType
         {
@@ -287,6 +301,7 @@ namespace WinExSpectrumTest.ViewModel
             RefreshRate = AppSettings.RefreshRate;
             SampleRate = AppSettings.SampleRate;
             BarCount = AppSettings.BarCount;
+            PowCoe = AppSettings.PowCoe;
             try
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";

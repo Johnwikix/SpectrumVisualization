@@ -17,6 +17,7 @@ using Windows.UI;
 using WinExSpectrumTest.Analyzer;
 using WinExSpectrumTest.Model;
 using ZLinq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -43,7 +44,6 @@ namespace WinExSpectrumTest.Canvas
         private float _lastMaxTextWidth = 0f;
         private CanvasDevice _device;
         private CanvasBitmap _albumArtBitmap;
-        private float _smoothAverage = 0f;
         private float _currentAverage = 0f;
         private CanvasTextFormat _titleTextFormat;
         private CanvasTextFormat _artistTextFormat;
@@ -246,7 +246,7 @@ namespace WinExSpectrumTest.Canvas
                 int index = (int)((float)i / _barCount * spectrumData.Length);
                 if (index < spectrumData.Length)
                 {
-                    _currentSpectrum[i] = (float)Math.Sqrt(spectrumData[index] * 400f * AppSettings.Sensitivity);
+                    _currentSpectrum[i] = (float)Math.Pow(spectrumData[index] * 400f * AppSettings.Sensitivity, 100.0 / AppSettings.PowCoe);
                 }
             }
         }
@@ -262,7 +262,6 @@ namespace WinExSpectrumTest.Canvas
                     _ = GetCover();
                 }
                 _currentAverage = _currentSpectrum.AsValueEnumerable().Average();
-                //_smoothAverage = _smoothedSpectrum.AsValueEnumerable().Average();
                 if (_currentAverage > 0)
                 {
                     _rotationOffset += 0.0001f * AppSettings.RotationSpeed;
@@ -376,7 +375,7 @@ namespace WinExSpectrumTest.Canvas
             for (int i = 0; i < _barCount; i++)
             {
                 // 径向长度
-                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 0.8f), 0);
+                float height = Math.Max(Math.Min(_smoothedSpectrum[i] * 0.02f, 1f), 0);
                 float currentRadius = _baseRadius + (height * _baseRadius);
                 // 起始和结束角度
                 float startAngle = i * angleStep + angleOffset - _rotationOffset;
