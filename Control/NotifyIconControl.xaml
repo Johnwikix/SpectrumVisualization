@@ -23,10 +23,26 @@
                     <MenuFlyoutItem
                         x:Name="Unlock"
                         x:Uid="UnlockWindow"
-                        Width="120"
+                        Width="150"
                         Command="{x:Bind UnlockWindowCommand}">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE785;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem
+                        x:Name="SwitchEffect"
+                        x:Uid="SwitchEffect"
+                        Command="{x:Bind CycleEffectCommand}">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE71D;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem
+                        x:Name="WallpaperMode"
+                        x:Uid="WallpaperMode"
+                        Command="{x:Bind ToggleWallpaperCommand}">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE7F4;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutItem

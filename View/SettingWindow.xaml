@@ -36,6 +36,100 @@
                     <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
                     <RepositionThemeTransition IsStaggeringEnabled="False" />
                 </StackPanel.ChildrenTransitions>
+                <controls:SettingsExpander x:Uid="EffectPage" Margin="10,0,10,0">
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="EffectPageSelect">
+                            <ComboBox
+                                MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.VisualEffect, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
+                                <ComboBoxItem Content="Aurora Ring" Tag="aurora-ring" />
+                                <ComboBoxItem Content="Sonic Topography" Tag="sonic-topography" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="WallpaperModeToggle">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.WallpaperMode, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+                <TextBlock
+                    Margin="10,10,0,10"
+                    FontSize="16"
+                    Text="Sonic Topography" />
+                <controls:SettingsCard x:Uid="SonicTheme" Margin="10,0,10,0">
+                    <ComboBox
+                        MinWidth="160"
+                        SelectedValue="{x:Bind ViewModel.SonicTheme, Mode=TwoWay}"
+                        SelectedValuePath="Tag">
+                        <ComboBoxItem Content="霁紫" Tag="nocturnal" />
+                        <ComboBoxItem Content="沧蓝" Tag="ocean-deep" />
+                        <ComboBoxItem Content="冰蓝" Tag="arctic-aurora" />
+                        <ComboBoxItem Content="碧翠" Tag="cyber-forest" />
+                        <ComboBoxItem Content="流金" Tag="golden-hour" />
+                        <ComboBoxItem Content="余烬" Tag="ember-fire" />
+                        <ComboBoxItem Content="赤焰" Tag="crimson-sunset" />
+                        <ComboBoxItem Content="霞粉" Tag="coral-mirage" />
+                        <ComboBoxItem Content="幻紫" Tag="neon-tokyo" />
+                        <ComboBoxItem Content="水墨" Tag="minimal-monochrome" />
+                        <ComboBoxItem Content="幽青" Tag="teal-depth" />
+                        <ComboBoxItem Content="薰衣草" Tag="lavender-dream" />
+                        <ComboBoxItem Content="樱" Tag="cherry-blossom" />
+                        <ComboBoxItem Content="锻铜" Tag="copper-forge" />
+                        <ComboBoxItem Content="薄荷" Tag="mint-fresh" />
+                    </ComboBox>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SonicAudioIntensity" Margin="10,0,10,0">
+                    <Slider
+                        Maximum="250"
+                        Minimum="30"
+                        Value="{x:Bind ViewModel.SonicAudioIntensity, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SonicResponseRange" Margin="10,0,10,0">
+                    <Slider
+                        Maximum="200"
+                        Minimum="30"
+                        Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
+                    <ComboBox
+                        MinWidth="160"
+                        SelectedValue="{x:Bind ViewModel.SonicGridSize, Mode=TwoWay}"
+                        SelectedValuePath="Tag">
+                        <ComboBoxItem Content="120 × 120" Tag="120" />
+                        <ComboBoxItem Content="160 × 160" Tag="160" />
+                    </ComboBox>
+                </controls:SettingsCard>
+                <controls:SettingsExpander x:Uid="SonicFx" Margin="10,0,10,0">
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="SonicIdleWave">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SonicIdleWaveEnabled, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicRipple">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SonicRippleEnabled, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicMeteor">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SonicMeteorEnabled, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicPeakColor">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SonicPeakColorEnabled, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicPeakIntensity">
+                            <Slider
+                                Maximum="200"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.SonicPeakIntensity, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicAutoRotate">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.SonicAutoRotate, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicRotateSpeed">
+                            <Slider
+                                Maximum="60"
+                                Minimum="1"
+                                Value="{x:Bind ViewModel.SonicRotateSpeed, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
                 <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
                     <Slider
                         Maximum="120"

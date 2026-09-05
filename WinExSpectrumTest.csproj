@@ -19,12 +19,6 @@
     <None Remove="Style\ConverterDictionary.xaml" />
     <None Remove="View\SettingWindow.xaml" />
   </ItemGroup>
-  <ItemGroup Condition="'$(Platform)' == 'x64'">
-		<None Include="Lib\x64\**\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<Link>%(Filename)%(Extension)</Link>
-		</None>
-  </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
@@ -47,19 +41,18 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="ComputeSharp.D2D1.WinUI" Version="3.2.0" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
-    <PackageReference Include="ManagedBass" Version="4.0.2" />
-    <PackageReference Include="ManagedBass.Wasapi" Version="4.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
-    <PackageReference Include="Vanara.PInvoke.User32" Version="5.0.0" />
-    <PackageReference Include="WinUIEx" Version="2.9.0" />
-    <PackageReference Include="ZLinq" Version="1.5.5" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <PackageReference Include="NAudio.Wasapi" Version="3.0.1" />
+    <PackageReference Include="Vanara.PInvoke.User32" Version="5.0.7" />
+    <PackageReference Include="WinUIEx" Version="2.9.3" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Canvas\CanvasPanel.xaml">
@@ -80,9 +73,6 @@
     <Page Update="Style\ConverterDictionary.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Lib\" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Assets\icon.ico">

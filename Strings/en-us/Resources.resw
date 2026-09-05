@@ -177,4 +177,58 @@
   <data name="UnlockWindow.Text" xml:space="preserve">
     <value>Unlock</value>
   </data>
+  <data name="SwitchEffect.Text" xml:space="preserve">
+    <value>Switch Effect</value>
+  </data>
+  <data name="WallpaperMode.Text" xml:space="preserve">
+    <value>Wallpaper Mode</value>
+  </data>
+  <data name="EffectPage.Header" xml:space="preserve">
+    <value>Effect Pages</value>
+  </data>
+  <data name="EffectPageSelect.Header" xml:space="preserve">
+    <value>Active Effect Page</value>
+  </data>
+  <data name="WallpaperModeToggle.Header" xml:space="preserve">
+    <value>Wallpaper Mode</value>
+  </data>
+  <data name="WallpaperModeToggle.Description" xml:space="preserve">
+    <value>Docks the window beneath the desktop icons and renders it as the live wallpaper (exit from the tray menu)</value>
+  </data>
+  <data name="SonicTheme.Header" xml:space="preserve">
+    <value>Color Theme</value>
+  </data>
+  <data name="SonicAudioIntensity.Header" xml:space="preserve">
+    <value>Audio Intensity</value>
+  </data>
+  <data name="SonicResponseRange.Header" xml:space="preserve">
+    <value>Response Range</value>
+  </data>
+  <data name="SonicGridSize.Header" xml:space="preserve">
+    <value>Render Resolution</value>
+  </data>
+  <data name="SonicFx.Header" xml:space="preserve">
+    <value>Effect Options</value>
+  </data>
+  <data name="SonicIdleWave.Header" xml:space="preserve">
+    <value>Idle Wave</value>
+  </data>
+  <data name="SonicRipple.Header" xml:space="preserve">
+    <value>Beat Ripples</value>
+  </data>
+  <data name="SonicMeteor.Header" xml:space="preserve">
+    <value>Meteor Effect</value>
+  </data>
+  <data name="SonicPeakColor.Header" xml:space="preserve">
+    <value>Peak Color</value>
+  </data>
+  <data name="SonicPeakIntensity.Header" xml:space="preserve">
+    <value>Peak Color Intensity</value>
+  </data>
+  <data name="SonicAutoRotate.Header" xml:space="preserve">
+    <value>Auto Rotate</value>
+  </data>
+  <data name="SonicRotateSpeed.Header" xml:space="preserve">
+    <value>Rotate Speed</value>
+  </data>
 </root>

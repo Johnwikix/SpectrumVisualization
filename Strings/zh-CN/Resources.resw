@@ -177,4 +177,58 @@
   <data name="UnlockWindow.Text" xml:space="preserve">
     <value>解锁窗口</value>
   </data>
+  <data name="SwitchEffect.Text" xml:space="preserve">
+    <value>切换效果</value>
+  </data>
+  <data name="WallpaperMode.Text" xml:space="preserve">
+    <value>壁纸模式</value>
+  </data>
+  <data name="EffectPage.Header" xml:space="preserve">
+    <value>效果页面</value>
+  </data>
+  <data name="EffectPageSelect.Header" xml:space="preserve">
+    <value>选择效果页</value>
+  </data>
+  <data name="WallpaperModeToggle.Header" xml:space="preserve">
+    <value>壁纸模式</value>
+  </data>
+  <data name="WallpaperModeToggle.Description" xml:space="preserve">
+    <value>将窗口置于桌面图标之下，作为动态壁纸渲染（通过托盘菜单退出）</value>
+  </data>
+  <data name="SonicTheme.Header" xml:space="preserve">
+    <value>颜色主题</value>
+  </data>
+  <data name="SonicAudioIntensity.Header" xml:space="preserve">
+    <value>音频响应强度</value>
+  </data>
+  <data name="SonicResponseRange.Header" xml:space="preserve">
+    <value>响应范围</value>
+  </data>
+  <data name="SonicGridSize.Header" xml:space="preserve">
+    <value>渲染精度</value>
+  </data>
+  <data name="SonicFx.Header" xml:space="preserve">
+    <value>效果选项</value>
+  </data>
+  <data name="SonicIdleWave.Header" xml:space="preserve">
+    <value>空闲波浪</value>
+  </data>
+  <data name="SonicRipple.Header" xml:space="preserve">
+    <value>节拍波纹</value>
+  </data>
+  <data name="SonicMeteor.Header" xml:space="preserve">
+    <value>流星效果</value>
+  </data>
+  <data name="SonicPeakColor.Header" xml:space="preserve">
+    <value>峰值强调色</value>
+  </data>
+  <data name="SonicPeakIntensity.Header" xml:space="preserve">
+    <value>强调色强度</value>
+  </data>
+  <data name="SonicAutoRotate.Header" xml:space="preserve">
+    <value>自动旋转</value>
+  </data>
+  <data name="SonicRotateSpeed.Header" xml:space="preserve">
+    <value>旋转速度</value>
+  </data>
 </root>

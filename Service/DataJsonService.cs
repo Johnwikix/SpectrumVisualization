@@ -34,6 +34,19 @@ namespace WinExSpectrumTest.Service
             AppSettings.RefreshRate = settings.RefreshRate;
             AppSettings.SampleRate = settings.SampleRate;
             AppSettings.BarCount = settings.BarCount;
+            AppSettings.VisualEffect = settings.VisualEffect ?? "aurora-ring";
+            AppSettings.SonicTheme = settings.SonicTheme ?? "nocturnal";
+            AppSettings.SonicAudioIntensity = settings.SonicAudioIntensity;
+            AppSettings.SonicResponseRange = settings.SonicResponseRange;
+            AppSettings.SonicGridSize = settings.SonicGridSize;
+            AppSettings.SonicIdleWaveEnabled = settings.SonicIdleWaveEnabled;
+            AppSettings.SonicRippleEnabled = settings.SonicRippleEnabled;
+            AppSettings.SonicMeteorEnabled = settings.SonicMeteorEnabled;
+            AppSettings.SonicAutoRotate = settings.SonicAutoRotate;
+            AppSettings.SonicRotateSpeed = settings.SonicRotateSpeed;
+            AppSettings.SonicPeakColorEnabled = settings.SonicPeakColorEnabled;
+            AppSettings.SonicPeakIntensity = settings.SonicPeakIntensity;
+            AppSettings.WallpaperMode = settings.WallpaperMode;
         }
 
         public static async Task SaveSettingAsync()
@@ -60,7 +73,20 @@ namespace WinExSpectrumTest.Service
                 elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default",
                 RefreshRate = AppSettings.RefreshRate,
                 SampleRate = AppSettings.SampleRate,
-                BarCount = AppSettings.BarCount
+                BarCount = AppSettings.BarCount,
+                VisualEffect = AppSettings.VisualEffect,
+                SonicTheme = AppSettings.SonicTheme,
+                SonicAudioIntensity = AppSettings.SonicAudioIntensity,
+                SonicResponseRange = AppSettings.SonicResponseRange,
+                SonicGridSize = AppSettings.SonicGridSize,
+                SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled,
+                SonicRippleEnabled = AppSettings.SonicRippleEnabled,
+                SonicMeteorEnabled = AppSettings.SonicMeteorEnabled,
+                SonicAutoRotate = AppSettings.SonicAutoRotate,
+                SonicRotateSpeed = AppSettings.SonicRotateSpeed,
+                SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled,
+                SonicPeakIntensity = AppSettings.SonicPeakIntensity,
+                WallpaperMode = AppSettings.WallpaperMode
             };
             await SettingManager.SaveSettingsAsync(settings);
         }

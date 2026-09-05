@@ -272,6 +272,219 @@ namespace WinExSpectrumTest.ViewModel
                 }
             }
         }
+
+        private string _visualEffect = "aurora-ring";
+        public string VisualEffect
+        {
+            get => _visualEffect;
+            set
+            {
+                if (SetProperty(ref _visualEffect, value))
+                {
+                    if (_isInitialized)
+                    {
+                        App.MainWindow?.SwitchToEffect(value);
+                        AppSettings.VisualEffect = value;
+                    }
+                }
+            }
+        }
+
+        private string _sonicTheme = "nocturnal";
+        public string SonicTheme
+        {
+            get => _sonicTheme;
+            set
+            {
+                if (SetProperty(ref _sonicTheme, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicTheme = value;
+                    }
+                }
+            }
+        }
+
+        private float _sonicAudioIntensity = 1.0f;
+        public float SonicAudioIntensity
+        {
+            get => _sonicAudioIntensity;
+            set
+            {
+                if (SetProperty(ref _sonicAudioIntensity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicAudioIntensity = value / 100f;
+                    }
+                }
+            }
+        }
+
+        private float _sonicResponseRange = 1.0f;
+        public float SonicResponseRange
+        {
+            get => _sonicResponseRange;
+            set
+            {
+                if (SetProperty(ref _sonicResponseRange, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicResponseRange = value / 100f;
+                    }
+                }
+            }
+        }
+
+        private string _sonicGridSize = "160";
+        public string SonicGridSize
+        {
+            get => _sonicGridSize;
+            set
+            {
+                if (SetProperty(ref _sonicGridSize, value))
+                {
+                    if (_isInitialized && int.TryParse(value, out int gridSize))
+                    {
+                        AppSettings.SonicGridSize = gridSize;
+                    }
+                }
+            }
+        }
+
+        private bool _sonicIdleWaveEnabled = true;
+        public bool SonicIdleWaveEnabled
+        {
+            get => _sonicIdleWaveEnabled;
+            set
+            {
+                if (SetProperty(ref _sonicIdleWaveEnabled, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicIdleWaveEnabled = value;
+                    }
+                }
+            }
+        }
+
+        private bool _sonicRippleEnabled = true;
+        public bool SonicRippleEnabled
+        {
+            get => _sonicRippleEnabled;
+            set
+            {
+                if (SetProperty(ref _sonicRippleEnabled, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicRippleEnabled = value;
+                    }
+                }
+            }
+        }
+
+        private bool _sonicMeteorEnabled = true;
+        public bool SonicMeteorEnabled
+        {
+            get => _sonicMeteorEnabled;
+            set
+            {
+                if (SetProperty(ref _sonicMeteorEnabled, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicMeteorEnabled = value;
+                    }
+                }
+            }
+        }
+
+        private bool _sonicAutoRotate = false;
+        public bool SonicAutoRotate
+        {
+            get => _sonicAutoRotate;
+            set
+            {
+                if (SetProperty(ref _sonicAutoRotate, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicAutoRotate = value;
+                    }
+                }
+            }
+        }
+
+        private float _sonicRotateSpeed = 10.0f;
+        public float SonicRotateSpeed
+        {
+            get => _sonicRotateSpeed;
+            set
+            {
+                if (SetProperty(ref _sonicRotateSpeed, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicRotateSpeed = value;
+                    }
+                }
+            }
+        }
+
+        private bool _sonicPeakColorEnabled = true;
+        public bool SonicPeakColorEnabled
+        {
+            get => _sonicPeakColorEnabled;
+            set
+            {
+                if (SetProperty(ref _sonicPeakColorEnabled, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicPeakColorEnabled = value;
+                    }
+                }
+            }
+        }
+
+        private float _sonicPeakIntensity = 1.0f;
+        public float SonicPeakIntensity
+        {
+            get => _sonicPeakIntensity;
+            set
+            {
+                if (SetProperty(ref _sonicPeakIntensity, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.SonicPeakIntensity = value / 100f;
+                    }
+                }
+            }
+        }
+
+        private bool _wallpaperMode = false;
+        public bool WallpaperMode
+        {
+            get => _wallpaperMode;
+            set
+            {
+                if (SetProperty(ref _wallpaperMode, value))
+                {
+                    if (_isInitialized && App.MainWindow != null)
+                    {
+                        if (App.MainWindow.IsWallpaperModeActive != value)
+                        {
+                            App.MainWindow.ToggleWallpaper();
+                        }
+                        AppSettings.WallpaperMode = App.MainWindow.IsWallpaperModeActive;
+                    }
+                }
+            }
+        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -302,6 +515,19 @@ namespace WinExSpectrumTest.ViewModel
             SampleRate = AppSettings.SampleRate;
             BarCount = AppSettings.BarCount;
             PowCoe = AppSettings.PowCoe;
+            VisualEffect = AppSettings.VisualEffect;
+            SonicTheme = AppSettings.SonicTheme;
+            SonicAudioIntensity = AppSettings.SonicAudioIntensity * 100f;
+            SonicResponseRange = AppSettings.SonicResponseRange * 100f;
+            SonicGridSize = AppSettings.SonicGridSize.ToString();
+            SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled;
+            SonicRippleEnabled = AppSettings.SonicRippleEnabled;
+            SonicMeteorEnabled = AppSettings.SonicMeteorEnabled;
+            SonicAutoRotate = AppSettings.SonicAutoRotate;
+            SonicRotateSpeed = AppSettings.SonicRotateSpeed;
+            SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled;
+            SonicPeakIntensity = AppSettings.SonicPeakIntensity * 100f;
+            WallpaperMode = AppSettings.WallpaperMode;
             try
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";

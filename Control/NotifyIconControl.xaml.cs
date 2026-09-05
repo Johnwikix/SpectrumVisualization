@@ -55,6 +55,10 @@ namespace WinExSpectrumTest.Control
         {
             var window = App.MainWindow;
             if (window == null) return;
+            if (AppSettings.WallpaperMode)
+            {
+                window.ToggleWallpaper();
+            }
             WindowHelper.SetLock(window, false);
             WindowHelper.Disable(window);
             window.SetAppStyle();
@@ -62,8 +66,25 @@ namespace WinExSpectrumTest.Control
         }
 
         [RelayCommand]
+        public void CycleEffect()
+        {
+            App.MainWindow?.SwitchEffect(1);
+        }
+
+        [RelayCommand]
+        public void ToggleWallpaper()
+        {
+            App.MainWindow?.ToggleWallpaper();
+        }
+
+        [RelayCommand]
         public void ExitApplication()
         {
+            if (AppSettings.WallpaperMode && App.MainWindow != null)
+            {
+                WallpaperHelper.Exit(App.MainWindow);
+                AppSettings.WallpaperMode = false;
+            }
             App.Current_Exit();
         }
     }

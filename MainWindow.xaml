@@ -36,9 +36,13 @@
             Margin="5,5,0,0"
             VerticalAlignment="Top"
             Canvas.ZIndex="999"
+            Opacity="0"
             PointerEntered="TopCommand_PointerEntered"
             PointerExited="TopCommand_PointerExited">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -70,6 +74,45 @@
                     x:Name="FullScreenIcon"
                     FontSize="16"
                     Glyph="&#xE740;" />
+            </Button>
+            <Button
+                x:Name="PreviousEffectBtn"
+                Grid.Column="2"
+                Margin="5,0,0,0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="PreviousEffect_Click">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Modifiers="Control" Key="Left" />
+                </Button.KeyboardAccelerators>
+                <FontIcon FontSize="16" Glyph="&#xE76B;" />
+            </Button>
+            <Button
+                x:Name="NextEffectBtn"
+                Grid.Column="3"
+                Margin="5,0,0,0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="NextEffect_Click">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Modifiers="Control" Key="Right" />
+                </Button.KeyboardAccelerators>
+                <FontIcon FontSize="16" Glyph="&#xE76C;" />
+            </Button>
+            <Button
+                x:Name="WallpaperBtn"
+                Grid.Column="4"
+                Margin="5,0,0,0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="Wallpaper_Click">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="W" />
+                </Button.KeyboardAccelerators>
+                <FontIcon
+                    x:Name="WallpaperIcon"
+                    FontSize="16"
+                    Glyph="&#xE7F4;" />
             </Button>
         </Grid>
     </Grid>

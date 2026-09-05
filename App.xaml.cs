@@ -7,6 +7,7 @@ using System.Runtime;
 using System.Threading.Tasks;
 using Windows.System.UserProfile;
 using WinExSpectrumTest.Service;
+using WinExSpectrumTest.Services;
 using WinExSpectrumTest.ViewModel;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -20,8 +21,9 @@ namespace WinExSpectrumTest
     public partial class App : Application
     {
         public static MainWindow MainWindow { get; private set; }
+        public static MediaInfoService MediaInfoService { get; private set; } = new();
         public static IServiceProvider Services { get; private set; }
-        private static readonly IHost _host = Host.CreateDefaultBuilder()            
+        private static readonly IHost _host = Host.CreateDefaultBuilder()
              .ConfigureServices((context, services) =>
              {
                  services.AddSingleton<SettingViewModel>();
@@ -36,6 +38,11 @@ namespace WinExSpectrumTest
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             InitializeComponent();
             Services = _host.Services;
+
+            // Log unhandled exceptions to a file so silent startup crashes leave a trace.
+            UnhandledException += OnXamlUnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+
             var systemLanguages = GlobalizationPreferences.Languages;
             try
             {
@@ -52,6 +59,28 @@ namespace WinExSpectrumTest
             }
         }
 
+        private static void OnXamlUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            WriteCrashLog("XAML", e.Message, e.Exception);
+        }
+
+        private static void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        {
+            WriteCrashLog("AppDomain", e.ExceptionObject?.ToString() ?? "null", e.ExceptionObject as Exception);
+        }
+
+        private static void WriteCrashLog(string source, string message, Exception? exception)
+        {
+            try
+            {
+                string line = $"[{DateTime.Now:HH:mm:ss.fff}] {source}: {message}\n{exception}\n\n";
+                File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log"), line);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         /// <summary>
         /// Invoked when the application is launched.
         /// </summary>
@@ -62,6 +91,9 @@ namespace WinExSpectrumTest
             await DataJsonService.LoadSettingAsync();
             MainWindow = new MainWindow();
             MainWindow.Activate();
+            // SMTC session enumeration can take hundreds of milliseconds; don't let it
+            // delay the first frame. Effects receive late media updates through events.
+            _ = MediaInfoService.InitializeAsync();
         }
 
         public static void Current_Exit()

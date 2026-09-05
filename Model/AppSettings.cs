@@ -26,5 +26,24 @@ namespace WinExSpectrumTest.Model
         public static float RefreshRate { get; set; } = 60.0f;
         public static int SampleRate { get; set; } = 12000;
         public static int BarCount { get; set; } = 512;
+
+        /// <summary>Active visualizer effect page id (see EffectRegistry).</summary>
+        public static string VisualEffect { get; set; } = "aurora-ring";
+
+        // Sonic Topography effect settings.
+        public static string SonicTheme { get; set; } = "nocturnal";
+        public static float SonicAudioIntensity { get; set; } = 1.0f;
+        public static float SonicResponseRange { get; set; } = 1.0f;
+        public static int SonicGridSize { get; set; } = 160;
+        public static bool SonicIdleWaveEnabled { get; set; } = true;
+        public static bool SonicRippleEnabled { get; set; } = true;
+        public static bool SonicMeteorEnabled { get; set; } = true;
+        public static bool SonicAutoRotate { get; set; } = false;
+        public static float SonicRotateSpeed { get; set; } = 10.0f;
+        public static bool SonicPeakColorEnabled { get; set; } = true;
+        public static float SonicPeakIntensity { get; set; } = 1.0f;
+
+        /// <summary>Whether the window is docked to the desktop wallpaper layer.</summary>
+        public static bool WallpaperMode { get; set; } = false;
     }
 }
