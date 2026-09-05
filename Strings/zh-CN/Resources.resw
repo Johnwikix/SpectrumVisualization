@@ -171,6 +171,9 @@
   <data name="SpectrumType.Header" xml:space="preserve">
     <value>频谱样式</value>
   </data>
+  <data name="TextShadow.Header" xml:space="preserve">
+    <value>文字阴影</value>
+  </data>
   <data name="TextOpacity.Header" xml:space="preserve">
     <value>文字不透明度</value>
   </data>

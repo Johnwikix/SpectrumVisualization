@@ -11,6 +11,8 @@ namespace WinExSpectrumTest.Model
         public static float CoverOpacity { get; set; } = 1.0f;
         public static float SpectrumOpacity { get; set; } = 1.0f;
         public static float FontOpacity { get; set; } = 1.0f;
+        /// <summary>文字软阴影强度（0-100，0 = 关闭；阴影色 = 文字色反相）。</summary>
+        public static float FontShadow { get; set; } = 40.0f;
         public static float SmoothingFactor { get; set; } = 0.9f;
         public static float Sensitivity { get; set; } = 10.0f;
         public static int PowCoe { get; set; } = 100;

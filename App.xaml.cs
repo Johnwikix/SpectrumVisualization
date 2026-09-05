@@ -100,6 +100,8 @@ namespace WinExSpectrumTest
         {
             try
             {
+                // 退出前同步落盘：异步保存会被下面的 Exit 终止（设置丢失的根因）。
+                DataJsonService.SaveSettingNow();
                 _host.StopAsync().Wait();
             }
             catch (Exception)

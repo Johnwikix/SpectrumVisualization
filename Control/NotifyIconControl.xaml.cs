@@ -59,10 +59,10 @@ namespace WinExSpectrumTest.Control
             {
                 window.ToggleWallpaper();
             }
-            WindowHelper.SetLock(window, false);
-            WindowHelper.Disable(window);
-            window.SetAppStyle();
-            AppSettings.IsLocked = false;
+            if (AppSettings.IsLocked)
+            {
+                window.ExitLock();
+            }
         }
 
         [RelayCommand]

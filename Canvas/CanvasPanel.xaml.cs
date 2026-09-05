@@ -6,6 +6,7 @@ using System.Threading;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects;
 using WinExSpectrumTest.Model;
+using WinExSpectrumTest.Service;
 using WinExSpectrumTest.Services;
 
 namespace WinExSpectrumTest.Canvas
@@ -69,7 +70,11 @@ namespace WinExSpectrumTest.Canvas
             IVisualizerEffect? old = _effect;
             _effect = effect;
             _effectPendingDispose = old;
-            AppSettings.VisualEffect = id;
+            if (AppSettings.VisualEffect != id)
+            {
+                AppSettings.VisualEffect = id;
+                _ = DataJsonService.SaveSettingAsync();   // 变更即存，退出路径再兜底同步保存
+            }
         }
 
         /// <summary>Cycles to the next (direction = 1) or previous (direction = -1) effect page.</summary>

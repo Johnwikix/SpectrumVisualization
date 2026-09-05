@@ -74,6 +74,22 @@ namespace WinExSpectrumTest.ViewModel
                 }
             }
         }
+
+        private float _fontShadow = 40.0f;
+        public float FontShadow
+        {
+            get => _fontShadow;
+            set
+            {
+                if (SetProperty(ref _fontShadow, value))
+                {
+                    if (_isInitialized)
+                    {
+                        AppSettings.FontShadow = value;
+                    }
+                }
+            }
+        }
         private float _smoothingFactor = 95f;
         public float SmoothingFactor
         {
@@ -286,9 +302,17 @@ namespace WinExSpectrumTest.ViewModel
                         App.MainWindow?.SwitchToEffect(value);
                         AppSettings.VisualEffect = value;
                     }
+                    // Sonic 参数区仅在 Sonic 页激活时展示，避免误导
+                    OnPropertyChanged(nameof(SonicSectionVisibility));
                 }
             }
         }
+
+        /// <summary>Sonic Topography 参数区可见性（仅当前效果为 Sonic 时可见）。</summary>
+        public Microsoft.UI.Xaml.Visibility SonicSectionVisibility
+            => string.Equals(_visualEffect, "sonic-topography", StringComparison.Ordinal)
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         private string _sonicTheme = "nocturnal";
         public string SonicTheme
@@ -492,6 +516,7 @@ namespace WinExSpectrumTest.ViewModel
             CoverOpacity = AppSettings.CoverOpacity * 100;
             SpectrumOpacity = AppSettings.SpectrumOpacity * 100;
             FontOpacity = AppSettings.FontOpacity * 100;
+            FontShadow = AppSettings.FontShadow;
             SmoothingFactor = AppSettings.SmoothingFactor * 100;
             IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum;
             IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum;

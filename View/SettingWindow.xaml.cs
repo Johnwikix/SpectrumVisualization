@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using System;
 using System.IO;
 using Windows.System;
+using WinExSpectrumTest.Service;
 using WinExSpectrumTest.ViewModel;
 using WinUIEx;
 
@@ -32,7 +33,8 @@ namespace WinExSpectrumTest.View
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
-            _ = ViewModel.SaveSettings();
+            // 同步落盘：窗口关闭后异步写入可能被随后的应用退出终止。
+            DataJsonService.SaveSettingNow();
         }
 
         private bool GetIsChecked(string style, string currentOption)

@@ -39,6 +39,8 @@ namespace WinExSpectrumTest.Effects.Sonic
 
         private const float CameraPitch = 27f;
         private const float CameraDistance = 85f;
+        // 注视点高度偏移：视觉上把音频响应主体居中（透视导致亮顶偏向画面上方）
+        private const float CameraLookHeight = 16f;
         private const float FieldOfViewY = 45f;
 
         private VisualizerServices _services = null!;
@@ -306,7 +308,10 @@ namespace WinExSpectrumTest.Effects.Sonic
                 CameraDistance * MathF.Sin(pitch),
                 horizontal * MathF.Cos(yaw));
 
-            _cameraForward = Vector3.Normalize(-_cameraPosition);
+            // 注视点相对原点抬高：地面透视会把远处柱体的亮顶"推"向画面上方，
+            // 抬高注视点把整个响应主体视觉下移回画面中央。
+            var lookTarget = new Vector3(0f, CameraLookHeight, 0f);
+            _cameraForward = Vector3.Normalize(lookTarget - _cameraPosition);
             _cameraRight = Vector3.Normalize(Vector3.Cross(_cameraForward, Vector3.UnitY));
             _cameraUp = Vector3.Cross(_cameraRight, _cameraForward);
         }

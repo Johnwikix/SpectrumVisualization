@@ -171,6 +171,9 @@
   <data name="SpectrumType.Header" xml:space="preserve">
     <value>Spectrum Type</value>
   </data>
+  <data name="TextShadow.Header" xml:space="preserve">
+    <value>Text Shadow</value>
+  </data>
   <data name="TextOpacity.Header" xml:space="preserve">
     <value>Text Opacity</value>
   </data>

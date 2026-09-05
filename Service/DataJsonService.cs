@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using WinExSpectrumTest.Manager;
 using WinExSpectrumTest.Model;
@@ -17,6 +16,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.CoverOpacity = settings.CoverOpacity;
             AppSettings.SpectrumOpacity = settings.SpectrumOpacity;
             AppSettings.FontOpacity = settings.FontOpacity;
+            AppSettings.FontShadow = settings.FontShadow;
             AppSettings.SmoothingFactor = settings.SmoothingFactor;
             AppSettings.IsDrawPlainSpectrum = settings.IsDrawPlainSpectrum;
             AppSettings.IsDrawRoundSpectrum = settings.IsDrawRoundSpectrum;
@@ -49,14 +49,16 @@ namespace WinExSpectrumTest.Service
             AppSettings.WallpaperMode = settings.WallpaperMode;
         }
 
-        public static async Task SaveSettingAsync()
+        /// <summary>把 AppSettings 快照成可序列化的 SaveSetting。</summary>
+        private static SaveSetting CreateSaveSetting()
         {
-            var settings = new SaveSetting
+            return new SaveSetting
             {
                 RotationSpeed = AppSettings.RotationSpeed,
                 CoverOpacity = AppSettings.CoverOpacity,
                 SpectrumOpacity = AppSettings.SpectrumOpacity,
                 FontOpacity = AppSettings.FontOpacity,
+                FontShadow = AppSettings.FontShadow,
                 SmoothingFactor = AppSettings.SmoothingFactor,
                 IsDrawPlainSpectrum = AppSettings.IsDrawPlainSpectrum,
                 IsDrawRoundSpectrum = AppSettings.IsDrawRoundSpectrum,
@@ -88,8 +90,20 @@ namespace WinExSpectrumTest.Service
                 SonicPeakIntensity = AppSettings.SonicPeakIntensity,
                 WallpaperMode = AppSettings.WallpaperMode
             };
-            await SettingManager.SaveSettingsAsync(settings);
+        }
+
+        public static async Task SaveSettingAsync()
+        {
+            await SettingManager.SaveSettingsAsync(CreateSaveSetting());
+        }
+
+        /// <summary>
+        /// 同步落盘当前设置。必须在进程退出路径（Environment.Exit 之前）调用：
+        /// 异步写入会被退出直接终止，表现为"设置丢失"。
+        /// </summary>
+        public static void SaveSettingNow()
+        {
+            SettingManager.SaveSettingsNow(CreateSaveSetting());
         }
     }
-
 }

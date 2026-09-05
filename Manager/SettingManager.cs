@@ -92,5 +92,22 @@ namespace WinExSpectrumTest.Manager
             }
         }
 
+        /// <summary>
+        /// 同步保存配置。供应用退出路径使用：异步写入会在 Environment.Exit 时被
+        /// 直接终止（表现为设置丢失），退出前必须走同步落盘。
+        /// </summary>
+        public static bool SaveSettingsNow(SaveSetting settings)
+        {
+            try
+            {
+                File.WriteAllText(GetSettingFilePath(), JsonSerializer.Serialize(settings, SettingsJsonContext.Default.SaveSetting));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"同步保存配置失败: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

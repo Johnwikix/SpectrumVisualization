@@ -45,7 +45,9 @@ namespace WinExSpectrumTest.Audio
     public sealed class SpectrumAnalyzer : IDisposable
     {
         public const int BandCount = 512;
-        public const int FftSize = 2048;
+        // 4096 点：WASAPI 混音格式常见 48/96/192kHz，2048 点在 192kHz 下仅 93.75Hz/箱，
+        // 低频对数分带（几十 Hz 一根条）会多条共用一个 FFT 箱。4096 提高一倍分辨率。
+        public const int FftSize = 4096;
         public const int SpectrumLength = FftSize / 2 + 1;
 
         private const float SmoothingRate = 0.15f;
