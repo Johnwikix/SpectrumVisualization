@@ -19,322 +19,375 @@
     <winex:WindowEx.SystemBackdrop>
         <MicaBackdrop />
     </winex:WindowEx.SystemBackdrop>
-    <Grid Margin="0,32,0,24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Margin="32,0,32,0">
-            <TextBlock
-                Margin="10,20,0,10"
-                FontSize="28"
-                Text="设置" />
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock
+                    x:Uid="Settings.Text"
+                    Margin="32,28,16,8"
+                    VerticalAlignment="Center"
+                    FontSize="28" />
+                <!--  music_player 同款分类选择：SelectorBar + SwitchPresenter  -->
+                <SelectorBar
+                    x:Name="SectionSelector"
+                    Margin="8,20,0,0"
+                    VerticalAlignment="Center">
+                    <SelectorBarItem
+                        x:Uid="SettingsSectionGeneral"
+                        FontSize="16"
+                        IsSelected="True"
+                        Tag="General" />
+                    <SelectorBarItem
+                        x:Uid="SettingsSectionAurora"
+                        FontSize="16"
+                        Tag="Aurora" />
+                    <SelectorBarItem
+                        x:Uid="SettingsSectionSonic"
+                        FontSize="16"
+                        Tag="Sonic" />
+                    <SelectorBarItem
+                        x:Uid="SettingsSectionAbout"
+                        FontSize="16"
+                        Tag="About" />
+                </SelectorBar>
+            </StackPanel>
         </Grid>
-        <ScrollView Grid.Row="1">
-            <StackPanel Margin="32,0,32,0">
-                <StackPanel.ChildrenTransitions>
-                    <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
-                    <RepositionThemeTransition IsStaggeringEnabled="False" />
-                </StackPanel.ChildrenTransitions>
-                <controls:SettingsExpander x:Uid="EffectPage" Margin="10,0,10,0">
-                    <controls:SettingsExpander.Items>
-                        <controls:SettingsCard x:Uid="EffectPageSelect">
+
+        <controls:SwitchPresenter
+            Grid.Row="1"
+            Value="{x:Bind SectionSelector.SelectedItem.Tag, Mode=OneWay}">
+            <controls:SwitchPresenter.ContentTransitions>
+                <TransitionCollection>
+                    <PopupThemeTransition />
+                </TransitionCollection>
+            </controls:SwitchPresenter.ContentTransitions>
+
+            <!--  通用：效果页 / 壁纸模式 / 刷新率 / 音频采样 / 频谱条数 / 外观材质  -->
+            <controls:Case Value="General">
+                <ScrollView>
+                    <StackPanel Margin="32,0,32,24">
+                        <StackPanel.ChildrenTransitions>
+                            <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
+                            <RepositionThemeTransition IsStaggeringEnabled="False" />
+                        </StackPanel.ChildrenTransitions>
+                        <controls:SettingsExpander x:Uid="EffectPage" Margin="10,0,10,0">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="EffectPageSelect">
+                                    <ComboBox
+                                        MinWidth="160"
+                                        SelectedValue="{x:Bind ViewModel.VisualEffect, Mode=TwoWay}"
+                                        SelectedValuePath="Tag">
+                                        <ComboBoxItem Content="Aurora Ring" Tag="aurora-ring" />
+                                        <ComboBoxItem Content="Sonic Topography" Tag="sonic-topography" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WallpaperModeToggle">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.WallpaperMode, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="120"
+                                Minimum="1"
+                                Value="{x:Bind ViewModel.RefreshRate, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="48000"
+                                Minimum="2000"
+                                SnapsTo="Ticks"
+                                TickFrequency="1000"
+                                TickPlacement="Outside"
+                                Value="{x:Bind ViewModel.SampleRate, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="BarCount" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="1024"
+                                Minimum="128"
+                                SnapsTo="Ticks"
+                                TickFrequency="128"
+                                TickPlacement="Outside"
+                                Value="{x:Bind ViewModel.BarCount, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsExpander x:Uid="MainWindowMaterial" Margin="10,0,10,0">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard ContentAlignment="Left">
+                                    <StackPanel>
+                                        <RadioButton
+                                            x:Name="TransparentTintRadioButton"
+                                            Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
+                                            CommandParameter="TransparentTint"
+                                            Content="透明"
+                                            GroupName="BackdropGroup"
+                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentTint'),Mode=OneWay}"
+                                            Tag="TransparentTint" />
+                                        <RadioButton
+                                            x:Name="MicaRadioButton"
+                                            Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
+                                            CommandParameter="Mica"
+                                            Content="云母"
+                                            GroupName="BackdropGroup"
+                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Mica'),Mode=OneWay}"
+                                            Tag="Mica" />
+                                        <RadioButton
+                                            x:Name="AcrylicRadioButton"
+                                            Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
+                                            CommandParameter="Acrylic"
+                                            Content="亚克力"
+                                            GroupName="BackdropGroup"
+                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Acrylic'),Mode=OneWay}"
+                                            Tag="Acrylic" />
+                                        <RadioButton
+                                            x:Name="TransparentAcrylicRadioButton"
+                                            Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
+                                            CommandParameter="TransparentAcrylic"
+                                            Content="透明亚克力"
+                                            GroupName="BackdropGroup"
+                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentAcrylic'),Mode=OneWay}"
+                                            Tag="TransparentAcrylic" />
+                                        <RadioButton
+                                            x:Name="CustomAcrylicStyleRadioButton"
+                                            Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
+                                            CommandParameter="CustomAcrylicStyle"
+                                            Content="自定义亚克力"
+                                            GroupName="BackdropGroup"
+                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'CustomAcrylicStyle'),Mode=OneWay}"
+                                            Tag="CustomAcrylicStyle" />
+                                        <StackPanel Visibility="{x:Bind ViewModel.IsColorPickerVisible, Mode=OneWay}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock
+                                                    Grid.Column="0"
+                                                    Margin="0,0,10,0"
+                                                    VerticalAlignment="Center"
+                                                    Text="不透明度" />
+                                                <Slider
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Maximum="100"
+                                                    Minimum="0"
+                                                    Value="{x:Bind ViewModel.CustomOpacity, Mode=TwoWay}" />
+                                            </Grid>
+                                            <ColorPicker
+                                                ColorSpectrumShape="Ring"
+                                                IsAlphaEnabled="True"
+                                                IsAlphaSliderVisible="True"
+                                                IsAlphaTextInputVisible="False"
+                                                IsColorChannelTextInputVisible="False"
+                                                IsColorSliderVisible="True"
+                                                IsHexInputVisible="False"
+                                                IsMoreButtonVisible="False"
+                                                Color="{x:Bind ViewModel.CustomColor, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                    </StackPanel>
+                </ScrollView>
+            </controls:Case>
+
+            <!--  Aurora Ring：旋转 / 透明度 / 平滑 / 幅度 / 样式 / 文字  -->
+            <controls:Case Value="Aurora">
+                <ScrollView>
+                    <StackPanel Margin="32,0,32,24">
+                        <controls:SettingsCard x:Uid="RotationSpeed" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.RotationSpeed, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="PictureOpacity" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.CoverOpacity, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SpectrumBarOpacity" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.SpectrumOpacity, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SpectrumSmoothness" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.SmoothingFactor, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SpectrumAmplitude" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.Sensitivity, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="AmplitudeCoe" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="500"
+                                Minimum="50"
+                                Value="{x:Bind ViewModel.PowCoe, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsExpander x:Uid="SpectrumType" Margin="10,0,10,0">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard Header="直线">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsDrawPlainSpectrum, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard Header="圆形">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsDrawRoundSpectrum, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsCard x:Uid="TextOpacity" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.FontOpacity, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="TextShadow" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="100"
+                                Minimum="0"
+                                Value="{x:Bind ViewModel.FontShadow, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                    </StackPanel>
+                </ScrollView>
+            </controls:Case>
+
+            <!--  Sonic Topography（仅当前效果为 Sonic 时可见）  -->
+            <controls:Case Value="Sonic">
+                <ScrollView>
+                    <StackPanel Margin="32,0,32,24">
+                        <controls:SettingsCard x:Uid="SonicTheme" Margin="10,0,10,0">
                             <ComboBox
                                 MinWidth="160"
-                                SelectedValue="{x:Bind ViewModel.VisualEffect, Mode=TwoWay}"
+                                SelectedValue="{x:Bind ViewModel.SonicTheme, Mode=TwoWay}"
                                 SelectedValuePath="Tag">
-                                <ComboBoxItem Content="Aurora Ring" Tag="aurora-ring" />
-                                <ComboBoxItem Content="Sonic Topography" Tag="sonic-topography" />
+                                <ComboBoxItem Content="霁紫" Tag="nocturnal" />
+                                <ComboBoxItem Content="沧蓝" Tag="ocean-deep" />
+                                <ComboBoxItem Content="冰蓝" Tag="arctic-aurora" />
+                                <ComboBoxItem Content="碧翠" Tag="cyber-forest" />
+                                <ComboBoxItem Content="流金" Tag="golden-hour" />
+                                <ComboBoxItem Content="余烬" Tag="ember-fire" />
+                                <ComboBoxItem Content="赤焰" Tag="crimson-sunset" />
+                                <ComboBoxItem Content="霞粉" Tag="coral-mirage" />
+                                <ComboBoxItem Content="幻紫" Tag="neon-tokyo" />
+                                <ComboBoxItem Content="水墨" Tag="minimal-monochrome" />
+                                <ComboBoxItem Content="幽青" Tag="teal-depth" />
+                                <ComboBoxItem Content="薰衣草" Tag="lavender-dream" />
+                                <ComboBoxItem Content="樱" Tag="cherry-blossom" />
+                                <ComboBoxItem Content="锻铜" Tag="copper-forge" />
+                                <ComboBoxItem Content="薄荷" Tag="mint-fresh" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="WallpaperModeToggle">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.WallpaperMode, Mode=TwoWay}" />
+                        <controls:SettingsCard x:Uid="SonicAudioIntensity" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="250"
+                                Minimum="30"
+                                Value="{x:Bind ViewModel.SonicAudioIntensity, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                    </controls:SettingsExpander.Items>
-                </controls:SettingsExpander>
-                <TextBlock
-                    Margin="10,10,0,10"
-                    FontSize="16"
-                    Text="Sonic Topography"
-                    Visibility="{x:Bind ViewModel.SonicSectionVisibility, Mode=OneWay}" />
-                <StackPanel Visibility="{x:Bind ViewModel.SonicSectionVisibility, Mode=OneWay}">
-                    <controls:SettingsCard x:Uid="SonicTheme" Margin="10,0,10,0">
-                        <ComboBox
-                            MinWidth="160"
-                            SelectedValue="{x:Bind ViewModel.SonicTheme, Mode=TwoWay}"
-                            SelectedValuePath="Tag">
-                            <ComboBoxItem Content="霁紫" Tag="nocturnal" />
-                            <ComboBoxItem Content="沧蓝" Tag="ocean-deep" />
-                            <ComboBoxItem Content="冰蓝" Tag="arctic-aurora" />
-                            <ComboBoxItem Content="碧翠" Tag="cyber-forest" />
-                            <ComboBoxItem Content="流金" Tag="golden-hour" />
-                            <ComboBoxItem Content="余烬" Tag="ember-fire" />
-                            <ComboBoxItem Content="赤焰" Tag="crimson-sunset" />
-                            <ComboBoxItem Content="霞粉" Tag="coral-mirage" />
-                            <ComboBoxItem Content="幻紫" Tag="neon-tokyo" />
-                            <ComboBoxItem Content="水墨" Tag="minimal-monochrome" />
-                            <ComboBoxItem Content="幽青" Tag="teal-depth" />
-                            <ComboBoxItem Content="薰衣草" Tag="lavender-dream" />
-                            <ComboBoxItem Content="樱" Tag="cherry-blossom" />
-                            <ComboBoxItem Content="锻铜" Tag="copper-forge" />
-                            <ComboBoxItem Content="薄荷" Tag="mint-fresh" />
-                        </ComboBox>
-                    </controls:SettingsCard>
-                    <controls:SettingsCard x:Uid="SonicAudioIntensity" Margin="10,0,10,0">
-                        <Slider
-                            Maximum="250"
-                            Minimum="30"
-                            Value="{x:Bind ViewModel.SonicAudioIntensity, Mode=TwoWay}" />
-                    </controls:SettingsCard>
-                    <controls:SettingsCard x:Uid="SonicResponseRange" Margin="10,0,10,0">
-                        <Slider
-                            Maximum="200"
-                            Minimum="30"
-                            Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
-                    </controls:SettingsCard>
-                    <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
-                        <ComboBox
-                            MinWidth="160"
-                            SelectedValue="{x:Bind ViewModel.SonicGridSize, Mode=TwoWay}"
-                            SelectedValuePath="Tag">
-                            <ComboBoxItem Content="120 × 120" Tag="120" />
-                            <ComboBoxItem Content="160 × 160" Tag="160" />
-                        </ComboBox>
-                    </controls:SettingsCard>
-                    <controls:SettingsExpander x:Uid="SonicFx" Margin="10,0,10,0">
-                        <controls:SettingsExpander.Items>
-                            <controls:SettingsCard x:Uid="SonicIdleWave">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SonicIdleWaveEnabled, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicRipple">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SonicRippleEnabled, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicMeteor">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SonicMeteorEnabled, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicPeakColor">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SonicPeakColorEnabled, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicPeakIntensity">
-                                <Slider
-                                    Maximum="200"
-                                    Minimum="0"
-                                    Value="{x:Bind ViewModel.SonicPeakIntensity, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicAutoRotate">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SonicAutoRotate, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                            <controls:SettingsCard x:Uid="SonicRotateSpeed">
-                                <Slider
-                                    Maximum="60"
-                                    Minimum="1"
-                                    Value="{x:Bind ViewModel.SonicRotateSpeed, Mode=TwoWay}" />
-                            </controls:SettingsCard>
-                        </controls:SettingsExpander.Items>
-                    </controls:SettingsExpander>
-                </StackPanel>
-                <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="120"
-                        Minimum="1"
-                        Value="{x:Bind ViewModel.RefreshRate, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="RotationSpeed" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.RotationSpeed, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="PictureOpacity" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.CoverOpacity, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="48000"
-                        Minimum="2000"
-                        SnapsTo="Ticks"
-                        TickFrequency="1000"
-                        TickPlacement="Outside"
-                        Value="{x:Bind ViewModel.SampleRate, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="BarCount" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="1024"
-                        Minimum="128"
-                        SnapsTo="Ticks"
-                        TickFrequency="128"
-                        TickPlacement="Outside"
-                        Value="{x:Bind ViewModel.BarCount, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="SpectrumBarOpacity" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.SpectrumOpacity, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="SpectrumSmoothness" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.SmoothingFactor, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="SpectrumAmplitude" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.Sensitivity, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="AmplitudeCoe" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="500"
-                        Minimum="50"
-                        Value="{x:Bind ViewModel.PowCoe, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsExpander x:Uid="SpectrumType" Margin="10,0,10,0">
-                    <controls:SettingsExpander.Items>
-                        <controls:SettingsCard Header="直线">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsDrawPlainSpectrum, Mode=TwoWay}" />
+                        <controls:SettingsCard x:Uid="SonicResponseRange" Margin="10,0,10,0">
+                            <Slider
+                                Maximum="200"
+                                Minimum="30"
+                                Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                        <controls:SettingsCard Header="圆形">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsDrawRoundSpectrum, Mode=TwoWay}" />
+                        <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
+                            <ComboBox
+                                MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.SonicGridSize, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
+                                <ComboBoxItem Content="120 × 120" Tag="120" />
+                                <ComboBoxItem Content="160 × 160" Tag="160" />
+                            </ComboBox>
                         </controls:SettingsCard>
-                    </controls:SettingsExpander.Items>
-                </controls:SettingsExpander>
-                <controls:SettingsCard x:Uid="TextOpacity" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.FontOpacity, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Uid="TextShadow" Margin="10,0,10,0">
-                    <Slider
-                        Maximum="100"
-                        Minimum="0"
-                        Value="{x:Bind ViewModel.FontShadow, Mode=TwoWay}" />
-                </controls:SettingsCard>
-                <controls:SettingsExpander x:Uid="MainWindowMaterial" Margin="10,0,10,0">
-                    <controls:SettingsExpander.Items>
-                        <controls:SettingsCard ContentAlignment="Left">
-                            <StackPanel>
-                                <RadioButton
-                                    x:Name="TransparentTintRadioButton"
-                                    Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
-                                    CommandParameter="TransparentTint"
-                                    Content="透明"
-                                    GroupName="BackdropGroup"
-                                    IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentTint'),Mode=OneWay}"
-                                    Tag="TransparentTint" />
-                                <RadioButton
-                                    x:Name="MicaRadioButton"
-                                    Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
-                                    CommandParameter="Mica"
-                                    Content="云母"
-                                    GroupName="BackdropGroup"
-                                    IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Mica'),Mode=OneWay}"
-                                    Tag="Mica" />
-                                <RadioButton
-                                    x:Name="AcrylicRadioButton"
-                                    Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
-                                    CommandParameter="Acrylic"
-                                    Content="亚克力"
-                                    GroupName="BackdropGroup"
-                                    IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Acrylic'),Mode=OneWay}"
-                                    Tag="Acrylic" />
-                                <RadioButton
-                                    x:Name="TransparentAcrylicRadioButton"
-                                    Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
-                                    CommandParameter="TransparentAcrylic"
-                                    Content="透明亚克力"
-                                    GroupName="BackdropGroup"
-                                    IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentAcrylic'),Mode=OneWay}"
-                                    Tag="TransparentAcrylic" />
-                                <RadioButton
-                                    x:Name="CustomAcrylicStyleRadioButton"
-                                    Command="{x:Bind ViewModel.ChangeBackdropTypeCommand, Mode=OneWay}"
-                                    CommandParameter="CustomAcrylicStyle"
-                                    Content="自定义亚克力"
-                                    GroupName="BackdropGroup"
-                                    IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'CustomAcrylicStyle'),Mode=OneWay}"
-                                    Tag="CustomAcrylicStyle" />
-                                <StackPanel Visibility="{x:Bind ViewModel.IsColorPickerVisible, Mode=OneWay}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Margin="0,0,10,0"
-                                            VerticalAlignment="Center"
-                                            Text="不透明度" />
-                                        <Slider
-                                            Grid.Column="1"
-                                            HorizontalAlignment="Stretch"
-                                            Maximum="100"
-                                            Minimum="0"
-                                            Value="{x:Bind ViewModel.CustomOpacity, Mode=TwoWay}" />
-                                    </Grid>
-                                    <ColorPicker
-                                        ColorSpectrumShape="Ring"
-                                        IsAlphaEnabled="True"
-                                        IsAlphaSliderVisible="True"
-                                        IsAlphaTextInputVisible="False"
-                                        IsColorChannelTextInputVisible="False"
-                                        IsColorSliderVisible="True"
-                                        IsHexInputVisible="False"
-                                        IsMoreButtonVisible="False"
-                                        Color="{x:Bind ViewModel.CustomColor, Mode=TwoWay}" />
-                                </StackPanel>
-                            </StackPanel>
-                        </controls:SettingsCard>
-                    </controls:SettingsExpander.Items>
-                </controls:SettingsExpander>
-                <TextBlock
-                    x:Uid="MusicPlayer"
-                    Margin="10,10,0,10"
-                    FontSize="16" />
-                <controls:SettingsCard
-                    x:Name="OriginalSound"
-                    x:Uid="OriginalSound"
-                    Margin="10,0,10,0"
-                    Click="OriginalSound_Click"
-                    Description="© 2025 Sennpei Studio"
-                    HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/HQPlayer.png}"
-                    IsClickEnabled="True" />
-                <TextBlock
-                    x:Uid="SettingsAbout"
-                    Margin="10,10,0,10"
-                    FontSize="16" />
-                <controls:SettingsExpander
-                    x:Uid="AppTitleHeader"
-                    Margin="10,0,10,0"
-                    Description="© 2025 Sennpei Studio"
-                    HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/Square44x44Logo.altform-unplated_targetsize-32.png}">
-                    <TextBlock
-                        x:Name="Version"
-                        Margin="10"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Text="{x:Bind ViewModel.AppVersion, Mode=OneWay}" />
-                    <controls:SettingsExpander.Items>
-                        <controls:SettingsCard ContentAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <HyperlinkButton
-                                    x:Name="Github"
-                                    Content="Github"
-                                    NavigateUri="https://github.com/Johnwikix/SpectrumVisualization.git" />
-                                <HyperlinkButton
-                                    x:Name="Gitee"
-                                    Content="Gitee"
-                                    NavigateUri="https://gitee.com/people_1/win-ex-spectrum-test" />
-                            </StackPanel>
-                        </controls:SettingsCard>
-                    </controls:SettingsExpander.Items>
-                </controls:SettingsExpander>
-            </StackPanel>
-        </ScrollView>
+                        <controls:SettingsExpander x:Uid="SonicFx" Margin="10,0,10,0">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="SonicIdleWave">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.SonicIdleWaveEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicRipple">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.SonicRippleEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicMeteor">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.SonicMeteorEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicPeakColor">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.SonicPeakColorEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicPeakIntensity">
+                                    <Slider
+                                        Maximum="200"
+                                        Minimum="0"
+                                        Value="{x:Bind ViewModel.SonicPeakIntensity, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicAutoRotate">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.SonicAutoRotate, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="SonicRotateSpeed">
+                                    <Slider
+                                        Maximum="60"
+                                        Minimum="1"
+                                        Value="{x:Bind ViewModel.SonicRotateSpeed, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                    </StackPanel>
+                </ScrollView>
+            </controls:Case>
+
+            <!--  关于  -->
+            <controls:Case Value="About">
+                <ScrollView>
+                    <StackPanel Margin="32,0,32,24">
+                        <TextBlock
+                            x:Uid="MusicPlayer"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
+                        <controls:SettingsCard
+                            x:Name="OriginalSound"
+                            x:Uid="OriginalSound"
+                            Margin="10,0,10,0"
+                            Click="OriginalSound_Click"
+                            Description="© 2025 Sennpei Studio"
+                            HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/HQPlayer.png}"
+                            IsClickEnabled="True" />
+                        <TextBlock
+                            x:Uid="SettingsAbout"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
+                        <controls:SettingsExpander
+                            x:Uid="AppTitleHeader"
+                            Margin="10,0,10,0"
+                            Description="© 2025 Sennpei Studio"
+                            HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/Square44x44Logo.altform-unplated_targetsize-32.png}">
+                            <TextBlock
+                                x:Name="Version"
+                                Margin="10"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="{x:Bind ViewModel.AppVersion, Mode=OneWay}" />
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard ContentAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <HyperlinkButton
+                                            x:Name="Github"
+                                            Content="Github"
+                                            NavigateUri="https://github.com/Johnwikix/SpectrumVisualization.git" />
+                                        <HyperlinkButton
+                                            x:Name="Gitee"
+                                            Content="Gitee"
+                                            NavigateUri="https://gitee.com/people_1/win-ex-spectrum-test" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                    </StackPanel>
+                </ScrollView>
+            </controls:Case>
+        </controls:SwitchPresenter>
     </Grid>
 </winex:WindowEx>

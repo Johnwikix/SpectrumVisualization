@@ -234,4 +234,16 @@
   <data name="SonicRotateSpeed.Header" xml:space="preserve">
     <value>旋转速度</value>
   </data>
+  <data name="SettingsSectionGeneral.Text" xml:space="preserve">
+    <value>通用</value>
+  </data>
+  <data name="SettingsSectionAurora.Text" xml:space="preserve">
+    <value>Aurora Ring</value>
+  </data>
+  <data name="SettingsSectionSonic.Text" xml:space="preserve">
+    <value>Sonic Topography</value>
+  </data>
+  <data name="SettingsSectionAbout.Text" xml:space="preserve">
+    <value>关于</value>
+  </data>
 </root>

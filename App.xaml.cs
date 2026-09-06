@@ -69,7 +69,7 @@ namespace WinExSpectrumTest
             WriteCrashLog("AppDomain", e.ExceptionObject?.ToString() ?? "null", e.ExceptionObject as Exception);
         }
 
-        private static void WriteCrashLog(string source, string message, Exception? exception)
+        internal static void WriteCrashLog(string source, string message, Exception? exception)
         {
             try
             {

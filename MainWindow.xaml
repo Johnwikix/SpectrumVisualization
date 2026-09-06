@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<winex:WindowEx
+<Window
     x:Class="WinExSpectrumTest.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -9,15 +9,14 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
     xmlns:winex="using:WinUIEx"
-    Title="WinExSpectrumTest"
-    Width="512"
-    Height="512"
-    MinWidth="256"
-    MinHeight="256">
+    Title="WinExSpectrumTest">
 
-    <winex:WindowEx.SystemBackdrop>
+    <!--  基类必须用原生 Window 而非 WinUIEx.WindowEx：WindowEx 在 HWND 被
+          SetParent 重定父级（壁纸模式挂 WorkerW）时其消息挂钩抛
+          NullReferenceException，以 0xc000041d（用户回调异常）击穿进程  -->
+    <Window.SystemBackdrop>
         <winex:TransparentTintBackdrop />
-    </winex:WindowEx.SystemBackdrop>
+    </Window.SystemBackdrop>
 
     <Grid x:Name="MyMainwindow">
         <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
@@ -28,87 +27,106 @@
             Canvas.ZIndex="1">
             <myCanvas:CanvasPanel x:Name="MyCanvas" />
         </Grid>
+
+        <!--  自绘标题栏（music_player 同款）：悬停显示，左侧窗口控制 + 右侧最小化/最大化/关闭，
+              中段为系统拖动区（SetDragRectangles，见代码）  -->
         <Grid
-            x:Name="TopCommand"
-            Margin="5,5,0,0"
+            x:Name="AppTitleBar"
+            Height="40"
             VerticalAlignment="Top"
+            Background="Transparent"
             Canvas.ZIndex="999"
-            Opacity="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+            Opacity="0"
+            PointerEntered="AppTitleBar_PointerEntered"
+            PointerExited="AppTitleBar_PointerExited">
             <Grid.OpacityTransition>
                 <ScalarTransition />
             </Grid.OpacityTransition>
-            <Button
-                x:Name="LockBtn"
-                Grid.Column="0"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="Button_Click">
-                <FontIcon FontSize="16" Glyph="&#xE72E;" />
-                <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator Key="L" />
-                </Button.KeyboardAccelerators>
-            </Button>
-            <Button
-                x:Name="FullScreenBtn"
-                Grid.Column="1"
-                Margin="5,0,0,0"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="FullScreen_Click">
-                <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator Key="F" />
-                </Button.KeyboardAccelerators>
-                <FontIcon
-                    x:Name="FullScreenIcon"
-                    FontSize="16"
-                    Glyph="&#xE740;" />
-            </Button>
-            <Button
-                x:Name="PreviousEffectBtn"
-                Grid.Column="2"
-                Margin="5,0,0,0"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="PreviousEffect_Click">
-                <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator Modifiers="Control" Key="Left" />
-                </Button.KeyboardAccelerators>
-                <FontIcon FontSize="16" Glyph="&#xE76B;" />
-            </Button>
-            <Button
-                x:Name="NextEffectBtn"
-                Grid.Column="3"
-                Margin="5,0,0,0"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="NextEffect_Click">
-                <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator Modifiers="Control" Key="Right" />
-                </Button.KeyboardAccelerators>
-                <FontIcon FontSize="16" Glyph="&#xE76C;" />
-            </Button>
-            <Button
-                x:Name="WallpaperBtn"
-                Grid.Column="4"
-                Margin="5,0,0,0"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="Wallpaper_Click">
-                <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator Key="W" />
-                </Button.KeyboardAccelerators>
-                <FontIcon
-                    x:Name="WallpaperIcon"
-                    FontSize="16"
-                    Glyph="&#xE7F4;" />
-            </Button>
+            <StackPanel
+                x:Name="LeftButtons"
+                Margin="4,0,0,0"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="2">
+                <Button
+                    x:Name="LockBtn"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="LockButton_Click">
+                    <FontIcon FontSize="14" Glyph="&#xE72E;" />
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="L" />
+                    </Button.KeyboardAccelerators>
+                </Button>
+                <Button
+                    x:Name="FullScreenBtn"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="FullScreen_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F" />
+                    </Button.KeyboardAccelerators>
+                    <FontIcon
+                        x:Name="FullScreenIcon"
+                        FontSize="14"
+                        Glyph="&#xE740;" />
+                </Button>
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="PreviousEffect_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Left" />
+                    </Button.KeyboardAccelerators>
+                    <FontIcon FontSize="14" Glyph="&#xE76B;" />
+                </Button>
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="NextEffect_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Right" />
+                    </Button.KeyboardAccelerators>
+                    <FontIcon FontSize="14" Glyph="&#xE76C;" />
+                </Button>
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="Wallpaper_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="W" />
+                    </Button.KeyboardAccelerators>
+                    <FontIcon FontSize="14" Glyph="&#xE7F4;" />
+                </Button>
+            </StackPanel>
+            <StackPanel
+                x:Name="RightButtons"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Right"
+                Orientation="Horizontal"
+                Spacing="2">
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="MinimizeButton_Click">
+                    <FontIcon FontSize="14" Glyph="&#xE738;" />
+                </Button>
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="MaximizeButton_Click">
+                    <FontIcon
+                        x:Name="MaximizeIcon"
+                        FontSize="14"
+                        Glyph="&#xE71A;" />
+                </Button>
+                <Button
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="CloseButton_Click">
+                    <FontIcon FontSize="14" Glyph="&#xE711;" />
+                </Button>
+            </StackPanel>
         </Grid>
     </Grid>
-</winex:WindowEx>
+</Window>

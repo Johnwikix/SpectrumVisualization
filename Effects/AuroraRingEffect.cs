@@ -1,5 +1,6 @@
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -34,31 +35,25 @@ namespace WinExSpectrumTest.Effects
         public const string DisplayNameConst = "Aurora Ring";
 
         private const int ProgressArcSegments = 96;
-        private const int BassHistorySize = 43;
 
         private VisualizerServices _services = null!;
         private CanvasAnimatedControl _control = null!;
 
         // Audio state (render thread only).
         private int _barCount = 64;
-        private float[] _bandPos = [];          // 每根条的对数频率边界（分数频段下标）
+        private int _half = 32;
+        private float[] _bandPos = [];          // 每根条的对数频率边界（分数频段下标，镜像映射）
+        private float[] _barT = [];             // 每根条在半圆内的频率位置（0 低频 → 1 高频）
         private int _bassBandEnd = 2;
         private float[] _smoothed = [];
         private float[] _peaks = [];
-        private readonly float[] _bassHistory = new float[BassHistorySize];
-        private int _bassHistoryIndex;
         private float _bass;
-        private float _beatCooldown;
         private float _rotation;
-
-        // Ripple ring pool.
-        private readonly float[] _ringRadius = new float[4];
-        private readonly float[] _ringAlpha = new float[4];
-        private int _ringCursor;
 
         // SMTC state.
         private string? _title;
         private string? _artist;
+        private IRandomAccessStreamReference? _lastThumbnailRef;   // 相同推送去重
         private bool _isPlaying;
         private readonly System.Diagnostics.Stopwatch _timelineWatch = new();
         private TimeSpan _timelineBase;
@@ -87,6 +82,10 @@ namespace WinExSpectrumTest.Effects
         private CanvasTextLayout? _titleLayout;
         private CanvasTextLayout? _artistLayout;
         private CanvasTextLayout? _timeLayout;
+        private CanvasRenderTarget? _textLayer;          // 白色文字离屏层（软阴影源）
+        private bool _textLayerDirty = true;
+        private ShadowEffect? _shadowInner;
+        private ShadowEffect? _shadowOuter;
         private CanvasRadialGradientBrush? _auraBrush;
         private CanvasGeometry? _clipCircle;
         private float _clipCircleRadius = -1f;
@@ -194,6 +193,10 @@ namespace WinExSpectrumTest.Effects
 
         private void OnMediaTextChanged(string? title, string? artist, IRandomAccessStreamReference? thumbnail)
         {
+            // 内容相同的重复推送直接忽略：每次推送都会清零 _textFade 并重载封面，
+            // 高频重复推送（会话抖动/重绑）会让文字永远停在淡入起点（表现为消失）
+            if (title == _title && artist == _artist && thumbnail == _lastThumbnailRef) return;
+            _lastThumbnailRef = thumbnail;
             _control.DispatcherQueue.TryEnqueue(() =>
             {
                 _title = title;
@@ -363,6 +366,7 @@ namespace WinExSpectrumTest.Effects
             _spectrumInner = _outerRadius * 0.62f;
             _clipDirty = true;
             _layoutsDirty = true;
+            _textLayerDirty = true;
         }
 
         private void EnsureBandMapping()
@@ -371,19 +375,30 @@ namespace WinExSpectrumTest.Effects
             if (requested == _barCount && _smoothed.Length > 0) return;
 
             _barCount = requested;
+            _half = _barCount / 2;
             _smoothed = new float[_barCount];
             _peaks = new float[_barCount];
             _bandPos = new float[_barCount + 1];
-            // 对数频率映射（40 Hz .. 16 kHz），条带边界存"分数频段下标"：
-            // 低频处多根条共用一个线性频段，整数取整会让相邻条同高复制；
-            // 分数位置 + 邻段插值让相邻条连续变化（配合 4096 FFT 的频率分辨率）。
+            _barT = new float[_barCount];
+            // 镜像对数频率映射（左右两半各自 40 Hz .. 16 kHz）：
+            // 圆环首尾（条 0 与条 N-1）都是低频、圆心正上方是高频——低频接低频、
+            // 高频接高频，环形收口处不再有低→高硬跳变；
+            // 左半圆驱动自左声道、右半圆驱动自右声道（双声道镜像频谱）。
+            // 条带边界存"分数频段下标"：低频处多根条共用一个线性频段，整数取整
+            // 会让相邻条同高复制；分数位置 + 邻段插值让相邻条连续变化。
             const float minFreq = 40f;
             float nyquist = Math.Max(_services.Analyzer.SampleRate, 8000) * 0.5f;
             float maxFreq = MathF.Min(16000f, nyquist * 0.9f);
             for (int i = 0; i <= _barCount; i++)
             {
-                float freq = minFreq * MathF.Pow(maxFreq / minFreq, (float)i / _barCount);
+                // 半圆内位置 t：左半 0→1（低→高），右半 1→0（高→低），i==half 为 1
+                float t = i <= _half
+                    ? (float)i / _half
+                    : (float)(_barCount - i) / _half;
+                t = Math.Clamp(t, 0f, 1f);
+                float freq = minFreq * MathF.Pow(maxFreq / minFreq, t);
                 _bandPos[i] = freq / nyquist * SpectrumAnalyzer.BandCount;
+                if (i < _barCount) _barT[i] = t;
             }
             _bassBandEnd = Math.Clamp((int)(250f / nyquist * SpectrumAnalyzer.BandCount), 1, SpectrumAnalyzer.BandCount - 1);
         }
@@ -401,7 +416,8 @@ namespace WinExSpectrumTest.Effects
         {
             float dt = (float)Math.Clamp(elapsedSeconds, 0.0, 0.1);
             EnsureBandMapping();
-            ReadOnlySpan<float> bands = _services.Analyzer.LatestBands;
+            ReadOnlySpan<float> bandsL = _services.Analyzer.LatestBandsLeft;
+            ReadOnlySpan<float> bandsR = _services.Analyzer.LatestBandsRight;
 
             float gain = AppSettings.Sensitivity * 0.1f;
             float smoothing = Math.Clamp(AppSettings.SmoothingFactor, 0f, 0.99f);
@@ -409,8 +425,13 @@ namespace WinExSpectrumTest.Effects
 
             for (int i = 0; i < _barCount; i++)
             {
-                float p0 = _bandPos[i];
-                float p1 = MathF.Max(_bandPos[i + 1], p0 + 0.001f);
+                // 镜像布局：左半圆取左声道、右半圆取右声道；
+                // 右半的频段区间向低频方向递减，取 min/max 归一为 [低, 高]。
+                ReadOnlySpan<float> bands = i < _half ? bandsL : bandsR;
+                float pa = _bandPos[i];
+                float pb = _bandPos[i + 1];
+                float p0 = MathF.Min(pa, pb);
+                float p1 = MathF.Max(MathF.Max(pa, pb), p0 + 0.001f);
                 float v = MathF.Max(SampleBands(bands, p0), SampleBands(bands, p1)) * gain;
                 int b0 = (int)p0 + 1;
                 int b1 = Math.Min((int)p1, SpectrumAnalyzer.BandCount - 1);
@@ -419,6 +440,10 @@ namespace WinExSpectrumTest.Effects
                     float bv = bands[b] * gain;
                     if (bv > v) v = bv;
                 }
+                // 高频能量天然偏低：沿频率做轻微倾斜补偿（t 为半圆内频率位置），
+                // 避免低频束与高频束之间出现硬落差
+                float tilt = 0.7f + 0.6f * _barT[i];
+                v *= tilt;
                 if (v > 1f) v = 1f;
                 float s = _smoothed[i];
                 s = s * smoothing + v * (1f - smoothing);
@@ -427,50 +452,50 @@ namespace WinExSpectrumTest.Effects
                 _peaks[i] = s > p ? s : p;
             }
 
+            // 频域空间平滑（3 抽头）：抹平相邻条之间的幅度硬接，让低频束→高频束连续过渡
+            float leftNeighbor = _smoothed[0];
+            for (int i = 1; i < _barCount - 1; i++)
+            {
+                float current = _smoothed[i];
+                _smoothed[i] = leftNeighbor * 0.25f + current * 0.5f + _smoothed[i + 1] * 0.25f;
+                leftNeighbor = current;
+            }
+
+            // 节拍检测用混音频段（低频两声道几乎一致，与改造前行为相同）；
+            // 低频能量仅驱动封面光晕呼吸（节拍涟漪圆环已按反馈移除）。
+            ReadOnlySpan<float> bandsMixed = _services.Analyzer.LatestBands;
             for (int b = 0; b <= _bassBandEnd; b++)
             {
-                bassSum += bands[b];
+                bassSum += bandsMixed[b];
             }
             _bass = bassSum / (_bassBandEnd + 1);
-            _bassHistory[_bassHistoryIndex] = _bass;
-            _bassHistoryIndex = (_bassHistoryIndex + 1) % BassHistorySize;
-            float bassMean = 0f;
-            for (int i = 0; i < BassHistorySize; i++) bassMean += _bassHistory[i];
-            bassMean /= BassHistorySize;
-
-            // 节拍涟漪：半径按窗口内切半径归一化，渐隐绑定扩散进度，
-            // 保证涟漪始终完整收敛在窗口范围内（锁定态不被窗口边硬裁切）。
-            _beatCooldown -= dt;
-            if (_bass > bassMean * 1.35f && _bass > 0.03f && _beatCooldown <= 0f)
-            {
-                _beatCooldown = 0.35f;
-                _ringRadius[_ringCursor] = _albumRadius * 1.05f;
-                _ringAlpha[_ringCursor] = 1f;
-                _ringCursor = (_ringCursor + 1) % _ringRadius.Length;
-            }
-
-            float maxRingRadius = MathF.Min(_centerX, _centerY);
-            for (int i = 0; i < _ringRadius.Length; i++)
-            {
-                if (_ringAlpha[i] > 0f)
-                {
-                    _ringRadius[i] += dt * maxRingRadius * 0.55f;
-                    float progress = (_ringRadius[i] - _albumRadius) / MathF.Max(maxRingRadius - _albumRadius, 1f);
-                    if (progress >= 1f)
-                    {
-                        _ringAlpha[i] = 0f;
-                    }
-                    else
-                    {
-                        float fade = 1f - progress;
-                        _ringAlpha[i] = 0.6f * fade * fade;
-                    }
-                }
-            }
 
             _rotation += dt * AppSettings.RotationSpeed * 0.006f;
-            _textFade += (1f - _textFade) * Math.Clamp(dt * 3f, 0f, 1f);
+            if (_textFade < 0.999f)
+            {
+                _textFade = Math.Min(1f, _textFade + Math.Clamp(dt * 3f, 0f, 1f));
+                _textLayerDirty = true;   // 淡入期间离屏层透明度同步
+            }
 
+            // 时间文本每秒重建（渲染线程）
+            double duration = _services.Media.Duration.TotalSeconds;
+            if (duration > 1.0)
+            {
+                double elapsed = _timelineBase.TotalSeconds + (_timelineWatch.IsRunning ? _timelineWatch.Elapsed.TotalSeconds : 0);
+                int currentSecond = (int)elapsed;
+                if (currentSecond != _lastTimeSecond || _timeLayout == null)
+                {
+                    _lastTimeSecond = currentSecond;
+                    _timeLayout?.Dispose();
+                    _timeLayout = new CanvasTextLayout(
+                        Device,
+                        FormatTime(elapsed) + " / " + FormatTime(duration),
+                        _timeFormat,
+                        Math.Max(_width * 0.5f, 80f),
+                        20f);
+                    _textLayerDirty = true;
+                }
+            }
         }
 
         private void RebuildTextLayouts()
@@ -491,8 +516,9 @@ namespace WinExSpectrumTest.Effects
             _artistLayout = string.IsNullOrEmpty(_artist)
                 ? null
                 : new CanvasTextLayout(Device, _artist, _artistFormat, maxTextWidth, fontSize * 1.2f);
-            _timeLayout = null; // rebuilt lazily when the second flips
+            _timeLayout = null;
             _lastTimeSecond = -1;
+            _textLayerDirty = true;
         }
 
         public void Draw(CanvasDrawingSession session, float width, float height)
@@ -521,7 +547,6 @@ namespace WinExSpectrumTest.Effects
             if (AppSettings.IsDrawRoundSpectrum)
             {
                 DrawProgressRing(session);
-                DrawRippleRings(session);
                 DrawRadialSpectrum(session);
                 DrawAlbumArt(session);
                 DrawTrackInfo(session);
@@ -569,60 +594,59 @@ namespace WinExSpectrumTest.Effects
             float fraction = (float)Math.Clamp(elapsed / duration, 0.0, 1.0);
 
             float radius = (_albumRadius + _spectrumInner) * 0.5f;
-            Color c = _primary;
+            // 跟随自适应文字色（深色模式白、亮色模式黑），与文字保持一致的可读性；
+            // 之前用封面主色，深色封面在深背景上整条弧几乎不可见。
+            Color c = _textColor;
             c.A = (byte)(200 * AppSettings.SpectrumOpacity);
             Color glow = c;
             glow.A = (byte)(40 * AppSettings.SpectrumOpacity);
 
-            // Fill the preallocated polyline (one trig evaluation per vertex) and draw
-            // its segments from the cache - no per-frame allocations.
-            int steps = (int)(fraction * ProgressArcSegments);
+            // 先取整段顶点，再补一段从最后整段顶点到圆点精确角度的部分段，
+            // 让弧线与圆点严格同步平滑运动（而不是按 1/96 进度跳格）。
+            float fractionAngle = fraction * MathF.PI * 2f;
+            int fullSteps = (int)(fraction * ProgressArcSegments);
             float startAngle = -MathF.PI * 0.5f;
             float step = MathF.PI * 2f / ProgressArcSegments;
-            if (steps < 1) return;
+            if (fullSteps < 1) return;
 
-            for (int i = 0; i <= steps; i++)
+            for (int i = 0; i <= fullSteps; i++)
             {
-                float a = startAngle + MathF.Min(i, steps) * step;
+                float a = startAngle + i * step;
                 _progressArc[i] = new Vector2(
                     _centerX + MathF.Cos(a) * radius,
                     _centerY + MathF.Sin(a) * radius);
             }
 
-            for (int i = 0; i < steps; i++)
+            var tip = new Vector2(
+                _centerX + MathF.Cos(startAngle + fractionAngle) * radius,
+                _centerY + MathF.Sin(startAngle + fractionAngle) * radius);
+
+            for (int i = 0; i < fullSteps - 1; i++)
             {
                 session.DrawLine(_progressArc[i], _progressArc[i + 1], glow, 5f);
             }
-            for (int i = 0; i < steps; i++)
+            for (int i = 0; i < fullSteps - 1; i++)
             {
                 session.DrawLine(_progressArc[i], _progressArc[i + 1], c, 2f);
             }
 
-            float tipAngle = startAngle + fraction * MathF.PI * 2f;
-            var tip = new Vector2(_centerX + MathF.Cos(tipAngle) * radius, _centerY + MathF.Sin(tipAngle) * radius);
+            // 部分段：从最后一条整段边到圆点
+            session.DrawLine(_progressArc[fullSteps - 1], tip, glow, 5f);
+            session.DrawLine(_progressArc[fullSteps - 1], tip, c, 2f);
+
             c.A = 255;
             session.FillCircle(tip, 3f, c);
         }
 
-        private void DrawRippleRings(CanvasDrawingSession session)
-        {
-            for (int i = 0; i < _ringRadius.Length; i++)
-            {
-                float alpha = _ringAlpha[i];
-                if (alpha <= 0f) continue;
-                Color c = _primary;
-                c.A = (byte)(alpha * 255f * AppSettings.SpectrumOpacity);
-                session.DrawCircle(new Vector2(_centerX, _centerY), _ringRadius[i], c, 2f);
-            }
-        }
-
-        /// <summary>沿频率位置在封面调色板上取渐变色，高亮处向白色提亮。</summary>
+        /// <summary>沿频率位置在封面调色板上取渐变色，高亮处向白色提亮。
+        /// 在 HSV 空间插值（色相走最短路径）：调色板相邻色跨越色相时，RGB 线性
+        /// 插值会经过低饱和灰谷，视觉上呈"色块硬接"——HSV 插值让过渡带保持饱和。</summary>
         private Color GetGradientColor(float t, float intensity)
         {
             Color[] palette = _palette;
             float scaled = Math.Clamp(t, 0f, 1f) * (palette.Length - 1);
             int index = Math.Min((int)scaled, palette.Length - 2);
-            Color c = LerpColor(palette[index], palette[index + 1], scaled - index);
+            Color c = LerpColorHsv(palette[index], palette[index + 1], scaled - index);
             return LerpColor(c, Color.FromArgb(255, 255, 255, 255), intensity * 0.35f);
         }
 
@@ -632,7 +656,6 @@ namespace WinExSpectrumTest.Effects
             float angleStep = MathF.PI * 2f / _barCount;
             float lineWidth = angleStep * _spectrumInner * 0.62f;
             byte baseAlpha = (byte)(255 * AppSettings.SpectrumOpacity);
-            float frequencySpan = 1f / MathF.Max(_barCount - 1, 1);
 
             for (int i = 0; i < _barCount; i++)
             {
@@ -644,7 +667,10 @@ namespace WinExSpectrumTest.Effects
                 var outer = new Vector2(_centerX + cos * (_spectrumInner + intensity * spectrumRange),
                                         _centerY + sin * (_spectrumInner + intensity * spectrumRange));
 
-                Color c = GetGradientColor(i * frequencySpan, intensity);
+                // 颜色跟随半圆内频率位置（镜像对称），与幅度映射一致：
+                // 圆环首尾相接处两侧都是 t=0（palette[0]）、顶部两侧都是 t=1——
+                // 若按环位置 0→1 取色，首尾分别是 palette 首尾色，底部出现暖冷硬接。
+                Color c = GetGradientColor(_barT[i], intensity);
                 c.A = baseAlpha;
                 session.DrawLine(inner, outer, c, lineWidth);
 
@@ -707,88 +733,117 @@ namespace WinExSpectrumTest.Effects
         {
             byte alpha = (byte)(255 * AppSettings.FontOpacity * _textFade);
             if (alpha == 0) return;
-            float textY = _centerY + _outerRadius * 0.70f;
+
+            EnsureTextLayer();
 
             Color textColor = _textColor;
             textColor.A = alpha;
-            // 可调软阴影（DesktopLyrics 同款规则）：阴影色 = 文字色反相，
-            // 强度 0-100 线性映射 0-2 并拆两层（单层透明度上限 1.0）。
-            float strength = Math.Clamp(AppSettings.FontShadow, 0f, 100f) / 50f;
-            float innerShadow = MathF.Min(1f, strength);
-            float outerShadow = Math.Clamp(strength - 1f, 0f, 1f);
-            Color shadowColor = Color.FromArgb(
-                (byte)(255 * Math.Clamp(innerShadow * 0.8f, 0f, 1f)),
-                (byte)(255 - textColor.R),
-                (byte)(255 - textColor.G),
-                (byte)(255 - textColor.B));
-            Color outerShadowColor = Color.FromArgb(
-                (byte)(255 * outerShadow * 0.55f),
-                shadowColor.R,
-                shadowColor.G,
-                shadowColor.B);
+
+            // 可调软阴影（music_player Win2D 渲染器同款）：文字以白色离屏渲染进
+            // _textLayer，ShadowEffect 从其 alpha 生成高斯模糊阴影；阴影色 = 文字色
+            // 反相，强度 0-100 拆内外两层（模糊量与偏移分层，观感与参考一致）。
+            float strength = Math.Clamp(AppSettings.FontShadow, 0f, 100f) / 100f;
+            if (strength > 0f && _textLayer != null)
+            {
+                Color inverse = Color.FromArgb(255, (byte)(255 - textColor.R), (byte)(255 - textColor.G), (byte)(255 - textColor.B));
+
+                if (_shadowInner == null) _shadowInner = new ShadowEffect();
+                _shadowInner.Source = _textLayer;
+                _shadowInner.BlurAmount = 6f;
+                _shadowInner.ShadowColor = Color.FromArgb((byte)(255 * strength * 0.85f), inverse.R, inverse.G, inverse.B);
+                
+
+                if (_shadowOuter == null) _shadowOuter = new ShadowEffect();
+                _shadowOuter.Source = _textLayer;
+                _shadowOuter.BlurAmount = 16f;
+                _shadowOuter.ShadowColor = Color.FromArgb((byte)(255 * strength * 0.45f), inverse.R, inverse.G, inverse.B);
+
+                var old = session.Transform;
+                session.Transform = Matrix3x2.CreateTranslation(1.5f, 1.5f) * old;
+                session.DrawImage(_shadowInner);
+                session.Transform = Matrix3x2.CreateTranslation(4f, 4f) * old;
+                session.DrawImage(_shadowOuter);
+                session.Transform = old;
+            }
+
+            GetTextPositions(out Vector2 titlePos, out Vector2 artistPos, out Vector2 timePos);
 
             if (_titleLayout != null)
             {
-                DrawTextWithShadow(session, _titleLayout,
-                    new Vector2(_centerX - (float)_titleLayout.LayoutBounds.Width * 0.5f, textY),
-                    textColor, shadowColor, outerShadowColor);
-                textY += (float)_titleLayout.LayoutBounds.Height + 2f;
+                session.DrawTextLayout(_titleLayout, titlePos, textColor);
             }
             if (_artistLayout != null)
             {
                 Color artistColor = textColor;
                 artistColor.A = (byte)(alpha * 0.62f);
-                DrawTextWithShadow(session, _artistLayout,
-                    new Vector2(_centerX - (float)_artistLayout.LayoutBounds.Width * 0.5f, textY),
-                    artistColor, shadowColor, outerShadowColor);
-                textY += (float)_artistLayout.LayoutBounds.Height + 4f;
+                session.DrawTextLayout(_artistLayout, artistPos, artistColor);
             }
 
             double duration = _services.Media.Duration.TotalSeconds;
-            if (duration > 1.0)
+            if (duration > 1.0 && _timeLayout != null)
             {
-                double elapsed = _timelineBase.TotalSeconds + (_timelineWatch.IsRunning ? _timelineWatch.Elapsed.TotalSeconds : 0);
-                int currentSecond = (int)elapsed;
-                if (currentSecond != _lastTimeSecond || _timeLayout == null)
-                {
-                    _lastTimeSecond = currentSecond;
-                    _timeLayout?.Dispose();
-                    _timeLayout = new CanvasTextLayout(
-                        Device,
-                        FormatTime(elapsed) + " / " + FormatTime(duration),
-                        _timeFormat,
-                        _width * 0.5f,
-                        20f);
-                }
-                if (_timeLayout != null)
-                {
-                    Color timeColor = textColor;
-                    timeColor.A = (byte)(alpha * 0.45f);
-                    DrawTextWithShadow(session, _timeLayout,
-                        new Vector2(_centerX - (float)_timeLayout.LayoutBounds.Width * 0.5f, textY + 2f),
-                        timeColor, shadowColor, outerShadowColor);
-                }
+                Color timeColor = textColor;
+                timeColor.A = (byte)(alpha * 0.45f);
+                session.DrawTextLayout(_timeLayout, timePos, timeColor);
             }
         }
 
-        /// <summary>文字双层阴影 + 本体，三层都用缓存的 TextLayout，零分配。</summary>
-        private static void DrawTextWithShadow(
-            CanvasDrawingSession session,
-            CanvasTextLayout layout,
-            Vector2 position,
-            Color textColor,
-            Color innerShadowColor,
-            Color outerShadowColor)
+        /// <summary>三段文字的绘制位置（DrawTrackInfo 与离屏层共用同一套布局）。
+        /// 注意按"布局框宽"定位：DrawTextLayout 绘制整个布局框（文字已在框内居中），
+        /// 若按 LayoutBounds.Width（紧凑宽）定位会系统性右偏 (框宽-文字宽)/2。</summary>
+        private void GetTextPositions(out Vector2 titlePos, out Vector2 artistPos, out Vector2 timePos)
         {
-            if (outerShadowColor.A > 0)
+            float frameWidth = Math.Min(_width, _height) * 0.46f;
+            float frameX = _centerX - frameWidth * 0.5f;
+            float textY = _centerY + _outerRadius * 0.70f;
+            titlePos = _titleLayout != null
+                ? new Vector2(frameX, textY)
+                : default;
+            if (_titleLayout != null) textY += (float)_titleLayout.LayoutBounds.Bottom;
+            artistPos = _artistLayout != null
+                ? new Vector2(frameX, textY)
+                : default;
+            if (_artistLayout != null) textY += (float)_artistLayout.LayoutBounds.Bottom;
+            timePos = _timeLayout != null
+                ? new Vector2(frameX, textY + 2f)
+                : default;
+        }
+
+        /// <summary>把全部文字以白色渲染进离屏层（阴影从其 alpha 生成）；布局/曲目/秒数/
+        /// 淡入变化时置脏。每秒至多重绘一次，尺寸内 GPU 开销可忽略。</summary>
+        private void EnsureTextLayer()
+        {
+            if (_width <= 0 || _height <= 0) return;
+            float dpi = _control.Dpi;
+            if (_textLayer == null
+                || MathF.Abs((float)_textLayer.Size.Width - _width) > 0.5f
+                || MathF.Abs((float)_textLayer.Size.Height - _height) > 0.5f
+                || MathF.Abs(_textLayer.Dpi - dpi) > 0.1f)
             {
-                session.DrawTextLayout(layout, position + new Vector2(3f, 3f), outerShadowColor);
+                _textLayer?.Dispose();
+                _textLayer = new CanvasRenderTarget(Device, _width, _height, dpi);
+                _textLayerDirty = true;
             }
-            if (innerShadowColor.A > 0)
+            if (!_textLayerDirty) return;
+            _textLayerDirty = false;
+
+            byte alpha = (byte)(255 * AppSettings.FontOpacity * _textFade);
+            using CanvasDrawingSession s = _textLayer.CreateDrawingSession();
+            s.Clear(Color.FromArgb(0, 0, 0, 0));
+            if (alpha == 0) return;
+            Color white = Color.FromArgb(alpha, 255, 255, 255);
+            GetTextPositions(out Vector2 titlePos, out Vector2 artistPos, out Vector2 timePos);
+            if (_titleLayout != null) s.DrawTextLayout(_titleLayout, titlePos, white);
+            if (_artistLayout != null)
             {
-                session.DrawTextLayout(layout, position + new Vector2(1.5f, 1.5f), innerShadowColor);
+                white.A = (byte)(alpha * 0.62f);
+                s.DrawTextLayout(_artistLayout, artistPos, white);
             }
-            session.DrawTextLayout(layout, position, textColor);
+            if (_timeLayout != null)
+            {
+                white.A = (byte)(alpha * 0.45f);
+                s.DrawTextLayout(_timeLayout, timePos, white);
+            }
         }
 
         private static string FormatTime(double seconds)
@@ -844,6 +899,72 @@ namespace WinExSpectrumTest.Effects
                 (byte)(a.B + (b.B - a.B) * t));
         }
 
+        /// <summary>HSV 空间插值（色相走最短路径）。调色板相邻色常跨越色相，
+        /// RGB 线性插值的中段会掉进低饱和灰谷，看起来像色块之间"硬接"。</summary>
+        private static Color LerpColorHsv(Color a, Color b, float t)
+        {
+            t = Math.Clamp(t, 0f, 1f);
+            RgbToHsv(a, out float h1, out float s1, out float v1);
+            RgbToHsv(b, out float h2, out float s2, out float v2);
+
+            float dh = h2 - h1;
+            if (dh > 180f) dh -= 360f;
+            else if (dh < -180f) dh += 360f;
+
+            return HsvToRgb(h1 + dh * t, s1 + (s2 - s1) * t, v1 + (v2 - v1) * t, (byte)Math.Clamp(a.A + (b.A - a.A) * t, 0f, 255f));
+        }
+
+        private static void RgbToHsv(Color c, out float h, out float s, out float v)
+        {
+            float r = c.R / 255f, g = c.G / 255f, b = c.B / 255f;
+            float max = MathF.Max(r, MathF.Max(g, b));
+            float min = MathF.Min(r, MathF.Min(g, b));
+            float d = max - min;
+            v = max;
+            s = max <= 0f ? 0f : d / max;
+            if (d <= 0f)
+            {
+                h = 0f;
+            }
+            else if (max == r)
+            {
+                h = 60f * (((g - b) / d) % 6f);
+            }
+            else if (max == g)
+            {
+                h = 60f * ((b - r) / d + 2f);
+            }
+            else
+            {
+                h = 60f * ((r - g) / d + 4f);
+            }
+            if (h < 0f) h += 360f;
+        }
+
+        private static Color HsvToRgb(float h, float s, float v, byte alpha)
+        {
+            h = h % 360f;
+            if (h < 0f) h += 360f;
+            float c = v * s;
+            float x = c * (1f - MathF.Abs(h / 60f % 2f - 1f));
+            float m = v - c;
+            float r, g, b;
+            switch ((int)(h / 60f))
+            {
+                case 0: r = c; g = x; b = 0f; break;
+                case 1: r = x; g = c; b = 0f; break;
+                case 2: r = 0f; g = c; b = x; break;
+                case 3: r = 0f; g = x; b = c; break;
+                case 4: r = x; g = 0f; b = c; break;
+                default: r = c; g = 0f; b = x; break;
+            }
+            return Color.FromArgb(
+                alpha,
+                (byte)Math.Clamp((r + m) * 255f, 0f, 255f),
+                (byte)Math.Clamp((g + m) * 255f, 0f, 255f),
+                (byte)Math.Clamp((b + m) * 255f, 0f, 255f));
+        }
+
         public void Dispose()
         {
             _services.Media.MediaTextChanged -= OnMediaTextChanged;
@@ -855,6 +976,9 @@ namespace WinExSpectrumTest.Effects
             _timeLayout?.Dispose();
             _clipCircle?.Dispose();
             _auraBrush?.Dispose();
+            _textLayer?.Dispose();
+            _shadowInner?.Dispose();
+            _shadowOuter?.Dispose();
             _albumArt?.Dispose();
             _titleFormat.Dispose();
             _artistFormat.Dispose();

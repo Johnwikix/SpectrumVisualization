@@ -1,11 +1,15 @@
 using ComputeSharp;
 using ComputeSharp.D2D1.WinUI;
 using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Geometry;
+using Microsoft.Graphics.Canvas.Text;
 using Windows.Graphics.DirectX;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using System;
+using System.Diagnostics;
 using System.Numerics;
 using Windows.Foundation;
+using Windows.Storage.Streams;
 using Windows.UI;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects.Sonic.Shaders;
@@ -37,10 +41,11 @@ namespace WinExSpectrumTest.Effects.Sonic
         private const int MeteorSlots = 40;
         private const int ParticleSlots = 200;
 
-        private const float CameraPitch = 27f;
+        // 原版运行默认（sG 组件 state）：cameraDistance=85, yaw=120, pitch=25, fov=45, lookAt(0,0,0)
+        private const float CameraPitch = 25f;
         private const float CameraDistance = 85f;
         // 注视点高度偏移：视觉上把音频响应主体居中（透视导致亮顶偏向画面上方）
-        private const float CameraLookHeight = 16f;
+        private const float CameraLookHeight = 0f;   // 注视点=触发中心：旋转/缩放原点必须投影在屏幕正中
         private const float FieldOfViewY = 45f;
 
         private VisualizerServices _services = null!;
@@ -124,9 +129,156 @@ namespace WinExSpectrumTest.Effects.Sonic
         private Vector3 _cameraForward;
         private float _tanHalfFovY;
 
+        // ==== SMTC 播放器卡片（原版 wallpaper 右上角控制器同款） ====
+        private string? _cardTitle;
+        private string? _cardArtist;
+        private CanvasBitmap? _coverBitmap;          // 当前封面原始位图
+        private int _coverVersion;                   // 每次解码 +1，驱动圆角封面重建
+        private int _coverRoundedVersion = -1;
+        private CanvasRenderTarget? _coverRounded;   // 预裁圆角方形封面（256×256）
+        private CanvasTextFormat _cardTitleFormat = null!;
+        private CanvasTextFormat _cardArtistFormat = null!;
+        private CanvasTextFormat _cardTimeFormat = null!;
+        private CanvasTextLayout? _cardTitleLayout;
+        private CanvasTextLayout? _cardArtistLayout;
+        private CanvasTextLayout? _cardTimeLayout;
+        private string? _cardTitleLayoutText;
+        private string? _cardArtistLayoutText;
+        private string? _cardTimeLayoutText;
+        private bool _cardLayoutsDirty = true;
+        private readonly Stopwatch _cardTimeline = new();
+        private TimeSpan _cardTimelineBase;
+        private TimeSpan _cardDuration;
+        private bool _cardIsPlaying;
+        private float _cardFade;
+        private int _cardLastSecond = -1;
+
         public void Initialize(VisualizerServices services)
         {
             _services = services;
+
+            // 原版控制器字号（small 档）：标题 14 / 歌手 11 / 时间 9.5。
+            _cardTitleFormat = new CanvasTextFormat
+            {
+                FontSize = 14f,
+                FontWeight = Microsoft.UI.Text.FontWeights.Normal,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
+            _cardArtistFormat = new CanvasTextFormat
+            {
+                FontSize = 11f,
+                FontWeight = Microsoft.UI.Text.FontWeights.Normal,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                TrimmingSign = CanvasTrimmingSign.Ellipsis,
+                TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
+            };
+            _cardTimeFormat = new CanvasTextFormat
+            {
+                FontSize = 9.5f,
+                FontWeight = Microsoft.UI.Text.FontWeights.Normal,
+                WordWrapping = CanvasWordWrapping.NoWrap,
+                HorizontalAlignment = CanvasHorizontalAlignment.Right,
+            };
+
+            _services.Media.MediaTextChanged += OnCardMediaTextChanged;
+            _services.Media.PlaybackChanged += OnCardPlaybackChanged;
+            _services.Media.TimelineChanged += OnCardTimelineChanged;
+
+            // 回放缓存（Aurora 同款）：效果页切换回来时 SMTC 不会重推。
+            MediaInfoService media = _services.Media;
+            if (media.CurrentTitle is not null || media.CurrentArtist is not null)
+            {
+                _cardTitle = media.CurrentTitle;
+                _cardArtist = media.CurrentArtist;
+                _cardLayoutsDirty = true;
+                if (media.CurrentThumbnail != null)
+                {
+                    LoadCover(media.CurrentThumbnail);
+                }
+            }
+            _cardIsPlaying = media.IsPlaying;
+            _cardTimelineBase = media.Position;
+            _cardDuration = media.Duration;
+            if (_cardIsPlaying) _cardTimeline.Start();
+        }
+
+        private void OnCardMediaTextChanged(string? title, string? artist, IRandomAccessStreamReference? thumbnail)
+        {
+            _services.Control.DispatcherQueue.TryEnqueue(() =>
+            {
+                _cardTitle = title;
+                _cardArtist = artist;
+                _cardLayoutsDirty = true;
+                LoadCover(thumbnail);
+            });
+        }
+
+        private void OnCardPlaybackChanged(bool playing)
+        {
+            _services.Control.DispatcherQueue.TryEnqueue(() =>
+            {
+                _cardIsPlaying = playing;
+                if (!playing) _cardTimeline.Reset();
+                else if (!_cardTimeline.IsRunning) _cardTimeline.Start();
+            });
+        }
+
+        private void OnCardTimelineChanged(TimeSpan position, TimeSpan duration)
+        {
+            _services.Control.DispatcherQueue.TryEnqueue(() =>
+            {
+                _cardTimelineBase = position;
+                _cardDuration = duration;
+                _cardTimeline.Reset();
+                if (_cardIsPlaying) _cardTimeline.Start();
+            });
+        }
+
+        private async void LoadCover(IRandomAccessStreamReference? thumbnail)
+        {
+            CanvasBitmap? bitmap = null;
+            try
+            {
+                if (thumbnail != null)
+                {
+                    using var stream = await thumbnail.OpenReadAsync();
+                    bitmap = await CanvasBitmap.LoadAsync(Device, stream);
+                }
+            }
+            catch (Exception)
+            {
+                bitmap?.Dispose();
+                return;
+            }
+            _coverBitmap?.Dispose();
+            _coverBitmap = bitmap;
+            _coverVersion++;
+        }
+
+        /// <summary>把封面预裁成圆角方形 RT（仅曲目变更时执行一次）。</summary>
+        private void EnsureCoverRounded()
+        {
+            if (_coverBitmap == null || _coverRoundedVersion == _coverVersion) return;
+            _coverRoundedVersion = _coverVersion;
+
+            CanvasRenderTarget rt = new(Device, 256, 256, 96f);
+            using (CanvasDrawingSession s = rt.CreateDrawingSession())
+            {
+                s.Clear(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                // 原版 13px 圆角 / 76px 封面 → 等比到 256px
+                using CanvasGeometry geo = CanvasGeometry.CreateRoundedRectangle(Device, 0, 0, 256, 256, 44, 44);
+                using (s.CreateLayer(1f, geo))
+                {
+                    Rect src = _coverBitmap.Bounds;
+                    float side = MathF.Min((float)src.Width, (float)src.Height);
+                    Rect srcRect = new((src.Width - side) * 0.5f, (src.Height - side) * 0.5f, side, side);
+                    s.DrawImage(_coverBitmap, new Rect(0, 0, 256, 256), srcRect, 1f, CanvasImageInterpolation.Linear);
+                }
+            }
+            _coverRounded?.Dispose();
+            _coverRounded = rt;
         }
 
         public void OnResize(float width, float height)
@@ -230,6 +382,14 @@ namespace WinExSpectrumTest.Effects.Sonic
             _rippleColor = Vector3.Lerp(_rippleColor, target.RippleColor, lerp);
             _peakColor = Vector3.Lerp(_peakColor, target.PeakColor, lerp);
             _glowIntensity += (target.GlowIntensity - _glowIntensity) * lerp;
+
+            // 播放器卡片淡入淡出（原版：播放且有媒体信息时显示）。
+            bool cardVisible = (_cardTitle != null || _cardArtist != null) && _cardIsPlaying;
+            float fadeTarget = cardVisible ? 1f : 0f;
+            float fadeStep = dt / 0.6f;
+            float fadeDiff = fadeTarget - _cardFade;
+            if (MathF.Abs(fadeDiff) <= fadeStep) _cardFade = fadeTarget;
+            else _cardFade += MathF.Sign(fadeDiff) * fadeStep;
         }
 
         private void OnBassPulse(float triggerStrength)
@@ -320,6 +480,10 @@ namespace WinExSpectrumTest.Effects.Sonic
         {
             EnsureResources();
 
+            // 原版页面背景 = 主题 uBaseColor1（sRGB 编码后），雾外的天空与远处圆盘
+            // 的透明淡出都落在这个底色上。
+            session.Clear(ToSrgbColor(_base1, 255));
+
             int requestedGrid = Math.Clamp(AppSettings.SonicGridSize, 80, 320);
             float dpi = _services.Control.Dpi;
             if (_gridSize != requestedGrid || Math.Abs(_rtDpi - dpi) > 0.1f)
@@ -395,6 +559,12 @@ namespace WinExSpectrumTest.Effects.Sonic
 
             // 3. Meteors and particles as projected glowing quads.
             DrawSkyObjects(session, width, height);
+
+            // 4. SMTC player card (original wallpaper's top-right controller).
+            if (_cardFade > 0.01f)
+            {
+                DrawPlayerCard(session, width, height);
+            }
         }
 
         private float4 Ripple(int slot)
@@ -489,12 +659,192 @@ namespace WinExSpectrumTest.Effects.Sonic
                 (byte)(Math.Clamp(v.Z, 0f, 1f) * 255f));
         }
 
+        // ==== SMTC 播放器卡片 ====
+
+        // 原版控制器 small 档布局（DIP）：300×76 卡片、14 内边距、12 间距。
+        private const float CardWidth = 300f;
+        private const float CardPadding = 14f;
+        private const float CardGap = 12f;
+        private const float CardCover = 76f;
+        private const float CardRadius = 16f;
+        private const float CardProgressHeight = 4f;
+        private const float CardTimeWidth = 50f;
+
+        private void DrawPlayerCard(CanvasDrawingSession session, float width, float height)
+        {
+            float f = _cardFade;
+            float s = Math.Clamp(height / 1080f, 0.8f, 1.6f);
+            float w = CardWidth * s;
+            float pad = CardPadding * s;
+            float cover = CardCover * s;
+            float h = cover + pad * 2f;
+            float x = width - w - 30f * s;
+            float y = 24f * s;
+
+            // 卡片底：rgba(0,0,0,0.45) + 1px rgba(255,255,255,0.06) 描边（原版样式）
+            session.FillRoundedRectangle(x, y, w, h, CardRadius * s, CardRadius * s, Color.FromArgb((byte)(115 * f), 0, 0, 0));
+            session.DrawRoundedRectangle(x, y, w, h, CardRadius * s, CardRadius * s, Color.FromArgb((byte)(15 * f), 255, 255, 255), 1f);
+
+            // 封面（圆角方形，曲目变更时已预裁）
+            EnsureCoverRounded();
+            if (_coverRounded != null)
+            {
+                session.DrawImage(
+                    _coverRounded,
+                    new Rect(x + pad, y + pad, cover, cover),
+                    new Rect(0, 0, 256, 256),
+                    f,
+                    CanvasImageInterpolation.Linear);
+            }
+
+            // 文本列
+            float tx = x + pad + cover + CardGap * s;
+            float tw = w - pad * 2f - cover - CardGap * s;
+            EnsureCardLayouts(tw);
+
+            byte titleAlpha = (byte)(230 * f);
+            byte artistAlpha = (byte)(72 * f);
+            var white = new Vector3(1f, 1f, 1f);
+
+            // 标题 + 歌手占上半区，进度条 + 时间贴底（原版排布）
+            float titleH = 18f * s;
+            float artistH = 14f * s;
+            float rowH = CardProgressHeight * s;
+            float contentBottom = y + h - pad;
+            float progressY = contentBottom - rowH;
+            float artistY = progressY - 6f * s - artistH;
+            float titleY = y + pad + 2f * s;
+
+            if (_cardTitleLayout != null)
+            {
+                session.DrawTextLayout(_cardTitleLayout, new Vector2(tx, titleY), Color.FromArgb(titleAlpha, 255, 255, 255));
+            }
+            if (_cardArtistLayout != null)
+            {
+                session.DrawTextLayout(_cardArtistLayout, new Vector2(tx, artistY), Color.FromArgb(artistAlpha, 255, 255, 255));
+            }
+
+            // 进度：推进条 + 时间文本（原版渐变条 → 主色纯色 + 头部光点）
+            TimeSpan pos = _cardTimelineBase + (_cardIsPlaying ? _cardTimeline.Elapsed : TimeSpan.Zero);
+            float barW = tw - CardTimeWidth * s - 8f * s;
+            float radius = rowH * 0.5f;
+            session.FillRoundedRectangle(tx, progressY, barW, rowH, radius, radius, Color.FromArgb((byte)(13 * f), 255, 255, 255));
+
+            byte barR = SrgbByte(_rippleColor.X);
+            byte barG = SrgbByte(_rippleColor.Y);
+            byte barB = SrgbByte(_rippleColor.Z);
+            if (_cardDuration > TimeSpan.Zero)
+            {
+                float fraction = Math.Clamp((float)(pos / _cardDuration), 0f, 1f);
+                float fillW = MathF.Max(barW * fraction, radius * 2f);
+                session.FillRoundedRectangle(tx, progressY, fillW, rowH, radius, radius, Color.FromArgb((byte)(221 * f), barR, barG, barB));
+                // 圆点 + 光晕
+                float dotX = tx + fillW - radius;
+                float dotY = progressY + radius;
+                session.FillCircle(dotX, dotY, radius + 1f * s, Color.FromArgb((byte)(68 * f), barR, barG, barB));
+                session.FillCircle(dotX, dotY, MathF.Max(2.5f * s, radius), Color.FromArgb((byte)(230 * f), barR, barG, barB));
+            }
+
+            // 时间文本每秒重建一次（避免每帧字符串分配）
+            int second = _cardDuration > TimeSpan.Zero ? (int)pos.TotalSeconds : -1;
+            if (second != _cardLastSecond)
+            {
+                _cardLastSecond = second;
+                _cardTimeLayoutText = _cardDuration > TimeSpan.Zero
+                    ? $"{FormatTime(pos)} / {FormatTime(_cardDuration)}"
+                    : string.Empty;
+                _cardTimeLayout?.Dispose();
+                _cardTimeLayout = null;
+            }
+            if (_cardTimeLayoutText?.Length > 0)
+            {
+                if (_cardTimeLayout == null)
+                {
+                    _cardTimeLayout = new CanvasTextLayout(Device, _cardTimeLayoutText, _cardTimeFormat, CardTimeWidth * s * 2f, 14f * s);
+                }
+                session.DrawTextLayout(
+                    _cardTimeLayout,
+                    new Vector2(tx + tw - CardTimeWidth * s * 2f, progressY - 3f * s),
+                    Color.FromArgb((byte)(77 * f), 255, 255, 255));
+            }
+        }
+
+        private void EnsureCardLayouts(float width)
+        {
+            if (!_cardLayoutsDirty
+                && _cardTitleLayoutText == _cardTitle
+                && _cardArtistLayoutText == _cardArtist)
+            {
+                return;
+            }
+            _cardLayoutsDirty = false;
+            _cardTitleLayout?.Dispose();
+            _cardArtistLayout?.Dispose();
+            _cardTitleLayout = null;
+            _cardArtistLayout = null;
+
+            if (_cardTitle is { Length: > 0 })
+            {
+                _cardTitleLayoutText = _cardTitle;
+                _cardTitleLayout = new CanvasTextLayout(Device, _cardTitle, _cardTitleFormat, width, 20f);
+            }
+            if (_cardArtist is { Length: > 0 })
+            {
+                _cardArtistLayoutText = _cardArtist;
+                _cardArtistLayout = new CanvasTextLayout(Device, _cardArtist, _cardArtistFormat, width, 16f);
+            }
+        }
+
+        private static string FormatTime(TimeSpan t)
+        {
+            int total = (int)t.TotalSeconds;
+            return $"{total / 60}:{total % 60:00}";
+        }
+
+        // ==== 线性 → sRGB（three.js outputColorSpace 等效，绘制前套用） ====
+
+        private static float SrgbChannel(float v)
+        {
+            return v <= 0.0031308f ? v * 12.92f : 1.055f * MathF.Pow(v, 1f / 2.4f) - 0.055f;
+        }
+
+        private static Vector3 ToSrgbVector(Vector3 v)
+        {
+            return new Vector3(SrgbChannel(v.X), SrgbChannel(v.Y), SrgbChannel(v.Z));
+        }
+
+        private static byte SrgbByte(float v)
+        {
+            return (byte)(Math.Clamp(SrgbChannel(v), 0f, 1f) * 255f);
+        }
+
+        private static Color ToSrgbColor(Vector3 v, byte alpha = 255)
+        {
+            return Color.FromArgb(alpha, SrgbByte(v.X), SrgbByte(v.Y), SrgbByte(v.Z));
+        }
+
         public void Dispose()
         {
+            _services.Media.MediaTextChanged -= OnCardMediaTextChanged;
+            _services.Media.PlaybackChanged -= OnCardPlaybackChanged;
+            _services.Media.TimelineChanged -= OnCardTimelineChanged;
             _heightEffect.Dispose();
             _terrainEffect.Dispose();
             _heightField?.Dispose();
             _heightField = null;
+            _coverBitmap?.Dispose();
+            _coverBitmap = null;
+            _coverRounded?.Dispose();
+            _coverRounded = null;
+            _cardTitleLayout?.Dispose();
+            _cardArtistLayout?.Dispose();
+            _cardTimeLayout?.Dispose();
+            _cardTitleLayout = null;
+            _cardArtistLayout = null;
+            _cardTimeLayout = null;
+            _cardTitleFormat?.Dispose();
+            _cardArtistFormat?.Dispose();
+            _cardTimeFormat?.Dispose();
         }
     }
 }

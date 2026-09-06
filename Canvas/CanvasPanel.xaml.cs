@@ -104,7 +104,16 @@ namespace WinExSpectrumTest.Canvas
 
         private void SpectrumCanvasControl_Update(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
         {
-            _effect?.Update(args.Timing.ElapsedTime.TotalSeconds);
+            // Update 里的异常会被 Win2D 吞掉并永久停止游戏循环（Draw 也随之停止），
+            // 表现为频谱/SMTC 文字全部消失且 crash.log 无记录——必须就地捕获并留痕。
+            try
+            {
+                _effect?.Update(args.Timing.ElapsedTime.TotalSeconds);
+            }
+            catch (Exception ex)
+            {
+                App.WriteCrashLog("Update", ex.Message, ex);
+            }
         }
 
         private void SpectrumCanvasControl_Draw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)

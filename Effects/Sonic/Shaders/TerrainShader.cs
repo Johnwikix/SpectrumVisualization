@@ -195,10 +195,23 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             return hit ? hitColor : Background();
         }
 
-        private static float4 Background()
+        private float4 Background()
         {
-            // Fully transparent sky: the window backdrop shows through.
-            return new float4(0f, 0f, 0f, 0f);
+            // Sky = theme base color 1, sRGB encoded (three.js outputColorSpace
+            // equivalent: the original page background is `#uBaseColor1`).
+            return new float4(LinearToSrgb(baseColor1), 1f);
+        }
+
+        // The original renders in linear space and three.js converts to sRGB on
+        // output. Win2D draws raw shader values, so the OETF must be applied here;
+        // without it the whole scene renders ~8x darker than the source material.
+        private static float3 LinearToSrgb(float3 c)
+        {
+            float3 hi = 1.055f * Hlsl.Pow(Hlsl.Max(c, 0f), new float3(1f / 2.4f, 1f / 2.4f, 1f / 2.4f)) - 0.055f;
+            float3 lo = c * 12.92f;
+            // Branchless per-channel selector: 0 below the knee, 1 above.
+            float3 t = Hlsl.Saturate((c - 0.0031308f) * 1e6f);
+            return Hlsl.Lerp(lo, hi, t);
         }
 
         private static float Random(float2 st)
@@ -305,8 +318,10 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             float3 atmosphericColor = Hlsl.Lerp(baseColor1, baseColor2, 0.4f);
             finalColor = Hlsl.Lerp(finalColor, atmosphericColor, aerialFog * 0.5f);
 
+            // sRGB encode, then alpha-blend against the sky (premultiplied output).
+            finalColor = LinearToSrgb(finalColor);
             float alphaFade = 1f - Hlsl.SmoothStep(55f, 78f, centerDist);
-            finalColor *= alphaFade; // premultiply for direct compositing
+            finalColor *= alphaFade;
 
             return new float4(finalColor, alphaFade);
         }

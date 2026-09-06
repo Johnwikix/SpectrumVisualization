@@ -26,6 +26,7 @@ namespace WinExSpectrumTest.Helper
         private const int WS_EX_TOPMOST = 0x00000008;
         private const int SW_SHOWNOACTIVATE = 4;
         private static readonly IntPtr HWND_TOPMOST = new(-1);
+        private static readonly IntPtr HWND_NOTOPMOST = new(-2);
         private const uint SWP_NOSIZE = 0x0001;
         private const uint SWP_NOMOVE = 0x0002;
         private const uint SWP_NOACTIVATE = 0x0010;
@@ -119,13 +120,12 @@ namespace WinExSpectrumTest.Helper
         {
             IntPtr hwnd = WindowNative.GetWindowHandle(window);
 
-            // 记忆原TopMost状态
+            // 记忆原TopMost状态（原生读 WS_EX_TOPMOST：WinUIEx 的 Get/SetIsAlwaysOnTop
+            // 走 OverlappedPresenter，在 FullScreen presenter 下抛 NotSupportedException）
             if (!_originalTopmostStates.ContainsKey(hwnd))
-                _originalTopmostStates[hwnd] = window.GetIsAlwaysOnTop();
+                _originalTopmostStates[hwnd] = ((int)GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
 
-            // 设置窗口置顶
-            window.SetIsAlwaysOnTop(true);
-
+            EnsureTopmost(hwnd);
             window.SetIsShownInSwitchers(false);
         }
 
@@ -133,13 +133,11 @@ namespace WinExSpectrumTest.Helper
         {
             IntPtr hwnd = WindowNative.GetWindowHandle(window);
 
-            // 恢复TopMost状态
-            if (_originalTopmostStates.TryGetValue(hwnd, out var wasTopMost))
-            {
-                window.SetIsAlwaysOnTop(wasTopMost);
-                _originalTopmostStates.Remove(hwnd);
-            }
-            window.SetIsAlwaysOnTop(false);
+            // 恢复TopMost状态（原生，理由同上）
+            bool wasTopMost = _originalTopmostStates.TryGetValue(hwnd, out var state) && state;
+            _originalTopmostStates.Remove(hwnd);
+            _ = SetWindowPos(hwnd, wasTopMost ? HWND_TOPMOST : HWND_NOTOPMOST,
+                0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             window.SetIsShownInSwitchers(true);
         }
 
