@@ -48,11 +48,16 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float4 r8,
         float4 r9,
         float4 r10,
-        float4 r11) : ID2D1PixelShader
+        float4 r11,
+        float dpiScale) : ID2D1PixelShader
     {
         public float4 Execute()
         {
-            float2 texel = Hlsl.Floor(D2D.GetScenePosition().XY);
+            // D2D reports the scene position in physical target pixels while the
+            // grid layout (cellSize/halfExtent) is in DIPs - normalize first, or
+            // the whole heightfield is stretched by the DPI scale and anchored
+            // to the min corner (the sub-bass center dome ends up off-center).
+            float2 texel = Hlsl.Floor(D2D.GetScenePosition().XY / dpiScale);
             float2 pos2D = (texel + 0.5f) * cellSize - halfExtent;
             float centerDist = Hlsl.Length(pos2D);
             float rnd = Random(pos2D);

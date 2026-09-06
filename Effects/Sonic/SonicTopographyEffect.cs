@@ -93,16 +93,16 @@ namespace WinExSpectrumTest.Effects.Sonic
         private readonly float[] _particleScale = new float[ParticleSlots];
         private int _particleCursor;
 
+        // Idle wave state.
+        private float _idleIntensity;
+        private float _idleTimer;
+
         // Ripple cluster targeting (kick beats land near a shared focus).
         private bool _clusterInitialized;
         private float _clusterX;
         private float _clusterZ;
         private float _clusterLastTriggerTime = -999f;
         private int _clusterHitsRemaining;
-
-        // Idle wave state.
-        private float _idleIntensity;
-        private float _idleTimer;
 
         // Camera + theme.
         private float _yaw = 120f;
@@ -119,6 +119,20 @@ namespace WinExSpectrumTest.Effects.Sonic
         // Analyzer trigger consumption.
         private int _lastPulseCount;
         private int _lastMeteorCount;
+
+        // ==== 频率特征 AGC ====
+        // 原版在 Wallpaper Engine 下拿到的是 WE 预处理过的归一化音频数据（任何音量/内容
+        // 都保持可观的响应电平）；本移植直接取原始 FFT 幅值×固定增益，绝对电平随播放
+        // 内容与音量波动极大（实测安静内容下 sub/bass/mid 仅 0.002~0.1，中央响应区
+        // 完全立不起来，旋转轴心处没有可见的响应主体）。这里按运行峰值做归一（快攻慢放），
+        // 把主 FFT 能量抬回原版的响应电平；响度超阈值时增益回落到 1，不会过驱动。
+        private const float AgcTargetLoudness = 0.35f;
+        private const float AgcMaxGain = 20f;
+        private const float AgcReleaseSeconds = 5f;
+        private float _featureLoudnessPeak;
+
+        /// <summary>当前帧的频率特征增益（Update 计算，Draw 应用）。</summary>
+        private float _featureGain = 1f;
 
         private readonly Random _random = new();
 
@@ -292,6 +306,16 @@ namespace WinExSpectrumTest.Effects.Sonic
 
             ReadOnlySpan<float> features = _services.Analyzer.LatestFeatures;
             float energy = features.Length > FeatureIndex.Energy ? features[FeatureIndex.Energy] : 0f;
+
+            // AGC：五个频率特征的均值做运行峰值归一（瞬时攻击、5s 慢放）。
+            float subF = Feature(features, FeatureIndex.SubBass);
+            float bassF = Feature(features, FeatureIndex.Bass);
+            float lowMidF = Feature(features, FeatureIndex.LowMid);
+            float midF = Feature(features, FeatureIndex.Mid);
+            float highMidF = Feature(features, FeatureIndex.HighMid);
+            float loudness = (subF + bassF + lowMidF + midF + highMidF) * 0.2f;
+            _featureLoudnessPeak = MathF.Max(loudness, _featureLoudnessPeak - _featureLoudnessPeak * (dt / AgcReleaseSeconds));
+            _featureGain = Math.Clamp(AgcTargetLoudness / MathF.Max(_featureLoudnessPeak, 1e-4f), 1f, AgcMaxGain);
 
             // Idle wave: gentle breathing when the mix is quiet for a while.
             if (energy > 0.02f)
@@ -497,14 +521,16 @@ namespace WinExSpectrumTest.Effects.Sonic
             float barSize = cellSize * 0.857f;
 
             ReadOnlySpan<float> f = _services.Analyzer.LatestFeatures;
+            float gain = _featureGain;
+            float dpiScale = session.Dpi / 96f;
             _heightEffect.ConstantBuffer = new HeightFieldShader(
                 _time,
-                Feature(f, FeatureIndex.SubBass),
-                Feature(f, FeatureIndex.Bass),
-                Feature(f, FeatureIndex.LowMid),
-                Feature(f, FeatureIndex.Mid),
-                Feature(f, FeatureIndex.HighMid),
-                Feature(f, FeatureIndex.Energy),
+                Feature(f, FeatureIndex.SubBass) * gain,
+                Feature(f, FeatureIndex.Bass) * gain,
+                Feature(f, FeatureIndex.LowMid) * gain,
+                Feature(f, FeatureIndex.Mid) * gain,
+                Feature(f, FeatureIndex.HighMid) * gain,
+                Feature(f, FeatureIndex.Energy) * gain,
                 _idleIntensity,
                 AppSettings.SonicAudioIntensity,
                 AppSettings.SonicResponseRange,
@@ -514,7 +540,8 @@ namespace WinExSpectrumTest.Effects.Sonic
                 Feature(f, FeatureIndex.Density),
                 Ripple(0), Ripple(1), Ripple(2), Ripple(3),
                 Ripple(4), Ripple(5), Ripple(6), Ripple(7),
-                Ripple(8), Ripple(9), Ripple(10), Ripple(11));
+                Ripple(8), Ripple(9), Ripple(10), Ripple(11),
+                dpiScale);
 
             using (CanvasDrawingSession fieldSession = _heightField!.CreateDrawingSession())
             {
@@ -553,7 +580,8 @@ namespace WinExSpectrumTest.Effects.Sonic
                 Feature(f, FeatureIndex.Air),
                 _glowIntensity,
                 AppSettings.SonicPeakColorEnabled ? 1f : 0f,
-                AppSettings.SonicPeakIntensity);
+                AppSettings.SonicPeakIntensity,
+                dpiScale);
 
             session.DrawImage(_terrainEffect);
 

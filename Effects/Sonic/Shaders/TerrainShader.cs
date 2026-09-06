@@ -50,7 +50,8 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float air,
         float glowIntensity,
         float peakEnabled,
-        float peakIntensity) : ID2D1PixelShader
+        float peakIntensity,
+        float dpiScale) : ID2D1PixelShader
     {
         private const float MaxTerrainHeight = 30f;
         // FXC must fully unroll the DDA loop (gradient sample inside), so keep the
@@ -60,7 +61,9 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
 
         public float4 Execute()
         {
-            float2 pixel = D2D.GetScenePosition().XY;
+            // D2D reports the scene position in physical target pixels; the camera
+            // projection works in DIPs (targetSize is DIPs), so normalize first.
+            float2 pixel = D2D.GetScenePosition().XY / dpiScale;
             float2 uv01 = pixel / targetSize;
             float2 ndc = uv01 * 2f - 1f;
             ndc.Y = -ndc.Y;
