@@ -55,10 +55,6 @@ namespace WinExSpectrumTest.Control
         {
             var window = App.MainWindow;
             if (window == null) return;
-            if (AppSettings.WallpaperMode)
-            {
-                window.ToggleWallpaper();
-            }
             if (AppSettings.IsLocked)
             {
                 window.ExitLock();
@@ -72,19 +68,8 @@ namespace WinExSpectrumTest.Control
         }
 
         [RelayCommand]
-        public void ToggleWallpaper()
-        {
-            App.MainWindow?.ToggleWallpaper();
-        }
-
-        [RelayCommand]
         public void ExitApplication()
         {
-            if (AppSettings.WallpaperMode && App.MainWindow != null)
-            {
-                WallpaperHelper.Exit(App.MainWindow);
-                AppSettings.WallpaperMode = false;
-            }
             App.Current_Exit();
         }
     }

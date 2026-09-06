@@ -11,9 +11,6 @@
     xmlns:winex="using:WinUIEx"
     Title="WinExSpectrumTest">
 
-    <!--  基类必须用原生 Window 而非 WinUIEx.WindowEx：WindowEx 在 HWND 被
-          SetParent 重定父级（壁纸模式挂 WorkerW）时其消息挂钩抛
-          NullReferenceException，以 0xc000041d（用户回调异常）击穿进程  -->
     <Window.SystemBackdrop>
         <winex:TransparentTintBackdrop />
     </Window.SystemBackdrop>
@@ -88,15 +85,6 @@
                         <KeyboardAccelerator Modifiers="Control" Key="Right" />
                     </Button.KeyboardAccelerators>
                     <FontIcon FontSize="14" Glyph="&#xE76C;" />
-                </Button>
-                <Button
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="Wallpaper_Click">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="W" />
-                    </Button.KeyboardAccelerators>
-                    <FontIcon FontSize="14" Glyph="&#xE7F4;" />
                 </Button>
             </StackPanel>
             <StackPanel

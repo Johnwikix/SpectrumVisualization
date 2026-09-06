@@ -38,14 +38,6 @@
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutItem
-                        x:Name="WallpaperMode"
-                        x:Uid="WallpaperMode"
-                        Command="{x:Bind ToggleWallpaperCommand}">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon Glyph="&#xE7F4;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
-                    <MenuFlyoutItem
                         x:Name="Settings"
                         x:Uid="Settings"
                         Command="{x:Bind SettingCommand}">

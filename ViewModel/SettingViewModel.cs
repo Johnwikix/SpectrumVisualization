@@ -490,25 +490,6 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        private bool _wallpaperMode = false;
-        public bool WallpaperMode
-        {
-            get => _wallpaperMode;
-            set
-            {
-                if (SetProperty(ref _wallpaperMode, value))
-                {
-                    if (_isInitialized && App.MainWindow != null)
-                    {
-                        if (App.MainWindow.IsWallpaperModeActive != value)
-                        {
-                            App.MainWindow.ToggleWallpaper();
-                        }
-                        AppSettings.WallpaperMode = App.MainWindow.IsWallpaperModeActive;
-                    }
-                }
-            }
-        }
         public SettingViewModel()
         {
             _isInitialized = false;
@@ -552,7 +533,6 @@ namespace WinExSpectrumTest.ViewModel
             SonicRotateSpeed = AppSettings.SonicRotateSpeed;
             SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled;
             SonicPeakIntensity = AppSettings.SonicPeakIntensity * 100f;
-            WallpaperMode = AppSettings.WallpaperMode;
             try
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";

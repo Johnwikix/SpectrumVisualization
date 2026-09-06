@@ -13,9 +13,7 @@ using WinUIEx;
 
 namespace WinExSpectrumTest
 {
-    // 基类必须是原生 Window：WinUIEx.WindowEx 的消息挂钩在 HWND 被 SetParent
-    // 重定父级（壁纸模式挂 WorkerW）时抛 NRE，以 0xc000041d 击穿进程。
-    // SetIsShownInSwitchers / ToggleWindowStyle 等 WinUIEx 扩展方法对 Window 仍可用。
+    // SetIsShownInSwitchers / ToggleWindowStyle 等 WinUIEx 扩展方法对原生 Window 仍可用。
     public sealed partial class MainWindow : Window
     {
         private IntPtr _hwnd;
@@ -34,7 +32,6 @@ namespace WinExSpectrumTest
         private const double TitleBarHoverMargin = 6.0;
         private Microsoft.UI.Dispatching.DispatcherQueueTimer? _hoverTimer;
         private Microsoft.UI.Dispatching.DispatcherQueueTimer? _idleTimer;
-        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _wallpaperWatchdog;
         private bool _cursorOverPanel;
         private RectInt32? _panelScreenRectCache;
 
@@ -70,14 +67,6 @@ namespace WinExSpectrumTest
             Activated += MainWindow_Activated;
             themeStyleHelper = new ThemeStyleHelper(this, _appWindow);
             themeStyleHelper.SetAppStyle();
-            if (AppSettings.WallpaperMode)
-            {
-                // Persisted wallpaper mode: re-attach directly on launch.
-                themeStyleHelper.SetTransparent();
-                this.SetIsShownInSwitchers(false);
-                WallpaperHelper.Enter(this);
-                StartWallpaperWatchdog();
-            }
         }
 
         private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -101,12 +90,6 @@ namespace WinExSpectrumTest
 
         private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
         {
-            // 壁纸态下本窗口是 WorkerW 的子窗口，AppWindow 定位/ Presenter 操作无效甚至抛错，全部跳过
-            // （Enter/Exit 的样式手术期间 WallpaperMode 标志尚未翻转，以 IsAttached 为准）
-            if (AppSettings.WallpaperMode || Helper.WallpaperHelper.IsAttached)
-            {
-                return;
-            }
             // 锁定态：z 序变动后被挤出置顶层时幂等重申
             if (AppSettings.IsLocked && args.DidZOrderChange)
             {
@@ -362,32 +345,6 @@ namespace WinExSpectrumTest
             return cursor.X >= left && cursor.X <= right && cursor.Y >= top && cursor.Y <= bottom;
         }
 
-        // ==== 壁纸模式 ====
-
-        private void StartWallpaperWatchdog()
-        {
-            if (_wallpaperWatchdog == null)
-            {
-                _wallpaperWatchdog = DispatcherQueue.CreateTimer();
-                _wallpaperWatchdog.Interval = TimeSpan.FromSeconds(1);
-                _wallpaperWatchdog.Tick += (_, _) =>
-                {
-                    // 兜底：explorer 重启会销毁原 WorkerW，周期性校验父子关系并重新附着
-                    if (AppSettings.WallpaperMode)
-                    {
-                        try
-                        {
-                            WallpaperHelper.EnsureAttached(_hwnd);
-                        }
-                        catch (Exception)
-                        {
-                        }
-                    }
-                };
-            }
-            _wallpaperWatchdog.Start();
-        }
-
         // ==== 其它 ====
 
         public void ChangeRefreshRate()
@@ -411,9 +368,6 @@ namespace WinExSpectrumTest
             themeStyleHelper.SetAppTheme();
         }
 
-        /// <summary>Whether the window is currently docked to the wallpaper layer.</summary>
-        public bool IsWallpaperModeActive => AppSettings.WallpaperMode;
-
         /// <summary>Activates a specific effect page by registry id.</summary>
         public void SwitchToEffect(string id)
         {
@@ -434,39 +388,6 @@ namespace WinExSpectrumTest
         private void NextEffect_Click(object sender, RoutedEventArgs e)
         {
             SwitchEffect(1);
-        }
-
-        /// <summary>Toggles the desktop wallpaper (bottom-layer) display mode.</summary>
-        public void ToggleWallpaper()
-        {
-            if (AppSettings.WallpaperMode)
-            {
-                _wallpaperWatchdog?.Stop();
-                WallpaperHelper.Exit(this);
-                AppSettings.WallpaperMode = false;
-                WindowHelper.Disable(this);
-                this.SetIsShownInSwitchers(true);
-                themeStyleHelper?.SetAppStyle();
-                if (!AppSettings.IsLocked)
-                {
-                    AppTitleBar.Opacity = 0;
-                }
-            }
-            else
-            {
-                AppTitleBar.Opacity = 0;
-                themeStyleHelper?.SetTransparent();
-                this.SetIsShownInSwitchers(false);
-                WallpaperHelper.Enter(this);
-                AppSettings.WallpaperMode = true;
-                StartWallpaperWatchdog();
-            }
-            _ = Service.DataJsonService.SaveSettingAsync();
-        }
-
-        private void Wallpaper_Click(object sender, RoutedEventArgs e)
-        {
-            ToggleWallpaper();
         }
 
         private void FullScreen_Click(object sender, RoutedEventArgs e)

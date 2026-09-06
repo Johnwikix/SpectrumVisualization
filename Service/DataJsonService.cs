@@ -46,7 +46,6 @@ namespace WinExSpectrumTest.Service
             AppSettings.SonicRotateSpeed = settings.SonicRotateSpeed;
             AppSettings.SonicPeakColorEnabled = settings.SonicPeakColorEnabled;
             AppSettings.SonicPeakIntensity = settings.SonicPeakIntensity;
-            AppSettings.WallpaperMode = settings.WallpaperMode;
         }
 
         /// <summary>把 AppSettings 快照成可序列化的 SaveSetting。</summary>
@@ -87,8 +86,7 @@ namespace WinExSpectrumTest.Service
                 SonicAutoRotate = AppSettings.SonicAutoRotate,
                 SonicRotateSpeed = AppSettings.SonicRotateSpeed,
                 SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled,
-                SonicPeakIntensity = AppSettings.SonicPeakIntensity,
-                WallpaperMode = AppSettings.WallpaperMode
+                SonicPeakIntensity = AppSettings.SonicPeakIntensity
             };
         }
 

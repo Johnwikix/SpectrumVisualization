@@ -44,8 +44,5 @@ namespace WinExSpectrumTest.Model
         public static float SonicRotateSpeed { get; set; } = 10.0f;
         public static bool SonicPeakColorEnabled { get; set; } = true;
         public static float SonicPeakIntensity { get; set; } = 1.0f;
-
-        /// <summary>Whether the window is docked to the desktop wallpaper layer.</summary>
-        public static bool WallpaperMode { get; set; } = false;
     }
 }

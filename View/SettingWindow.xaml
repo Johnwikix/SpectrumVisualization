@@ -62,7 +62,7 @@
                 </TransitionCollection>
             </controls:SwitchPresenter.ContentTransitions>
 
-            <!--  通用：效果页 / 壁纸模式 / 刷新率 / 音频采样 / 频谱条数 / 外观材质  -->
+            <!--  通用：效果页 / 刷新率 / 音频采样 / 频谱条数 / 外观材质  -->
             <controls:Case Value="General">
                 <ScrollView>
                     <StackPanel Margin="32,0,32,24">
@@ -80,9 +80,6 @@
                                         <ComboBoxItem Content="Aurora Ring" Tag="aurora-ring" />
                                         <ComboBoxItem Content="Sonic Topography" Tag="sonic-topography" />
                                     </ComboBox>
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="WallpaperModeToggle">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.WallpaperMode, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>

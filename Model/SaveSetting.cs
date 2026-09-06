@@ -38,6 +38,5 @@ namespace WinExSpectrumTest.Model
         public float SonicRotateSpeed { get; set; } = 10.0f;
         public bool SonicPeakColorEnabled { get; set; } = true;
         public float SonicPeakIntensity { get; set; } = 1.0f;
-        public bool WallpaperMode { get; set; } = false;
     }
 }
