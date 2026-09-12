@@ -1,0 +1,9 @@
+FFT probe: 192000 Hz device, 4096-point sliding FFT.
+8-second capture: 752 callbacks, mean interval 10.53 ms, maximum 63.01 ms.
+GC sample: total observed pause 2.707 ms across 7 one-second intervals.
+UI Automation: main window Sonic -> Aurora -> Sonic updates open settings ComboBox.
+UI Automation: settings ComboBox activates Aurora and persists effect ID.
+UI Automation: cover pulse off persists when settings closes and reopens; restored on.
+UI Automation: custom acrylic radio selects correctly; original transparent material restored.
+NativeAOT: Sonic rendered successfully; settings opened; CoverPulseEnabled toggle displayed On; settings close persisted successfully.
+

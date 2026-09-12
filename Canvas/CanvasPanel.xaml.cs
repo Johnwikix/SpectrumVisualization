@@ -1,4 +1,5 @@
 using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -27,6 +28,7 @@ namespace WinExSpectrumTest.Canvas
         private float _width;
         private float _height;
         private bool _disposed;
+        private bool _drawErrorLogged;
 
         public CanvasPanel()
         {
@@ -35,7 +37,7 @@ namespace WinExSpectrumTest.Canvas
             SpectrumCanvasControl.SizeChanged += OnCanvasSizeChanged;
             SpectrumCanvasControl.Loaded += OnCanvasLoaded;
 
-            _analyzer = new SpectrumAnalyzer();
+            _analyzer = App.Services.GetRequiredService<SpectrumAnalyzer>();
             _services = new VisualizerServices
             {
                 Control = SpectrumCanvasControl,
@@ -65,6 +67,7 @@ namespace WinExSpectrumTest.Canvas
         {
             if (_disposed) return;
             IVisualizerEffect effect = EffectRegistry.Create(id);
+            id = effect.Id;
             effect.Initialize(_services);
             effect.OnResize(_width, _height);
             IVisualizerEffect? old = _effect;
@@ -124,10 +127,12 @@ namespace WinExSpectrumTest.Canvas
                 // no Draw can still be using it.
                 Interlocked.Exchange(ref _effectPendingDispose, null)?.Dispose();
                 _effect?.Draw(args.DrawingSession, (float)sender.Size.Width, (float)sender.Size.Height);
+                RenderDiagnostics.RecordFrame(_effect?.Id, _analyzer.PublicationCount);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Keep the render loop alive on transient device errors.
+                if (!_drawErrorLogged) App.WriteCrashLog("Draw", ex.Message, ex);
+                _drawErrorLogged = true;
             }
         }
 

@@ -123,14 +123,18 @@ namespace WinExSpectrumTest.Audio
         private int _meteorTriggerCount;
         private float _meteorTriggerStrength;
 
+        private long _publicationCount;
+        public long PublicationCount => Volatile.Read(ref _publicationCount);
+
         private bool _disposed;
-        private readonly int _sampleRate;
+        private int _sampleRate;
 
         /// <summary>Overall gain applied to raw FFT magnitudes (user "sensitivity").</summary>
         public float InputGain = 8.0f;
 
         /// <summary>Actual loopback capture sample rate in Hz.</summary>
-        public int SampleRate => _sampleRate;
+        public int SampleRate => Volatile.Read(ref _sampleRate);
+        public event Action? SampleRateChanged;
 
         public SpectrumAnalyzer()
         {
@@ -251,6 +255,8 @@ namespace WinExSpectrumTest.Audio
                     if (!started) continue;
 
                     old = Interlocked.Exchange(ref _capture, capture);
+                    Volatile.Write(ref _sampleRate, capture.WaveFormat.SampleRate);
+                    SampleRateChanged?.Invoke();
                     if (old != null)
                     {
                         old.DataAvailable -= OnDataAvailable;
@@ -330,6 +336,7 @@ namespace WinExSpectrumTest.Audio
             AggregateBands(_spectrumR, _bandsRBack);
 
             Analyze(bands, (float)bytesRecorded / _capture.WaveFormat.AverageBytesPerSecond);
+            Interlocked.Increment(ref _publicationCount);
         }
 
         /// <summary>RealForward 带 1/N 缩放（满幅正弦峰值 0.5），聚合到 512 段取段内峰值。</summary>
@@ -448,10 +455,11 @@ namespace WinExSpectrumTest.Audio
             target[FeatureIndex.SpectralCentroid] = sum > 0f ? weighted / sum / BandCount : 0f;
             target[FeatureIndex.Energy] = mean;
 
+            float follow = 1f - MathF.Pow(1f - SmoothingRate, MathF.Max(dt, 0f) * 60f);
             float[] smoothed = _featuresFront;
             for (int i = 0; i < FeatureIndex.Count; i++)
             {
-                target[i] = smoothed[i] + (target[i] - smoothed[i]) * SmoothingRate;
+                target[i] = smoothed[i] + (target[i] - smoothed[i]) * follow;
             }
 
             // Publish: swap front/back references (atomic reference writes, no allocation).

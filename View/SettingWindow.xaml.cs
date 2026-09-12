@@ -2,8 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using System;
 using System.IO;
-using Windows.System;
-using WinExSpectrumTest.Service;
 using WinExSpectrumTest.ViewModel;
 using WinUIEx;
 
@@ -20,9 +18,9 @@ namespace WinExSpectrumTest.View
         public SettingViewModel ViewModel { get; }
         public SettingWindow()
         {
+            ViewModel = App.Services.GetRequiredService<SettingViewModel>();
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
-            ViewModel = App.Services.GetRequiredService<SettingViewModel>();
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets/icon.ico");
             if (File.Exists(iconPath))
             {
@@ -34,25 +32,8 @@ namespace WinExSpectrumTest.View
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
             // 同步落盘：窗口关闭后异步写入可能被随后的应用退出终止。
-            DataJsonService.SaveSettingNow();
+            ViewModel.PersistSettingsCommand.Execute(null);
         }
 
-        private bool GetIsChecked(string style, string currentOption)
-        {
-            if (style == currentOption)
-                return true;
-            else
-                return false;
-        }
-
-        private void OriginalSound_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
-        {
-            string storeUri = "originalsoundhqplayer:";
-            LauncherOptions options = new LauncherOptions
-            {
-                FallbackUri = new Uri("ms-windows-store://pdp/?ProductId=9NFW1RPPT999")
-            };
-            _ = Launcher.LaunchUriAsync(new Uri(storeUri), options);
-        }
     }
 }

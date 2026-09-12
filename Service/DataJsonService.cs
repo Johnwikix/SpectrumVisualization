@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -12,6 +12,7 @@ namespace WinExSpectrumTest.Service
         public static async Task LoadSettingAsync()
         {
             var settings = await SettingManager.LoadSettingsAsync();
+            AppSettings.CoverPulseEnabled = settings.CoverPulseEnabled;
             AppSettings.RotationSpeed = settings.RotationSpeed;
             AppSettings.CoverOpacity = settings.CoverOpacity;
             AppSettings.SpectrumOpacity = settings.SpectrumOpacity;
@@ -33,7 +34,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.elementTheme = settings.elementTheme == "Light" ? Microsoft.UI.Xaml.ElementTheme.Light : settings.elementTheme == "Dark" ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Default;
             AppSettings.RefreshRate = settings.RefreshRate;
             AppSettings.SampleRate = settings.SampleRate;
-            AppSettings.BarCount = settings.BarCount;
+            AppSettings.BarCount = Math.Clamp(settings.BarCount, 128, 512);
             AppSettings.VisualEffect = settings.VisualEffect ?? "aurora-ring";
             AppSettings.SonicTheme = settings.SonicTheme ?? "nocturnal";
             AppSettings.SonicAudioIntensity = settings.SonicAudioIntensity;
@@ -53,6 +54,7 @@ namespace WinExSpectrumTest.Service
         {
             return new SaveSetting
             {
+                CoverPulseEnabled = AppSettings.CoverPulseEnabled,
                 RotationSpeed = AppSettings.RotationSpeed,
                 CoverOpacity = AppSettings.CoverOpacity,
                 SpectrumOpacity = AppSettings.SpectrumOpacity,

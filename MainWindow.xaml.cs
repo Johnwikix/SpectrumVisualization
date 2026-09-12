@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -35,8 +36,11 @@ namespace WinExSpectrumTest
         private bool _cursorOverPanel;
         private RectInt32? _panelScreenRectCache;
 
+        public ViewModel.SettingViewModel ViewModel { get; }
+
         public MainWindow()
         {
+            ViewModel = App.Services.GetRequiredService<ViewModel.SettingViewModel>();
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             // 构造函数里 AppWindow 已可取到（万一为 null 用 WindowId 兜底）；缓存后
@@ -378,16 +382,6 @@ namespace WinExSpectrumTest
         public void SwitchEffect(int direction)
         {
             MyCanvas.SwitchEffect(direction);
-        }
-
-        private void PreviousEffect_Click(object sender, RoutedEventArgs e)
-        {
-            SwitchEffect(-1);
-        }
-
-        private void NextEffect_Click(object sender, RoutedEventArgs e)
-        {
-            SwitchEffect(1);
         }
 
         private void FullScreen_Click(object sender, RoutedEventArgs e)

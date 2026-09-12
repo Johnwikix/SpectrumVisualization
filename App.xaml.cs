@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using System;
@@ -26,6 +26,7 @@ namespace WinExSpectrumTest
         private static readonly IHost _host = Host.CreateDefaultBuilder()
              .ConfigureServices((context, services) =>
              {
+                 services.AddSingleton<WinExSpectrumTest.Audio.SpectrumAnalyzer>();
                  services.AddSingleton<SettingViewModel>();
              }).Build();
 

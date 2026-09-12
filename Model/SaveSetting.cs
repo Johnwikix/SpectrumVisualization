@@ -1,8 +1,9 @@
-﻿
+
 namespace WinExSpectrumTest.Model
 {
     public class SaveSetting
     {
+        public bool CoverPulseEnabled { get; set; } = true;
         public int Id { get; set; } = 1;
         public bool IsDrawPlainSpectrum { get; set; } = false;
         public bool IsDrawRoundSpectrum { get; set; } = true;

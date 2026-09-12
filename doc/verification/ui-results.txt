@@ -1,0 +1,44 @@
+PASS: settings selection activates and saves Aurora Ring
+PASS: cover pulse off saved
+PASS: reopening settings retains cover pulse off
+Non Client Input Sink Window | ControlType.Pane
+AppWindow Custom Title Bar | ControlType.Pane
+Minimize | ControlType.Button
+Maximize | ControlType.Button
+Close | ControlType.Button
+ | ControlType.Pane
+ | ControlType.Pane
+ | ControlType.Text
+ | ControlType.List
+ | ControlType.Pane
+通用 | ControlType.ListItem
+通用 | ControlType.Text
+Aurora Ring | ControlType.ListItem
+Aurora Ring | ControlType.Text
+Sonic Topography | ControlType.ListItem
+Sonic Topography | ControlType.Text
+关于 | ControlType.ListItem
+关于 | ControlType.Text
+ | ControlType.Pane
+ | ControlType.Group
+颜色主题 | ControlType.Text
+颜色主题 | ControlType.ComboBox
+ | ControlType.Group
+音频响应强度 | ControlType.Text
+音频响应强度 | ControlType.Slider
+ | ControlType.Group
+响应范围 | ControlType.Text
+响应范围 | ControlType.Slider
+ | ControlType.Group
+渲染精度 | ControlType.Text
+渲染精度 | ControlType.ComboBox
+效果选项 | ControlType.Group
+效果选项 | ControlType.Button
+ | ControlType.Group
+效果选项 | ControlType.Text
+SettingWindow | ControlType.TitleBar
+System Menu Bar | ControlType.MenuBar
+System | ControlType.MenuItem
+Minimize | ControlType.Button
+Maximize | ControlType.Button
+Close | ControlType.Button

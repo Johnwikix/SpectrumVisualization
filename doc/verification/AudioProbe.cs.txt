@@ -1,0 +1,17 @@
+using System;
+using System.Diagnostics;
+using System.Reflection;
+using System.Threading;
+using NAudio.Wave;
+using WinExSpectrumTest.Audio;
+namespace WinExSpectrumTest { public static class App {public static void WriteCrashLog(string s,string m,Exception e) => Console.WriteLine(m);} }
+class Probe {
+ static void Main() {
+ using var analyzer = new SpectrumAnalyzer();
+ var capture=(WasapiLoopbackCapture)typeof(SpectrumAnalyzer).GetField("_capture",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(analyzer);
+ long last=0; int count=0; double sum=0,max=0; int maxBytes=0;
+ capture.DataAvailable += (_,e)=> {long now=Stopwatch.GetTimestamp(); if(last>0){double ms=Stopwatch.GetElapsedTime(last,now).TotalMilliseconds; sum+=ms; max=Math.Max(max,ms); count++;}last=now; maxBytes=Math.Max(maxBytes,e.BytesRecorded);};
+ Thread.Sleep(8000);
+ Console.WriteLine($"Sample rate: {analyzer.SampleRate}; FFT callbacks: {count}; mean interval: {sum/Math.Max(1,count):F2} ms; max: {max:F2} ms; max bytes: {maxBytes}");
+ }
+}

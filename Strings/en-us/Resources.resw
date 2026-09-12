@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -127,13 +127,13 @@
     <value>SpectrumVisualization</value>
   </data>
   <data name="BarCount.Header" xml:space="preserve">
-    <value>BarCount(Require Restart App)</value>
+    <value>Spectrum bar count</value>
   </data>
   <data name="Exit.Text" xml:space="preserve">
     <value>Exit</value>
   </data>
   <data name="LoopBackSampleRate.Header" xml:space="preserve">
-    <value>LoopBackSampleRate(Require Restart App)</value>
+    <value>Audio device sample rate (Hz)</value>
   </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>MainWindow Material</value>

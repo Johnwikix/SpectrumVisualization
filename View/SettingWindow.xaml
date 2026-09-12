@@ -7,7 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinExSpectrumTest.View"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="using:WinExSpectrumTest.Model"
+    xmlns:vm="using:WinExSpectrumTest.ViewModel"
     xmlns:ui="using:CommunityToolkit.WinUI"
     xmlns:winex="using:WinUIEx"
     x:Name="SettingWindowRoot"
@@ -90,17 +90,11 @@
                                 Value="{x:Bind ViewModel.RefreshRate, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
-                            <Slider
-                                Maximum="48000"
-                                Minimum="2000"
-                                SnapsTo="Ticks"
-                                TickFrequency="1000"
-                                TickPlacement="Outside"
-                                Value="{x:Bind ViewModel.SampleRate, Mode=TwoWay}" />
+                            <TextBlock Text="{x:Bind ViewModel.SampleRate, Mode=OneWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="BarCount" Margin="10,0,10,0">
                             <Slider
-                                Maximum="1024"
+                                Maximum="512"
                                 Minimum="128"
                                 SnapsTo="Ticks"
                                 TickFrequency="128"
@@ -117,7 +111,7 @@
                                             CommandParameter="TransparentTint"
                                             Content="透明"
                                             GroupName="BackdropGroup"
-                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentTint'),Mode=OneWay}"
+                                            IsChecked="{x:Bind vm:SettingViewModel.IsBackdrop(ViewModel.BackdropType,'TransparentTint'),Mode=OneWay}"
                                             Tag="TransparentTint" />
                                         <RadioButton
                                             x:Name="MicaRadioButton"
@@ -125,7 +119,7 @@
                                             CommandParameter="Mica"
                                             Content="云母"
                                             GroupName="BackdropGroup"
-                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Mica'),Mode=OneWay}"
+                                            IsChecked="{x:Bind vm:SettingViewModel.IsBackdrop(ViewModel.BackdropType,'Mica'),Mode=OneWay}"
                                             Tag="Mica" />
                                         <RadioButton
                                             x:Name="AcrylicRadioButton"
@@ -133,7 +127,7 @@
                                             CommandParameter="Acrylic"
                                             Content="亚克力"
                                             GroupName="BackdropGroup"
-                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'Acrylic'),Mode=OneWay}"
+                                            IsChecked="{x:Bind vm:SettingViewModel.IsBackdrop(ViewModel.BackdropType,'Acrylic'),Mode=OneWay}"
                                             Tag="Acrylic" />
                                         <RadioButton
                                             x:Name="TransparentAcrylicRadioButton"
@@ -141,7 +135,7 @@
                                             CommandParameter="TransparentAcrylic"
                                             Content="透明亚克力"
                                             GroupName="BackdropGroup"
-                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'TransparentAcrylic'),Mode=OneWay}"
+                                            IsChecked="{x:Bind vm:SettingViewModel.IsBackdrop(ViewModel.BackdropType,'TransparentAcrylic'),Mode=OneWay}"
                                             Tag="TransparentAcrylic" />
                                         <RadioButton
                                             x:Name="CustomAcrylicStyleRadioButton"
@@ -149,7 +143,7 @@
                                             CommandParameter="CustomAcrylicStyle"
                                             Content="自定义亚克力"
                                             GroupName="BackdropGroup"
-                                            IsChecked="{x:Bind GetIsChecked(models:AppSettings.AppStyle,'CustomAcrylicStyle'),Mode=OneWay}"
+                                            IsChecked="{x:Bind vm:SettingViewModel.IsBackdrop(ViewModel.BackdropType,'CustomAcrylicStyle'),Mode=OneWay}"
                                             Tag="CustomAcrylicStyle" />
                                         <StackPanel Visibility="{x:Bind ViewModel.IsColorPickerVisible, Mode=OneWay}">
                                             <Grid>
@@ -197,6 +191,9 @@
                                 Maximum="100"
                                 Minimum="0"
                                 Value="{x:Bind ViewModel.RotationSpeed, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="封面随音频律动" Margin="10,0,10,0">
+                            <ToggleSwitch AutomationProperties.Name="封面随音频律动" IsOn="{x:Bind ViewModel.CoverPulseEnabled, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="PictureOpacity" Margin="10,0,10,0">
                             <Slider
@@ -348,7 +345,7 @@
                             x:Name="OriginalSound"
                             x:Uid="OriginalSound"
                             Margin="10,0,10,0"
-                            Click="OriginalSound_Click"
+                            Command="{x:Bind ViewModel.OpenOriginalSoundCommand}"
                             Description="© 2025 Sennpei Studio"
                             HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/HQPlayer.png}"
                             IsClickEnabled="True" />

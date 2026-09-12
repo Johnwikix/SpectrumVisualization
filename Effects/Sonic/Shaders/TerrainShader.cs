@@ -15,12 +15,10 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
     [D2DInputCount(1)]
     [D2DInputComplex(0)]
     [D2DRequiresScenePosition]
-    [D2DShaderProfile(D2D1ShaderProfile.PixelShader50)]
-    // The DDA loop samples the heightfield texture; FXC raises X3570 (gradients in
-    // varying flow) for that. The samples always hit exact texel centers of a
-    // mip-free texture, so the undefined derivatives are irrelevant - keep them as
-    // warnings instead of escalating to errors.
+
+    // TerrainPass supplies explicit LOD-0 sampling for this generated shader.
     [D2DCompileOptions(D2D1CompileOptions.EnableStrictness | D2D1CompileOptions.OptimizationLevel3)]
+    [D2DEnableRuntimeCompilation]
     [D2DGeneratedPixelShaderDescriptor]
     public readonly partial struct TerrainShader(
         float3 cameraPosition,
@@ -54,11 +52,6 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float dpiScale) : ID2D1PixelShader
     {
         private const float MaxTerrainHeight = 30f;
-        // FXC must fully unroll the DDA loop (gradient sample inside), so keep the
-        // iteration count small. Rays that would traverse more cells than this are
-        // in the >78 distance band that the aerial-fog alpha already fades out.
-        private const int MaxCellSteps = 96;
-
         public float4 Execute()
         {
             // D2D reports the scene position in physical target pixels; the camera
@@ -116,11 +109,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             float pad = (cellSize - barSize) * 0.5f;
             int gridInt = (int)Hlsl.Round(gridSize);
 
-            // Fixed-iteration masked DDA: ps_4_0 forbids gradient instructions
-            // (the bilinear input sample) inside varying control flow, so the
-            // sample runs unconditionally every iteration and hit/dead state is
-            // carried in flags instead of break/return. Shading happens after
-            // the loop to keep the unrolled body small.
+            // Traverse until a bar is hit or the ray exits the grid.
             float4 hitColor = Background();
             bool hit = false;
             bool dead = false;
@@ -130,13 +119,15 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             float4 hitField = new float4(0f, 0f, 0f, 0f);
             float2 hitCellCenter = new float2(0f, 0f);
 
-            for (int i = 0; i < MaxCellSteps; i++)
+            for (int i = 0; i < gridInt * 2 + 1; i++)
             {
-                // Sample the heightfield at the cell center. D2DSampleInput takes a
-                // normalized uv, so this is resolution/DPI independent.
+                if (hit || dead) break;
+
+                // Sample in scene pixels: normalized UVs address the backing texture,
+                // which D2D may pad or tile independently of the logical grid.
                 float2 fieldUv = ((float2)cell + 0.5f) * gridTexel;
                 fieldUv = Hlsl.Clamp(fieldUv, new float2(gridTexel * 0.5f, gridTexel * 0.5f), new float2(1f - gridTexel * 0.5f, 1f - gridTexel * 0.5f));
-                float4 field = D2D.SampleInput(0, fieldUv);
+                float4 field = D2D.SampleInputAtPosition(0, fieldUv * gridSize * dpiScale);
 
                 float2 cellMin = new float2(-halfExtent + cell.X * cellSize, -halfExtent + cell.Y * cellSize);
                 float3 barMin = new float3(cellMin.X + pad, 0f, cellMin.Y + pad);
@@ -322,7 +313,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             finalColor = Hlsl.Lerp(finalColor, atmosphericColor, aerialFog * 0.5f);
 
             // sRGB encode, then alpha-blend against the sky (premultiplied output).
-            finalColor = LinearToSrgb(finalColor);
+            // The reference custom ShaderMaterial writes raw fragment RGB (no colorspace chunk).
             float alphaFade = 1f - Hlsl.SmoothStep(55f, 78f, centerDist);
             finalColor *= alphaFade;
 

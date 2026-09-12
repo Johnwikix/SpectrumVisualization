@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -127,13 +127,13 @@
     <value>音频可视化</value>
   </data>
   <data name="BarCount.Header" xml:space="preserve">
-    <value>频谱条数量（重启应用生效）</value>
+    <value>频谱条数</value>
   </data>
   <data name="Exit.Text" xml:space="preserve">
     <value>退出</value>
   </data>
   <data name="LoopBackSampleRate.Header" xml:space="preserve">
-    <value>回环采样率（重启应用生效）</value>
+    <value>音频设备采样率 (Hz)</value>
   </data>
   <data name="MainWindowMaterial.Header" xml:space="preserve">
     <value>主窗口材质</value>

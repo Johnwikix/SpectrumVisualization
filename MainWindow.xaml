@@ -71,7 +71,8 @@
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="PreviousEffect_Click">
+                    AutomationProperties.Name="上一效果"
+                    Command="{x:Bind ViewModel.PreviousEffectCommand}">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="Left" />
                     </Button.KeyboardAccelerators>
@@ -80,11 +81,16 @@
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="NextEffect_Click">
+                    AutomationProperties.Name="下一效果"
+                    Command="{x:Bind ViewModel.NextEffectCommand}">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Modifiers="Control" Key="Right" />
                     </Button.KeyboardAccelerators>
                     <FontIcon FontSize="14" Glyph="&#xE76C;" />
+                </Button>
+                <Button AutomationProperties.Name="设置" AutomationProperties.AutomationId="OpenSettings"
+                    Background="Transparent" BorderThickness="0" Command="{x:Bind ViewModel.ShowSettingsCommand}">
+                    <FontIcon FontSize="14" Glyph="&#xE713;" />
                 </Button>
             </StackPanel>
             <StackPanel

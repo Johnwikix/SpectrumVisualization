@@ -52,7 +52,7 @@ namespace WinExSpectrumTest.Effects.Sonic
 
         // GPU resources.
         private PixelShaderEffect<HeightFieldShader> _heightEffect = new();
-        private PixelShaderEffect<TerrainShader> _terrainEffect = new();
+        private PixelShaderEffect<TerrainPass> _terrainEffect = new();
         private CanvasRenderTarget? _heightField;
         // Resolved lazily: CanvasAnimatedControl has no device until it is loaded.
         private CanvasDevice? _deviceField;
@@ -119,20 +119,6 @@ namespace WinExSpectrumTest.Effects.Sonic
         // Analyzer trigger consumption.
         private int _lastPulseCount;
         private int _lastMeteorCount;
-
-        // ==== 频率特征 AGC ====
-        // 原版在 Wallpaper Engine 下拿到的是 WE 预处理过的归一化音频数据（任何音量/内容
-        // 都保持可观的响应电平）；本移植直接取原始 FFT 幅值×固定增益，绝对电平随播放
-        // 内容与音量波动极大（实测安静内容下 sub/bass/mid 仅 0.002~0.1，中央响应区
-        // 完全立不起来，旋转轴心处没有可见的响应主体）。这里按运行峰值做归一（快攻慢放），
-        // 把主 FFT 能量抬回原版的响应电平；响度超阈值时增益回落到 1，不会过驱动。
-        private const float AgcTargetLoudness = 0.35f;
-        private const float AgcMaxGain = 20f;
-        private const float AgcReleaseSeconds = 5f;
-        private float _featureLoudnessPeak;
-
-        /// <summary>当前帧的频率特征增益（Update 计算，Draw 应用）。</summary>
-        private float _featureGain = 1f;
 
         private readonly Random _random = new();
 
@@ -306,16 +292,6 @@ namespace WinExSpectrumTest.Effects.Sonic
 
             ReadOnlySpan<float> features = _services.Analyzer.LatestFeatures;
             float energy = features.Length > FeatureIndex.Energy ? features[FeatureIndex.Energy] : 0f;
-
-            // AGC：五个频率特征的均值做运行峰值归一（瞬时攻击、5s 慢放）。
-            float subF = Feature(features, FeatureIndex.SubBass);
-            float bassF = Feature(features, FeatureIndex.Bass);
-            float lowMidF = Feature(features, FeatureIndex.LowMid);
-            float midF = Feature(features, FeatureIndex.Mid);
-            float highMidF = Feature(features, FeatureIndex.HighMid);
-            float loudness = (subF + bassF + lowMidF + midF + highMidF) * 0.2f;
-            _featureLoudnessPeak = MathF.Max(loudness, _featureLoudnessPeak - _featureLoudnessPeak * (dt / AgcReleaseSeconds));
-            _featureGain = Math.Clamp(AgcTargetLoudness / MathF.Max(_featureLoudnessPeak, 1e-4f), 1f, AgcMaxGain);
 
             // Idle wave: gentle breathing when the mix is quiet for a while.
             if (energy > 0.02f)
@@ -521,7 +497,7 @@ namespace WinExSpectrumTest.Effects.Sonic
             float barSize = cellSize * 0.857f;
 
             ReadOnlySpan<float> f = _services.Analyzer.LatestFeatures;
-            float gain = _featureGain;
+            const float gain = 1f;
             float dpiScale = session.Dpi / 96f;
             _heightEffect.ConstantBuffer = new HeightFieldShader(
                 _time,
@@ -550,7 +526,7 @@ namespace WinExSpectrumTest.Effects.Sonic
             }
 
             // 2. Terrain pass: voxel-DDA ray march with the original shading model.
-            // D2D scene positions are DIPs, matching the width/height passed by the host.
+            // Normalize shader scene pixels to the host DIPs using the target DPI.
             _terrainEffect.Sources[0] = _heightField;
             _terrainEffect.ConstantBuffer = new TerrainShader(
                 ToFloat3(_cameraPosition),
@@ -696,12 +672,11 @@ namespace WinExSpectrumTest.Effects.Sonic
         private const float CardCover = 76f;
         private const float CardRadius = 16f;
         private const float CardProgressHeight = 4f;
-        private const float CardTimeWidth = 50f;
 
         private void DrawPlayerCard(CanvasDrawingSession session, float width, float height)
         {
             float f = _cardFade;
-            float s = Math.Clamp(height / 1080f, 0.8f, 1.6f);
+            float s = Math.Min(96f / session.Dpi, Math.Max(0.4f, (width - 32f) / CardWidth));
             float w = CardWidth * s;
             float pad = CardPadding * s;
             float cover = CardCover * s;
@@ -728,20 +703,16 @@ namespace WinExSpectrumTest.Effects.Sonic
             // 文本列
             float tx = x + pad + cover + CardGap * s;
             float tw = w - pad * 2f - cover - CardGap * s;
-            EnsureCardLayouts(tw);
+            EnsureCardLayouts(tw, s);
 
             byte titleAlpha = (byte)(230 * f);
             byte artistAlpha = (byte)(72 * f);
-            var white = new Vector3(1f, 1f, 1f);
 
             // 标题 + 歌手占上半区，进度条 + 时间贴底（原版排布）
-            float titleH = 18f * s;
-            float artistH = 14f * s;
             float rowH = CardProgressHeight * s;
-            float contentBottom = y + h - pad;
-            float progressY = contentBottom - rowH;
-            float artistY = progressY - 6f * s - artistH;
-            float titleY = y + pad + 2f * s;
+            float titleY = y + (h - 56f * s) * 0.5f;
+            float artistY = titleY + 22f * s;
+            float progressY = artistY + 24f * s;
 
             if (_cardTitleLayout != null)
             {
@@ -754,7 +725,9 @@ namespace WinExSpectrumTest.Effects.Sonic
 
             // 进度：推进条 + 时间文本（原版渐变条 → 主色纯色 + 头部光点）
             TimeSpan pos = _cardTimelineBase + (_cardIsPlaying ? _cardTimeline.Elapsed : TimeSpan.Zero);
-            float barW = tw - CardTimeWidth * s - 8f * s;
+            if (_cardDuration > TimeSpan.Zero && pos > _cardDuration) pos = _cardDuration;
+            float timeWidth = 68f * s;
+            float barW = Math.Max(4f * s, tw - timeWidth - 8f * s);
             float radius = rowH * 0.5f;
             session.FillRoundedRectangle(tx, progressY, barW, rowH, radius, radius, Color.FromArgb((byte)(13 * f), 255, 255, 255));
 
@@ -779,7 +752,7 @@ namespace WinExSpectrumTest.Effects.Sonic
             {
                 _cardLastSecond = second;
                 _cardTimeLayoutText = _cardDuration > TimeSpan.Zero
-                    ? $"{FormatTime(pos)} / {FormatTime(_cardDuration)}"
+                    ? $"{FormatTime(pos)}/{FormatTime(_cardDuration)}"
                     : string.Empty;
                 _cardTimeLayout?.Dispose();
                 _cardTimeLayout = null;
@@ -788,23 +761,34 @@ namespace WinExSpectrumTest.Effects.Sonic
             {
                 if (_cardTimeLayout == null)
                 {
-                    _cardTimeLayout = new CanvasTextLayout(Device, _cardTimeLayoutText, _cardTimeFormat, CardTimeWidth * s * 2f, 14f * s);
+                    _cardTimeLayout = new CanvasTextLayout(Device, _cardTimeLayoutText, _cardTimeFormat, timeWidth, 14f * s);
                 }
                 session.DrawTextLayout(
                     _cardTimeLayout,
-                    new Vector2(tx + tw - CardTimeWidth * s * 2f, progressY - 3f * s),
+                    new Vector2(tx + tw - timeWidth, progressY - 3f * s),
                     Color.FromArgb((byte)(77 * f), 255, 255, 255));
             }
         }
 
-        private void EnsureCardLayouts(float width)
+        private float _cardLayoutWidth = -1f;
+        private float _cardLayoutScale = -1f;
+
+        private void EnsureCardLayouts(float width, float scale)
         {
             if (!_cardLayoutsDirty
+                && _cardLayoutWidth == width && _cardLayoutScale == scale
                 && _cardTitleLayoutText == _cardTitle
                 && _cardArtistLayoutText == _cardArtist)
             {
                 return;
             }
+            _cardLayoutWidth = width;
+            _cardLayoutScale = scale;
+            _cardTitleFormat.FontSize = 14f * scale;
+            _cardArtistFormat.FontSize = 11f * scale;
+            _cardTimeFormat.FontSize = 9.5f * scale;
+            _cardTimeLayout?.Dispose();
+            _cardTimeLayout = null;
             _cardLayoutsDirty = false;
             _cardTitleLayout?.Dispose();
             _cardArtistLayout?.Dispose();
@@ -814,12 +798,12 @@ namespace WinExSpectrumTest.Effects.Sonic
             if (_cardTitle is { Length: > 0 })
             {
                 _cardTitleLayoutText = _cardTitle;
-                _cardTitleLayout = new CanvasTextLayout(Device, _cardTitle, _cardTitleFormat, width, 20f);
+                _cardTitleLayout = new CanvasTextLayout(Device, _cardTitle, _cardTitleFormat, width, 20f * scale);
             }
             if (_cardArtist is { Length: > 0 })
             {
                 _cardArtistLayoutText = _cardArtist;
-                _cardArtistLayout = new CanvasTextLayout(Device, _cardArtist, _cardArtistFormat, width, 16f);
+                _cardArtistLayout = new CanvasTextLayout(Device, _cardArtist, _cardArtistFormat, width, 16f * scale);
             }
         }
 

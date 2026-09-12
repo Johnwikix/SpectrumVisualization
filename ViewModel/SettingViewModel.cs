@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Diagnostics;
@@ -14,7 +14,7 @@ namespace WinExSpectrumTest.ViewModel
     public partial class SettingViewModel : ObservableObject
     {
         private bool _isInitialized = false;
-        
+
         private float _rotationSpeed = 10.0f;
         public float RotationSpeed
         {
@@ -200,6 +200,7 @@ namespace WinExSpectrumTest.ViewModel
                         AppSettings.CustomColorRed = value.R;
                         AppSettings.CustomColorGreen = value.G;
                         AppSettings.CustomColorBlue = value.B;
+                        App.MainWindow?.SetCustomAppStyle();
                     }
                 }
             }
@@ -258,21 +259,8 @@ namespace WinExSpectrumTest.ViewModel
             set => SetProperty(ref _appVersion, value);
         }
 
-        private int _sampleRate = 12000;
-        public int SampleRate
-        {
-            get => _sampleRate;
-            set
-            {
-                if (SetProperty(ref _sampleRate, value))
-                {
-                    if (_isInitialized)
-                    {
-                        AppSettings.SampleRate = value;
-                    }
-                }
-            }
-        }
+        private readonly WinExSpectrumTest.Audio.SpectrumAnalyzer _analyzer;
+        public int SampleRate => _analyzer.SampleRate;
         private int _barCount = 128;
         public int BarCount
         {
@@ -295,6 +283,7 @@ namespace WinExSpectrumTest.ViewModel
             get => _visualEffect;
             set
             {
+                if (string.IsNullOrEmpty(value)) return;
                 if (SetProperty(ref _visualEffect, value))
                 {
                     if (_isInitialized)
@@ -320,6 +309,7 @@ namespace WinExSpectrumTest.ViewModel
             get => _sonicTheme;
             set
             {
+                if (string.IsNullOrEmpty(value)) return;
                 if (SetProperty(ref _sonicTheme, value))
                 {
                     if (_isInitialized)
@@ -368,6 +358,7 @@ namespace WinExSpectrumTest.ViewModel
             get => _sonicGridSize;
             set
             {
+                if (string.IsNullOrEmpty(value)) return;
                 if (SetProperty(ref _sonicGridSize, value))
                 {
                     if (_isInitialized && int.TryParse(value, out int gridSize))
@@ -490,8 +481,40 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        public SettingViewModel()
+        public SettingViewModel(WinExSpectrumTest.Audio.SpectrumAnalyzer analyzer)
         {
+            _analyzer = analyzer;
+            var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            _analyzer.SampleRateChanged += () => dispatcher.TryEnqueue(() => OnPropertyChanged(nameof(SampleRate)));
+            ReloadSettings();
+            AppSettings.Changed += OnSettingsChanged;
+            try
+            {
+                AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
+            }
+            catch
+            {
+                string assemblyLocation = Assembly.GetExecutingAssembly().Location;
+                if (string.IsNullOrEmpty(assemblyLocation))
+                {
+                    assemblyLocation = Environment.ProcessPath;
+                }
+                FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assemblyLocation);
+                AppVersion = $"{fvi.FileMajorPart}.{fvi.FileMinorPart}.{fvi.FileBuildPart}.{fvi.FilePrivatePart}";
+            }
+            finally {
+                _isInitialized = true;
+            }
+        }
+
+        private void OnSettingsChanged(string name)
+        {
+            ReloadSettings();
+        }
+
+        private void ReloadSettings()
+        {
+            bool initialized = _isInitialized;
             _isInitialized = false;
             RotationSpeed = AppSettings.RotationSpeed;
             CoverOpacity = AppSettings.CoverOpacity * 100;
@@ -518,8 +541,8 @@ namespace WinExSpectrumTest.ViewModel
                                                  AppSettings.CustomColorBlue);
             IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
             RefreshRate = AppSettings.RefreshRate;
-            SampleRate = AppSettings.SampleRate;
-            BarCount = AppSettings.BarCount;
+            OnPropertyChanged(nameof(SampleRate));
+            BarCount = Math.Clamp(AppSettings.BarCount, 128, 512);
             PowCoe = AppSettings.PowCoe;
             VisualEffect = AppSettings.VisualEffect;
             SonicTheme = AppSettings.SonicTheme;
@@ -533,24 +556,44 @@ namespace WinExSpectrumTest.ViewModel
             SonicRotateSpeed = AppSettings.SonicRotateSpeed;
             SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled;
             SonicPeakIntensity = AppSettings.SonicPeakIntensity * 100f;
-            try
-            {
-                AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
-            }
-            catch
-            {
-                string assemblyLocation = Assembly.GetExecutingAssembly().Location;
-                if (string.IsNullOrEmpty(assemblyLocation))
-                {
-                    assemblyLocation = Environment.ProcessPath;
-                }
-                FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assemblyLocation);
-                AppVersion = $"{fvi.FileMajorPart}.{fvi.FileMinorPart}.{fvi.FileBuildPart}.{fvi.FilePrivatePart}";
-            }
-            finally {
-                _isInitialized = true;
-            }            
+            CoverPulseEnabled = AppSettings.CoverPulseEnabled;
+            _isInitialized = initialized;
         }
+
+        private bool _coverPulseEnabled = true;
+        public bool CoverPulseEnabled
+        {
+            get => _coverPulseEnabled;
+            set
+            {
+                if (SetProperty(ref _coverPulseEnabled, value) && _isInitialized)
+                    AppSettings.CoverPulseEnabled = value;
+            }
+        }
+
+        public static bool IsBackdrop(string current, string option) => current == option;
+
+        [RelayCommand]
+        private async Task OpenOriginalSoundAsync()
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri("originalsoundhqplayer:"),
+                new Windows.System.LauncherOptions
+                {
+                    FallbackUri = new Uri("ms-windows-store://pdp/?ProductId=9NFW1RPPT999")
+                });
+        }
+
+        [RelayCommand]
+        private void ShowSettings() => WinExSpectrumTest.Helper.WindowHelper.OpenWindow<WinExSpectrumTest.View.SettingWindow>();
+
+        [RelayCommand]
+        private void NextEffect() => App.MainWindow?.SwitchEffect(1);
+
+        [RelayCommand]
+        private void PreviousEffect() => App.MainWindow?.SwitchEffect(-1);
+
+        [RelayCommand]
+        private void PersistSettings() => DataJsonService.SaveSettingNow();
 
         public async Task SaveSettings()
         {

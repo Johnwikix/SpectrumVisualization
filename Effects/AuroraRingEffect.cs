@@ -379,10 +379,14 @@ namespace WinExSpectrumTest.Effects
             _textLayerDirty = true;
         }
 
+        private int _mappedSampleRate;
+
         private void EnsureBandMapping()
         {
             int requested = Math.Clamp(AppSettings.BarCount, 32, SpectrumAnalyzer.BandCount);
-            if (requested == _barCount && _smoothed.Length > 0) return;
+            int sampleRate = _services.Analyzer.SampleRate;
+            if (requested == _barCount && _mappedSampleRate == sampleRate && _smoothed.Length > 0) return;
+            _mappedSampleRate = sampleRate;
 
             _barCount = requested;
             _half = _barCount / 2;
@@ -454,7 +458,7 @@ namespace WinExSpectrumTest.Effects
                 // 避免低频束与高频束之间出现硬落差
                 float tilt = 0.7f + 0.6f * _barT[i];
                 v *= tilt;
-                if (v > 1f) v = 1f;
+                v = MathF.Pow(Math.Clamp(v, 0f, 1f), 100f / Math.Clamp(AppSettings.PowCoe, 50, 500));
                 float s = _smoothed[i];
                 s = s * smoothing + v * (1f - smoothing);
                 _smoothed[i] = s;
@@ -729,7 +733,7 @@ namespace WinExSpectrumTest.Effects
             if (_albumArt == null || _clipCircle == null) return;
             // Quantize the pulse radius so the clip geometry is only rebuilt when the
             // quantized value flips (avoids allocating a new geometry every frame).
-            float radius = MathF.Round(_albumRadius * (1f + Math.Clamp(_bass, 0f, 1f) * 0.05f) * 2f) * 0.5f;
+            float radius = MathF.Round(_albumRadius * (1f + (AppSettings.CoverPulseEnabled ? Math.Clamp(_bass, 0f, 1f) * 0.05f : 0f)) * 2f) * 0.5f;
             if (_clipDirty || _clipCircleRadius != radius)
             {
                 _clipCircle?.Dispose();
