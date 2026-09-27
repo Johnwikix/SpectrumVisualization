@@ -1,0 +1,11 @@
+PASS: image decode, scale overlap, transition completion and outgoing bitmap release
+PASS: default: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: fade: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: wipe: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: blur: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: elastic: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: motion-blur: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: pivot: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: zoom: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: none: CJK, combining marks, emoji, RTL, ellipsis, animated shadow, completion, duplicate metadata, opacity
+PASS: rapid changes, latest cover wins, empty session, resize, pending decode at disposal

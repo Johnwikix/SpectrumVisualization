@@ -1,0 +1,49 @@
+#nullable disable
+using AnimatedWin2dControls.Controls.AnimatedTextBlock.Enums;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.Canvas.Text;
+using System;
+using System.Collections.Generic;
+using Windows.UI;
+
+namespace AnimatedWin2dControls.Controls.AnimatedTextBlock;
+
+public interface ITextEffect
+{
+    /// <summary>
+    /// Gets or sets the length of time that the animation takes.
+    /// </summary>
+    TimeSpan AnimationDuration { get; set; }
+
+    /// <summary>
+    /// Gets or sets the amount of time to wait from applying the animation to every grapheme cluster.
+    /// </summary>
+    TimeSpan DelayPerCluster { get; set; }
+
+    /// <summary>
+    /// Implement this method to draw the texts.
+    /// Preserve the drawing session's incoming transform: formatted paragraphs
+    /// share one session and use it to position each paragraph on the canvas.
+    /// </summary>
+    /// <param name="oldText">The unchanged text.</param>
+    /// <param name="newText">The changed text.</param>
+    /// <param name="diffResults">A set of changes as a result of the calculated differences of the texts.</param>
+    /// <param name="oldTextLayout">The text layout instance of the unchanged text.</param>
+    /// <param name="newTextLayout">The text layout instance of the changed text.</param>
+    /// <param name="textFormat">The text format instance which describes desired font styles.</param>
+    /// <param name="textColor">The desired text color.</param>
+    /// <param name="gradientBrush">The gradient brush for rendering text with gradient colors.</param>
+    /// <param name="state">Current drawing state of the control.</param>
+    /// <param name="drawingSession">The drawing sessions used to issue text drawing commands.</param>
+    void DrawText(string oldText,
+        string newText,
+        List<TextDiffResult> diffResults,
+        CanvasTextLayout oldTextLayout,
+        CanvasTextLayout newTextLayout,
+        CanvasTextFormat textFormat,
+        Color textColor,
+        CanvasLinearGradientBrush gradientBrush,
+        AnimatedTextBlockRedrawState state,
+        CanvasDrawingSession drawingSession);
+}

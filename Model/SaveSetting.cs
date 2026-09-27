@@ -4,6 +4,7 @@ namespace WinExSpectrumTest.Model
     public class SaveSetting
     {
         public bool CoverPulseEnabled { get; set; } = true;
+        public string SmtcTextAnimation { get; set; } = "none";
         public bool WallpaperEnabled { get; set; } = false;
         public int Id { get; set; } = 1;
         public bool IsDrawPlainSpectrum { get; set; } = false;

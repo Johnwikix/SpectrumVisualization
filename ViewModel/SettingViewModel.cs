@@ -557,10 +557,23 @@ namespace WinExSpectrumTest.ViewModel
             SonicPeakColorEnabled = AppSettings.SonicPeakColorEnabled;
             SonicPeakIntensity = AppSettings.SonicPeakIntensity * 100f;
             CoverPulseEnabled = AppSettings.CoverPulseEnabled;
+            SmtcTextAnimation = AppSettings.SmtcTextAnimation;
             _isInitialized = initialized;
         }
 
         private bool _coverPulseEnabled = true;
+        private string _smtcTextAnimation = "none";
+        public string SmtcTextAnimation
+        {
+            get => _smtcTextAnimation;
+            set
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                if (SetProperty(ref _smtcTextAnimation, value) && _isInitialized)
+                    AppSettings.SmtcTextAnimation = value;
+            }
+        }
+
         public bool CoverPulseEnabled
         {
             get => _coverPulseEnabled;

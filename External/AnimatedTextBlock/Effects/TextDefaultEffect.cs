@@ -1,0 +1,243 @@
+#nullable disable
+using AnimatedWin2dControls.Controls.AnimatedTextBlock.Enums;
+using AnimatedWin2dControls.Controls.AnimatedTextBlock.Internals;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.Canvas.Text;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using Windows.UI;
+
+namespace AnimatedWin2dControls.Controls.AnimatedTextBlock.Effects;
+
+public partial class TextDefaultEffect : ITextEffect
+{
+    public TimeSpan AnimationDuration { get; set; } = TimeSpan.FromMilliseconds(800);
+
+    public TimeSpan DelayPerCluster { get; set; } = TimeSpan.FromMilliseconds(10);
+
+    public void DrawText(string oldText,
+        string newText,
+        List<TextDiffResult> diffResults,
+        CanvasTextLayout oldTextLayout,
+        CanvasTextLayout newTextLayout,
+        CanvasTextFormat textFormat,
+        Color textColor,
+        CanvasLinearGradientBrush gradientBrush,
+        AnimatedTextBlockRedrawState state,
+        CanvasDrawingSession drawingSession)
+    {
+        if (diffResults == null || newTextLayout == null)
+            return;
+
+        var ds = drawingSession;
+
+        if (state == AnimatedTextBlockRedrawState.Idle)
+        {
+            DrawIdle(ds, oldTextLayout, newTextLayout, textFormat, textColor, gradientBrush);
+            return;
+        }
+
+        for (int i = 0; i < diffResults.Count; i++)
+        {
+            var diffResult = diffResults[i];
+
+            switch (diffResult.Type)
+            {
+                case AnimatedTextBlockDiffOperationType.Insert:
+                    DrawInsert(ds,
+                        diffResult.OldGlyphCluster,
+                        diffResult.NewGlyphCluster,
+                        oldTextLayout, newTextLayout,
+                        textFormat, textColor, gradientBrush);
+                    break;
+
+                case AnimatedTextBlockDiffOperationType.Remove:
+                    DrawRemove(ds,
+                        diffResult.OldGlyphCluster,
+                        diffResult.NewGlyphCluster,
+                        oldTextLayout, newTextLayout,
+                        textFormat, textColor, gradientBrush);
+                    break;
+
+                case AnimatedTextBlockDiffOperationType.Stay:
+                case AnimatedTextBlockDiffOperationType.Move:
+                    DrawMove(ds,
+                        diffResult.OldGlyphCluster,
+                        diffResult.NewGlyphCluster,
+                        oldTextLayout, newTextLayout,
+                        textFormat, textColor, gradientBrush);
+                    break;
+
+                case AnimatedTextBlockDiffOperationType.Update:
+                    DrawUpdate(ds,
+                        diffResult.OldGlyphCluster,
+                        diffResult.NewGlyphCluster,
+                        oldTextLayout, newTextLayout,
+                        textFormat, textColor, gradientBrush);
+                    break;
+            }
+        }
+    }
+
+    // ── 各操作类型的绘制方法 ──────────────────────────────────────────────
+
+    private void DrawIdle(CanvasDrawingSession ds,
+        CanvasTextLayout oldTextLayout,
+        CanvasTextLayout newTextLayout,
+        CanvasTextFormat textFormat,
+        Color textColor,
+        CanvasLinearGradientBrush gradientBrush)
+    {
+        if (newTextLayout == null) return;
+
+        try
+        {
+            ds.DrawTextLayout(newTextLayout, 0, 0, textColor);
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException || ex is ArgumentException) { }
+    }
+
+    private void DrawInsert(CanvasDrawingSession ds,
+    GraphemeCluster oldCluster, GraphemeCluster newCluster,
+    CanvasTextLayout oldTextLayout, CanvasTextLayout newTextLayout,
+    CanvasTextFormat textFormat, Color textColor,
+    CanvasLinearGradientBrush gradientBrush)
+    {
+        var originalTransform = ds.Transform;
+        if (newCluster == null || newTextLayout == null) return;
+
+        float p = Easing.UpdateProgress(newCluster.Progress, Easing.EasingFunction.CubicOut);
+        if (p <= 0f) return; // 完全透明时跳过绘制
+
+        // 用调色 alpha 替代 CreateLayer（避免离屏 RT）
+        var c = Color.FromArgb((byte)(textColor.A * p), textColor.R, textColor.G, textColor.B);
+
+        ds.Transform = (Matrix3x2.CreateScale(p,
+            new Vector2(
+                (float)(newCluster.LayoutBounds.X + newCluster.LayoutBounds.Width * 0.5),
+                (float)newCluster.LayoutBounds.Bottom))) * originalTransform;
+
+        ShapedText.Draw(ds, newCluster,
+            (float)newCluster.DrawBounds.X,
+            (float)newCluster.DrawBounds.Y,
+            c);
+
+        ds.Transform = originalTransform;
+    }
+
+    private void DrawRemove(CanvasDrawingSession ds,
+        GraphemeCluster oldCluster, GraphemeCluster newCluster,
+        CanvasTextLayout oldTextLayout, CanvasTextLayout newTextLayout,
+        CanvasTextFormat textFormat, Color textColor,
+        CanvasLinearGradientBrush gradientBrush)
+    {
+        var originalTransform = ds.Transform;
+        if (oldCluster == null || oldTextLayout == null) return;
+
+        float p = Easing.UpdateProgress(oldCluster.Progress, Easing.EasingFunction.CubicOut);
+        float alpha = 1f - p;
+        if (alpha <= 0f) return;
+
+        var c = Color.FromArgb((byte)(textColor.A * alpha), textColor.R, textColor.G, textColor.B);
+
+        ds.Transform = (Matrix3x2.CreateScale(alpha,
+            new Vector2(
+                (float)(oldCluster.LayoutBounds.X + oldCluster.LayoutBounds.Width * 0.5),
+                (float)oldCluster.LayoutBounds.Bottom))) * originalTransform;
+
+        ShapedText.Draw(ds, oldCluster,
+            (float)oldCluster.DrawBounds.X,
+            (float)oldCluster.DrawBounds.Y,
+            c);
+
+        ds.Transform = originalTransform;
+    }
+
+    private void DrawMove(CanvasDrawingSession ds,
+    GraphemeCluster oldCluster, GraphemeCluster newCluster,
+    CanvasTextLayout oldTextLayout, CanvasTextLayout newTextLayout,
+    CanvasTextFormat textFormat, Color textColor,
+    CanvasLinearGradientBrush gradientBrush)
+    {
+        if (oldCluster == null || newCluster == null) return;
+        if (oldTextLayout == null || newTextLayout == null) return;
+
+        float p = Easing.UpdateProgress(oldCluster.Progress, Easing.EasingFunction.CubicOut);
+        if (p <= 0f)
+        {
+            // 还没开始动画，画在原位
+            ShapedText.Draw(ds, newCluster,
+                (float)oldCluster.DrawBounds.X,
+                (float)oldCluster.DrawBounds.Y,
+                textColor);
+            return;
+        }
+
+        var oX = oldCluster.DrawBounds.X;
+        var oY = oldCluster.DrawBounds.Y;
+        var dX = newCluster.DrawBounds.X - oX;
+        var dY = newCluster.DrawBounds.Y - oY;
+
+        ShapedText.Draw(ds, newCluster,
+            (float)(oX + dX * p),
+            (float)(oY + dY * p),
+            textColor);
+    }
+
+    private void DrawUpdate(CanvasDrawingSession ds,
+        GraphemeCluster oldCluster, GraphemeCluster newCluster,
+        CanvasTextLayout oldTextLayout, CanvasTextLayout newTextLayout,
+        CanvasTextFormat textFormat, Color textColor,
+        CanvasLinearGradientBrush gradientBrush)
+    {
+        var originalTransform = ds.Transform;
+        if (oldCluster == null || newCluster == null) return;
+        if (oldTextLayout == null || newTextLayout == null) return;
+
+        float oldP = Easing.UpdateProgress(oldCluster.Progress, Easing.EasingFunction.CubicOut);
+        float newP = Easing.UpdateProgress(newCluster.Progress, Easing.EasingFunction.CubicOut);
+
+        // 旧字符：淡出 + 缩小，alpha = 1-oldP
+        float oldAlpha = 1f - oldP;
+        if (oldAlpha > 0f)
+        {
+            var oldColor = Color.FromArgb(
+                (byte)(textColor.A * oldAlpha),
+                textColor.R, textColor.G, textColor.B);
+
+            ds.Transform = (Matrix3x2.CreateScale(oldAlpha,
+                new Vector2(
+                    (float)(oldCluster.LayoutBounds.X + oldCluster.LayoutBounds.Width * 0.5),
+                    (float)oldCluster.LayoutBounds.Bottom))) * originalTransform;
+
+            ShapedText.Draw(ds, oldCluster,
+                (float)oldCluster.DrawBounds.X,
+                (float)oldCluster.DrawBounds.Y,
+                oldColor);
+
+            ds.Transform = originalTransform;
+        }
+
+        // 新字符：淡入 + 放大，alpha = newP
+        if (newP > 0f)
+        {
+            var newColor = Color.FromArgb(
+                (byte)(textColor.A * newP),
+                textColor.R, textColor.G, textColor.B);
+
+            ds.Transform = (Matrix3x2.CreateScale(newP,
+                new Vector2(
+                    (float)(newCluster.LayoutBounds.X + newCluster.LayoutBounds.Width * 0.5),
+                    (float)newCluster.LayoutBounds.Bottom))) * originalTransform;
+
+            ShapedText.Draw(ds, newCluster,
+                (float)newCluster.DrawBounds.X,
+                (float)newCluster.DrawBounds.Y,
+                newColor);
+
+            ds.Transform = originalTransform;
+        }
+    }
+}

@@ -18,6 +18,8 @@ namespace WinExSpectrumTest.Model
 
         private static bool _CoverPulseEnabled = true;
         public static bool CoverPulseEnabled { get => _CoverPulseEnabled; set => Set(ref _CoverPulseEnabled, value); }
+        private static string _SmtcTextAnimation = "none";
+        public static string SmtcTextAnimation { get => _SmtcTextAnimation; set => Set(ref _SmtcTextAnimation, value); }
         private static bool _IsLocked = false;
         public static bool IsLocked { get => _IsLocked; set => Set(ref _IsLocked, value); }
         private static bool _WallpaperEnabled;

@@ -21,9 +21,8 @@ namespace WinExSpectrumTest.Effects
     /// Redesigned default effect page ("Aurora Ring"). Keeps the SMTC album art and
     /// track info of the legacy panel, but rebuilds the visuals around it:
     /// a circular timeline progress ring, a log-mapped radial spectrum with peak
-    /// caps and beat ripples, plus the optional plain bar mode. All per-frame state
-    /// is preallocated; text/geometry objects are only rebuilt when the track or
-    /// the canvas size actually changes.
+    /// caps and beat ripples, plus the optional plain bar mode. Audio buffers and
+    /// text layouts are cached; optional text effects run only during transitions.
     /// </summary>
     public sealed class AuroraRingEffect : IVisualizerEffect
     {
@@ -41,8 +40,7 @@ namespace WinExSpectrumTest.Effects
 
         // Audio state (render thread only).
         private int _barCount = 64;
-        private int _half = 32;
-        private float[] _bandPos = [];          // 每根条的对数频率边界（分数频段下标，镜像映射）
+        private readonly RadialSpectrumState _spectrum = new();
         private float[] _barT = [];             // 每根条在半圆内的频率位置（0 低频 → 1 高频）
         private int _bassBandEnd = 2;
         private float[] _smoothed = [];
@@ -67,6 +65,19 @@ namespace WinExSpectrumTest.Effects
         private TimeSpan _timelineBase;
         private float _textFade;
         private CanvasBitmap? _albumArt;
+        private CanvasBitmap? _previousAlbumArt;
+        private float _coverTransition = 1f;
+        private const float CoverTransitionSeconds = 0.35f;
+        private readonly object _mediaGate = new();
+        private bool _disposed;
+        private int _thumbnailVersion;
+        private MediaChange? _pendingMedia;
+        private CoverChange? _pendingCover;
+        private sealed record MediaChange(string? Title, string? Artist, IRandomAccessStreamReference? Thumbnail, int Version);
+        private sealed record CoverChange(CanvasBitmap? Bitmap, Color Primary, Color[] Palette);
+        private string _textAnimation = "none";
+        private bool _animateTextChange;
+        private float _lastFontOpacity = -1;
         // 封面均色：节拍涟漪圆环的着色源
         private Color _primary = Color.FromArgb(255, 90, 170, 255);
         // 从封面提取的调色板（按色相排序），频谱条沿频率做渐变着色
@@ -87,8 +98,10 @@ namespace WinExSpectrumTest.Effects
         private CanvasTextFormat _titleFormat = null!;
         private CanvasTextFormat _artistFormat = null!;
         private CanvasTextFormat _timeFormat = null!;
-        private CanvasTextLayout? _titleLayout;
-        private CanvasTextLayout? _artistLayout;
+        private readonly AnimatedTrackText _titleText = new();
+        private readonly AnimatedTrackText _artistText = new();
+        private CanvasTextLayout? _titleLayout => _titleText.Layout;
+        private CanvasTextLayout? _artistLayout => _artistText.Layout;
         private CanvasTextLayout? _timeLayout;
         private CanvasRenderTarget? _textLayer;          // 白色文字离屏层（软阴影源）
         private bool _textLayerDirty = true;
@@ -152,14 +165,7 @@ namespace WinExSpectrumTest.Effects
             MediaInfoService media = _services.Media;
             if (media.CurrentTitle is not null || media.CurrentArtist is not null)
             {
-                _title = media.CurrentTitle;
-                _artist = media.CurrentArtist;
-                _textFade = 1f;
-                _layoutsDirty = true;
-                if (media.CurrentThumbnail != null)
-                {
-                    LoadThumbnail(media.CurrentThumbnail);
-                }
+                OnMediaTextChanged(media.CurrentTitle, media.CurrentArtist, media.CurrentThumbnail);
             }
             _isPlaying = media.IsPlaying;
             _timelineBase = media.Position;
@@ -204,18 +210,55 @@ namespace WinExSpectrumTest.Effects
 
         private void OnMediaTextChanged(string? title, string? artist, IRandomAccessStreamReference? thumbnail)
         {
-            // 内容相同的重复推送直接忽略：每次推送都会清零 _textFade 并重载封面，
-            // 高频重复推送（会话抖动/重绑）会让文字永远停在淡入起点（表现为消失）
-            if (title == _title && artist == _artist && thumbnail == _lastThumbnailRef) return;
-            _lastThumbnailRef = thumbnail;
-            _control.DispatcherQueue.TryEnqueue(() =>
+            lock (_mediaGate)
             {
-                _title = title;
-                _artist = artist;
-                _textFade = 0f;
-                _layoutsDirty = true;
-                LoadThumbnail(thumbnail);
-            });
+                if (_disposed) return;
+                if (_pendingMedia is { } pending && pending.Title == title && pending.Artist == artist
+                    && pending.Thumbnail == thumbnail) return;
+                if (_pendingMedia == null && title == _title && artist == _artist && thumbnail == _lastThumbnailRef) return;
+                _pendingMedia = new MediaChange(title, artist, thumbnail, ++_thumbnailVersion);
+            }
+        }
+
+        private void ApplyMediaChanges()
+        {
+            MediaChange? change;
+            lock (_mediaGate)
+            {
+                if (_disposed) return;
+                change = _pendingMedia;
+                _pendingMedia = null;
+                if (change != null)
+                {
+                    bool textChanged = _title != change.Title || _artist != change.Artist;
+                    _title = change.Title;
+                    _artist = change.Artist;
+                    _lastThumbnailRef = change.Thumbnail;
+                    if (textChanged)
+                    {
+                        _textFade = _textAnimation == "none" ? 0 : 1;
+                        _animateTextChange = true;
+                        _layoutsDirty = true;
+                    }
+                    // A newer track invalidates any decoded cover waiting for this frame.
+                    _pendingCover?.Bitmap?.Dispose();
+                    _pendingCover = null;
+                }
+                if (_pendingCover is { } cover)
+                {
+                    _pendingCover = null;
+                    _previousAlbumArt?.Dispose();
+                    _previousAlbumArt = _albumArt;
+                    _albumArt = cover.Bitmap;
+                    _coverTransition = 0;
+                    if (_albumArt != null)
+                    {
+                        _primary = cover.Primary;
+                        _palette = cover.Palette;
+                    }
+                }
+            }
+            if (change != null) LoadThumbnail(change.Thumbnail, change.Version);
         }
 
         private void OnPlaybackChanged(bool playing)
@@ -238,7 +281,7 @@ namespace WinExSpectrumTest.Effects
             });
         }
 
-        private async void LoadThumbnail(IRandomAccessStreamReference? thumbnail)
+        private async void LoadThumbnail(IRandomAccessStreamReference? thumbnail, int version)
         {
             CanvasBitmap? bitmap = null;
             Color primary = default;
@@ -353,15 +396,19 @@ namespace WinExSpectrumTest.Effects
             }
             catch (Exception)
             {
+                bitmap?.Dispose();
                 bitmap = null;
             }
 
-            _albumArt?.Dispose();
-            _albumArt = bitmap;
-            if (bitmap != null)
+            lock (_mediaGate)
             {
-                _primary = primary;
-                _palette = palette;
+                if (_disposed || version != _thumbnailVersion)
+                {
+                    bitmap?.Dispose();
+                    return;
+                }
+                _pendingCover?.Bitmap?.Dispose();
+                _pendingCover = new CoverChange(bitmap, primary, palette);
             }
         }
 
@@ -379,56 +426,44 @@ namespace WinExSpectrumTest.Effects
             _textLayerDirty = true;
         }
 
-        private int _mappedSampleRate;
-
         private void EnsureBandMapping()
         {
-            int requested = Math.Clamp(AppSettings.BarCount, 32, SpectrumAnalyzer.BandCount);
-            int sampleRate = _services.Analyzer.SampleRate;
-            if (requested == _barCount && _mappedSampleRate == sampleRate && _smoothed.Length > 0) return;
-            _mappedSampleRate = sampleRate;
-
-            _barCount = requested;
-            _half = _barCount / 2;
-            _smoothed = new float[_barCount];
-            _peaks = new float[_barCount];
-            _bandPos = new float[_barCount + 1];
-            _barT = new float[_barCount];
-            // 镜像对数频率映射（左右两半各自 40 Hz .. 16 kHz）：
-            // 圆环首尾（条 0 与条 N-1）都是低频、圆心正上方是高频——低频接低频、
-            // 高频接高频，环形收口处不再有低→高硬跳变；
-            // 左半圆驱动自左声道、右半圆驱动自右声道（双声道镜像频谱）。
-            // 条带边界存"分数频段下标"：低频处多根条共用一个线性频段，整数取整
-            // 会让相邻条同高复制；分数位置 + 邻段插值让相邻条连续变化。
-            const float minFreq = 40f;
-            float nyquist = Math.Max(_services.Analyzer.SampleRate, 8000) * 0.5f;
-            float maxFreq = MathF.Min(16000f, nyquist * 0.9f);
-            for (int i = 0; i <= _barCount; i++)
-            {
-                // 半圆内位置 t：左半 0→1（低→高），右半 1→0（高→低），i==half 为 1
-                float t = i <= _half
-                    ? (float)i / _half
-                    : (float)(_barCount - i) / _half;
-                t = Math.Clamp(t, 0f, 1f);
-                float freq = minFreq * MathF.Pow(maxFreq / minFreq, t);
-                _bandPos[i] = freq / nyquist * SpectrumAnalyzer.BandCount;
-                if (i < _barCount) _barT[i] = t;
-            }
+            int rate = _services.Analyzer.SampleRate;
+            _spectrum.Configure(AppSettings.BarCount, rate, SpectrumAnalyzer.BandCount);
+            _barCount = _spectrum.Levels.Length;
+            _smoothed = _spectrum.Levels;
+            _peaks = _spectrum.Peaks;
+            _barT = _spectrum.FrequencyPositions;
+            float nyquist = Math.Max(rate, 8000) * 0.5f;
             _bassBandEnd = Math.Clamp((int)(250f / nyquist * SpectrumAnalyzer.BandCount), 1, SpectrumAnalyzer.BandCount - 1);
-        }
-
-        /// <summary>按分数位置在相邻线性频段间插值取样。</summary>
-        private static float SampleBands(ReadOnlySpan<float> bands, float pos)
-        {
-            int b0 = (int)pos;
-            if (b0 >= SpectrumAnalyzer.BandCount - 1) return bands[SpectrumAnalyzer.BandCount - 1];
-            float frac = pos - b0;
-            return bands[b0] + (bands[b0 + 1] - bands[b0]) * frac;
         }
 
         public void Update(double elapsedSeconds)
         {
             float dt = (float)Math.Clamp(elapsedSeconds, 0.0, 0.1);
+            string textAnimation = AnimatedTrackText.NormalizeEffect(AppSettings.SmtcTextAnimation);
+            if (_textAnimation != textAnimation)
+            {
+                _textAnimation = textAnimation;
+                _textFade = 1;
+                _layoutsDirty = true;
+            }
+            ApplyMediaChanges();
+            if (_coverTransition < 1)
+            {
+                _coverTransition = Math.Min(1, _coverTransition + dt / CoverTransitionSeconds);
+                if (_coverTransition >= 1)
+                {
+                    _previousAlbumArt?.Dispose();
+                    _previousAlbumArt = null;
+                }
+            }
+            if (_titleText.Update(dt) | _artistText.Update(dt)) _textLayerDirty = true;
+            if (_lastFontOpacity != AppSettings.FontOpacity)
+            {
+                _lastFontOpacity = AppSettings.FontOpacity;
+                _textLayerDirty = true;
+            }
             EnsureBandMapping();
             ReadOnlySpan<float> bandsL = _services.Analyzer.LatestBandsLeft;
             ReadOnlySpan<float> bandsR = _services.Analyzer.LatestBandsRight;
@@ -437,43 +472,8 @@ namespace WinExSpectrumTest.Effects
             float smoothing = Math.Clamp(AppSettings.SmoothingFactor, 0f, 0.99f);
             float bassSum = 0f;
 
-            for (int i = 0; i < _barCount; i++)
-            {
-                // 镜像布局：左半圆取左声道、右半圆取右声道；
-                // 右半的频段区间向低频方向递减，取 min/max 归一为 [低, 高]。
-                ReadOnlySpan<float> bands = i < _half ? bandsL : bandsR;
-                float pa = _bandPos[i];
-                float pb = _bandPos[i + 1];
-                float p0 = MathF.Min(pa, pb);
-                float p1 = MathF.Max(MathF.Max(pa, pb), p0 + 0.001f);
-                float v = MathF.Max(SampleBands(bands, p0), SampleBands(bands, p1)) * gain;
-                int b0 = (int)p0 + 1;
-                int b1 = Math.Min((int)p1, SpectrumAnalyzer.BandCount - 1);
-                for (int b = b0; b <= b1; b++)
-                {
-                    float bv = bands[b] * gain;
-                    if (bv > v) v = bv;
-                }
-                // 高频能量天然偏低：沿频率做轻微倾斜补偿（t 为半圆内频率位置），
-                // 避免低频束与高频束之间出现硬落差
-                float tilt = 0.7f + 0.6f * _barT[i];
-                v *= tilt;
-                v = MathF.Pow(Math.Clamp(v, 0f, 1f), 100f / Math.Clamp(AppSettings.PowCoe, 50, 500));
-                float s = _smoothed[i];
-                s = s * smoothing + v * (1f - smoothing);
-                _smoothed[i] = s;
-                float p = _peaks[i] - dt * 0.55f;
-                _peaks[i] = s > p ? s : p;
-            }
-
-            // 频域空间平滑（3 抽头）：抹平相邻条之间的幅度硬接，让低频束→高频束连续过渡
-            float leftNeighbor = _smoothed[0];
-            for (int i = 1; i < _barCount - 1; i++)
-            {
-                float current = _smoothed[i];
-                _smoothed[i] = leftNeighbor * 0.25f + current * 0.5f + _smoothed[i + 1] * 0.25f;
-                leftNeighbor = current;
-            }
+            _spectrum.Update(bandsL, bandsR, gain, smoothing,
+                100f / Math.Clamp(AppSettings.PowCoe, 50, 500), dt);
 
             // 节拍检测用混音频段（低频两声道几乎一致，与改造前行为相同）；
             // 低频能量驱动节拍涟漪与封面的呼吸缩放。
@@ -545,6 +545,13 @@ namespace WinExSpectrumTest.Effects
                     _textLayerDirty = true;
                 }
             }
+            else if (_timeLayout != null)
+            {
+                _timeLayout.Dispose();
+                _timeLayout = null;
+                _lastTimeSecond = -1;
+                _textLayerDirty = true;
+            }
         }
 
         private void RebuildTextLayouts()
@@ -556,15 +563,12 @@ namespace WinExSpectrumTest.Effects
             _artistFormat.FontSize = fontSize * 0.82f;
             _timeFormat.FontSize = fontSize * 0.68f;
 
-            _titleLayout?.Dispose();
-            _artistLayout?.Dispose();
+            _titleText.SetText(Device, _title, _titleFormat, maxTextWidth, fontSize * 1.4f,
+                _textAnimation, _animateTextChange);
+            _artistText.SetText(Device, _artist, _artistFormat, maxTextWidth, fontSize * 1.2f,
+                _textAnimation, _animateTextChange);
+            _animateTextChange = false;
             _timeLayout?.Dispose();
-            _titleLayout = string.IsNullOrEmpty(_title)
-                ? null
-                : new CanvasTextLayout(Device, _title, _titleFormat, maxTextWidth, fontSize * 1.4f);
-            _artistLayout = string.IsNullOrEmpty(_artist)
-                ? null
-                : new CanvasTextLayout(Device, _artist, _artistFormat, maxTextWidth, fontSize * 1.2f);
             _timeLayout = null;
             _lastTimeSecond = -1;
             _textLayerDirty = true;
@@ -730,7 +734,7 @@ namespace WinExSpectrumTest.Effects
 
         private void DrawAlbumArt(CanvasDrawingSession session)
         {
-            if (_albumArt == null || _clipCircle == null) return;
+            if ((_albumArt == null && _previousAlbumArt == null) || _clipCircle == null) return;
             // Quantize the pulse radius so the clip geometry is only rebuilt when the
             // quantized value flips (avoids allocating a new geometry every frame).
             float radius = MathF.Round(_albumRadius * (1f + (AppSettings.CoverPulseEnabled ? Math.Clamp(_bass, 0f, 1f) * 0.05f : 0f)) * 2f) * 0.5f;
@@ -742,7 +746,25 @@ namespace WinExSpectrumTest.Effects
                 _clipDirty = false;
             }
 
-            float aspect = (float)_albumArt.SizeInPixels.Width / _albumArt.SizeInPixels.Height;
+            float progress = 1f - MathF.Pow(1f - _coverTransition, 3);
+            Matrix3x2 transform = session.Transform;
+            try
+            {
+                session.Transform = Matrix3x2.CreateRotation(_rotation * 0.25f, new Vector2(_centerX, _centerY)) * transform;
+                using (session.CreateLayer(1f, _clipCircle))
+                {
+                    // ImageSwitcher.ScaleInOut: old 1 → .8, new .85 → 1, over 350 ms.
+                    DrawCover(session, _previousAlbumArt, radius, 1f - 0.2f * progress, 1f - progress);
+                    DrawCover(session, _albumArt, radius, 0.85f + 0.15f * progress, progress);
+                }
+            }
+            finally { session.Transform = transform; }
+        }
+
+        private void DrawCover(CanvasDrawingSession session, CanvasBitmap? bitmap, float radius, float scale, float opacity)
+        {
+            if (bitmap == null || opacity <= 0) return;
+            float aspect = (float)(bitmap.Size.Width / bitmap.Size.Height);
             float drawWidth, drawHeight;
             if (aspect > 1f)
             {
@@ -755,17 +777,19 @@ namespace WinExSpectrumTest.Effects
                 drawHeight = drawWidth / aspect;
             }
 
-            session.Transform = Matrix3x2.CreateRotation(_rotation * 0.25f, new Vector2(_centerX, _centerY)) * session.Transform;
-            using (session.CreateLayer(1f, _clipCircle))
+            Matrix3x2 transform = session.Transform;
+            try
             {
+                session.Transform = Matrix3x2.CreateScale(scale, new Vector2(_centerX, _centerY)) * transform;
+                using var clip = session.CreateLayer(1f, _clipCircle);
                 session.DrawImage(
-                    _albumArt,
+                    bitmap,
                     new Rect(_centerX - drawWidth * 0.5f, _centerY - drawHeight * 0.5f, drawWidth, drawHeight),
-                    new Rect(0, 0, _albumArt.SizeInPixels.Width, _albumArt.SizeInPixels.Height),
-                    AppSettings.CoverOpacity,
+                    new Rect(0, 0, bitmap.Size.Width, bitmap.Size.Height),
+                    AppSettings.CoverOpacity * opacity,
                     CanvasImageInterpolation.Linear);
             }
-            session.Transform = Matrix3x2.CreateRotation(_rotation * -0.25f, new Vector2(_centerX, _centerY)) * session.Transform;
+            finally { session.Transform = transform; }
         }
 
         private void DrawTrackInfo(CanvasDrawingSession session)
@@ -809,13 +833,13 @@ namespace WinExSpectrumTest.Effects
 
             if (_titleLayout != null)
             {
-                session.DrawTextLayout(_titleLayout, titlePos, textColor);
+                _titleText.Draw(session, titlePos, textColor);
             }
             if (_artistLayout != null)
             {
                 Color artistColor = textColor;
                 artistColor.A = (byte)(alpha * 0.62f);
-                session.DrawTextLayout(_artistLayout, artistPos, artistColor);
+                _artistText.Draw(session, artistPos, artistColor);
             }
 
             double duration = _services.Media.Duration.TotalSeconds;
@@ -838,18 +862,18 @@ namespace WinExSpectrumTest.Effects
             titlePos = _titleLayout != null
                 ? new Vector2(frameX, textY)
                 : default;
-            if (_titleLayout != null) textY += (float)_titleLayout.LayoutBounds.Bottom;
+            if (!string.IsNullOrEmpty(_title) || _titleText.IsAnimating) textY += _titleFormat.FontSize * 1.4f;
             artistPos = _artistLayout != null
                 ? new Vector2(frameX, textY)
                 : default;
-            if (_artistLayout != null) textY += (float)_artistLayout.LayoutBounds.Bottom;
+            if (!string.IsNullOrEmpty(_artist) || _artistText.IsAnimating) textY += _artistFormat.FontSize * 1.4f;
             timePos = _timeLayout != null
                 ? new Vector2(frameX, textY + 2f)
                 : default;
         }
 
         /// <summary>把全部文字以白色渲染进离屏层（阴影从其 alpha 生成）；布局/曲目/秒数/
-        /// 淡入变化时置脏。每秒至多重绘一次，尺寸内 GPU 开销可忽略。</summary>
+        /// 动画变化时置脏；静止时复用，过渡期间与前景文字使用同一动画进度。</summary>
         private void EnsureTextLayer()
         {
             if (_width <= 0 || _height <= 0) return;
@@ -872,11 +896,11 @@ namespace WinExSpectrumTest.Effects
             if (alpha == 0) return;
             Color white = Color.FromArgb(alpha, 255, 255, 255);
             GetTextPositions(out Vector2 titlePos, out Vector2 artistPos, out Vector2 timePos);
-            if (_titleLayout != null) s.DrawTextLayout(_titleLayout, titlePos, white);
+            if (_titleLayout != null) _titleText.Draw(s, titlePos, white);
             if (_artistLayout != null)
             {
                 white.A = (byte)(alpha * 0.62f);
-                s.DrawTextLayout(_artistLayout, artistPos, white);
+                _artistText.Draw(s, artistPos, white);
             }
             if (_timeLayout != null)
             {
@@ -1006,18 +1030,28 @@ namespace WinExSpectrumTest.Effects
 
         public void Dispose()
         {
+            lock (_mediaGate)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                ++_thumbnailVersion;
+                _pendingMedia = null;
+                _pendingCover?.Bitmap?.Dispose();
+                _pendingCover = null;
+            }
             _services.Media.MediaTextChanged -= OnMediaTextChanged;
             _services.Media.PlaybackChanged -= OnPlaybackChanged;
             _services.Media.TimelineChanged -= OnTimelineChanged;
             _adaptiveColorTimer?.Stop();
-            _titleLayout?.Dispose();
-            _artistLayout?.Dispose();
+            _titleText.Dispose();
+            _artistText.Dispose();
             _timeLayout?.Dispose();
             _clipCircle?.Dispose();
             _textLayer?.Dispose();
             _shadowInner?.Dispose();
             _shadowOuter?.Dispose();
             _albumArt?.Dispose();
+            _previousAlbumArt?.Dispose();
             _titleFormat.Dispose();
             _artistFormat.Dispose();
             _timeFormat.Dispose();
