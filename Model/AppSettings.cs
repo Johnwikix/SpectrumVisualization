@@ -74,6 +74,36 @@ namespace WinExSpectrumTest.Model
         private static string _VisualEffect = "aurora-ring";
         public static string VisualEffect { get => _VisualEffect; set => Set(ref _VisualEffect, value); }
 
+        private static bool _hdrEnabled;
+        public static bool HdrEnabled { get => _hdrEnabled; set => Set(ref _hdrEnabled, value); }
+        private static float _hdrWhiteNits = 200f;
+        public static float HdrWhiteNits
+        {
+            get => _hdrWhiteNits;
+            set
+            {
+                float white = float.IsFinite(value) ? Math.Clamp(value, 80f, 500f) : 200f;
+                // Publish a valid pair even to synchronous Changed subscribers.
+                bool peakChanged = _hdrPeakNits < white;
+                if (peakChanged) _hdrPeakNits = white;
+                Set(ref _hdrWhiteNits, white);
+                if (peakChanged) Changed?.Invoke(nameof(HdrPeakNits));
+            }
+        }
+        private static float _hdrPeakNits = 1000f;
+        public static float HdrPeakNits
+        {
+            get => _hdrPeakNits;
+            set
+            {
+                float peak = float.IsFinite(value) ? Math.Clamp(value, 80f, 4000f) : 1000f;
+                bool whiteChanged = _hdrWhiteNits > peak;
+                if (whiteChanged) _hdrWhiteNits = peak;
+                Set(ref _hdrPeakNits, peak);
+                if (whiteChanged) Changed?.Invoke(nameof(HdrWhiteNits));
+            }
+        }
+
         // Sonic Topography effect settings.
         private static string _SonicTheme = "nocturnal";
         public static string SonicTheme { get => _SonicTheme; set => Set(ref _SonicTheme, value); }

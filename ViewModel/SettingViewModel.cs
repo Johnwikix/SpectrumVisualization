@@ -16,6 +16,37 @@ namespace WinExSpectrumTest.ViewModel
         public string CopyrightNotice => $"© {DateTime.Now.Year} Sennpei Studio";
 
         private bool _isInitialized = false;
+        private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _hdrSaveTimer;
+
+        public bool HdrEnabled
+        {
+            get => AppSettings.HdrEnabled;
+            set => AppSettings.HdrEnabled = value;
+        }
+        public double HdrWhiteNits
+        {
+            get => AppSettings.HdrWhiteNits;
+            set => AppSettings.HdrWhiteNits = (float)value;
+        }
+        public double HdrPeakNits
+        {
+            get => AppSettings.HdrPeakNits;
+            set => AppSettings.HdrPeakNits = (float)value;
+        }
+        public string HdrWhiteLabel => $"{AppSettings.HdrWhiteNits:0} nit";
+        public string HdrPeakLabel => $"{AppSettings.HdrPeakNits:0} nit";
+        public string HdrStatusText => new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString(
+            WinExSpectrumTest.Rendering.HdrStatus.Mode switch
+            {
+                WinExSpectrumTest.Rendering.HdrOutputMode.Aurora => "HdrStatusAurora",
+                WinExSpectrumTest.Rendering.HdrOutputMode.Starting => "HdrStatusStarting",
+                WinExSpectrumTest.Rendering.HdrOutputMode.Active => "HdrStatusActive",
+                WinExSpectrumTest.Rendering.HdrOutputMode.Unavailable => "HdrStatusUnavailable",
+                WinExSpectrumTest.Rendering.HdrOutputMode.Failed => "HdrStatusFailed",
+                _ => "HdrStatusDisabled"
+            });
+        private void OnHdrStatusChanged() => OnPropertyChanged(nameof(HdrStatusText));
 
         private float _rotationSpeed = 10.0f;
         public float RotationSpeed
@@ -485,11 +516,16 @@ namespace WinExSpectrumTest.ViewModel
 
         public SettingViewModel(WinExSpectrumTest.Audio.SpectrumAnalyzer analyzer)
         {
+            _hdrSaveTimer = _dispatcher.CreateTimer();
+            _hdrSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _hdrSaveTimer.IsRepeating = false;
+            _hdrSaveTimer.Tick += async (_, _) => await DataJsonService.SaveSettingAsync();
             _analyzer = analyzer;
             var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             _analyzer.SampleRateChanged += () => dispatcher.TryEnqueue(() => OnPropertyChanged(nameof(SampleRate)));
             ReloadSettings();
             AppSettings.Changed += OnSettingsChanged;
+            WinExSpectrumTest.Rendering.HdrStatus.Changed += OnHdrStatusChanged;
             try
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
@@ -511,6 +547,20 @@ namespace WinExSpectrumTest.ViewModel
 
         private void OnSettingsChanged(string name)
         {
+            if (!_dispatcher.HasThreadAccess)
+            {
+                _dispatcher.TryEnqueue(() => OnSettingsChanged(name));
+                return;
+            }
+            if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits))
+            {
+                OnPropertyChanged(name);
+                OnPropertyChanged(nameof(HdrWhiteLabel));
+                OnPropertyChanged(nameof(HdrPeakLabel));
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
+                return;
+            }
             ReloadSettings();
         }
 

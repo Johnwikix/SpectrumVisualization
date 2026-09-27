@@ -12,6 +12,9 @@ namespace WinExSpectrumTest.Service
         public static async Task LoadSettingAsync()
         {
             var settings = await SettingManager.LoadSettingsAsync();
+            AppSettings.HdrPeakNits = settings.HdrPeakNits;
+            AppSettings.HdrWhiteNits = settings.HdrWhiteNits;
+            AppSettings.HdrEnabled = settings.HdrEnabled;
             AppSettings.CoverPulseEnabled = settings.CoverPulseEnabled;
             AppSettings.SmtcTextAnimation = Effects.AnimatedTrackText.NormalizeEffect(settings.SmtcTextAnimation);
             AppSettings.WallpaperEnabled = settings.WallpaperEnabled;
@@ -56,6 +59,9 @@ namespace WinExSpectrumTest.Service
         {
             return new SaveSetting
             {
+                HdrEnabled = AppSettings.HdrEnabled,
+                HdrWhiteNits = AppSettings.HdrWhiteNits,
+                HdrPeakNits = AppSettings.HdrPeakNits,
                 CoverPulseEnabled = AppSettings.CoverPulseEnabled,
                 SmtcTextAnimation = AppSettings.SmtcTextAnimation,
                 WallpaperEnabled = AppSettings.WallpaperEnabled,

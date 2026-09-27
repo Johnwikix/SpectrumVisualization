@@ -386,6 +386,8 @@ namespace WinExSpectrumTest
             MyCanvas.LoadEffect(id);
         }
 
+        internal System.Threading.Tasks.Task StopRenderingAsync() => MyCanvas.StopAsync();
+
         /// <summary>Cycles to the next/previous effect page.</summary>
         public void SwitchEffect(int direction)
         {

@@ -1,5 +1,4 @@
 using ComputeSharp;
-using ComputeSharp.D2D1;
 
 namespace WinExSpectrumTest.Effects.Sonic.Shaders
 {
@@ -10,17 +9,14 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
     /// (HeightFieldShader output), then applies the original fragment shader
     /// look: theme glow by elevation, warm/cool timbre blend, ripple and peak
     /// overrides, top-face edge glow and sparkle, aerial fog and distance fade.
-    /// Output is premultiplied so the result composites over the window backdrop.
+    /// Output is opaque linear Rec.709; the native compositor blends particles and encodes SDR/HDR10.
     /// </summary>
-    [D2DInputCount(1)]
-    [D2DInputComplex(0)]
-    [D2DRequiresScenePosition]
-
-    // TerrainPass supplies explicit LOD-0 sampling for this generated shader.
-    [D2DCompileOptions(D2D1CompileOptions.EnableStrictness | D2D1CompileOptions.OptimizationLevel3)]
-    [D2DEnableRuntimeCompilation]
-    [D2DGeneratedPixelShaderDescriptor]
+    [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
+    [GeneratedComputeShaderDescriptor]
     public readonly partial struct TerrainShader(
+        ReadOnlyBuffer<float4> data,
+        ReadWriteTexture2D<float4> fieldTexture,
+        ReadWriteTexture2D<float4> target,
         float3 cameraPosition,
         float3 cameraRight,
         float3 cameraUp,
@@ -31,14 +27,6 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float halfExtent,
         float barSize,
         float gridTexel,
-        float3 baseColor1,
-        float3 baseColor2,
-        float3 coolCore,
-        float3 coolEdge,
-        float3 warmCore,
-        float3 warmEdge,
-        float3 rippleColor,
-        float3 peakColor,
         float time,
         float warmth,
         float brightness,
@@ -48,15 +36,22 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float air,
         float glowIntensity,
         float peakEnabled,
-        float peakIntensity,
-        float dpiScale) : ID2D1PixelShader
+        float peakIntensity) : IComputeShader
     {
         private const float MaxTerrainHeight = 30f;
-        public float4 Execute()
+        public void Execute()
         {
-            // D2D reports the scene position in physical target pixels; the camera
-            // projection works in DIPs (targetSize is DIPs), so normalize first.
-            float2 pixel = D2D.GetScenePosition().XY / dpiScale;
+            float4 scene = Trace((float2)ThreadIds.XY + .5f);
+            // Match the existing SDR palette, then decode once for linear HDR composition.
+            float3 rgb = scene.RGB + Background().RGB * (1f - scene.W);
+            float3 hi = Hlsl.Pow(Hlsl.Max((rgb + .055f) / 1.055f, 0f), new float3(2.4f, 2.4f, 2.4f));
+            float3 lo = rgb / 12.92f;
+            float3 choose = Hlsl.Saturate((rgb - .04045f) * 1e6f);
+            target[ThreadIds.XY] = new float4(Hlsl.Lerp(lo, hi, choose), 1f);
+        }
+
+        private float4 Trace(float2 pixel)
+        {
             float2 uv01 = pixel / targetSize;
             float2 ndc = uv01 * 2f - 1f;
             ndc.Y = -ndc.Y;
@@ -123,11 +118,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             {
                 if (hit || dead) break;
 
-                // Sample in scene pixels: normalized UVs address the backing texture,
-                // which D2D may pad or tile independently of the logical grid.
-                float2 fieldUv = ((float2)cell + 0.5f) * gridTexel;
-                fieldUv = Hlsl.Clamp(fieldUv, new float2(gridTexel * 0.5f, gridTexel * 0.5f), new float2(1f - gridTexel * 0.5f, 1f - gridTexel * 0.5f));
-                float4 field = D2D.SampleInputAtPosition(0, fieldUv * gridSize * dpiScale);
+                float4 field = fieldTexture[cell];
 
                 float2 cellMin = new float2(-halfExtent + cell.X * cellSize, -halfExtent + cell.Y * cellSize);
                 float3 barMin = new float3(cellMin.X + pad, 0f, cellMin.Y + pad);
@@ -193,12 +184,11 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         {
             // Sky = theme base color 1, sRGB encoded (three.js outputColorSpace
             // equivalent: the original page background is `#uBaseColor1`).
-            return new float4(LinearToSrgb(baseColor1), 1f);
+            return new float4(LinearToSrgb(data[12].XYZ), 1f);
         }
 
-        // The original renders in linear space and three.js converts to sRGB on
-        // output. Win2D draws raw shader values, so the OETF must be applied here;
-        // without it the whole scene renders ~8x darker than the source material.
+        // The sky palette is linear; the legacy bar palette is display-referred.
+        // Preserve their relative brightness before converting the whole scene to linear.
         private static float3 LinearToSrgb(float3 c)
         {
             float3 hi = 1.055f * Hlsl.Pow(Hlsl.Max(c, 0f), new float3(1f / 2.4f, 1f / 2.4f, 1f / 2.4f)) - 0.055f;
@@ -232,23 +222,23 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
 
             // Timbre-driven palette blend.
             float warmBlend = Hlsl.SmoothStep(0f, 1f, warmth * 1.5f + (0.5f - centerDist / 80f));
-            float3 zoneCore = Hlsl.Lerp(coolCore, warmCore, warmBlend);
-            float3 zoneEdge = Hlsl.Lerp(coolEdge, warmEdge, warmBlend);
+            float3 zoneCore = Hlsl.Lerp(data[14].XYZ, data[16].XYZ, warmBlend);
+            float3 zoneEdge = Hlsl.Lerp(data[15].XYZ, data[17].XYZ, warmBlend);
             float3 targetGlow = Hlsl.Lerp(zoneCore, zoneEdge, Hlsl.Frac(rnd * 11f));
             float distFade = 1f - Hlsl.SmoothStep(40f, 75f, centerDist);
             targetGlow = Hlsl.Lerp(targetGlow, new float3(0.4f, 0.8f, 1f), brightness * 0.6f);
 
-            float3 currentGlow = Hlsl.Lerp(baseColor2, targetGlow, normElevation) * glowIntensity * distFade;
+            float3 currentGlow = Hlsl.Lerp(data[13].XYZ, targetGlow, normElevation) * glowIntensity * distFade;
 
             float normalBlend = rippleNormal * rippleNormal;
             float whiteBlend = rippleWhite * rippleWhite;
-            currentGlow = Hlsl.Lerp(currentGlow, rippleColor, normalBlend * 0.85f);
+            currentGlow = Hlsl.Lerp(currentGlow, data[18].XYZ, normalBlend * 0.85f);
             currentGlow = Hlsl.Lerp(currentGlow, new float3(1f, 1f, 1f), whiteBlend * 0.9f);
 
             float peakBlend = Hlsl.Pow(peak, 0.85f) * peakEnabled * peakIntensity;
-            currentGlow = Hlsl.Lerp(currentGlow, peakColor, Hlsl.Clamp(peakBlend, 0f, 1f) * 0.7f);
+            currentGlow = Hlsl.Lerp(currentGlow, data[19].XYZ, Hlsl.Clamp(peakBlend, 0f, 1f) * 0.7f);
 
-            float3 bodyColor = Hlsl.Lerp(baseColor1, baseColor2, relativeY * distFade);
+            float3 bodyColor = Hlsl.Lerp(data[12].XYZ, data[13].XYZ, relativeY * distFade);
 
             float3 finalColor;
 
@@ -265,7 +255,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
                     topIntensity += air * 2f * twinkleMultiplier;
                 }
 
-                finalColor = Hlsl.Lerp(baseColor2, currentGlow, topIntensity);
+                finalColor = Hlsl.Lerp(data[13].XYZ, currentGlow, topIntensity);
 
                 // Top-face edge glow (uv within the bar footprint).
                 float2 faceUv = (hit.XZ - barMin.XZ) / barSize;
@@ -296,20 +286,20 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
                 float sideGlow = Hlsl.SmoothStep(0.5f / verticalFalloff, 0f, distFromTop) * normElevation;
                 if (normElevation < 0.02f) sideGlow = 0f;
 
-                float3 sideGlowColor = Hlsl.Lerp(currentGlow, peakColor, Hlsl.Clamp(peakBlend * 0.4f, 0f, 1f));
+                float3 sideGlowColor = Hlsl.Lerp(currentGlow, data[19].XYZ, Hlsl.Clamp(peakBlend * 0.4f, 0f, 1f));
                 finalColor = Hlsl.Lerp(bodyColor, sideGlowColor, sideGlow * 1.5f);
 
                 float rimGlow = Hlsl.SmoothStep(0.03f, 0f, distFromTop) * normElevation;
-                finalColor += Hlsl.Lerp(currentGlow, peakColor, Hlsl.Clamp(peakBlend * 0.35f, 0f, 1f)) * rimGlow;
+                finalColor += Hlsl.Lerp(currentGlow, data[19].XYZ, Hlsl.Clamp(peakBlend * 0.35f, 0f, 1f)) * rimGlow;
             }
 
-            finalColor = Hlsl.Lerp(finalColor, peakColor, Hlsl.Clamp(peakBlend, 0f, 1f) * 0.15f);
-            finalColor += rippleColor * normalBlend * 0.4f;
+            finalColor = Hlsl.Lerp(finalColor, data[19].XYZ, Hlsl.Clamp(peakBlend, 0f, 1f) * 0.15f);
+            finalColor += data[18].XYZ * normalBlend * 0.4f;
             finalColor += new float3(1f, 1f, 1f) * whiteBlend * 0.7f;
 
             // Aerial perspective and distance fade.
             float aerialFog = Hlsl.SmoothStep(30f, 65f, centerDist);
-            float3 atmosphericColor = Hlsl.Lerp(baseColor1, baseColor2, 0.4f);
+            float3 atmosphericColor = Hlsl.Lerp(data[12].XYZ, data[13].XYZ, 0.4f);
             finalColor = Hlsl.Lerp(finalColor, atmosphericColor, aerialFog * 0.5f);
 
             // sRGB encode, then alpha-blend against the sky (premultiplied output).

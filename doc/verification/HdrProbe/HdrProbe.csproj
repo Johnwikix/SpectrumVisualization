@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <UseAppHost>true</UseAppHost>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../Audio/SpectrumAnalyzer.cs;../../../Audio/LoopbackWaveFormat.cs" LinkBase="Audio" />
+    <Compile Include="../../../Effects/Sonic/**/*.cs" LinkBase="Sonic" />
+    <Compile Include="../../../Rendering/SonicGraphics.cs;../../../Rendering/SonicPipelines.cs;../../../Rendering/ParticleVertex.cs" LinkBase="Rendering" />
+    <Compile Include="../../../Model/AppSettings.cs;../../../Model/SaveSetting.cs;../../../Manager/SettingsJsonContext.cs;../../../Manager/SettingManager.cs" LinkBase="Settings" />
+    <PackageReference Include="ComputeSharp" Version="3.2.0" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D12" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
+    <PackageReference Include="NAudio.Wasapi" Version="3.1.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+  </ItemGroup>
+</Project>

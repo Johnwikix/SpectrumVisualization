@@ -10,6 +10,7 @@ namespace WinExSpectrumTest.Manager
     using System.IO;
     using System.Text.Json;
     using System.Threading.Tasks;
+    using System.Threading;
     using Windows.Storage;
     using WinExSpectrumTest.Model; // 确保引用了你的 SaveSetting 类所在的命名空间
 
@@ -17,6 +18,8 @@ namespace WinExSpectrumTest.Manager
     {
         // 配置文件的名称
         private static readonly string FileName = "appsettings.json";
+        private static readonly SemaphoreSlim SaveGate = new(1, 1);
+        private static long _saveVersion;
 
         /// <summary>
         /// 获取配置文件路径（通常位于应用本地数据文件夹）
@@ -74,14 +77,19 @@ namespace WinExSpectrumTest.Manager
         /// <returns>保存操作是否成功</returns>
         public static async Task<bool> SaveSettingsAsync(SaveSetting settings)
         {
+            long version = Interlocked.Increment(ref _saveVersion);
             string filePath = GetSettingFilePath();
-
+            await SaveGate.WaitAsync().ConfigureAwait(false);
             try
             {
-                // WriteIndented = true 使输出的 JSON 格式化，便于阅读
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                using FileStream createStream = File.Create(filePath);
-                await JsonSerializer.SerializeAsync(createStream, settings, SettingsJsonContext.Default.SaveSetting);
+                if (version != Volatile.Read(ref _saveVersion)) return true;
+                // Readers always see a complete document, including while sliders trigger a save.
+                // Synchronous disposal cannot capture the UI context while SaveSettingsNow waits for the gate.
+                using (FileStream createStream = File.Create(filePath + ".tmp"))
+                {
+                    await JsonSerializer.SerializeAsync(createStream, settings, SettingsJsonContext.Default.SaveSetting).ConfigureAwait(false);
+                }
+                File.Move(filePath + ".tmp", filePath, overwrite: true);
                 return true;
             }
             catch (Exception ex)
@@ -90,6 +98,7 @@ namespace WinExSpectrumTest.Manager
                 System.Diagnostics.Debug.WriteLine($"保存配置失败: {ex.Message}");
                 return false;
             }
+            finally { SaveGate.Release(); }
         }
 
         /// <summary>
@@ -98,9 +107,14 @@ namespace WinExSpectrumTest.Manager
         /// </summary>
         public static bool SaveSettingsNow(SaveSetting settings)
         {
+            long version = Interlocked.Increment(ref _saveVersion);
+            SaveGate.Wait();
             try
             {
-                File.WriteAllText(GetSettingFilePath(), JsonSerializer.Serialize(settings, SettingsJsonContext.Default.SaveSetting));
+                if (version != Volatile.Read(ref _saveVersion)) return true;
+                string filePath = GetSettingFilePath();
+                File.WriteAllText(filePath + ".tmp", JsonSerializer.Serialize(settings, SettingsJsonContext.Default.SaveSetting));
+                File.Move(filePath + ".tmp", filePath, overwrite: true);
                 return true;
             }
             catch (Exception ex)
@@ -108,6 +122,7 @@ namespace WinExSpectrumTest.Manager
                 System.Diagnostics.Debug.WriteLine($"同步保存配置失败: {ex.Message}");
                 return false;
             }
+            finally { SaveGate.Release(); }
         }
     }
 }

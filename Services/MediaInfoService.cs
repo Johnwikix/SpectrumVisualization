@@ -26,6 +26,10 @@ namespace WinExSpectrumTest.Services
         // 瞬间可能短暂返回空列表，单次就清空并解绑会让文字永久消失
         private int _emptyEnumerations;
         private int _healthChecksStarted;
+        private readonly CancellationTokenSource _lifetime = new();
+        private Task? _initialization;
+        private Task? _watchdog;
+        private volatile bool _stopping;
 
         /// <summary>最近一次的媒体信息快照。效果页切换后重建时从这里回放，
         /// 否则 SMTC 只在新曲目属性变化时推送（表现为切回 Aurora 后信息丢失）。</summary>
@@ -41,11 +45,14 @@ namespace WinExSpectrumTest.Services
         public TimeSpan Position { get; private set; }
         public TimeSpan Duration { get; private set; }
 
-        public async Task InitializeAsync()
+        public Task InitializeAsync() => _initialization ??= InitializeCoreAsync();
+
+        private async Task InitializeCoreAsync()
         {
             try
             {
                 _manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+                if (_stopping) return;
                 if (_manager == null) return;
                 _manager.SessionsChanged += OnSessionsChanged;
                 await UpdateSessionAsync();
@@ -54,7 +61,7 @@ namespace WinExSpectrumTest.Services
                 // 拿不到任何会话）。轮询等待第一个会话出现，最长约 5 秒。
                 for (int i = 0; i < 10 && _session == null; i++)
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(500, _lifetime.Token);
                     await UpdateSessionAsync();
                 }
 
@@ -69,14 +76,14 @@ namespace WinExSpectrumTest.Services
         /// 会话正常时该调用在 AUMID 判同后空转，开销可忽略。</summary>
         private void StartHealthWatchdog()
         {
-            if (Interlocked.Exchange(ref _healthChecksStarted, 1) == 1) return;
-            _ = Task.Run(async () =>
+            if (_stopping || Interlocked.Exchange(ref _healthChecksStarted, 1) == 1) return;
+            _watchdog = Task.Run(async () =>
             {
-                while (true)
+                while (!_stopping)
                 {
                     try
                     {
-                        await Task.Delay(2000).ConfigureAwait(false);
+                        await Task.Delay(2000, _lifetime.Token).ConfigureAwait(false);
                         await UpdateSessionAsync().ConfigureAwait(false);
                     }
                     catch (Exception)
@@ -97,7 +104,7 @@ namespace WinExSpectrumTest.Services
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (_manager == null) return;
+                if (_stopping || _manager == null) return;
 
                 var sessions = _manager.GetSessions();
                 if (sessions.Count == 0)
@@ -253,9 +260,9 @@ namespace WinExSpectrumTest.Services
         {
             try
             {
-                if (_session == null) return;
+                if (_stopping || _session == null) return;
                 var props = await _session.TryGetMediaPropertiesAsync();
-                if (props == null) return;
+                if (_stopping || props == null) return;
                 // 标题与歌手全空视为"无效快照"（切歌瞬间/暂停态可能拿到）——不更新不推送，
                 // 保留旧值等下一次推送；否则空串会把正在显示的信息冲掉（表现为文字消失）。
                 if (string.IsNullOrEmpty(props.Title) && string.IsNullOrEmpty(props.Artist))
@@ -277,7 +284,7 @@ namespace WinExSpectrumTest.Services
         {
             try
             {
-                if (_session == null) return;
+                if (_stopping || _session == null) return;
                 var playbackInfo = _session.GetPlaybackInfo();
                 bool playing = playbackInfo?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 if (playing != IsPlaying)
@@ -294,6 +301,28 @@ namespace WinExSpectrumTest.Services
             catch (Exception)
             {
             }
+        }
+
+        public async Task StopAsync()
+        {
+            _stopping = true;
+            _lifetime.Cancel();
+            if (_initialization != null) await _initialization;
+            if (_watchdog != null) await _watchdog;
+            await _gate.WaitAsync();
+            try
+            {
+                if (_manager != null) _manager.SessionsChanged -= OnSessionsChanged;
+                if (_session != null)
+                {
+                    _session.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                    _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                    _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                }
+                _session = null;
+                _manager = null;
+            }
+            finally { _gate.Release(); }
         }
     }
 }

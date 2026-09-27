@@ -18,6 +18,7 @@
     <Page Remove="doc\verification\**\*.xaml" />
     <ApplicationDefinition Remove="doc\verification\**\*.xaml" />
     <None Remove="Assets\HQplayer.png" />
+    <Content Remove="doc\verification\**\bin\**;doc\verification\**\obj\**" />
     <None Remove="Canvas\CanvasPanel.xaml" />
     <None Remove="Style\ConverterDictionary.xaml" />
     <None Remove="View\SettingWindow.xaml" />
@@ -47,7 +48,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Primitives" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
-    <PackageReference Include="ComputeSharp.D2D1.WinUI" Version="3.2.0" />
+    <PackageReference Include="ComputeSharp" Version="3.2.0" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D12" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
@@ -122,5 +126,13 @@
   <!-- Native unpackaged publishing must replace any old loose XAML resource index. -->
   <Target Name="CopyUnpackagedXamlResources" AfterTargets="Publish" Condition="'$(WindowsPackageType)' == 'None' and Exists('$(TargetDir)$(AssemblyName).pri')">
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)resources.pri" />
+    <ItemGroup>
+      <_ApplicationXaml Include="@(ApplicationDefinition);@(Page)" />
+      <_UnpackagedXbf Include="@(_ApplicationXaml->'$(TargetDir)%(RelativeDir)%(Filename).xbf')" />
+    </ItemGroup>
+    <AssignTargetPath Files="@(_UnpackagedXbf)" RootFolder="$(TargetDir)">
+      <Output TaskParameter="AssignedFiles" ItemName="_UnpackagedXbfWithTargetPath" />
+    </AssignTargetPath>
+    <Copy SourceFiles="@(_UnpackagedXbfWithTargetPath)" DestinationFiles="@(_UnpackagedXbfWithTargetPath->'$(PublishDir)%(TargetPath)')" />
   </Target>
 </Project>

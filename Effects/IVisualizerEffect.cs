@@ -1,4 +1,5 @@
 using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.Windows.ApplicationModel.Resources;
 using System;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects.Sonic;
@@ -7,7 +8,7 @@ using WinExSpectrumTest.Services;
 namespace WinExSpectrumTest.Effects
 {
     /// <summary>
-    /// Shared services handed to every visualizer effect on initialization.
+    /// Shared services handed to Win2D effects on initialization.
     /// </summary>
     public sealed class VisualizerServices
     {
@@ -17,7 +18,7 @@ namespace WinExSpectrumTest.Effects
     }
 
     /// <summary>
-    /// A visualizer "effect page". Effects live on the CanvasAnimatedControl render
+    /// A Win2D visualizer. Effects live on the CanvasAnimatedControl render
     /// thread: <see cref="Update"/> and <see cref="Draw"/> are called once per frame and
     /// must not allocate (all buffers are expected to be preallocated by the effect).
     /// </summary>
@@ -52,22 +53,16 @@ namespace WinExSpectrumTest.Effects
         /// <returns>(id, localized display name) of every registered effect, in display order.</returns>
         public static (string Id, string DisplayName)[] GetCatalog()
         {
-            // Constant strings only: instantiating an effect here would allocate its
-            // GPU resources (PixelShaderEffects) just to read a name.
+            // Catalog queries must not construct effects or create graphics devices.
             return
             [
-                (AuroraRingEffect.EffectId, AuroraRingEffect.DisplayNameConst),
-                (SonicTopographyEffect.EffectId, SonicTopographyEffect.DisplayNameConst),
+                (AuroraRingEffect.EffectId, GetDisplayName(AuroraRingEffect.EffectId)),
+                (SonicTopographyEffect.EffectId, GetDisplayName(SonicTopographyEffect.EffectId)),
             ];
         }
 
-        public static IVisualizerEffect Create(string id)
-        {
-            return id switch
-            {
-                SonicTopographyEffect.EffectId => new SonicTopographyEffect(),
-                _ => new AuroraRingEffect(),
-            };
-        }
+        public static string GetDisplayName(string id) => new ResourceLoader().GetString(
+            id == SonicTopographyEffect.EffectId ? "SonicEffectName" : "AuroraEffectName");
+
     }
 }

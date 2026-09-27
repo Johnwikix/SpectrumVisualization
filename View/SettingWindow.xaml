@@ -75,9 +75,32 @@
                                         MinWidth="160"
                                         SelectedValue="{x:Bind ViewModel.VisualEffect, Mode=TwoWay}"
                                         SelectedValuePath="Tag">
-                                        <ComboBoxItem Content="Aurora Ring" Tag="aurora-ring" />
-                                        <ComboBoxItem Content="Sonic Topography" Tag="sonic-topography" />
+                                        <ComboBoxItem x:Uid="AuroraEffectOption" Tag="aurora-ring" />
+                                        <ComboBoxItem x:Uid="SonicEffectOption" Tag="sonic-topography" />
                                     </ComboBox>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsExpander x:Uid="HdrSettings" Margin="10,0,10,0" IsExpanded="True">
+                            <ToggleSwitch x:Uid="HdrToggle" AutomationProperties.AutomationId="HdrEnabled"
+                                VerticalAlignment="Center" IsOn="{x:Bind ViewModel.HdrEnabled, Mode=TwoWay}" />
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="HdrOutputStatus">
+                                    <TextBlock Text="{x:Bind ViewModel.HdrStatusText, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="380" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="HdrWhite" IsEnabled="{x:Bind ViewModel.HdrEnabled, Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                        <Slider x:Uid="HdrWhiteSlider" AutomationProperties.AutomationId="HdrWhiteNits" Width="220" Minimum="80" Maximum="500"
+                                            StepFrequency="10" Value="{x:Bind ViewModel.HdrWhiteNits, Mode=TwoWay}" />
+                                        <TextBlock Width="72" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrWhiteLabel, Mode=OneWay}" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="HdrPeak" IsEnabled="{x:Bind ViewModel.HdrEnabled, Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                        <Slider x:Uid="HdrPeakSlider" AutomationProperties.AutomationId="HdrPeakNits" Width="220" Minimum="80" Maximum="4000"
+                                            StepFrequency="10" Value="{x:Bind ViewModel.HdrPeakNits, Mode=TwoWay}" />
+                                        <TextBlock Width="72" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrPeakLabel, Mode=OneWay}" />
+                                    </StackPanel>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>

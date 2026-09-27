@@ -1,0 +1,83 @@
+GPU / NativeAOT probe
+PASS settings defaults, bounds, event consistency and source-generated JSON
+PASS concurrent saves followed by synchronous exit snapshot and JSON reload
+Device: NVIDIA GeForce RTX 5070 Ti
+PASS actual compute grid=80, max linear channel=0.748
+PASS actual compute grid=160, max linear channel=0.581
+PASS actual compute grid=320, max linear channel=0.735
+PASS RGB10 GPU readback: black, 200/400 nit white, 1000/200 nit peak and SDR gamma/clipping
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=0
+PASS native pipelines, HDR space accepted=True, size=(480, 270), cycle=0
+PASS native pipelines, HDR space accepted=True, size=(321, 181), cycle=0
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=0
+Measured render allocation: 0.0 bytes/frame
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=1
+PASS native pipelines, HDR space accepted=True, size=(480, 270), cycle=1
+PASS native pipelines, HDR space accepted=True, size=(321, 181), cycle=1
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=1
+Measured render allocation: 0.0 bytes/frame
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=2
+PASS native pipelines, HDR space accepted=True, size=(480, 270), cycle=2
+PASS native pipelines, HDR space accepted=True, size=(321, 181), cycle=2
+PASS native pipelines, HDR space accepted=True, size=(256, 144), cycle=2
+Measured render allocation: 0.0 bytes/frame
+PASS repeated creation, resize, SDR/HDR encoding and disposal
+
+Final NativeAOT UI regression
+PASS: Settings window opened through UI
+PASS: Chinese effect names resolve at runtime
+PASS: Lower peak clamps white immediately
+PASS: Higher white raises peak immediately
+PASS: Native app actually selects HDR10 on this display
+PASS: Ten rapid effect switches preserve final Sonic intent
+PASS: HDR off changes the actual output to SDR
+PASS: Native resize, Aurora restoration and Sonic reactivation completed
+
+PASS: final native minimize, restore and asynchronous shutdown
+Wallpaper regression
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Disabling restores a normal interactive window
+PASS: Disabling restores original window position and size
+PASS: Widget starts locked
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Disabling restores locked widget behavior
+PASS: Locked widget bounds restored
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Disabling restores full screen
+PASS: Full screen can be exited after wallpaper mode
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Disabling restores maximize state
+PASS: Wallpaper is an Explorer child
+PASS: Wallpaper covers exactly the primary monitor
+PASS: Wallpaper client area has no system frame inset
+PASS: XAML content covers the screen without a top border gap
+PASS: Wallpaper does not activate, intercept clicks or stay topmost
+PASS: Wallpaper stays immediately below desktop icons
+PASS: Disabling restores minimize state
+

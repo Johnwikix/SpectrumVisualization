@@ -29,8 +29,15 @@ namespace WinExSpectrumTest.Effects
         public const string EffectId = "aurora-ring";
 
         public string Id => EffectId;
-        public string DisplayName => DisplayNameConst;
-        public const string DisplayNameConst = "Aurora Ring";
+        public string DisplayName => EffectRegistry.GetDisplayName(EffectId);
+
+        // Called on the UI thread after a render-thread barrier when changing hosts.
+        public void SetActive(bool active)
+        {
+            if (_disposed) return;
+            if (active) _adaptiveColorTimer?.Start();
+            else _adaptiveColorTimer?.Stop();
+        }
 
         private const int ProgressArcSegments = 96;
         private const int BassHistorySize = 43;

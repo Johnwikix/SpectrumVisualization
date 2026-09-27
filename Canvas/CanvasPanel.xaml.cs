@@ -1,192 +1,274 @@
-using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
-using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using WinExSpectrumTest.Audio;
+using WinExSpectrumTest.Control;
 using WinExSpectrumTest.Effects;
+using WinExSpectrumTest.Effects.Sonic;
 using WinExSpectrumTest.Model;
+using WinExSpectrumTest.Rendering;
 using WinExSpectrumTest.Service;
-using WinExSpectrumTest.Services;
+using WinExSpectrumTest.ViewModel;
 
-namespace WinExSpectrumTest.Canvas
+namespace WinExSpectrumTest.Canvas;
+
+/// <summary>UI owner of mutually exclusive Win2D Aurora and native D3D12 Sonic hosts.</summary>
+public sealed partial class CanvasPanel : UserControl
 {
-    /// <summary>
-    /// Host for the visualizer effect pages. Owns the shared audio analyzer and
-    /// SMTC service and swaps the active <see cref="IVisualizerEffect"/> on demand.
-    /// </summary>
-    public sealed partial class CanvasPanel : UserControl
+    private SpectrumAnalyzer _analyzer = null!;
+    private AuroraRingEffect? _aurora;
+    private SonicPanel? _sonic;
+    private SonicMediaViewModel? _media;
+    private SonicMediaCard? _card;
+    private XamlRoot? _root;
+    private bool _loaded;
+    private volatile bool _disposed;
+    private volatile bool _suspended;
+    private volatile bool _drawAurora;
+    private string _requestedId = EffectRegistry.DefaultEffectId;
+    private string? _activeId;
+    private Task? _switchTask;
+    private Task? _stopTask;
+    private bool _drawErrorLogged;
+    private bool _switching;
+    private bool CanRender => !_disposed && !_suspended && !_switching && (_root?.IsHostVisible ?? true);
+
+    public CanvasPanel()
     {
-        private readonly SpectrumAnalyzer _analyzer;
-        private readonly VisualizerServices _services;
-        private IVisualizerEffect? _effect;
-        // Effects own GPU resources (render targets, shader effects) that must not be
-        // disposed from the UI thread while the render thread is drawing them. Swapped
-        // effects are parked here and released by the render thread at the next frame.
-        private readonly ConcurrentQueue<IVisualizerEffect> _effectsPendingDispose = new();
-        private volatile bool _renderingSuspended;
-        private float _width;
-        private float _height;
-        private bool _disposed;
-        private bool _drawErrorLogged;
+        InitializeComponent();
+        Loaded += OnLoaded;
+        RenderHost.SizeChanged += OnSizeChanged;
+    }
 
-        public CanvasPanel()
+    private void OnLoaded(object sender, RoutedEventArgs args)
+    {
+        if (_disposed || _loaded) return;
+        _loaded = true;
+        // XAML constructs the view; resolve services only at this initialization boundary.
+        _analyzer = App.Services.GetRequiredService<SpectrumAnalyzer>();
+        _root = XamlRoot;
+        if (_root != null) _root.Changed += OnRootChanged;
+        AppSettings.Changed += OnSettingsChanged;
+        ChangeRefreshRate();
+        LoadEffect(AppSettings.VisualEffect);
+    }
+
+    public void LoadEffect(string id)
+    {
+        if (_disposed) return;
+        _requestedId = id == SonicTopographyEffect.EffectId ? id : AuroraRingEffect.EffectId;
+        if (AppSettings.VisualEffect != _requestedId)
         {
-            InitializeComponent();
-            SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
-            SpectrumCanvasControl.SizeChanged += OnCanvasSizeChanged;
-            SpectrumCanvasControl.Loaded += OnCanvasLoaded;
+            AppSettings.VisualEffect = _requestedId;
+            _ = DataJsonService.SaveSettingAsync();
+        }
+        if (!_loaded) return;
+        if (_switchTask == null || _switchTask.IsCompleted) _switchTask = ApplyRequestedEffectAsync();
+    }
 
-            _analyzer = App.Services.GetRequiredService<SpectrumAnalyzer>();
-            _services = new VisualizerServices
+    public void SwitchEffect(int direction)
+    {
+        var catalog = EffectRegistry.GetCatalog();
+        int index = Array.FindIndex(catalog, item => item.Id == AppSettings.VisualEffect);
+        LoadEffect(catalog[(Math.Max(0, index) + direction % catalog.Length + catalog.Length) % catalog.Length].Id);
+    }
+
+    private async Task ApplyRequestedEffectAsync()
+    {
+        try
+        {
+            while (!_disposed && _activeId != _requestedId)
             {
-                Control = SpectrumCanvasControl,
-                Analyzer = _analyzer,
-                Media = App.MediaInfoService,
-            };
-            // The effect is created once the canvas is loaded: effects may need the
-            // render device (CanvasAnimatedControl.Device), which only exists then.
-        }
-
-        private bool _effectLoaded;
-
-        private void OnCanvasLoaded(object sender, RoutedEventArgs e)
-        {
-            if (_effectLoaded || _disposed) return;
-            _effectLoaded = true;
-            LoadEffect(AppSettings.VisualEffect);
-        }
-
-        public void ChangeRefreshRate()
-        {
-            SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
-        }
-
-        /// <summary>Pause the shared Win2D game loop while the wallpaper is hidden.
-        /// Called on the UI thread; audio and SMTC keep their latest state.</summary>
-        public void SetRenderingSuspended(bool suspended)
-        {
-            if (_disposed || _renderingSuspended == suspended) return;
-            _renderingSuspended = suspended;
-            if (!suspended) SpectrumCanvasControl.ResetElapsedTime();
-            SpectrumCanvasControl.Paused = suspended;
-            if (suspended && !_effectsPendingDispose.IsEmpty) _ = DisposeRetiredEffectsAsync();
-            RenderDiagnostics.RecordRenderSuspension(suspended);
-        }
-
-        /// <summary>Activates the effect page with the given registry id.</summary>
-        public void LoadEffect(string id)
-        {
-            if (_disposed) return;
-            IVisualizerEffect effect = EffectRegistry.Create(id);
-            id = effect.Id;
-            effect.Initialize(_services);
-            effect.OnResize(_width, _height);
-            IVisualizerEffect? old = _effect;
-            _effect = effect;
-            if (old != null)
-            {
-                _effectsPendingDispose.Enqueue(old);
-                if (_renderingSuspended) _ = DisposeRetiredEffectsAsync();
-            }
-            if (AppSettings.VisualEffect != id)
-            {
-                AppSettings.VisualEffect = id;
-                _ = DataJsonService.SaveSettingAsync();   // 变更即存，退出路径再兜底同步保存
-            }
-        }
-
-        /// <summary>Cycles to the next (direction = 1) or previous (direction = -1) effect page.</summary>
-        public void SwitchEffect(int direction)
-        {
-            (string Id, string DisplayName)[] catalog = EffectRegistry.GetCatalog();
-            if (catalog.Length == 0) return;
-            int index = 0;
-            for (int i = 0; i < catalog.Length; i++)
-            {
-                if (catalog[i].Id == AppSettings.VisualEffect)
+                _switching = true;
+                _drawAurora = false;
+                SpectrumCanvasControl.Paused = true;
+                _aurora?.SetActive(false);
+                _media?.SetActive(false);
+                // Paused does not mean an in-flight Draw has completed.
+                await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { });
+                if (_sonic != null) await _sonic.PauseAsync();
+                if (_disposed) return;
+                string id = _requestedId;
+                if (id == SonicTopographyEffect.EffectId)
                 {
-                    index = i;
-                    break;
+                    EnsureSonicHost();
+                    SpectrumCanvasControl.Visibility = Visibility.Collapsed;
+                    _sonic!.Visibility = Visibility.Visible;
+                    _card!.Visibility = Visibility.Visible;
+                    _activeId = id;
+                    HdrStatus.Set(_sonic.LastOutputMode);
                 }
+                else
+                {
+                    if (_aurora == null)
+                    {
+                        var effect = new AuroraRingEffect();
+                        try
+                        {
+                            effect.Initialize(new VisualizerServices
+                            {
+                                Control = SpectrumCanvasControl,
+                                Analyzer = _analyzer,
+                                Media = App.MediaInfoService
+                            });
+                            effect.OnResize((float)RenderHost.ActualWidth, (float)RenderHost.ActualHeight);
+                            _aurora = effect;
+                        }
+                        catch { effect.Dispose(); throw; }
+                    }
+                    if (_sonic != null) _sonic.Visibility = Visibility.Collapsed;
+                    if (_card != null) _card.Visibility = Visibility.Collapsed;
+                    SpectrumCanvasControl.Visibility = Visibility.Visible;
+                    _activeId = id;
+                    HdrStatus.Set(HdrOutputMode.Aurora);
+                }
+                _switching = false;
+                ApplyActivity();
             }
-            index = (index + direction + catalog.Length) % catalog.Length;
-            LoadEffect(catalog[index].Id);
         }
-
-        private void OnCanvasSizeChanged(object sender, SizeChangedEventArgs args)
+        catch (Exception ex)
         {
-            _width = (float)args.NewSize.Width;
-            _height = (float)args.NewSize.Height;
-            _effect?.OnResize(_width, _height);
+            App.WriteCrashLog("Effect switch", ex.Message, ex);
+            HdrStatus.Set(HdrOutputMode.Failed);
         }
-
-        private void SpectrumCanvasControl_Update(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
+        finally
         {
-            if (_renderingSuspended || _disposed) return;
-            // Update 里的异常会被 Win2D 吞掉并永久停止游戏循环（Draw 也随之停止），
-            // 表现为频谱/SMTC 文字全部消失且 crash.log 无记录——必须就地捕获并留痕。
-            try
-            {
-                _effect?.Update(args.Timing.ElapsedTime.TotalSeconds);
-            }
-            catch (Exception ex)
-            {
-                App.WriteCrashLog("Update", ex.Message, ex);
-            }
+            _switching = false;
         }
+    }
 
-        private void SpectrumCanvasControl_Draw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
+    private void EnsureSonicHost()
+    {
+        if (_sonic != null) return;
+        _sonic = new SonicPanel();
+        _sonic.OutputChanged += OnSonicOutputChanged;
+        RenderHost.Children.Add(_sonic);
+        _media = new SonicMediaViewModel(App.MediaInfoService, DispatcherQueue);
+        _card = new SonicMediaCard(_media)
         {
-            try
-            {
-                // Release the previously swapped-out effect on the render thread, where
-                // no Draw can still be using it.
-                DisposeRetiredEffects();
-                // Win2D may request an isolated Draw for resize/invalidation even
-                // while paused. Do not run effects or build GPU layers in that case.
-                if (_renderingSuspended || _disposed) return;
-                _effect?.Draw(args.DrawingSession, (float)sender.Size.Width, (float)sender.Size.Height);
-                RenderDiagnostics.RecordFrame(_effect?.Id, _analyzer.PublicationCount);
-            }
-            catch (Exception ex)
-            {
-                if (!_drawErrorLogged) App.WriteCrashLog("Draw", ex.Message, ex);
-                _drawErrorLogged = true;
-            }
-        }
+            Margin = new Thickness(16, 24, 30, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        RenderHost.Children.Add(_card);
+    }
 
-        private void DisposeRetiredEffects()
-        {
-            while (_effectsPendingDispose.TryDequeue(out IVisualizerEffect? effect)) effect.Dispose();
-        }
+    private void OnSonicOutputChanged(HdrOutputMode mode)
+    {
+        if (!_disposed && _activeId == SonicTopographyEffect.EffectId) HdrStatus.Set(mode);
+    }
 
-        private async Task DisposeRetiredEffectsAsync()
-        {
-            try
-            {
-                // This queue still runs when Paused=true, without requesting a frame.
-                await SpectrumCanvasControl.RunOnGameLoopThreadAsync(DisposeRetiredEffects);
-            }
-            catch (TaskCanceledException)
-            {
-                // Unloading cancels callbacks; Dispose drains the remaining queue.
-            }
-            catch (Exception ex)
-            {
-                if (!_disposed) App.WriteCrashLog("EffectDispose", ex.Message, ex);
-            }
-        }
+    private void ConfigureSonic()
+    {
+        if (_sonic == null || _disposed) return;
+        double dpi = XamlRoot?.RasterizationScale ?? 1;
+        if (!double.IsFinite(dpi) || dpi <= 0) dpi = 1;
+        int width = (int)Math.Clamp(Math.Ceiling(RenderHost.ActualWidth * dpi), 0, 16384);
+        int height = (int)Math.Clamp(Math.Ceiling(RenderHost.ActualHeight * dpi), 0, 16384);
+        nint hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        _sonic.Configure(_analyzer, hwnd, new SonicRenderSettings(width, height,
+            _activeId == SonicTopographyEffect.EffectId && CanRender,
+            AppSettings.HdrEnabled, AppSettings.HdrWhiteNits, AppSettings.HdrPeakNits, AppSettings.RefreshRate), dpi);
+    }
 
-        public void Dispose()
+    private void ApplyActivity()
+    {
+        if (_switching || _disposed) return;
+        bool aurora = _activeId == AuroraRingEffect.EffectId && CanRender;
+        _drawAurora = aurora;
+        _aurora?.SetActive(aurora);
+        if (aurora) SpectrumCanvasControl.ResetElapsedTime();
+        SpectrumCanvasControl.Paused = !aurora;
+        ConfigureSonic();
+        _media?.SetActive(_activeId == SonicTopographyEffect.EffectId && CanRender);
+    }
+
+    public void SetRenderingSuspended(bool suspended)
+    {
+        if (_disposed || _suspended == suspended) return;
+        _suspended = suspended;
+        ApplyActivity();
+        RenderDiagnostics.RecordRenderSuspension(suspended);
+    }
+
+    public void ChangeRefreshRate()
+    {
+        if (_disposed) return;
+        SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1d / Math.Clamp(AppSettings.RefreshRate, 1, 120));
+        ConfigureSonic();
+    }
+
+    private void OnSettingsChanged(string name)
+    {
+        if (_disposed) return;
+        if (!DispatcherQueue.HasThreadAccess)
         {
-            if (_disposed) return;
-            _disposed = true;
-            _effect?.Dispose();
-            DisposeRetiredEffects();
-            _analyzer.Dispose();
+            DispatcherQueue.TryEnqueue(() => OnSettingsChanged(name));
+            return;
         }
+        if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)) ConfigureSonic();
+    }
+    private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ConfigureSonic();
+    private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ApplyActivity();
+
+    private void SpectrumCanvasControl_Update(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
+    {
+        if (!_drawAurora || _disposed || _suspended) return;
+        try { _aurora?.Update(args.Timing.ElapsedTime.TotalSeconds); }
+        catch (Exception ex) { LogDrawError(ex); }
+    }
+
+    private void SpectrumCanvasControl_Draw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
+    {
+        if (!_drawAurora || _disposed || _suspended) return;
+        try
+        {
+            _aurora?.Draw(args.DrawingSession, (float)sender.Size.Width, (float)sender.Size.Height);
+            RenderDiagnostics.RecordFrame(AuroraRingEffect.EffectId, _analyzer.PublicationCount);
+            _drawErrorLogged = false;
+        }
+        catch (Exception ex) { LogDrawError(ex); }
+    }
+
+    private void LogDrawError(Exception ex)
+    {
+        if (!_drawErrorLogged) App.WriteCrashLog("Aurora render", ex.Message, ex);
+        _drawErrorLogged = true;
+    }
+
+    public Task StopAsync() => _stopTask ??= StopCoreAsync();
+    private async Task StopCoreAsync()
+    {
+        _disposed = true;
+        _drawAurora = false;
+        SpectrumCanvasControl.Paused = true;
+        _aurora?.SetActive(false);
+        Loaded -= OnLoaded;
+        RenderHost.SizeChanged -= OnSizeChanged;
+        if (_root != null) _root.Changed -= OnRootChanged;
+        AppSettings.Changed -= OnSettingsChanged;
+        if (_switchTask != null) await _switchTask;
+        if (_sonic != null)
+        {
+            _sonic.OutputChanged -= OnSonicOutputChanged;
+            try { await _sonic.StopAsync(); }
+            catch (Exception ex) { App.WriteCrashLog("Sonic host shutdown", ex.Message, ex); }
+        }
+        if (_media != null)
+        {
+            try { await _media.StopAsync(); }
+            catch (Exception ex) { App.WriteCrashLog("Artwork shutdown", ex.Message, ex); }
+        }
+        try { await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { }); }
+        catch (TaskCanceledException) { }
+        catch (Exception ex) { App.WriteCrashLog("Aurora drain", ex.Message, ex); }
+        try { _aurora?.Dispose(); }
+        catch (Exception ex) { App.WriteCrashLog("Aurora shutdown", ex.Message, ex); }
+        _aurora = null;
+        SpectrumCanvasControl.RemoveFromVisualTree();
+        // SpectrumAnalyzer belongs to the application service container, not either renderer.
     }
 }

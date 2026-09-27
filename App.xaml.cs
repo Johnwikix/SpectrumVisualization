@@ -89,7 +89,9 @@ namespace WinExSpectrumTest
         protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             await _host.StartAsync();
+            if (_exitTask != null) return;
             await DataJsonService.LoadSettingAsync();
+            if (_exitTask != null) return;
             MainWindow = new MainWindow();
             MainWindow.Activate();
             if (Model.AppSettings.WallpaperEnabled)
@@ -102,22 +104,32 @@ namespace WinExSpectrumTest
             _ = MediaInfoService.InitializeAsync();
         }
 
-        public static void Current_Exit()
+        private static Task? _exitTask;
+        public static void Current_Exit() => _exitTask ??= ExitAsync();
+
+        private static async Task ExitAsync()
         {
             try
             {
-                // 退出前同步落盘：异步保存会被下面的 Exit 终止（设置丢失的根因）。
                 DataJsonService.SaveSettingNow();
-                MainWindow?.ReleaseWallpaper();
-                _host.StopAsync().Wait();
+                if (MainWindow != null) await MainWindow.StopRenderingAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                WriteCrashLog("Render shutdown", ex.Message, ex);
             }
-            finally
+            try { await MediaInfoService.StopAsync(); }
+            catch (Exception ex) { WriteCrashLog("Media shutdown", ex.Message, ex); }
+            try { MainWindow?.ReleaseWallpaper(); }
+            catch (Exception ex) { WriteCrashLog("Wallpaper shutdown", ex.Message, ex); }
+            try
             {
-                Environment.Exit(0);
+                await _host.StopAsync();
             }
+            catch (Exception ex) { WriteCrashLog("Service shutdown", ex.Message, ex); }
+            try { _host.Dispose(); }
+            catch (Exception ex) { WriteCrashLog("Service disposal", ex.Message, ex); }
+            Environment.Exit(0);
         }
     }
 }

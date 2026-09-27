@@ -1,5 +1,4 @@
 using ComputeSharp;
-using ComputeSharp.D2D1;
 
 namespace WinExSpectrumTest.Effects.Sonic.Shaders
 {
@@ -18,11 +17,11 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
     /// where a negative strength marks a meteor-type (white, sharper) ripple and
     /// zero marks an inactive slot.
     /// </summary>
-    [D2DInputCount(0)]
-    [D2DRequiresScenePosition]
-    [D2DShaderProfile(D2D1ShaderProfile.PixelShader40)]
-    [D2DGeneratedPixelShaderDescriptor]
+    [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
+    [GeneratedComputeShaderDescriptor]
     public readonly partial struct HeightFieldShader(
+        ReadOnlyBuffer<float4> data,
+        ReadWriteTexture2D<float4> target,
         float time,
         float subBass,
         float bass,
@@ -36,28 +35,11 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         float halfExtent,
         float cellSize,
         float smoothness,
-        float density,
-        float4 r0,
-        float4 r1,
-        float4 r2,
-        float4 r3,
-        float4 r4,
-        float4 r5,
-        float4 r6,
-        float4 r7,
-        float4 r8,
-        float4 r9,
-        float4 r10,
-        float4 r11,
-        float dpiScale) : ID2D1PixelShader
+        float density) : IComputeShader
     {
-        public float4 Execute()
+        public void Execute()
         {
-            // D2D reports the scene position in physical target pixels while the
-            // grid layout (cellSize/halfExtent) is in DIPs - normalize first, or
-            // the whole heightfield is stretched by the DPI scale and anchored
-            // to the min corner (the sub-bass center dome ends up off-center).
-            float2 texel = Hlsl.Floor(D2D.GetScenePosition().XY / dpiScale);
+            float2 texel = ThreadIds.XY;
             float2 pos2D = (texel + 0.5f) * cellSize - halfExtent;
             float centerDist = Hlsl.Length(pos2D);
             float rnd = Random(pos2D);
@@ -128,9 +110,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
 
             for (int i = 0; i < 12; i++)
             {
-                float4 ripple = i == 0 ? r0 : i == 1 ? r1 : i == 2 ? r2 : i == 3 ? r3
-                    : i == 4 ? r4 : i == 5 ? r5 : i == 6 ? r6 : i == 7 ? r7
-                    : i == 8 ? r8 : i == 9 ? r9 : i == 10 ? r10 : r11;
+                float4 ripple = data[i];
                 float signedStrength = ripple.W;
                 if (signedStrength == 0f) continue;
 
@@ -160,7 +140,7 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             elevation += rippleElevation;
 
             float height = Hlsl.Max(1f + elevation, 0.05f);
-            return new float4(
+            target[ThreadIds.XY] = new float4(
                 height,
                 Hlsl.Clamp(Hlsl.Sqrt(rippleIntensityNormal), 0f, 1f),
                 Hlsl.Clamp(Hlsl.Sqrt(rippleIntensityWhite), 0f, 1f),

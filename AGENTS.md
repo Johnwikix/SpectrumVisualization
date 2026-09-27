@@ -1,14 +1,14 @@
 # 项目约定
 
-SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应用。WASAPI 环回采集（NAudio）→ `SpectrumAnalyzer` 频谱分析 → `CanvasAnimatedControl` 渲染线程上的可视化效果；含壁纸模式、SMTC 封面/标题读取、托盘集成。net10.0-windows10.0.26100.0，仅 x64，MSIX 打包，发布走 NativeAOT。
+SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应用。WASAPI 环回采集（NAudio）→ `SpectrumAnalyzer` → 极光之环的 Win2D 渲染线程或音域回响的独立 D3D12 渲染线程；含 HDR、壁纸模式、SMTC 封面/标题读取、托盘集成。net10.0-windows10.0.26100.0，仅 x64，MSIX 打包，发布走 NativeAOT。
 
 ## 渲染线程与音频管线（热路径零分配）
 
 - `IVisualizerEffect.Update/Draw` 每帧在 `CanvasAnimatedControl` 渲染线程调用，**禁止堆分配**：频谱数据、顶点、颜色等缓冲区必须在 `Initialize`/`OnResize` 预分配并逐帧复用。
-- 与 UI 线程交互只能经 `RunOnGameLoopThreadAsync` 或 `DispatcherQueue`；效果释放走"退役队列 + 延迟 Dispose"（参考 `Canvas/CanvasPanel.xaml.cs` 的 `DisposeRetiredEffects`），不得在 Draw 期间释放仍在使用的资源。
+- 与 UI 线程交互只能经 `RunOnGameLoopThreadAsync` 或 `DispatcherQueue`。`CanvasPanel` 串行切换两个宿主并等待旧帧退出；暂停不等于在途帧结束。释放必须在 Win2D 回调屏障 / D3D12 工作线程停止后进行，UI 不得同步等待 GPU 或 Join 渲染线程。
 - 音频数据只从 `SpectrumAnalyzer` 发布的预分配 float 缓冲区读取（512 线性频段 + `FeatureIndex` 特征向量），不要在效果里另起捕获或每帧复制大数组。
-- 新增可视化效果：实现 `IVisualizerEffect` → 在 `EffectRegistry` 注册。`Id` 即 `SaveSetting.VisualEffect` 的持久化值，发布后不可更改；`DisplayName` 走本地化资源。
-- ComputeSharp.D2D1 像素着色器放在 `Effects/Sonic/Shaders`。D2D 坐标按 DPI 归一（曾因 DPI 缩放导致场景投影偏移），改着色器或窗口尺寸逻辑时先核对 DPI 换算。
+- 新增可视化效果：选择宿主并在 `EffectRegistry` 注册名称；`IVisualizerEffect` 仅用于 Win2D。`Id` 即 `SaveSetting.VisualEffect` 的持久化值，发布后不可更改；显示名称走本地化资源。
+- 音域回响的 ComputeSharp 计算着色器位于 `Effects/Sonic/Shaders`；`Rendering/SonicGraphics` 独占 GPU 资源，FP16 线性场景最终编码为 RGB10 的 SDR 或 HDR10。工作线程帧循环同样禁止堆分配。`SonicPanel` 将 DIP 换算为物理像素并施加逆 DPI 缩放；改窗口尺寸逻辑时同时核对着色器、粒子和 XAML 媒体卡片坐标。
 
 ## NativeAOT 发布约束
 

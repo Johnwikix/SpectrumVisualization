@@ -30,6 +30,9 @@ namespace WinExSpectrumTest.Model
         public int SampleRate { get; set; } = 12000;
         public int BarCount { get; set; } = 512;
         public string VisualEffect { get; set; } = "aurora-ring";
+        public bool HdrEnabled { get; set; } = false;
+        public float HdrWhiteNits { get; set; } = 200f;
+        public float HdrPeakNits { get; set; } = 1000f;
         public string SonicTheme { get; set; } = "nocturnal";
         public float SonicAudioIntensity { get; set; } = 1.0f;
         public float SonicResponseRange { get; set; } = 1.0f;
