@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 namespace WinExSpectrumTest.Service;
 
@@ -13,11 +14,21 @@ internal static class RenderDiagnostics
     private static long _publications;
     private static int _frames;
     private static double _maxInterval;
+    private static long _totalFrames;
+
+    [Conditional("DEBUG")]
+    public static void RecordRenderSuspension(bool suspended)
+    {
+        if (!Enabled) return;
+        File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "render-metrics.log"),
+            $"{DateTime.Now:O} Wallpaper rendering: suspended={suspended}, totalFrames={Interlocked.Read(ref _totalFrames)}\n");
+    }
 
     [Conditional("DEBUG")]
     public static void RecordFrame(string? effect, long publications)
     {
         if (!Enabled) return;
+        Interlocked.Increment(ref _totalFrames);
         long now = Stopwatch.GetTimestamp();
         if (_start == 0) { _start = _previous = now; _publications = publications; }
         _maxInterval = Math.Max(_maxInterval, Stopwatch.GetElapsedTime(_previous, now).TotalMilliseconds);

@@ -13,6 +13,8 @@ public sealed partial class MainWindow
 {
     private DesktopWallpaperHost? _wallpaperHost;
     private DispatcherQueueTimer? _wallpaperTimer;
+    private DispatcherQueueTimer? _wallpaperVisibilityTimer;
+    private WallpaperOcclusionDetector? _wallpaperOcclusion;
     private bool _changingWallpaper;
     private bool _restoreLocked, _restoreFullScreen;
     private bool _restoreExtendsContentIntoTitleBar;
@@ -100,6 +102,9 @@ public sealed partial class MainWindow
     private void RestoreWidget()
     {
         _wallpaperTimer?.Stop();
+        _wallpaperVisibilityTimer?.Stop();
+        _wallpaperOcclusion = null;
+        MyCanvas.SetRenderingSuspended(false);
         _wallpaperHost?.Restore();
         _wallpaperHost = null;
         AppSettings.WallpaperEnabled = false;
@@ -133,6 +138,27 @@ public sealed partial class MainWindow
             _wallpaperTimer.Tick += WallpaperTimer_Tick;
         }
         _wallpaperTimer.Start();
+        _wallpaperOcclusion ??= new WallpaperOcclusionDetector(_hwnd);
+        if (_wallpaperVisibilityTimer == null)
+        {
+            _wallpaperVisibilityTimer = DispatcherQueue.CreateTimer();
+            _wallpaperVisibilityTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _wallpaperVisibilityTimer.Tick += WallpaperVisibilityTimer_Tick;
+        }
+        UpdateWallpaperRendering();
+        _wallpaperVisibilityTimer.Start();
+    }
+
+    private void WallpaperVisibilityTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        if (_changingWallpaper) return;
+        UpdateWallpaperRendering();
+    }
+
+    private void UpdateWallpaperRendering()
+    {
+        MyCanvas.SetRenderingSuspended(_wallpaperHost != null &&
+            _wallpaperOcclusion?.IsFullyCovered() == true);
     }
 
     private void WallpaperTimer_Tick(DispatcherQueueTimer sender, object args)
@@ -141,6 +167,7 @@ public sealed partial class MainWindow
         try
         {
             _wallpaperHost.Refresh();
+            UpdateWallpaperRendering();
         }
         catch (Exception ex)
         {
@@ -169,6 +196,8 @@ public sealed partial class MainWindow
     internal void ReleaseWallpaper()
     {
         _wallpaperTimer?.Stop();
+        _wallpaperVisibilityTimer?.Stop();
+        _wallpaperOcclusion = null;
         StopIdleTimer();
         StopHoverTimer();
         try

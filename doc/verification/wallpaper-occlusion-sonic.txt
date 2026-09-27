@@ -1,0 +1,13 @@
+PASS: partial window, covered=False
+PASS: opaque full-screen, covered=True
+PASS: full-screen held for three seconds, covered=True
+PASS: minimized full-screen resumes rendering, covered=False
+PASS: restored full-screen pauses again, covered=True
+PASS: transparent overlay keeps rendering, covered=False
+PASS: opaque again, covered=True
+PASS: hidden window resumes rendering, covered=False
+PASS: one visible desktop pixel prevents pause, covered=False
+PASS: full-screen on secondary does not pause primary, covered=False
+PASS: final full-screen, covered=True
+PASS: final resume, covered=False
+PASS: resumed render loop produces frames: 2026-09-27T19:14:42.6610858+08:00 sonic-topography: FPS=60.0, maxIntervalMs=23.8, FFT/s=94.2

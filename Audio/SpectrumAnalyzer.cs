@@ -1,13 +1,12 @@
 using NAudio.Dsp;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-// WasapiLoopbackCapture is marked obsolete in NAudio 3.0 in favor of WasapiRecorderBuilder,
-// but it remains fully functional and keeps the callback semantics (DataAvailable per device
-// period) that this analyzer is built around.
+// Keep the existing DataAvailable API while explicitly selecting event-driven loopback.
 #pragma warning disable CS0618
 
 namespace WinExSpectrumTest.Audio
@@ -68,7 +67,22 @@ namespace WinExSpectrumTest.Audio
 
         private const int FluxHistorySize = 40;
 
-        private WasapiLoopbackCapture _capture;
+        // The stock loopback constructor polls a 100 ms buffer at half its duration.
+        // It drains several packets in a burst, so ~100 FFT/s can still leave the
+        // renderer holding the same features for 50-60 ms. Wake on device events.
+        private sealed class RealtimeLoopbackCapture : WasapiCapture
+        {
+            public RealtimeLoopbackCapture()
+                : base(WasapiLoopbackCapture.GetDefaultLoopbackCaptureDevice(),
+                    useEventSync: true, audioBufferMillisecondsLength: 20)
+            {
+            }
+
+            protected override AudioClientStreamFlags GetAudioClientStreamFlags()
+                => base.GetAudioClientStreamFlags() | AudioClientStreamFlags.Loopback;
+        }
+
+        private RealtimeLoopbackCapture _capture;
         private readonly FftProcessor _fft = new(FftSize, FftWindowType.Hann);
         private readonly Complex[] _spectrum = new Complex[SpectrumLength];
         private readonly Complex[] _spectrumL = new Complex[SpectrumLength];
@@ -147,7 +161,7 @@ namespace WinExSpectrumTest.Audio
             _featuresFront = _featuresA;
             _featuresBack = _featuresB;
 
-            _capture = new WasapiLoopbackCapture();
+            _capture = new RealtimeLoopbackCapture();
             _sampleRate = _capture.WaveFormat.SampleRate;
             _capture.DataAvailable += OnDataAvailable;
             _capture.RecordingStopped += OnRecordingStopped;
@@ -238,8 +252,8 @@ namespace WinExSpectrumTest.Audio
                     await Task.Delay(TimeSpan.FromSeconds(Math.Min(attempt, 3))).ConfigureAwait(false);
                     if (_disposed) return;
 
-                    WasapiLoopbackCapture? old = null;
-                    WasapiLoopbackCapture capture = new();
+                    RealtimeLoopbackCapture? old = null;
+                    RealtimeLoopbackCapture capture = new();
                     bool started = false;
                     try
                     {

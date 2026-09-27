@@ -6,12 +6,25 @@ using NAudio.Wave;
 using WinExSpectrumTest.Audio;
 namespace WinExSpectrumTest { public static class App {public static void WriteCrashLog(string s,string m,Exception e) => Console.WriteLine(m);} }
 class Probe {
- static void Main() {
+ static void Main(string[] args) {
+ using var output = new WasapiOut();
+ if (Array.IndexOf(args, "--tone") >= 0) { output.Init(new TestTone()); output.Play(); }
  using var analyzer = new SpectrumAnalyzer();
- var capture=(WasapiLoopbackCapture)typeof(SpectrumAnalyzer).GetField("_capture",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(analyzer);
- long last=0; int count=0; double sum=0,max=0; int maxBytes=0;
- capture.DataAvailable += (_,e)=> {long now=Stopwatch.GetTimestamp(); if(last>0){double ms=Stopwatch.GetElapsedTime(last,now).TotalMilliseconds; sum+=ms; max=Math.Max(max,ms); count++;}last=now; maxBytes=Math.Max(maxBytes,e.BytesRecorded);};
+ var capture=(NAudio.CoreAudioApi.WasapiCapture)typeof(SpectrumAnalyzer).GetField("_capture",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(analyzer);
+ long last=0; int count=0; double sum=0,max=0; int maxBytes=0; int bursts=0, gaps=0;
+ capture.DataAvailable += (_,e)=> {long now=Stopwatch.GetTimestamp(); if(last>0){double ms=Stopwatch.GetElapsedTime(last,now).TotalMilliseconds; sum+=ms; max=Math.Max(max,ms); count++; if(ms<2) bursts++; if(ms>25) gaps++;}last=now; maxBytes=Math.Max(maxBytes,e.BytesRecorded);};
  Thread.Sleep(8000);
- Console.WriteLine($"Sample rate: {analyzer.SampleRate}; FFT callbacks: {count}; mean interval: {sum/Math.Max(1,count):F2} ms; max: {max:F2} ms; max bytes: {maxBytes}");
+ Console.WriteLine($"Sample rate: {analyzer.SampleRate}; FFT callbacks: {count}; mean interval: {sum/Math.Max(1,count):F2} ms; max: {max:F2} ms; max bytes: {maxBytes}; bursts (<2 ms): {bursts}; gaps (>25 ms): {gaps}");
+ if (Array.IndexOf(args, "--tone") >= 0 && (count < 200 || gaps > count * 0.05 || bursts > count * 0.2))
+  throw new Exception("Capture cadence regression: audio is missing or delivered in batches instead of regularly.");
+ }
+ sealed class TestTone : IWaveProvider {
+  public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+  long frame;
+  public int Read(Span<byte> buffer) {
+   var samples = System.Runtime.InteropServices.MemoryMarshal.Cast<byte,float>(buffer);
+   for(int i=0;i+1<samples.Length;i+=2,frame++) { double t=frame/48000.0; float v=(float)(0.015*Math.Sin(2*Math.PI*110*t)*(0.55+0.45*Math.Sin(2*Math.PI*3*t))); samples[i]=samples[i+1]=v; }
+   return buffer.Length;
+  }
  }
 }

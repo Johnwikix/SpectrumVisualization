@@ -3,7 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
-using System.Threading;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects;
 using WinExSpectrumTest.Model;
@@ -24,7 +25,8 @@ namespace WinExSpectrumTest.Canvas
         // Effects own GPU resources (render targets, shader effects) that must not be
         // disposed from the UI thread while the render thread is drawing them. Swapped
         // effects are parked here and released by the render thread at the next frame.
-        private IVisualizerEffect? _effectPendingDispose;
+        private readonly ConcurrentQueue<IVisualizerEffect> _effectsPendingDispose = new();
+        private volatile bool _renderingSuspended;
         private float _width;
         private float _height;
         private bool _disposed;
@@ -62,6 +64,18 @@ namespace WinExSpectrumTest.Canvas
             SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / AppSettings.RefreshRate);
         }
 
+        /// <summary>Pause the shared Win2D game loop while the wallpaper is hidden.
+        /// Called on the UI thread; audio and SMTC keep their latest state.</summary>
+        public void SetRenderingSuspended(bool suspended)
+        {
+            if (_disposed || _renderingSuspended == suspended) return;
+            _renderingSuspended = suspended;
+            if (!suspended) SpectrumCanvasControl.ResetElapsedTime();
+            SpectrumCanvasControl.Paused = suspended;
+            if (suspended && !_effectsPendingDispose.IsEmpty) _ = DisposeRetiredEffectsAsync();
+            RenderDiagnostics.RecordRenderSuspension(suspended);
+        }
+
         /// <summary>Activates the effect page with the given registry id.</summary>
         public void LoadEffect(string id)
         {
@@ -72,7 +86,11 @@ namespace WinExSpectrumTest.Canvas
             effect.OnResize(_width, _height);
             IVisualizerEffect? old = _effect;
             _effect = effect;
-            _effectPendingDispose = old;
+            if (old != null)
+            {
+                _effectsPendingDispose.Enqueue(old);
+                if (_renderingSuspended) _ = DisposeRetiredEffectsAsync();
+            }
             if (AppSettings.VisualEffect != id)
             {
                 AppSettings.VisualEffect = id;
@@ -107,6 +125,7 @@ namespace WinExSpectrumTest.Canvas
 
         private void SpectrumCanvasControl_Update(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
         {
+            if (_renderingSuspended || _disposed) return;
             // Update 里的异常会被 Win2D 吞掉并永久停止游戏循环（Draw 也随之停止），
             // 表现为频谱/SMTC 文字全部消失且 crash.log 无记录——必须就地捕获并留痕。
             try
@@ -125,7 +144,10 @@ namespace WinExSpectrumTest.Canvas
             {
                 // Release the previously swapped-out effect on the render thread, where
                 // no Draw can still be using it.
-                Interlocked.Exchange(ref _effectPendingDispose, null)?.Dispose();
+                DisposeRetiredEffects();
+                // Win2D may request an isolated Draw for resize/invalidation even
+                // while paused. Do not run effects or build GPU layers in that case.
+                if (_renderingSuspended || _disposed) return;
                 _effect?.Draw(args.DrawingSession, (float)sender.Size.Width, (float)sender.Size.Height);
                 RenderDiagnostics.RecordFrame(_effect?.Id, _analyzer.PublicationCount);
             }
@@ -136,12 +158,34 @@ namespace WinExSpectrumTest.Canvas
             }
         }
 
+        private void DisposeRetiredEffects()
+        {
+            while (_effectsPendingDispose.TryDequeue(out IVisualizerEffect? effect)) effect.Dispose();
+        }
+
+        private async Task DisposeRetiredEffectsAsync()
+        {
+            try
+            {
+                // This queue still runs when Paused=true, without requesting a frame.
+                await SpectrumCanvasControl.RunOnGameLoopThreadAsync(DisposeRetiredEffects);
+            }
+            catch (TaskCanceledException)
+            {
+                // Unloading cancels callbacks; Dispose drains the remaining queue.
+            }
+            catch (Exception ex)
+            {
+                if (!_disposed) App.WriteCrashLog("EffectDispose", ex.Message, ex);
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
             _effect?.Dispose();
-            _effectPendingDispose?.Dispose();
+            DisposeRetiredEffects();
             _analyzer.Dispose();
         }
     }
