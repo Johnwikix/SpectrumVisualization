@@ -362,7 +362,7 @@
                             x:Uid="OriginalSound"
                             Margin="10,0,10,0"
                             Command="{x:Bind ViewModel.OpenOriginalSoundCommand}"
-                            Description="© 2025 Sennpei Studio"
+                            Description="{x:Bind ViewModel.CopyrightNotice}"
                             HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/HQPlayer.png}"
                             IsClickEnabled="True" />
                         <TextBlock
@@ -372,7 +372,7 @@
                         <controls:SettingsExpander
                             x:Uid="AppTitleHeader"
                             Margin="10,0,10,0"
-                            Description="© 2025 Sennpei Studio"
+                            Description="{x:Bind ViewModel.CopyrightNotice}"
                             HeaderIcon="{ui:BitmapIcon Source=ms-appx:///Assets/Square44x44Logo.altform-unplated_targetsize-32.png}">
                             <TextBlock
                                 x:Name="Version"

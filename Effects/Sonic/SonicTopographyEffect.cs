@@ -676,7 +676,9 @@ namespace WinExSpectrumTest.Effects.Sonic
         private void DrawPlayerCard(CanvasDrawingSession session, float width, float height)
         {
             float f = _cardFade;
-            float s = Math.Min(96f / session.Dpi, Math.Max(0.4f, (width - 32f) / CardWidth));
+            // Canvas dimensions and text sizes are DIPs; Win2D applies monitor DPI.
+            // Only shrink to fit narrow windows, never cancel the system scale.
+            float s = Math.Min(1f, Math.Max(0.4f, (width - 32f) / CardWidth));
             float w = CardWidth * s;
             float pad = CardPadding * s;
             float cover = CardCover * s;

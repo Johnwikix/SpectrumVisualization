@@ -13,6 +13,8 @@ namespace WinExSpectrumTest.ViewModel
 {
     public partial class SettingViewModel : ObservableObject
     {
+        public string CopyrightNotice => $"© {DateTime.Now.Year} Sennpei Studio";
+
         private bool _isInitialized = false;
 
         private float _rotationSpeed = 10.0f;
