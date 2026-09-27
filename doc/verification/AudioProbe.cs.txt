@@ -4,18 +4,44 @@ using System.Reflection;
 using System.Threading;
 using NAudio.Wave;
 using WinExSpectrumTest.Audio;
-namespace WinExSpectrumTest { public static class App {public static void WriteCrashLog(string s,string m,Exception e) => Console.WriteLine(m);} }
+namespace WinExSpectrumTest { public static class App {public static void WriteCrashLog(string s,string m,Exception e) => Console.WriteLine($"{s}: {m}\n{e}");} }
 class Probe {
  static void Main(string[] args) {
+ if (Array.IndexOf(args, "--naudio-format") >= 0) {
+  var expected = new WaveFormatExtensible(96000, 32, 2);
+  var ptr = WaveFormat.MarshalToPtr(expected);
+  try { var actual = WaveFormat.MarshalFromPtr(ptr); Console.WriteLine($"Format roundtrip: expected={expected}; actual={actual}; raw rate={System.Runtime.InteropServices.Marshal.ReadInt32(ptr, 4)}"); if(actual.SampleRate != expected.SampleRate) throw new Exception("Wave format marshal roundtrip failed"); }
+  finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(ptr); }
+  return;
+ }
+ if (Array.IndexOf(args, "--format") >= 0) {
+  var ptr = System.Runtime.InteropServices.Marshal.AllocHGlobal(40);
+  try {
+   foreach (int rate in new[] {44100,48000,96000,192000}) foreach (short channels in new short[] {1,2,6,8}) {
+    System.Runtime.InteropServices.Marshal.WriteInt16(ptr, 0, unchecked((short)0xfffe));
+    System.Runtime.InteropServices.Marshal.WriteInt16(ptr, 2, channels);
+    System.Runtime.InteropServices.Marshal.WriteInt32(ptr, 4, rate);
+    var actual = LoopbackWaveFormat.FromNativeHeader(ptr);
+    if(actual.SampleRate != rate || actual.Channels != channels || actual.BitsPerSample != 32 || actual.Encoding != WaveFormatEncoding.IeeeFloat)
+     throw new Exception("Native mix format decoding failed");
+    var roundtrip = WaveFormat.MarshalToPtr(actual);
+    try { if(System.Runtime.InteropServices.Marshal.ReadInt32(roundtrip,4) != rate || System.Runtime.InteropServices.Marshal.ReadInt16(roundtrip,0) != 3) throw new Exception("Float format encoding failed"); }
+    finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(roundtrip); }
+   }
+  } finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(ptr); }
+  Console.WriteLine("PASS: 16 native mix headers decoded and float request headers encoded.");
+  return;
+ }
  using var output = new WasapiOut();
  if (Array.IndexOf(args, "--tone") >= 0) { output.Init(new TestTone()); output.Play(); }
  using var analyzer = new SpectrumAnalyzer();
  var capture=(NAudio.CoreAudioApi.WasapiCapture)typeof(SpectrumAnalyzer).GetField("_capture",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(analyzer);
- long last=0; int count=0; double sum=0,max=0; int maxBytes=0; int bursts=0, gaps=0;
- capture.DataAvailable += (_,e)=> {long now=Stopwatch.GetTimestamp(); if(last>0){double ms=Stopwatch.GetElapsedTime(last,now).TotalMilliseconds; sum+=ms; max=Math.Max(max,ms); count++; if(ms<2) bursts++; if(ms>25) gaps++;}last=now; maxBytes=Math.Max(maxBytes,e.BytesRecorded);};
+ long last=0; int count=0; double sum=0,max=0; int maxBytes=0; int bursts=0, gaps=0; float peak=0;
+ capture.DataAvailable += (_,e)=> {long now=Stopwatch.GetTimestamp(); if(last>0){double ms=Stopwatch.GetElapsedTime(last,now).TotalMilliseconds; sum+=ms; max=Math.Max(max,ms); count++; if(ms<2) bursts++; if(ms>25) gaps++;}last=now; maxBytes=Math.Max(maxBytes,e.BytesRecorded); foreach(float value in analyzer.LatestBands) peak=Math.Max(peak,value);};
  Thread.Sleep(8000);
  Console.WriteLine($"Sample rate: {analyzer.SampleRate}; FFT callbacks: {count}; mean interval: {sum/Math.Max(1,count):F2} ms; max: {max:F2} ms; max bytes: {maxBytes}; bursts (<2 ms): {bursts}; gaps (>25 ms): {gaps}");
- if (Array.IndexOf(args, "--tone") >= 0 && (count < 200 || gaps > count * 0.05 || bursts > count * 0.2))
+ Console.WriteLine($"Publications: {analyzer.PublicationCount}; peak band: {peak:F4}");
+ if (Array.IndexOf(args, "--tone") >= 0 && (count < 200 || analyzer.PublicationCount < 200 || peak <= 0 || gaps > count * 0.05 || bursts > count * 0.2))
   throw new Exception("Capture cadence regression: audio is missing or delivered in batches instead of regularly.");
  }
  sealed class TestTone : IWaveProvider {

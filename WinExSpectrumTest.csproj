@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
@@ -107,7 +107,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>False</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -117,10 +117,10 @@
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
 	<WindowsPackageType>MSIX</WindowsPackageType>
+	<PackageCertificateThumbprint>0002A085EDBAA55E2DD16A09CF752756DA371596</PackageCertificateThumbprint>
   </PropertyGroup>
   <!-- Native unpackaged publishing must replace any old loose XAML resource index. -->
-  <Target Name="CopyUnpackagedXamlResources" AfterTargets="Publish"
-          Condition="'$(WindowsPackageType)' == 'None' and Exists('$(TargetDir)$(AssemblyName).pri')">
+  <Target Name="CopyUnpackagedXamlResources" AfterTargets="Publish" Condition="'$(WindowsPackageType)' == 'None' and Exists('$(TargetDir)$(AssemblyName).pri')">
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)resources.pri" />
   </Target>
 </Project>

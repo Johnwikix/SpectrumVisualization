@@ -72,10 +72,17 @@ namespace WinExSpectrumTest.Audio
         // renderer holding the same features for 50-60 ms. Wake on device events.
         private sealed class RealtimeLoopbackCapture : WasapiCapture
         {
-            public RealtimeLoopbackCapture()
-                : base(WasapiLoopbackCapture.GetDefaultLoopbackCaptureDevice(),
+            private RealtimeLoopbackCapture(MMDevice device, WaveFormat format)
+                : base(device,
                     useEventSync: true, audioBufferMillisecondsLength: 20)
             {
+                WaveFormat = format;
+            }
+
+            public static RealtimeLoopbackCapture Create()
+            {
+                using MMDevice device = WasapiLoopbackCapture.GetDefaultLoopbackCaptureDevice();
+                return new RealtimeLoopbackCapture(device, LoopbackWaveFormat.Read(device.ID));
             }
 
             protected override AudioClientStreamFlags GetAudioClientStreamFlags()
@@ -161,7 +168,7 @@ namespace WinExSpectrumTest.Audio
             _featuresFront = _featuresA;
             _featuresBack = _featuresB;
 
-            _capture = new RealtimeLoopbackCapture();
+            _capture = RealtimeLoopbackCapture.Create();
             _sampleRate = _capture.WaveFormat.SampleRate;
             _capture.DataAvailable += OnDataAvailable;
             _capture.RecordingStopped += OnRecordingStopped;
@@ -173,7 +180,7 @@ namespace WinExSpectrumTest.Audio
             {
                 // No render device (or denied) - run silent with an empty spectrum
                 // instead of taking the whole app down at startup.
-                System.Diagnostics.Debug.WriteLine("WASAPI loopback start failed: " + ex.Message);
+                App.WriteCrashLog("Audio", "WASAPI loopback start failed", ex);
             }
         }
 
@@ -201,15 +208,19 @@ namespace WinExSpectrumTest.Audio
         /// <summary>Strength of the last detected high-frequency burst.</summary>
         public float MeteorTriggerStrength => Volatile.Read(ref _meteorTriggerStrength);
 
+        private int _processingErrorLogged;
+
         private void OnDataAvailable(object? sender, WaveInEventArgs e)
         {
             try
             {
                 ProcessChunk(e.BufferSpan, e.BytesRecorded);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Never let the audio thread die from transient decode issues.
+                if (Interlocked.Exchange(ref _processingErrorLogged, 1) == 0)
+                    App.WriteCrashLog("Audio", "Failed to process captured audio", ex);
             }
         }
 
@@ -253,7 +264,7 @@ namespace WinExSpectrumTest.Audio
                     if (_disposed) return;
 
                     RealtimeLoopbackCapture? old = null;
-                    RealtimeLoopbackCapture capture = new();
+                    RealtimeLoopbackCapture capture = RealtimeLoopbackCapture.Create();
                     bool started = false;
                     try
                     {
