@@ -20,6 +20,8 @@ namespace WinExSpectrumTest.Model
         public static bool CoverPulseEnabled { get => _CoverPulseEnabled; set => Set(ref _CoverPulseEnabled, value); }
         private static bool _IsLocked = false;
         public static bool IsLocked { get => _IsLocked; set => Set(ref _IsLocked, value); }
+        private static bool _WallpaperEnabled;
+        public static bool WallpaperEnabled { get => _WallpaperEnabled; set => Set(ref _WallpaperEnabled, value); }
         private static bool _IsDrawPlainSpectrum = false;
         public static bool IsDrawPlainSpectrum { get => _IsDrawPlainSpectrum; set => Set(ref _IsDrawPlainSpectrum, value); }
         private static bool _IsDrawRoundSpectrum = true;

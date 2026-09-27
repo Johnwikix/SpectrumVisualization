@@ -16,14 +16,24 @@
             ContextMenuMode="SecondWindow"
             DataContext="{Binding}"
             IconSource="ms-appx:///Assets/icon.ico"
+            ToolTipText="Spectrum"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
+                    <ToggleMenuFlyoutItem
+                        x:Name="WallpaperMode"
+                        x:Uid="WallpaperMode"
+                        AutomationProperties.AutomationId="WallpaperMode"
+                        Command="{x:Bind ToggleWallpaperModeCommand}">
+                        <ToggleMenuFlyoutItem.Icon>
+                            <SymbolIcon Symbol="Pictures" />
+                        </ToggleMenuFlyoutItem.Icon>
+                    </ToggleMenuFlyoutItem>
+                    <MenuFlyoutSeparator />
                     <MenuFlyoutItem
                         x:Name="Unlock"
                         x:Uid="UnlockWindow"
-                        Width="150"
                         Command="{x:Bind UnlockWindowCommand}">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE785;" />

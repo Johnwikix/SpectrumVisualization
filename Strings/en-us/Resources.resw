@@ -237,4 +237,13 @@
   <data name="SettingsSectionAbout.Text" xml:space="preserve">
     <value>About</value>
   </data>
+  <data name="WallpaperMode.Text" xml:space="preserve">
+    <value>Wallpaper (primary display)</value>
+  </data>
+  <data name="WallpaperErrorTitle" xml:space="preserve">
+    <value>Wallpaper mode unavailable</value>
+  </data>
+  <data name="WallpaperErrorMessage" xml:space="preserve">
+    <value>Could not switch wallpaper mode. Try again from the tray later.</value>
+  </data>
 </root>

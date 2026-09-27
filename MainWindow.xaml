@@ -18,6 +18,7 @@
     <Grid x:Name="MyMainwindow">
         <controls:NotifyIconControl x:Name="AppNotifyIconControl" MinWidth="0" />
         <Grid
+            x:Name="VisualizerHost"
             Margin="1,1,1,1"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch"

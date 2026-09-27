@@ -16,8 +16,17 @@ SpectrumVisualization is a lightweight audio visualization application developed
 | ------------------------------ | ------------------------------------------------------------ |
 | 实时音频可视化                 | 支持波浪线等动态效果，实时反映音频频率、强度变化 / Supports dynamic effects like wave lines, reflecting audio frequency and intensity changes in real-time |
 | 系统托盘集成                   | 可最小化至托盘，通过右键菜单快速执行 “显示窗口”“退出” 等操作 / Minimizable to system tray, with right-click menu for quick operations like "Show Window" and "Exit" |
+| 壁纸模式                       | 在托盘勾选“壁纸模式（主屏幕）”，将当前音频效果铺满主屏幕并显示在桌面图标下方；取消勾选恢复小组件 / Toggle "Wallpaper (primary display)" in the tray to show the current effect beneath desktop icons |
 | 轻量化架构                     | 基于 WinUI3 现代 UI 框架，界面流畅、资源占用低，适配 Windows 11/10 设计规范 / Built on WinUI3 modern UI framework, with smooth interface, low resource usage, and compatibility with Windows 11/10 design standards |
 | SMTC读取                       | 读取当前SMTC中正在播放的音乐封面，标题和艺术家 / Read the music cover, title, and artist that is currently playing in SMTC |
+
+### 壁纸模式 / Wallpaper mode
+
+右键点击 **Spectrum** 托盘图标，勾选 **壁纸模式（主屏幕）** 即可启用，再次点击关闭。默认使用主屏幕，覆盖完整屏幕区域；副屏保持原状。桌面图标仍可正常操作，壁纸不抢焦点、不置顶。
+
+关闭后恢复进入前的小组件位置、大小及锁定/全屏状态。开关选择会保存，重新启动后自动恢复；首次使用默认保持小组件模式。壁纸模式下仍可从托盘打开设置、切换效果和退出程序。现有系统壁纸文件不会被修改。
+
+Right-click the **Spectrum** tray icon and toggle **Wallpaper (primary display)**. The current effect fills the primary screen behind desktop icons. Turning it off restores the widget's previous bounds and locked/full-screen state. The choice is saved across restarts; new installations start in widget mode. Settings, effect switching, and Exit remain available in the tray.
 
 ## 3. 技术栈 / Technology Stack
 

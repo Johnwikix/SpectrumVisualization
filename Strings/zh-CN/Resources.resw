@@ -237,4 +237,13 @@
   <data name="SettingsSectionAbout.Text" xml:space="preserve">
     <value>关于</value>
   </data>
+  <data name="WallpaperMode.Text" xml:space="preserve">
+    <value>壁纸模式（主屏幕）</value>
+  </data>
+  <data name="WallpaperErrorTitle" xml:space="preserve">
+    <value>壁纸模式不可用</value>
+  </data>
+  <data name="WallpaperErrorMessage" xml:space="preserve">
+    <value>暂时无法切换壁纸模式。请稍后从托盘重试。</value>
+  </data>
 </root>

@@ -95,7 +95,7 @@ namespace WinExSpectrumTest
         private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
         {
             // 锁定态：z 序变动后被挤出置顶层时幂等重申
-            if (AppSettings.IsLocked && args.DidZOrderChange)
+            if (AppSettings.IsLocked && !_changingWallpaper && _wallpaperHost == null && args.DidZOrderChange)
             {
                 WindowHelper.EnsureTopmost(_hwnd);
             }
@@ -186,6 +186,7 @@ namespace WinExSpectrumTest
         /// 由 MainWindow_Activated 在首次激活后重试。</summary>
         private void UpdateDragRegion()
         {
+            if (_changingWallpaper || _wallpaperHost != null) return;
             if (AppTitleBar.ActualWidth <= 0 || Content?.XamlRoot is null) return;
             if (_appWindow.TitleBar is null) return;
             double scale = Content.XamlRoot.RasterizationScale;
@@ -205,6 +206,7 @@ namespace WinExSpectrumTest
         /// <summary>进入锁定态：无边框 + 点击穿透 + 置顶；按钮组靠光标轮询显隐与放行。</summary>
         public void ApplyLock()
         {
+            if (_wallpaperHost != null) return;
             AppTitleBar.Opacity = 0;
             themeStyleHelper?.SetTransparent();
             WindowHelper.Enable(this);
@@ -358,17 +360,23 @@ namespace WinExSpectrumTest
 
         public void SetAppStyle()
         {
+            if (_wallpaperHost != null || AppSettings.IsLocked)
+            {
+                themeStyleHelper.SetTransparent();
+                return;
+            }
             themeStyleHelper.SetAppStyle();
         }
 
         public void SetCustomAppStyle()
         {
+            if (_wallpaperHost != null || AppSettings.IsLocked) return;
             themeStyleHelper.ChangeCustomAcrylicStyle();
         }
 
         public void SetAppTheme()
         {
-            themeStyleHelper.SetAppStyle();
+            SetAppStyle();
             themeStyleHelper.SetAppTheme();
         }
 
@@ -386,6 +394,7 @@ namespace WinExSpectrumTest
 
         private void FullScreen_Click(object sender, RoutedEventArgs e)
         {
+            if (_wallpaperHost != null || _changingWallpaper) return;
             if (IsFullScreen)
             {
                 _appWindow.SetPresenter(AppWindowPresenterKind.Default);

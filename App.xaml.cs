@@ -92,6 +92,11 @@ namespace WinExSpectrumTest
             await DataJsonService.LoadSettingAsync();
             MainWindow = new MainWindow();
             MainWindow.Activate();
+            if (Model.AppSettings.WallpaperEnabled)
+            {
+                // Let WinUI finish its first layout before reparenting its HWND.
+                MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.SetWallpaperMode(true));
+            }
             // SMTC session enumeration can take hundreds of milliseconds; don't let it
             // delay the first frame. Effects receive late media updates through events.
             _ = MediaInfoService.InitializeAsync();
@@ -103,6 +108,7 @@ namespace WinExSpectrumTest
             {
                 // 退出前同步落盘：异步保存会被下面的 Exit 终止（设置丢失的根因）。
                 DataJsonService.SaveSettingNow();
+                MainWindow?.ReleaseWallpaper();
                 _host.StopAsync().Wait();
             }
             catch (Exception)

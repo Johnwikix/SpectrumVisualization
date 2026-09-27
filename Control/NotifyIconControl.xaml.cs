@@ -18,14 +18,16 @@ namespace WinExSpectrumTest.Control
     {
         public NotifyIconControl()
         {
-            InitializeComponent();            
+            InitializeComponent();
+            UpdateTrayState();
+            AppSettings.Changed += OnSettingsChanged;
         }
 
         [RelayCommand]
         public void ShowMainWindow()
         {
             if (App.MainWindow == null) return;
-            if (!AppSettings.IsLocked)
+            if (!AppSettings.IsLocked && !AppSettings.WallpaperEnabled)
             {
                 if (WindowHelper.IsWindowVisible(App.MainWindow))
                 {
@@ -43,6 +45,33 @@ namespace WinExSpectrumTest.Control
                     }
                 }
             }
+        }
+
+        private void OnSettingsChanged(string propertyName)
+        {
+            if (propertyName is nameof(AppSettings.WallpaperEnabled) or nameof(AppSettings.IsLocked))
+                UpdateTrayState();
+        }
+
+        private void UpdateTrayState()
+        {
+            WallpaperMode.IsChecked = AppSettings.WallpaperEnabled;
+            Unlock.IsEnabled = AppSettings.IsLocked && !AppSettings.WallpaperEnabled;
+        }
+
+        internal void Dispose()
+        {
+            AppSettings.Changed -= OnSettingsChanged;
+            NotifyIcon.Dispose();
+        }
+
+        [RelayCommand]
+        private void ToggleWallpaperMode()
+        {
+            // SecondWindow owns a separate flyout; use the actual window state,
+            // not a flyout Opening event or the transient menu check mark.
+            App.MainWindow?.SetWallpaperMode(!AppSettings.WallpaperEnabled);
+            WallpaperMode.IsChecked = AppSettings.WallpaperEnabled;
         }
         [RelayCommand]
         public void Setting()
