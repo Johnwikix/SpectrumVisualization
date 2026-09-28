@@ -24,6 +24,7 @@ internal sealed class GpuRenderer
     private readonly AutoResetEvent _wake = new(false);
     private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private GpuRenderSettings _settings;
+    private long _scaleChangedAt;
     private bool _stopping;
     private HdrOutputMode? _lastStatus;
     private TaskCompletionSource? _paused;
@@ -59,6 +60,8 @@ internal sealed class GpuRenderer
         lock (_gate)
         {
             if (_stopping) return;
+            if (_settings.Scene.RenderScalePercent != settings.Scene.RenderScalePercent)
+                _scaleChangedAt = Environment.TickCount64;
             _settings = settings;
             _wake.Set();
         }
@@ -113,10 +116,12 @@ internal sealed class GpuRenderer
             while (true)
             {
                 GpuRenderSettings settings;
+                long scaleChangedAt;
                 lock (_gate)
                 {
                     if (_stopping) break;
                     settings = _settings;
+                    scaleChangedAt = _scaleChangedAt;
                     if (!settings.Active)
                     {
                         _paused?.TrySetResult();
@@ -145,7 +150,11 @@ internal sealed class GpuRenderer
                         previousRequest = null;
                     }
                     graphics.Resize(settings.Width, settings.Height);
-                    graphics.Configure(settings.Scene);
+                    // Keep rendering while a slider is moving; only the latest scale is applied.
+                    var scene = Environment.TickCount64 - scaleChangedAt < 150
+                        ? settings.Scene with { RenderScalePercent = graphics.RenderScalePercent }
+                        : settings.Scene;
+                    graphics.Configure(scene);
                     if (activeEffect != settings.Effect.Id)
                     {
                         graphics.ChangeEffect(settings.Effect.CreateGpu!);
@@ -191,7 +200,7 @@ internal sealed class GpuRenderer
                     pacer.Reset();
                     continue;
                 }
-                double fps = float.IsFinite(settings.FramesPerSecond) ? Math.Clamp(settings.FramesPerSecond, 1, 120) : 60;
+                double fps = Model.FrameRateSettings.Normalize(settings.FramesPerSecond);
                 pacer.Wait(fps);
             }
         }

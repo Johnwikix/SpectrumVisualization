@@ -40,6 +40,9 @@ namespace WinExSpectrumTest.Model
         public int SonicRenderScalePercent { get; set; } = 100;
         public string SonicAntiAliasing { get; set; } = "off";
         public string SonicUpscaleQuality { get; set; } = "quality";
+        // Retain SonicUpscaleQuality's JSON name for one-time migration of older saves.
+        public int SonicResolutionVersion { get; set; }
+        public string SonicDlssPreset { get; set; } = "k";
         public bool SonicIdleWaveEnabled { get; set; } = true;
         public bool SonicRippleEnabled { get; set; } = true;
         public bool SonicMeteorEnabled { get; set; } = true;

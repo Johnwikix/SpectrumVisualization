@@ -41,8 +41,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private SmaaPass? _smaa;
     private ReconstructionMode _activeMode;
     private uint _capabilities;
+    private bool _unsupportedScale;
     private Func<IGpuVisualizerEffect> _effectFactory;
-    internal ReconstructionStatus Reconstruction => new(_capabilities, _options.Mode, _activeMode);
+    internal ReconstructionStatus Reconstruction => new(_capabilities, _options.Mode, _activeMode, _unsupportedScale);
     private ColorOutputPipelines _pipelines = null!;
     private IGpuVisualizerEffect _effect = null!;
     private readonly SpectrumAnalyzer _analyzer;
@@ -53,6 +54,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private bool _disposed;
     public int Width { get; private set; }
     public int Height { get; private set; }
+    internal int RenderScalePercent => _options.RenderScalePercent;
 
     public GpuGraphics(SpectrumAnalyzer analyzer, Action<nint> bind, int width, int height,
         Func<IGpuVisualizerEffect> factory, GpuSceneOptions options)
@@ -130,7 +132,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public void Configure(GpuSceneOptions options)
     {
         if (_options == options) return;
-        if (_options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode || _options.UpscaleQuality != options.UpscaleQuality)
+        if (_options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode ||
+            (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset))
         {
             WaitForGpu();
             CreateSceneResources(options);
@@ -166,11 +169,14 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     }
 
     private void CreateSceneResources(GpuSceneOptions options)
+        => CreateSceneResources(options, GpuRenderSize.Create(Width, Height, options.RenderScalePercent));
+
+    private void CreateSceneResources(GpuSceneOptions options, GpuRenderSize size)
     {
         DisposeResource(_temporal);
         _temporal = null;
         _activeMode = options.Mode;
-        var size = GpuRenderSize.Create(Width, Height, options.RenderScalePercent);
+        _unsupportedScale = false;
         if (options.Mode >= ReconstructionMode.XeSS)
         {
             if (_effect is ITemporalGpuEffect && (_capabilities & (1u << (int)options.Mode)) != 0)
@@ -178,7 +184,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
                 BeginCommands();
                 try
                 {
-                    _temporal = TemporalReconstruction.Create(_device, _commands, options.Mode, options.UpscaleQuality, Width, Height);
+                    _temporal = TemporalReconstruction.Create(_device, _commands, options.Mode, options.DlssPreset, size);
                 }
                 catch (Exception ex)
                 {
@@ -186,8 +192,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
                     _commands.Close();
                     DisposeResource(_temporal);
                     _temporal = null;
-                    _capabilities &= ~(1u << (int)options.Mode);
-                    App.WriteCrashLog("Reconstruction initialization", ex.Message, ex);
+                    _unsupportedScale = ex is ReconstructionSizeException;
+                    if (!_unsupportedScale)
+                    {
+                        _capabilities &= ~(1u << (int)options.Mode);
+                        App.WriteCrashLog("Reconstruction initialization", ex.Message, ex);
+                    }
                 }
                 if (_temporal != null)
                 {
@@ -480,10 +490,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 internal readonly record struct DisplayOutput(bool HdrEnabled, float PeakNits);
 
 /// <summary>Configures scene resolution, postprocessing and effect-specific detail at a frame boundary.</summary>
-internal readonly record struct GpuSceneOptions(int RenderScalePercent, ReconstructionMode Mode, int Detail, string UpscaleQuality = "quality")
+internal readonly record struct GpuSceneOptions(int RenderScalePercent, ReconstructionMode Mode, int Detail, string DlssPreset = "k")
 {
     internal GpuSceneOptions(int scale, bool antialias, int detail) : this(scale, antialias ? ReconstructionMode.Fxaa : ReconstructionMode.Off, detail) { }
 }
 
 /// <summary>Immutable render-thread status, marshalled to the UI only when it changes.</summary>
-internal readonly record struct ReconstructionStatus(uint Capabilities, ReconstructionMode Requested, ReconstructionMode Active);
+internal readonly record struct ReconstructionStatus(uint Capabilities, ReconstructionMode Requested, ReconstructionMode Active, bool UnsupportedScale = false);

@@ -276,11 +276,15 @@
   <data name="SonicAntiAliasingCombo.AutomationProperties.Name" xml:space="preserve"><value>抗锯齿</value></data>
   <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>关闭</value></data>
   <data name="SonicRenderScale.Header" xml:space="preserve"><value>渲染比例</value></data>
-  <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>渲染比例</value></data>
-  <data name="SonicUpscaleQuality.Header" xml:space="preserve"><value>重建质量</value></data>
-  <data name="SonicUpscaleQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>重建质量</value></data>
-  <data name="SonicUpscaleNative.Content" xml:space="preserve"><value>原生分辨率 AA</value></data>
-  <data name="SonicUpscaleQualityMode.Content" xml:space="preserve"><value>质量</value></data>
+  <data name="SonicRenderScaleSlider.AutomationProperties.Name" xml:space="preserve"><value>渲染比例（百分比）</value></data>
+  <data name="SonicRenderScale.Description" xml:space="preserve"><value>按输出宽高的比例渲染，适用于所有抗锯齿算法。</value></data>
+  <data name="SonicDlssPreset.Header" xml:space="preserve"><value>DLSS 模型预设</value></data>
+  <data name="SonicDlssPreset.Description" xml:space="preserve"><value>明确选择 J、K、L 或 M；K 为默认。模型选择独立于渲染比例，可能受驱动覆盖。</value></data>
+  <data name="SonicDlssPresetCombo.AutomationProperties.Name" xml:space="preserve"><value>DLSS 模型预设</value></data>
+  <data name="SonicReconstructionScaleUnsupported" xml:space="preserve"><value>所选算法不支持当前输入尺寸，暂用 FXAA；提高渲染比例后会自动重试。</value></data>
+  <data name="RefreshRateCombo.AutomationProperties.Name" xml:space="preserve"><value>刷新率上限</value></data>
+  <data name="RefreshRateUnlimited" xml:space="preserve"><value>无限帧率</value></data>
+  <data name="RefreshRate.Description" xml:space="preserve"><value>无限帧率取消应用定时限速；实际呈现仍受 GPU 和显示系统影响。</value></data>
   <data name="SonicReconstructionPending" xml:space="preserve"><value>尚未检测 GPU 能力</value></data>
   <data name="SonicReconstructionFallback" xml:space="preserve"><value>所选算法不可用，当前使用 FXAA</value></data>
   <data name="SonicReconstructionReady" xml:space="preserve"><value>所选算法已生效</value></data>

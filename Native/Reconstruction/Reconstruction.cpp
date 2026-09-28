@@ -9,6 +9,8 @@
 #include <memory>
 #include <stdexcept>
 #include <cstring>
+#include <cmath>
+#include <limits>
 #include <xess/xess_d3d12.h>
 #include <ffx_api_loader.h>
 #include <dx12/ffx_api_dx12.h>
@@ -168,17 +170,17 @@ API uint32_t ReconstructionCapabilities(ID3D12Device* device) noexcept
     return bits;
 }
 
-// quality: 0 native AA, 1 quality, 2 balanced, 3 performance. SDKs own their optimal sizes.
-API int ReconstructionCreate(ID3D12Device* device, ID3D12GraphicsCommandList* commands,
-    int mode, int quality, uint32_t width, uint32_t height, Context** output, uint32_t* inputWidth, uint32_t* inputHeight) noexcept
+// V2: the host owns the exact input size; quality enums are internal SDK initialization hints.
+// -30 means this input/output pair is unsupported, not that the device lacks the provider.
+API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* commands,
+    int mode, int preset, uint32_t width, uint32_t height, uint32_t inputWidth, uint32_t inputHeight, Context** output) noexcept
 {
-    if (!device || !commands || !output || !inputWidth || !inputHeight || !width || !height || quality < 0 || quality > 3) return -1;
+    if (!device || !commands || !output || !inputWidth || !inputHeight || !width || !height || inputWidth > width || inputHeight > height) return -1;
     *output = nullptr;
     try
     {
         auto ctx = std::make_unique<Context>();
         ctx->device = device; ctx->mode = mode; ctx->outputWidth = width; ctx->outputHeight = height;
-        *inputWidth = width; *inputHeight = height;
         if (mode == 3)
         {
             ctx->library = Load(L"libxess.dll");
@@ -186,57 +188,81 @@ API int ReconstructionCreate(ID3D12Device* device, ID3D12GraphicsCommandList* co
             ctx->xessDestroy = Symbol<decltype(ctx->xessDestroy)>(ctx->library, "xessDestroyContext");
             auto create = Symbol<decltype(&xessD3D12CreateContext)>(ctx->library, "xessD3D12CreateContext");
             auto init = Symbol<decltype(&xessD3D12Init)>(ctx->library, "xessD3D12Init");
-            auto resolution = Symbol<decltype(&xessGetInputResolution)>(ctx->library, "xessGetInputResolution");
+            auto resolution = Symbol<decltype(&xessGetOptimalInputResolution)>(ctx->library, "xessGetOptimalInputResolution");
             ctx->xessExecute = Symbol<decltype(ctx->xessExecute)>(ctx->library, "xessD3D12Execute");
             if (create(device, &ctx->xess) < 0) return -3;
-            const xess_quality_settings_t qualities[] = { XESS_QUALITY_SETTING_AA, XESS_QUALITY_SETTING_QUALITY, XESS_QUALITY_SETTING_BALANCED, XESS_QUALITY_SETTING_PERFORMANCE };
+            const xess_quality_settings_t qualities[] = { XESS_QUALITY_SETTING_AA, XESS_QUALITY_SETTING_ULTRA_QUALITY_PLUS,
+                XESS_QUALITY_SETTING_ULTRA_QUALITY, XESS_QUALITY_SETTING_QUALITY, XESS_QUALITY_SETTING_BALANCED,
+                XESS_QUALITY_SETTING_PERFORMANCE, XESS_QUALITY_SETTING_ULTRA_PERFORMANCE };
             xess_d3d12_init_params_t desc{};
             desc.outputResolution = { width, height };
-            desc.qualitySetting = qualities[quality];
+            double best = std::numeric_limits<double>::max();
+            for (auto quality : qualities)
+            {
+                xess_2d_t optimal{}, minimum{}, maximum{};
+                if (resolution(ctx->xess, &desc.outputResolution, quality, &optimal, &minimum, &maximum) < 0) continue;
+                // Use the recommendation to select a model, not to reject a fixed input size.
+                // Execute receives the actual dimensions; its return value is authoritative.
+                double distance = std::abs(double(optimal.x) - inputWidth) + std::abs(double(optimal.y) - inputHeight);
+                if (distance < best) { best = distance; desc.qualitySetting = quality; }
+            }
+            if (best == std::numeric_limits<double>::max()) return -30;
             desc.initFlags = XESS_INIT_FLAG_RESPONSIVE_PIXEL_MASK;
             desc.creationNodeMask = desc.visibleNodeMask = 1;
-            xess_2d_t input{};
-            if (resolution(ctx->xess, &desc.outputResolution, desc.qualitySetting, &input) < 0) return -4;
-            *inputWidth = input.x; *inputHeight = input.y;
             if (init(ctx->xess, &desc) < 0) return -5;
         }
         else if (mode == 4)
         {
             if (!InitFsr(*ctx)) return -6;
-            ffxQueryDescUpscaleGetRenderResolutionFromQualityMode query{};
-            query.header.type = FFX_API_QUERY_DESC_TYPE_UPSCALE_GETRENDERRESOLUTIONFROMQUALITYMODE;
-            query.header.pNext = &ctx->version.header;
-            query.displayWidth = width; query.displayHeight = height;
-            query.qualityMode = static_cast<FfxApiUpscaleQualityMode>(quality);
-            query.pOutRenderWidth = inputWidth; query.pOutRenderHeight = inputHeight;
-            if (ctx->ffx.Query(nullptr, &query.header) != FFX_API_RETURN_OK) return -7;
             ctx->backend.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
             ctx->backend.device = device;
             ctx->backend.header.pNext = &ctx->version.header;
             ctx->fsrDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
             ctx->fsrDesc.header.pNext = &ctx->backend.header;
             ctx->fsrDesc.flags = FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE;
-            ctx->fsrDesc.maxRenderSize = { *inputWidth, *inputHeight };
+            ctx->fsrDesc.maxRenderSize = { inputWidth, inputHeight };
             ctx->fsrDesc.maxUpscaleSize = { width, height };
             if (ctx->ffx.CreateContext(&ctx->fsr, &ctx->fsrDesc.header, nullptr) != FFX_API_RETURN_OK) return -8;
         }
         else if (mode == 5)
         {
             if (!InitNgx(*ctx)) return -9;
+            if (width < 32 || height < 32) return -30;
+            if (preset < NVSDK_NGX_DLSS_Hint_Render_Preset_J || preset > NVSDK_NGX_DLSS_Hint_Render_Preset_M) return -1;
+            // Set every quality slot: the chosen model remains explicit when the input ratio changes.
+            for (auto key : { NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
+                NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance,
+                NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance })
+                ctx->parameters->Set(key, static_cast<unsigned int>(preset));
             const NVSDK_NGX_PerfQuality_Value qualities[] = { NVSDK_NGX_PerfQuality_Value_DLAA, NVSDK_NGX_PerfQuality_Value_MaxQuality,
-                NVSDK_NGX_PerfQuality_Value_Balanced, NVSDK_NGX_PerfQuality_Value_MaxPerf };
-            uint32_t maxW, maxH, minW, minH; float sharpness;
-            if (NVSDK_NGX_FAILED(NGX_DLSS_GET_OPTIMAL_SETTINGS(ctx->parameters, width, height, qualities[quality], inputWidth, inputHeight,
-                &maxW, &maxH, &minW, &minH, &sharpness))) return -10;
+                NVSDK_NGX_PerfQuality_Value_Balanced, NVSDK_NGX_PerfQuality_Value_MaxPerf, NVSDK_NGX_PerfQuality_Value_UltraPerformance };
+            NVSDK_NGX_PerfQuality_Value selected = NVSDK_NGX_PerfQuality_Value_MaxPerf;
+            double best = std::numeric_limits<double>::max();
+            for (auto quality : qualities)
+            {
+                uint32_t optimalW, optimalH, maxW, maxH, minW, minH; float sharpness;
+                if (NVSDK_NGX_FAILED(NGX_DLSS_GET_OPTIMAL_SETTINGS(ctx->parameters, width, height, quality, &optimalW, &optimalH,
+                    &maxW, &maxH, &minW, &minH, &sharpness))) continue;
+                double distance = std::abs(double(optimalW) - inputWidth) + std::abs(double(optimalH) - inputHeight);
+                if (distance < best)
+                {
+                    best = distance;
+                    selected = quality;
+                }
+            }
             NVSDK_NGX_DLSS_Create_Params desc{};
-            desc.Feature.InWidth = *inputWidth; desc.Feature.InHeight = *inputHeight;
+            // A scale change recreates the feature: its input size is fixed for its lifetime.
+            // The query's min/max describe DRS within a recommended feature configuration,
+            // not a veto on custom fixed input sizes (UltraPerformance reports min == max).
+            desc.Feature.InWidth = inputWidth; desc.Feature.InHeight = inputHeight;
             desc.Feature.InTargetWidth = width; desc.Feature.InTargetHeight = height;
-            desc.Feature.InPerfQualityValue = qualities[quality];
+            desc.Feature.InPerfQualityValue = selected;
             desc.InFeatureCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes;
-            if (NVSDK_NGX_FAILED(NGX_D3D12_CREATE_DLSS_EXT(commands, 1, 1, &ctx->dlss, ctx->parameters, &desc))) return -11;
+            auto result = NGX_D3D12_CREATE_DLSS_EXT(commands, 1, 1, &ctx->dlss, ctx->parameters, &desc);
+            if (result == NVSDK_NGX_Result_FAIL_InvalidParameter) return -30;
+            if (NVSDK_NGX_FAILED(result)) return -11;
         }
         else return -12;
-        if (!*inputWidth || !*inputHeight || *inputWidth > width || *inputHeight > height) return -13;
         *output = ctx.release();
         return 0;
     }

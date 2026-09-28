@@ -32,6 +32,26 @@ swap chain, audio endpoint, UI thread or presentation loop. Runtime initializati
 failures disable that provider for the current host and fall back to FXAA without
 rewriting saved preferences. Reopening the host retries device capabilities.
 
+`ReconstructionCreateV2` accepts the host's exact input dimensions, derived from
+the common 1–100% render scale. Vendor quality enums are internal initialization
+hints, not a second resolution setting. Queries choose the closest quality hint;
+their recommended min/max ranges do not veto custom fixed input sizes. A scale
+change recreates the context. DLSS creation and evaluation both receive the actual
+input dimensions, and XeSS execution receives them directly. In particular,
+DLSS Ultra Performance's min=max recommendation must not reject 33% or 40% inputs.
+The current SDKs execute 16x9 inputs in the offscreen regression probe; this tests
+execution and finite, nonempty output, not perceptual quality. SDK errors still
+trigger FXAA fallback. Return code `-30` denotes an invalid resolution configuration
+(including DLSS outputs below 32x32) without disabling the provider; dimensions
+changes retry initialization. See `doc/verification/reconstruction.md` for evidence.
+
+The DLSS adapter explicitly sets J/K/L/M (default K) in all NGX quality preset
+slots. This is the application's requested preset; driver overrides can still
+affect model selection. SDK initialization and resource replacement run only on
+the render thread after outstanding GPU work completes. Unlimited frame rate
+removes application timer pacing, not these resource-lifetime synchronization
+requirements. No frame generation is included.
+
 ## Distribution
 
 Each vendored SDK retains its own license. The application's MIT license does not

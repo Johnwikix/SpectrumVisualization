@@ -270,19 +270,55 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
         private float _refreshRate = 60.0f;
+        private float[] _refreshRates = [];
+        public string[] RefreshRateChoices { get; private set; } = [];
+        public int RefreshRateIndex
+        {
+            get => Array.IndexOf(_refreshRates, _refreshRate);
+            set
+            {
+                if (_isInitialized && (uint)value < (uint)_refreshRates.Length)
+                    RefreshRate = _refreshRates[value];
+            }
+        }
+
+        private void EnsureRefreshRateChoice(float rate)
+        {
+            if (Array.IndexOf(_refreshRates, rate) >= 0) return;
+            var presets = FrameRateSettings.Presets;
+            bool custom = rate != MathF.Truncate(rate) || !presets.Contains((int)rate);
+            _refreshRates = new float[presets.Length + (custom ? 1 : 0)];
+            var labels = new string[_refreshRates.Length];
+            var resources = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+            for (int i = 0; i < presets.Length; i++)
+            {
+                _refreshRates[i] = presets[i];
+                labels[i] = presets[i] == 0 ? resources.GetString("RefreshRateUnlimited") : $"{presets[i]} Hz";
+            }
+            if (custom)
+            {
+                _refreshRates[^1] = rate;
+                labels[^1] = $"{rate:0.##} Hz";
+            }
+            RefreshRateChoices = labels;
+            OnPropertyChanged(nameof(RefreshRateChoices));
+        }
+
         public float RefreshRate
         {
             get => _refreshRate;
             set
             {
+                value = FrameRateSettings.Normalize(value);
+                EnsureRefreshRateChoice(value);
                 if (SetProperty(ref _refreshRate, value))
                 {
                     if (_isInitialized)
                     {
                         AppSettings.RefreshRate = value;
-                        App.MainWindow?.ChangeRefreshRate();
                     }
                 }
+                OnPropertyChanged(nameof(RefreshRateIndex));
             }
         }
         private string _appVersion;
@@ -406,15 +442,18 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        /// <summary>Gets or sets the vendor quality mode independently of spatial render scaling.</summary>
-        public string SonicUpscaleQuality
+        /// <summary>Gets or sets the explicitly requested DLSS model.</summary>
+        public int SonicDlssPresetIndex
         {
-            get => AppSettings.SonicUpscaleQuality;
-            set { if (_isInitialized && value is "native" or "quality" or "balanced" or "performance") AppSettings.SonicUpscaleQuality = value; }
+            get => AppSettings.SonicDlssPreset switch { "j" => 0, "l" => 2, "m" => 3, _ => 1 };
+            set
+            {
+                if (_isInitialized && value is >= 0 and <= 3)
+                    AppSettings.SonicDlssPreset = value switch { 0 => "j", 2 => "l", 3 => "m", _ => "k" };
+            }
         }
 
-        public bool SonicTemporalEnabled => AppSettings.SonicQuality.IsTemporal;
-        public bool SonicSpatialScaleEnabled => !SonicTemporalEnabled;
+        public bool SonicDlssSelected => AppSettings.SonicAntiAliasing == "dlss";
         public bool SonicXeSSAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.XeSS);
         public bool SonicFsrAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Fsr);
         public bool SonicDlssAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Dlss);
@@ -424,6 +463,7 @@ namespace WinExSpectrumTest.ViewModel
             {
                 var status = Rendering.ReconstructionAvailability.Status;
                 string key = !Rendering.ReconstructionAvailability.Known ? "SonicReconstructionPending" :
+                    status.UnsupportedScale ? "SonicReconstructionScaleUnsupported" :
                     status.Requested != status.Active ? "SonicReconstructionFallback" : "SonicReconstructionReady";
                 return new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString(key);
             }
@@ -438,14 +478,15 @@ namespace WinExSpectrumTest.ViewModel
         }
 
         /// <summary>Gets or sets the internal resolution percentage selected in the settings view.</summary>
-        public string SonicRenderScale
+        public double SonicRenderScale
         {
-            get => AppSettings.SonicRenderScalePercent.ToString();
+            get => AppSettings.SonicRenderScalePercent;
             set
             {
-                if (_isInitialized && int.TryParse(value, out int scale)) AppSettings.SonicRenderScalePercent = scale;
+                if (_isInitialized && double.IsFinite(value)) AppSettings.SonicRenderScalePercent = (int)Math.Clamp(Math.Round(value), 1, 100);
             }
         }
+        public string SonicRenderScaleLabel => $"{AppSettings.SonicRenderScalePercent}%";
 
         /// <summary>Gets or sets the number of terrain cells per axis.</summary>
         public string SonicGridSize
@@ -634,10 +675,10 @@ namespace WinExSpectrumTest.ViewModel
             OnPropertyChanged(nameof(SonicQuality));
             OnPropertyChanged(nameof(SonicAntiAliasing));
             OnPropertyChanged(nameof(SonicRenderScale));
+            OnPropertyChanged(nameof(SonicRenderScaleLabel));
             OnPropertyChanged(nameof(SonicGridSize));
-            OnPropertyChanged(nameof(SonicUpscaleQuality));
-            OnPropertyChanged(nameof(SonicTemporalEnabled));
-            OnPropertyChanged(nameof(SonicSpatialScaleEnabled));
+            OnPropertyChanged(nameof(SonicDlssPresetIndex));
+            OnPropertyChanged(nameof(SonicDlssSelected));
             _isInitialized = initialized;
         }
 

@@ -13,6 +13,7 @@ internal sealed class GpuFramePacer : IDisposable
     private readonly TimerHandle _timer;
     private readonly WaitHandle[] _waits;
     private double _deadline;
+    private double _rate;
 
     internal GpuFramePacer(WaitHandle wake)
     {
@@ -31,6 +32,17 @@ internal sealed class GpuFramePacer : IDisposable
 
     internal void Wait(double framesPerSecond)
     {
+        if (framesPerSecond != _rate)
+        {
+            _rate = framesPerSecond;
+            Reset();
+        }
+        if (framesPerSecond == 0)
+        {
+            Reset();
+            return;
+        }
+        if (!double.IsFinite(framesPerSecond) || framesPerSecond < 1) framesPerSecond = 60;
         _deadline += Stopwatch.Frequency / framesPerSecond;
         long now = Stopwatch.GetTimestamp();
         double remaining = _deadline - now;

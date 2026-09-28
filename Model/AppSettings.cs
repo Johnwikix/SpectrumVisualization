@@ -64,7 +64,7 @@ namespace WinExSpectrumTest.Model
         private static ElementTheme _elementTheme = ElementTheme.Default;
         public static ElementTheme elementTheme { get => _elementTheme; set => Set(ref _elementTheme, value); }
         private static float _RefreshRate = 60.0f;
-        public static float RefreshRate { get => _RefreshRate; set => Set(ref _RefreshRate, value); }
+        public static float RefreshRate { get => _RefreshRate; set => Set(ref _RefreshRate, FrameRateSettings.Normalize(value)); }
         private static int _SampleRate = 12000;
         public static int SampleRate { get => _SampleRate; set => Set(ref _SampleRate, value); }
         private static int _BarCount = 512;
@@ -124,8 +124,8 @@ namespace WinExSpectrumTest.Model
         public static int SonicRenderScalePercent { get => _sonicQuality.RenderScalePercent; set => SonicQuality = _sonicQuality with { RenderScalePercent = value }; }
         /// <summary>Gets or sets the stable anti-aliasing mode identifier.</summary>
         public static string SonicAntiAliasing { get => _sonicQuality.AntiAliasing; set => SonicQuality = _sonicQuality with { AntiAliasing = value }; }
-        /// <summary>Gets or sets the native-AA or vendor reconstruction quality mode.</summary>
-        public static string SonicUpscaleQuality { get => _sonicQuality.UpscaleQuality; set => SonicQuality = _sonicQuality with { UpscaleQuality = value }; }
+        /// <summary>Gets or sets the explicit DLSS model preset independently of resolution.</summary>
+        public static string SonicDlssPreset { get => _sonicQuality.DlssPreset; set => SonicQuality = _sonicQuality with { DlssPreset = value }; }
         private static bool _SonicIdleWaveEnabled = true;
         public static bool SonicIdleWaveEnabled { get => _SonicIdleWaveEnabled; set => Set(ref _SonicIdleWaveEnabled, value); }
         private static bool _SonicRippleEnabled = true;

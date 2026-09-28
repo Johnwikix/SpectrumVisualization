@@ -8,8 +8,19 @@ using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
 if (args.Contains("--device-capabilities")) return ReconstructionChecks.DeviceCapabilities();
+if (args.Contains("--dlss-resolutions")) return ReconstructionResolutionChecks.Run();
+if (args.Contains("--xess-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.XeSS);
+if (args.Contains("--fsr-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.Fsr);
 if (args.Contains("--reconstruction")) return ReconstructionChecks.Run(args.Contains("--motion"), args.Contains("--dlss-only"));
 if (args.Contains("--benchmark-reconstruction")) return ReconstructionBenchmark.Run();
+if (args.Contains("--profile-pipeline")) return PipelineBenchmark.Run(args);
+if (args.Contains("--quality-controls"))
+{
+    static void RequireControl(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
+    QualityChecks.Run(RequireControl, new SaveSetting());
+    QualityChecks.VerifyPacer(RequireControl);
+    return 0;
+}
 
 if (args.Contains("--visual"))
 {

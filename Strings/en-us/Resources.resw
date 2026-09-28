@@ -276,11 +276,15 @@
   <data name="SonicAntiAliasingCombo.AutomationProperties.Name" xml:space="preserve"><value>Anti-aliasing</value></data>
   <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>Off</value></data>
   <data name="SonicRenderScale.Header" xml:space="preserve"><value>Render Scale</value></data>
-  <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>Render Scale</value></data>
-  <data name="SonicUpscaleQuality.Header" xml:space="preserve"><value>Reconstruction Quality</value></data>
-  <data name="SonicUpscaleQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>Reconstruction Quality</value></data>
-  <data name="SonicUpscaleNative.Content" xml:space="preserve"><value>Native AA</value></data>
-  <data name="SonicUpscaleQualityMode.Content" xml:space="preserve"><value>Quality</value></data>
+  <data name="SonicRenderScaleSlider.AutomationProperties.Name" xml:space="preserve"><value>Render scale percentage</value></data>
+  <data name="SonicRenderScale.Description" xml:space="preserve"><value>Scale the output width and height for rendering. Applies to every anti-aliasing mode.</value></data>
+  <data name="SonicDlssPreset.Header" xml:space="preserve"><value>DLSS model preset</value></data>
+  <data name="SonicDlssPreset.Description" xml:space="preserve"><value>Choose J, K, L or M explicitly; K is the default. Independent of render scale; driver overrides may apply.</value></data>
+  <data name="SonicDlssPresetCombo.AutomationProperties.Name" xml:space="preserve"><value>DLSS model preset</value></data>
+  <data name="SonicReconstructionScaleUnsupported" xml:space="preserve"><value>The selected algorithm does not support this input size. Using FXAA until a supported render scale is selected.</value></data>
+  <data name="RefreshRateCombo.AutomationProperties.Name" xml:space="preserve"><value>Frame rate limit</value></data>
+  <data name="RefreshRateUnlimited" xml:space="preserve"><value>Unlimited</value></data>
+  <data name="RefreshRate.Description" xml:space="preserve"><value>Unlimited removes application pacing. Presentation still depends on the GPU and display system.</value></data>
   <data name="SonicReconstructionPending" xml:space="preserve"><value>GPU capabilities not yet detected</value></data>
   <data name="SonicReconstructionFallback" xml:space="preserve"><value>Selected algorithm unavailable; FXAA is active</value></data>
   <data name="SonicReconstructionReady" xml:space="preserve"><value>Selected algorithm is active</value></data>

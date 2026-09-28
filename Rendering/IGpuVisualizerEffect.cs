@@ -9,8 +9,8 @@ namespace WinExSpectrumTest.Rendering;
 internal readonly record struct GpuRenderSize(int OutputWidth, int OutputHeight, int Width, int Height)
 {
     public static GpuRenderSize Create(int width, int height, int scale) => new(width, height,
-        Math.Max(1, (int)((long)width * Math.Clamp(scale, 50, 100) / 100)),
-        Math.Max(1, (int)((long)height * Math.Clamp(scale, 50, 100) / 100)));
+        Math.Max(1, (int)((long)width * Math.Clamp(scale, 1, 100) / 100)),
+        Math.Max(1, (int)((long)height * Math.Clamp(scale, 1, 100) / 100)));
 }
 
 /// <summary>Provides borrowed devices and the application's existing analyzer.</summary>

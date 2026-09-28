@@ -105,10 +105,9 @@
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
                         <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
-                            <Slider
-                                Maximum="120"
-                                Minimum="1"
-                                Value="{x:Bind ViewModel.RefreshRate, Mode=TwoWay}" />
+                            <ComboBox x:Uid="RefreshRateCombo" AutomationProperties.AutomationId="RefreshRate"
+                                MinWidth="160" ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
+                                SelectedIndex="{x:Bind ViewModel.RefreshRateIndex, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
                             <TextBlock Text="{x:Bind ViewModel.SampleRate, Mode=OneWay}" />
@@ -358,23 +357,22 @@
                                 <ComboBoxItem Content="DLSS" Tag="dlss" IsEnabled="{x:Bind ViewModel.SonicDlssAvailable, Mode=OneWay}" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicUpscaleQuality" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.SonicTemporalEnabled, Mode=OneWay}">
-                            <ComboBox x:Uid="SonicUpscaleQualityCombo" AutomationProperties.AutomationId="SonicUpscaleQuality" MinWidth="160"
-                                SelectedValue="{x:Bind ViewModel.SonicUpscaleQuality, Mode=TwoWay}" SelectedValuePath="Tag">
-                                <ComboBoxItem x:Uid="SonicUpscaleNative" Tag="native" />
-                                <ComboBoxItem x:Uid="SonicUpscaleQualityMode" Tag="quality" />
-                                <ComboBoxItem x:Uid="SonicQualityBalanced" Tag="balanced" />
-                                <ComboBoxItem x:Uid="SonicQualityPerformance" Tag="performance" />
+                        <controls:SettingsCard x:Uid="SonicDlssPreset" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.SonicDlssSelected, Mode=OneWay}">
+                            <ComboBox x:Uid="SonicDlssPresetCombo" AutomationProperties.AutomationId="SonicDlssPreset" MinWidth="160"
+                                SelectedIndex="{x:Bind ViewModel.SonicDlssPresetIndex, Mode=TwoWay}">
+                                <ComboBoxItem Content="J" />
+                                <ComboBoxItem Content="K" />
+                                <ComboBoxItem Content="L" />
+                                <ComboBoxItem Content="M" />
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicRenderScale" Margin="10,0,10,0">
-                            <ComboBox x:Uid="SonicRenderScaleCombo" AutomationProperties.AutomationId="SonicRenderScale" MinWidth="160"
-                                IsEnabled="{x:Bind ViewModel.SonicSpatialScaleEnabled, Mode=OneWay}"
-                                SelectedValue="{x:Bind ViewModel.SonicRenderScale, Mode=TwoWay}" SelectedValuePath="Tag">
-                                <ComboBoxItem Content="50%" Tag="50" />
-                                <ComboBoxItem Content="75%" Tag="75" />
-                                <ComboBoxItem Content="100%" Tag="100" />
-                            </ComboBox>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Slider x:Uid="SonicRenderScaleSlider" AutomationProperties.AutomationId="SonicRenderScale"
+                                    Width="220" Minimum="1" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
+                                    Value="{x:Bind ViewModel.SonicRenderScale, Mode=TwoWay}" />
+                                <TextBlock Width="48" VerticalAlignment="Center" Text="{x:Bind ViewModel.SonicRenderScaleLabel, Mode=OneWay}" />
+                            </StackPanel>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
                             <ComboBox

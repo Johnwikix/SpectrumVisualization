@@ -200,7 +200,9 @@ public sealed partial class CanvasPanel : UserControl
     public void ChangeRefreshRate()
     {
         if (_disposed) return;
-        SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1d / Math.Clamp(AppSettings.RefreshRate, 1, 120));
+        float rate = AppSettings.RefreshRate;
+        SpectrumCanvasControl.IsFixedTimeStep = rate != 0;
+        if (rate != 0) SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1d / rate);
         ConfigureGpu();
     }
 
@@ -212,6 +214,7 @@ public sealed partial class CanvasPanel : UserControl
             DispatcherQueue.TryEnqueue(() => OnSettingsChanged(name));
             return;
         }
+        if (name == nameof(AppSettings.RefreshRate)) { ChangeRefreshRate(); return; }
         if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)
             or nameof(AppSettings.SonicQuality)) ConfigureGpu();
     }

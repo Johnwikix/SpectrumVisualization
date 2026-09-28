@@ -13,6 +13,11 @@ internal readonly record struct TemporalFrame(float JitterX, float JitterY, bool
 /// <summary>Perspective camera metadata matching the effect's non-inverted depth buffer.</summary>
 internal readonly record struct TemporalCamera(float NearPlane, float FarPlane, float VerticalFieldOfView);
 
+internal sealed class ReconstructionSizeException : Exception
+{
+    internal ReconstructionSizeException() : base("The requested reconstruction resolution is outside the SDK's supported range.") { }
+}
+
 /// <summary>Optional effect contract. Particles and other non-temporal overlays are drawn after reconstruction.</summary>
 internal interface ITemporalGpuEffect
 {
@@ -49,13 +54,14 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     }
 
     internal static TemporalReconstruction Create(ID3D12Device device, ID3D12GraphicsCommandList commands,
-        ReconstructionMode mode, string quality, int width, int height)
+        ReconstructionMode mode, string preset, in GpuRenderSize size)
     {
-        int q = quality switch { "native" => 0, "balanced" => 2, "performance" => 3, _ => 1 };
-        int result = ReconstructionCreate(device.NativePointer, commands.NativePointer, (int)mode, q,
-            (uint)width, (uint)height, out nint context, out uint inputWidth, out uint inputHeight);
+        int p = preset switch { "j" => 10, "l" => 12, "m" => 13, _ => 11 };
+        int result = ReconstructionCreate(device.NativePointer, commands.NativePointer, (int)mode, p,
+            (uint)size.OutputWidth, (uint)size.OutputHeight, (uint)size.Width, (uint)size.Height, out nint context);
+        if (result == -30) throw new ReconstructionSizeException();
         if (result != 0) throw new InvalidOperationException($"{mode} initialization failed ({result}).");
-        return new TemporalReconstruction { _context = context, Size = new(width, height, (int)inputWidth, (int)inputHeight) };
+        return new TemporalReconstruction { _context = context, Size = size };
     }
 
     internal void Reset() { _reset = true; _frame = 0; }
@@ -113,9 +119,9 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
 
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCapabilities")]
     private static partial uint ReconstructionCapabilities(nint device);
-    [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCreate")]
-    private static partial int ReconstructionCreate(nint device, nint commands, int mode, int quality, uint width, uint height,
-        out nint context, out uint inputWidth, out uint inputHeight);
+    [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCreateV2")]
+    private static partial int ReconstructionCreate(nint device, nint commands, int mode, int preset, uint width, uint height,
+        uint inputWidth, uint inputHeight, out nint context);
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionExecute")]
     private static partial int ReconstructionExecute(nint context, nint commands, NativeFrame* frame);
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionDestroy")]

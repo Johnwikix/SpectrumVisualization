@@ -2,6 +2,19 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-09-28 修复 SR 低渲染比例被错误回退
+
+- `Native/Reconstruction/Reconstruction.cpp`：修复上一轮把 SDK 推荐/动态分辨率范围当作固定输入硬限制的问题；DLSS 按实际输入尺寸创建，XeSS 直接提交指定尺寸，恢复 50% 以下及极低比例执行。
+- `Rendering/GpuGraphics.cs`、`doc/verification/HdrProbe/`：抽出明确输入尺寸的资源创建边界，新增 49%/40%/34%/33%/1%、精确三分之一与 16×9 输入的真实 SR 回读回归，断言不能以 FXAA 回退代替成功；详细证据见 `doc/verification/reconstruction.md`。
+
+## 2026-09-28 统一渲染比例、DLSS preset 与刷新率档位
+
+- `View/SettingWindow.xaml`、`ViewModel/SettingViewModel.cs`、`Strings/`：移除独立重建质量，所有 AA/SR 共用 1%–100% 整数滑块；新增 DLSS J/K/L/M 选择，默认 K；刷新率改为 60/72/80/120/144/160/240/288/320/480 Hz 和无限帧率下拉框。
+- `Model/`、`Service/DataJsonService.cs`：新配置统一持久化渲染比例和 DLSS preset；保留旧 JSON 字段，将旧 SR 质量一次性迁移为近似比例，保留旧的非标准刷新率。
+- `Native/Reconstruction/Reconstruction.cpp`、`Rendering/TemporalReconstruction.cs`、`GpuGraphics.cs`：SDK 接受宿主指定的输入尺寸，查询 XeSS/DLSS 支持范围并遵循 DLSS 动态分辨率创建契约；不支持的尺寸暂退 FXAA，比例恢复后重试。
+- `Rendering/GpuRenderer.cs`、`GpuFramePacer.cs`、`Canvas/CanvasPanel.xaml.cs`：移除 120 Hz 上限，无限档跳过应用定时限速；滑块停止变化 150 ms 后重建 GPU 资源。保留单份资源复用所需的 GPU 同步。
+- `doc/verification/HdrProbe/`：扩展 NativeAOT 配置迁移、帧定时、比例/模型切换、GPU 回读与分阶段耗时验证；详细结果见 `doc/verification/reconstruction.md`，实屏帧率、功耗和画质由用户验收。
+
 ## 2026-09-28 抗锯齿下拉框名称简化
 
 - `View/SettingWindow.xaml`：音域回响抗锯齿下拉框中 `XeSS-SR / XeSS AA` 简化为 `XeSS`、`DLSS / DLAA` 简化为 `DLSS`，不再区分超分与抗锯齿模式。

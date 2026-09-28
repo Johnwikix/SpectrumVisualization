@@ -17,7 +17,7 @@ internal static class ReconstructionBenchmark
         foreach (var mode in new[] { ReconstructionMode.Off, ReconstructionMode.Fxaa, ReconstructionMode.Smaa, ReconstructionMode.XeSS, ReconstructionMode.Fsr })
         {
             if (mode >= ReconstructionMode.XeSS && (renderer.Reconstruction.Capabilities & (1u << (int)mode)) == 0) continue;
-            renderer.Configure(new(50, mode, 80, "performance"));
+            renderer.Configure(new(50, mode, 80));
             for (int i = 0; i < 120; i++) { ProbeSignal.Update(input, i, true); renderer.Render(1d / 120, 200, 1000); }
             var samples = new double[480];
             _ = Stopwatch.GetTimestamp();

@@ -65,7 +65,7 @@ namespace WinExSpectrumTest.Effects
                         "xess" => ReconstructionMode.XeSS, "fsr" => ReconstructionMode.Fsr,
                         "dlss" => ReconstructionMode.Dlss, _ => ReconstructionMode.Off
                     };
-                    return new GpuSceneOptions(quality.RenderScalePercent, mode, quality.GridSize, quality.UpscaleQuality);
+                    return new GpuSceneOptions(quality.RenderScalePercent, mode, quality.GridSize, quality.DlssPreset);
                 })
         ];
 
