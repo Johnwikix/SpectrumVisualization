@@ -7,7 +7,8 @@ using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
-if (args.Contains("--reconstruction")) return ReconstructionChecks.Run(args.Contains("--motion"));
+if (args.Contains("--device-capabilities")) return ReconstructionChecks.DeviceCapabilities();
+if (args.Contains("--reconstruction")) return ReconstructionChecks.Run(args.Contains("--motion"), args.Contains("--dlss-only"));
 if (args.Contains("--benchmark-reconstruction")) return ReconstructionBenchmark.Run();
 
 if (args.Contains("--visual"))

@@ -14,13 +14,14 @@
 
 ## 构建和复现
 
-厂商 SDK 不提交二进制，恢复来自固定官方提交，22 个文件逐一验证 SHA-256。新检出工作区需先在仓库根目录执行：
+厂商 SDK 所需的 22 个文件现纳入仓库；新检出工作区可直接构建，仍可在仓库根目录逐一验证 SHA-256：
 
 ```powershell
-./External/Upscalers/Restore.ps1
 ./External/Upscalers/Restore.ps1 -VerifyOnly
 ./Native/Reconstruction/Build.ps1
 ```
+
+缺失文件时才运行 `Restore.ps1`，它从固定官方提交恢复并校验下载内容。
 
 原生适配层需要 PowerShell 7、VS 2026 C++ x64 工具集 v145 和 Windows SDK。正常项目构建会验证 SDK 并构建适配层，不会隐式联网下载。复用已构建且 ABI 匹配的适配层时可加 `SkipReconstructionNativeBuild=true`。使用 `EnableVendorReconstruction=false` 可构建仅含空间 AA 的版本，必须使用干净输出目录，避免旧 DLL 影响能力探测。
 
@@ -32,13 +33,18 @@ dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true
 ./HdrProbe/bin/reconstruction-aot/HdrProbe.exe --benchmark-reconstruction
 ```
 
+RTX 设备上可先运行 `--device-capabilities` 确认探针选中的 GPU，再用
+`--reconstruction --dlss-only` 单独验证 DLSS 四档；完整回归仍使用
+`--reconstruction`。驱动缓存和 SDK 数据目录需可写，否则本机沙箱内的
+SDK 能力探测曾持续运行约十分钟仍未返回。
+
 本次主项目还执行了以下 NativeAOT 无包发布，只生成文件，未启动主应用：
 
 ```powershell
 dotnet publish ../../WinExSpectrumTest.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:AppxPackage=false -p:GenerateAppxPackageOnBuild=false -p:EnableMsixTooling=false -p:AppxPackageSigningEnabled=false -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true -o HdrProbe/bin/app-reconstruction
 ```
 
-SDK 部署、固定版本、体积和发布许可要求见 `External/Upscalers/README.md`。可选 DLL 合计约 160 MiB；DLSS 的商标、署名、终端许可和商业发布通知仍需发布者按 SDK 许可完成。本次没有代为通知、申请许可审批或发布软件。
+SDK 部署、固定版本、体积和发布许可要求见 `External/Upscalers/README.md`。可选 DLL 合计约 160 MiB；DLSS 的商标、署名、终端许可和商业发布通知仍需发布者按 SDK 许可完成。尤其在向公开远端推送 SDK 文件前应核对 NVIDIA 的 SDK 再分发条件。本次没有代为通知、申请许可审批或发布软件。
 
 ## 隔离范围与修正
 
@@ -87,10 +93,33 @@ SDK 部署、固定版本、体积和发布许可要求见 `External/Upscalers/R
 
 该场景的基础渲染已经较轻，时域重建的固定开销明显；最低档继续关闭 AA，没有自动把 XeSS / FSR 设为性能默认值。重建模式提供画质选择，不保证对所有设置都提升速度。
 
+## RTX 5070 Ti 离屏补充验证（2026-09-28）
+
+设备：NVIDIA GeForce RTX 5070 Ti，驱动 616.64。使用同一 NativeAOT / Trimmed
+HdrProbe、`SpectrumAnalyzer(captureAudio: false)` 及合成频谱输入，未启动主应用、
+设置窗口或真实音频采集。直接能力查询选中了 RTX 5070 Ti，能力位为 `0x38`
+（XeSS、FSR、DLSS）。沙箱内首次能力探测长时间未返回；允许访问驱动缓存和
+SDK 数据目录后约一秒完成。随后单独的 DLSS 四档和开启 D3D12 调试层的
+完整离屏回归均以退出码 0 结束。
+
+| DLSS 档位 | 实际活动模式 | 960×540 离屏回读 | 调试层回归 CPU 包围 Render 耗时 |
+| --- | --- | --- | ---: |
+| 质量 | DLSS | 有限、非空 | 0.770 ms / 帧 |
+| 原生分辨率（DLAA） | DLSS | 有限、非空 | 0.845 ms / 帧 |
+| 性能 | DLSS | 有限、非空 | 0.752 ms / 帧 |
+| 均衡 | DLSS | 有限、非空 | 0.756 ms / 帧 |
+
+每档预热 32 帧、计时 32 帧；上述短时 CPU 耗时包含提交与 fence 等待，
+不代表显示器呈现 FPS 或 GPU timestamp。完整回归还通过历史重置、
+801×451 奇数尺寸缩放及恢复、运动矢量、第二效果切换和资源释放，
+未报告 D3D12 Error / Corruption。各档计时循环同线程托管分配读数为
+0.0 B / 帧；不代表整个应用或原生 SDK 零分配。离屏回读不能证明
+运动抗锯齿画质或 HDR 显示观感。
+
 ## 留给用户的实机验收
 
 - Arc 140T 上真实 1440p / 120 FPS、持续运行功耗、帧时间稳定性和桌面合成负载。
 - SMAA / XeSS / FSR 的运动细节、闪烁、重影、音频突变及粒子观感；离屏非空和有限值不等于感知画质合格。
 - 设置页选择、可用性 / 回退提示、重启持久化、多 DPI、壁纸 / 小组件切换及 HDR 显示观感。
-- RTX 设备上的 DLSS / DLAA 实际执行、模式切换、画质和生命周期。
+- RTX 设备上的 DLSS / DLAA 运动画质、模式切换 UI 与实际显示观感；离屏执行和生命周期已在上节验证。
 - MSIX 打包 / 安装 / 发布验收及厂商发布许可要求；本次仅检查共享 Content 声明和无包发布输出，没有执行 MSIX 安装或认证。

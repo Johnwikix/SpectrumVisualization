@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ComputeSharp;
+using ComputeSharp.Interop;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects.Sonic;
 using WinExSpectrumTest.Model;
@@ -9,11 +10,27 @@ using Vortice.Direct3D12.Debug;
 
 internal static class ReconstructionChecks
 {
-    internal static int Run(bool motionOnly = false)
+    internal static unsafe int DeviceCapabilities()
     {
         try
         {
-            if (D3D12.D3D12GetDebugInterface<ID3D12Debug>(out var debug).Success)
+            using var compute = GraphicsDevice.GetDefault();
+            Console.WriteLine($"Selected device: {compute.Name}");
+            Guid deviceId = new("189819F1-1DB6-4B57-BE54-1821339B85F7");
+            void* native = null;
+            InteropServices.GetID3D12Device(compute, &deviceId, &native);
+            using var device = new ID3D12Device((nint)native);
+            Console.WriteLine($"Reconstruction capabilities: 0x{TemporalReconstruction.Capabilities(device):X}");
+            return 0;
+        }
+        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+    }
+
+    internal static int Run(bool motionOnly = false, bool dlssOnly = false)
+    {
+        try
+        {
+            if (!dlssOnly && D3D12.D3D12GetDebugInterface<ID3D12Debug>(out var debug).Success)
             {
                 using (debug) debug!.EnableDebugLayer();
                 Console.WriteLine("D3D12 debug layer enabled (offscreen only)");
@@ -23,8 +40,10 @@ internal static class ReconstructionChecks
             AppSettings.SonicAutoRotate = true;
             using var renderer = new GpuGraphics(input, _ => { }, 960, 540, static () => new SonicGpuEffect(), new(100, false, 80));
             Console.WriteLine($"Reconstruction capabilities: 0x{renderer.Reconstruction.Capabilities:X}");
+            if (dlssOnly && (renderer.Reconstruction.Capabilities & (1u << (int)ReconstructionMode.Dlss)) == 0)
+                throw new InvalidOperationException("DLSS capability is unavailable on the selected GPU");
             if (motionOnly) { renderer.VerifyTemporalMotion(); renderer.VerifyDebugMessages(); return 0; }
-            foreach (var mode in new[] { ReconstructionMode.Off, ReconstructionMode.Fxaa, ReconstructionMode.Smaa, ReconstructionMode.XeSS, ReconstructionMode.Fsr, ReconstructionMode.Dlss })
+            foreach (var mode in dlssOnly ? new[] { ReconstructionMode.Dlss } : new[] { ReconstructionMode.Off, ReconstructionMode.Fxaa, ReconstructionMode.Smaa, ReconstructionMode.XeSS, ReconstructionMode.Fsr, ReconstructionMode.Dlss })
             foreach (string quality in mode >= ReconstructionMode.XeSS ? new[] { "quality", "native", "performance", "balanced" } : new[] { "quality" })
             {
                 bool supported = mode < ReconstructionMode.XeSS || (renderer.Reconstruction.Capabilities & (1u << (int)mode)) != 0;
@@ -64,8 +83,11 @@ internal static class ReconstructionChecks
                 renderer.VerifyDebugMessages();
             }
             renderer.VerifyTemporalMotion();
-            renderer.VerifySpatialEdges();
-            renderer.VerifyEffectContract();
+            if (!dlssOnly)
+            {
+                renderer.VerifySpatialEdges();
+                renderer.VerifyEffectContract();
+            }
             renderer.VerifyDebugMessages();
             Console.WriteLine("PASS reconstruction mode/quality changes, history reset, odd-size resize, fallback and teardown");
             return 0;

@@ -3,6 +3,11 @@
 ###############################################################################
 * text=auto
 
+# Preserve the pinned vendor SDK bytes so SHA-256 checks pass after checkout.
+External/Upscalers/xess/** -text
+External/Upscalers/fsr/** -text
+External/Upscalers/dlss/** -text
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
