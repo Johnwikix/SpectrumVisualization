@@ -353,9 +353,9 @@
                                 <ComboBoxItem x:Uid="SonicAntiAliasingOff" Tag="off" />
                                 <ComboBoxItem Content="FXAA" Tag="fxaa" />
                                 <ComboBoxItem Content="SMAA 1x" Tag="smaa" />
-                                <ComboBoxItem Content="XeSS-SR / XeSS AA" Tag="xess" IsEnabled="{x:Bind ViewModel.SonicXeSSAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="XeSS" Tag="xess" IsEnabled="{x:Bind ViewModel.SonicXeSSAvailable, Mode=OneWay}" />
                                 <ComboBoxItem Content="FSR 3.1" Tag="fsr" IsEnabled="{x:Bind ViewModel.SonicFsrAvailable, Mode=OneWay}" />
-                                <ComboBoxItem Content="DLSS / DLAA" Tag="dlss" IsEnabled="{x:Bind ViewModel.SonicDlssAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="DLSS" Tag="dlss" IsEnabled="{x:Bind ViewModel.SonicDlssAvailable, Mode=OneWay}" />
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicUpscaleQuality" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.SonicTemporalEnabled, Mode=OneWay}">
