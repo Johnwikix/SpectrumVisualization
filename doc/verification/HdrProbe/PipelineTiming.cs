@@ -77,9 +77,10 @@ internal sealed unsafe partial class GpuGraphics
         double record = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         start = Stopwatch.GetTimestamp();
         Submit();
-        var result = _swapChain.Present(0, PresentFlags.DoNotWait);
+        ulong rendered = SignalGpu();
+        var result = _swapChain.Present(0, PresentationFlags(nonblocking: true));
         if (result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing) result.CheckError();
-        WaitForGpu();
+        WaitForGpu(rendered);
         double submitFence = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         ulong* ticks = readback.Map<ulong>(0);
         double scale = 1000d / frequency;

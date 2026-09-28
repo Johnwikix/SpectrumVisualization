@@ -269,6 +269,11 @@ namespace WinExSpectrumTest.ViewModel
                 }
             }
         }
+        public bool ShowDebugOverlay
+        {
+            get => AppSettings.ShowDebugOverlay;
+            set { if (_isInitialized) AppSettings.ShowDebugOverlay = value; }
+        }
         private float _refreshRate = 60.0f;
         private float[] _refreshRates = [];
         public string[] RefreshRateChoices { get; private set; } = [];
@@ -418,17 +423,6 @@ namespace WinExSpectrumTest.ViewModel
                         AppSettings.SonicResponseRange = value / 100f;
                     }
                 }
-            }
-        }
-
-        /// <summary>Gets or selects a preset using the actual quality parameters as the single source of truth.</summary>
-        public string SonicQuality
-        {
-            get => AppSettings.SonicQuality.Preset;
-            set
-            {
-                if (_isInitialized && !string.IsNullOrEmpty(value))
-                    AppSettings.SonicQuality = SonicQualitySettings.FromPreset(value, AppSettings.SonicQuality);
             }
         }
 
@@ -658,6 +652,13 @@ namespace WinExSpectrumTest.ViewModel
                 _hdrSaveTimer.Start();
                 return;
             }
+            if (name == nameof(AppSettings.ShowDebugOverlay))
+            {
+                OnPropertyChanged(nameof(ShowDebugOverlay));
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
+                return;
+            }
             if (name == nameof(AppSettings.SonicQuality))
             {
                 NotifySonicQuality();
@@ -672,7 +673,6 @@ namespace WinExSpectrumTest.ViewModel
         {
             bool initialized = _isInitialized;
             _isInitialized = false;
-            OnPropertyChanged(nameof(SonicQuality));
             OnPropertyChanged(nameof(SonicAntiAliasing));
             OnPropertyChanged(nameof(SonicRenderScale));
             OnPropertyChanged(nameof(SonicRenderScaleLabel));
@@ -711,6 +711,7 @@ namespace WinExSpectrumTest.ViewModel
                                                  AppSettings.CustomColorBlue);
             IsUpdateBackDrop = AppSettings.IsUpdateBackDrop;
             RefreshRate = AppSettings.RefreshRate;
+            OnPropertyChanged(nameof(ShowDebugOverlay));
             OnPropertyChanged(nameof(SampleRate));
             BarCount = Math.Clamp(AppSettings.BarCount, 128, 512);
             PowCoe = AppSettings.PowCoe;

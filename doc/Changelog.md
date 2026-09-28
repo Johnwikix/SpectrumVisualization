@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-09-28 解锁 D3D12 呈现并添加调试覆盖层
+
+- `Rendering/GpuGraphics.Presentation.cs`、`GpuGraphics.cs`：参考 ComputeSharpDemo，为交换链和 Present 配对启用支持的 `ALLOW_TEARING`，显式设置两帧呈现队列深度，resize 保留标志；渲染完成 fence 移至 Present 前，仍等待 GPU 完成后复用单份资源，兼容路径保留合成呈现。
+- `Model/`、`Service/DataJsonService.cs`、`ViewModel/SettingViewModel.cs`、`View/SettingWindow.xaml`、`Strings/`：新增默认关闭的“调试覆盖层”开关，完整持久化及双语资源。
+- `Rendering/RenderDebugStatistics.cs`、`ViewModel/RenderDebugViewModel.cs`、`Canvas/CanvasPanel.xaml*`、`Rendering/GpuPanel.cs`、`GpuRenderer.cs`：覆盖层分开显示渲染/提交 FPS、丢弃提交、CPU 帧/Present/GPU 等待耗时、输入输出尺寸、AA/preset、HDR 与呈现方式；Win2D 显示 Draw 统计。UI 每 500 ms 格式化，关闭、暂停和退出停止采样及定时器。
+- `doc/verification/HdrProbe/`：离屏验证交换链标志、队列深度、兼容路径、resize、GPU 生命周期、统计与 AOT JSON；主工程 NativeAOT 发布通过，实屏帧率及覆盖层交互由用户验收，详见 `doc/verification/gpu-quality-aa.md`。
+
+## 2026-09-28 移除画质预设并默认启用 FXAA
+
+- `View/SettingWindow.xaml`、`ViewModel/SettingViewModel.cs`、`Model/SonicQualitySettings.cs`、`Strings/`：移除画质卡片、预设下拉框及无用的预设映射和双语资源，保留渲染比例、抗锯齿、网格及 DLSS 模型独立调节。
+- `Model/SaveSetting.cs`、`Model/SonicQualitySettings.cs`：新配置和缺失字段默认 100% 渲染比例、FXAA；已有显式保存的比例和抗锯齿选择不覆盖。同步配置回归检查。
+
 ## 2026-09-28 修复 SR 低渲染比例被错误回退
 
 - `Native/Reconstruction/Reconstruction.cpp`：修复上一轮把 SDK 推荐/动态分辨率范围当作固定输入硬限制的问题；DLSS 按实际输入尺寸创建，XeSS 直接提交指定尺寸，恢复 50% 以下及极低比例执行。

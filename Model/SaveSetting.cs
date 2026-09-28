@@ -26,6 +26,7 @@ namespace WinExSpectrumTest.Model
         public bool IsUpdateBackDrop { get; set; } = false;
         public string AppTheme { get; set; } = "Default";
         public string elementTheme { get; set; } = "Default";
+        public bool ShowDebugOverlay { get; set; } = false;
         public float RefreshRate { get; set; } = 60.0f;
         public int SampleRate { get; set; } = 12000;
         public int BarCount { get; set; } = 512;
@@ -38,7 +39,7 @@ namespace WinExSpectrumTest.Model
         public float SonicResponseRange { get; set; } = 1.0f;
         public int SonicGridSize { get; set; } = 160;
         public int SonicRenderScalePercent { get; set; } = 100;
-        public string SonicAntiAliasing { get; set; } = "off";
+        public string SonicAntiAliasing { get; set; } = "fxaa";
         public string SonicUpscaleQuality { get; set; } = "quality";
         // Retain SonicUpscaleQuality's JSON name for one-time migration of older saves.
         public int SonicResolutionVersion { get; set; }

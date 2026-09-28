@@ -3,6 +3,7 @@ using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Control;
@@ -18,6 +19,7 @@ namespace WinExSpectrumTest.Canvas;
 /// <summary>UI owner of mutually exclusive Win2D Aurora and native D3D12 Sonic hosts.</summary>
 public sealed partial class CanvasPanel : UserControl
 {
+    public RenderDebugViewModel DebugOverlay { get; } = new();
     private SpectrumAnalyzer _analyzer = null!;
     private AuroraRingEffect? _aurora;
     private GpuPanel? _gpu;
@@ -83,6 +85,7 @@ public sealed partial class CanvasPanel : UserControl
             while (!_disposed && _activeId != _requestedId)
             {
                 _switching = true;
+                DebugOverlay.SetActive(false);
                 _drawAurora = false;
                 SpectrumCanvasControl.Paused = true;
                 _aurora?.SetActive(false);
@@ -144,7 +147,7 @@ public sealed partial class CanvasPanel : UserControl
     private void EnsureGpuHost()
     {
         if (_gpu != null) return;
-        _gpu = new GpuPanel();
+        _gpu = new GpuPanel(DebugOverlay.Statistics);
         _gpu.OutputChanged += OnGpuOutputChanged;
         RenderHost.Children.Add(_gpu);
         _media = new SonicMediaViewModel(App.MediaInfoService, DispatcherQueue);
@@ -187,7 +190,10 @@ public sealed partial class CanvasPanel : UserControl
         SpectrumCanvasControl.Paused = !aurora;
         ConfigureGpu();
         _media?.SetActive(EffectRegistry.Resolve(_activeId).UsesMedia && CanRender);
+        UpdateDebugOverlay();
     }
+
+    private void UpdateDebugOverlay() => DebugOverlay.SetActive(_loaded && CanRender && _activeId != null && AppSettings.ShowDebugOverlay);
 
     public void SetRenderingSuspended(bool suspended)
     {
@@ -214,6 +220,7 @@ public sealed partial class CanvasPanel : UserControl
             DispatcherQueue.TryEnqueue(() => OnSettingsChanged(name));
             return;
         }
+        if (name == nameof(AppSettings.ShowDebugOverlay)) { UpdateDebugOverlay(); return; }
         if (name == nameof(AppSettings.RefreshRate)) { ChangeRefreshRate(); return; }
         if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)
             or nameof(AppSettings.SonicQuality)) ConfigureGpu();
@@ -233,7 +240,13 @@ public sealed partial class CanvasPanel : UserControl
         if (!_drawAurora || _disposed || _suspended) return;
         try
         {
+            bool debugEnabled = DebugOverlay.Statistics.Enabled;
+            long started = debugEnabled ? Stopwatch.GetTimestamp() : 0;
             _aurora?.Draw(args.DrawingSession, (float)sender.Size.Width, (float)sender.Size.Height);
+            if (debugEnabled)
+                DebugOverlay.Statistics.Record(new RenderDebugFrame(false, false,
+                    Stopwatch.GetElapsedTime(started).TotalMilliseconds, 0, 0, default,
+                    ReconstructionMode.Off, null, false, false, AppSettings.RefreshRate));
             RenderDiagnostics.RecordFrame(AuroraRingEffect.EffectId, _analyzer.PublicationCount);
             _drawErrorLogged = false;
         }
@@ -250,6 +263,7 @@ public sealed partial class CanvasPanel : UserControl
     private async Task StopCoreAsync()
     {
         _disposed = true;
+        DebugOverlay.Dispose();
         _drawAurora = false;
         SpectrumCanvasControl.Paused = true;
         _aurora?.SetActive(false);

@@ -19,8 +19,11 @@ internal sealed partial class GpuPanel : SwapChainPanel
     public event Action<HdrOutputMode>? OutputChanged;
     public HdrOutputMode LastOutputMode { get; private set; } = HdrOutputMode.Starting;
 
-    public GpuPanel()
+    private readonly RenderDebugStatistics _debug;
+
+    public GpuPanel(RenderDebugStatistics debug)
     {
+        _debug = debug;
         HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Left;
         VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Top;
         RenderTransform = _scale;
@@ -37,7 +40,7 @@ internal sealed partial class GpuPanel : SwapChainPanel
         {
             if (!settings.Active || settings.Width == 0 || settings.Height == 0) return;
             _native = GetNative(this);
-            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings, PublishReconstructionFromWorker);
+            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings, PublishReconstructionFromWorker, _debug);
             try { _renderer.Start(); }
             catch
             {

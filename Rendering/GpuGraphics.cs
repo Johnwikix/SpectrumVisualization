@@ -1,6 +1,7 @@
 using ComputeSharp;
 using ComputeSharp.Interop;
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Vortice.Direct3D;
@@ -55,9 +56,14 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public int Width { get; private set; }
     public int Height { get; private set; }
     internal int RenderScalePercent => _options.RenderScalePercent;
+    internal GpuRenderSize RenderSize => _size;
+    internal bool CaptureTimings { get; set; }
+    internal bool LastFrameRendered { get; private set; }
+    internal double LastPresentMilliseconds { get; private set; }
+    internal double LastGpuWaitMilliseconds { get; private set; }
 
     public GpuGraphics(SpectrumAnalyzer analyzer, Action<nint> bind, int width, int height,
-        Func<IGpuVisualizerEffect> factory, GpuSceneOptions options)
+        Func<IGpuVisualizerEffect> factory, GpuSceneOptions options, bool requestTearing = true)
     {
         _bind = bind;
         _analyzer = analyzer;
@@ -85,10 +91,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _effect = factory();
             _effect.Initialize(new GpuEffectServices(_compute, _device, analyzer));
             _capabilities = TemporalReconstruction.Capabilities(_device);
-            using var chain = _factory.CreateSwapChainForComposition(_queue,
-                new SwapChainDescription1((uint)width, (uint)height, OutputFormat, false, Usage.RenderTargetOutput,
-                    2, Scaling.Stretch, SwapEffect.FlipSequential, AlphaMode.Ignore, SwapChainFlags.None), null);
-            _swapChain = chain.QueryInterface<IDXGISwapChain3>();
+            CreatePresentationSwapChain(width, height, requestTearing);
             CreateSizeResources(width, height);
             // Establish a live SDR chain with black content before setting a color space.
             ClearAndPresent();
@@ -108,7 +111,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         WaitForGpu();
         ReleaseSizeResources();
         // Release every application reference before ResizeBuffers; each resize is followed by a present.
-        _swapChain.ResizeBuffers(2, (uint)width, (uint)height, OutputFormat, SwapChainFlags.None).CheckError();
+        _swapChain.ResizeBuffers(2, (uint)width, (uint)height, OutputFormat, _swapChainFlags).CheckError();
         var actual = _swapChain.Description1;
         if (actual.Width != width || actual.Height != height)
             throw new InvalidOperationException("The swap chain did not apply its requested size.");
@@ -312,6 +315,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     public bool Render(double elapsed, float white, float peak)
     {
+        LastFrameRendered = false;
         TemporalFrame frame = _temporal?.BeginFrame(elapsed) ?? default;
         if (_effect is ITemporalGpuEffect temporalEffect) temporalEffect.SetTemporalFrame(frame);
         _effect.PrepareFrame(elapsed, _options.Detail);
@@ -381,9 +385,17 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.DrawInstanced(3, 1, 0, 0);
         Transition(_backBuffers[buffer]!, ResourceStates.RenderTarget, ResourceStates.Common);
         Submit();
-        var result = _swapChain.Present(0, PresentFlags.DoNotWait);
+        // Fence only rendering commands. A signal after Present also waits for presentation
+        // queue work, which can reintroduce compositor pacing despite DO_NOT_WAIT.
+        ulong rendered = SignalGpu();
+        long started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
+        var result = _swapChain.Present(0, PresentationFlags(nonblocking: true));
+        if (CaptureTimings) LastPresentMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         if (result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing) result.CheckError();
-        WaitForGpu();
+        started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
+        WaitForGpu(rendered);
+        if (CaptureTimings) LastGpuWaitMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        LastFrameRendered = true;
         return result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing;
     }
 
@@ -395,7 +407,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.ClearRenderTargetView(Rtv(index), new Vortice.Mathematics.Color4(0, 0, 0, 1));
         Transition(_backBuffers[index]!, ResourceStates.RenderTarget, ResourceStates.Common);
         Submit();
-        _swapChain.Present(0, PresentFlags.None).CheckError();
+        _swapChain.Present(0, PresentationFlags(nonblocking: false)).CheckError();
         WaitForGpu();
     }
 
@@ -412,10 +424,15 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.Close();
         _queue.ExecuteCommandLists(_submission);
     }
-    private void WaitForGpu()
+    private ulong SignalGpu()
     {
         ulong value = ++_fenceValue;
         _queue.Signal(_fence, value).CheckError();
+        return value;
+    }
+    private void WaitForGpu() => WaitForGpu(SignalGpu());
+    private void WaitForGpu(ulong value)
+    {
         _fence.SetEventOnCompletion(value, _gpuDone.SafeWaitHandle.DangerousGetHandle()).CheckError();
         while (_fence.CompletedValue < value)
         {
@@ -466,6 +483,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         DisposeResource(_rtvs);
         DisposeResource(_srvs);
         DisposeResource(_swapChain);
+        DisposeResource(_frameLatencyHandle);
         DisposeResource(_factory);
         DisposeResource(_fence);
         DisposeResource(_queue);

@@ -62,3 +62,45 @@
 - 实际 HDR 显示、其他显卡、不同电源/温度状态、MSIX 安装包及长时运行。
 
 收到“无需验证”后已停止测试并结束独立验证应用。最后的日志命名和 HDR 文案收尾未重新构建。
+
+
+## 2026-09-28 无限呈现与调试覆盖层
+
+本节记录后续修复；上方早期“已停止验证”和旧画质预设描述是历史状态。当前默认值为 100% + FXAA，画质预设卡片已移除。
+
+### 调用链差异与修复
+
+用户反馈无限档仍与窗口刷新率一致。只读对照 `G:\SoftwareProject\winui\ComputeSharpDemo` 的 `HdrSwapChainRenderer`，发现本项目此前仅移除了应用定时等待，交换链仍为 `Flags=None`，Present 没有 `ALLOW_TEARING`，且每帧 fence Signal 在 Present 后。
+
+- 修复前离屏配置断言明确失败：RTX 5070 Ti 的 DXGI factory 报告 tearingSupported=True，而实际交换链 flags=None。
+- 现在查询 factory tearing 支持，为支持的 composition chain 启用 `FrameLatencyWaitableObject | AllowTearing`，显式设置 `MaximumFrameLatency=2`。渲染线程不等待 frame-latency handle；该句柄用 SafeWaitHandle 释放。若 composition 拒绝 tearing 标志，使用关闭 tearing 的兼容链并在覆盖层显示该状态。
+- Present 使用 `SyncInterval=0`、`DoNotWait` 和匹配创建标志的 `AllowTearing`；resize 保留原 flags。[Microsoft 的 D3D12 交换链文档](https://learn.microsoft.com/en-us/windows/win32/direct3d12/swap-chains)和 [VRR 文档](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/variable-refresh-rate-displays)说明了这组支持查询、创建、呈现与 resize 约束。
+- 单帧资源完成 fence 在 ExecuteCommandLists 后、Present 前 Signal，随后仍等待该 fence 才复用场景、上传区及 allocator。resize/释放仍执行完整队列 drain。没有直接复制参考工程的多帧纹理环，也没有删除单份 SR/效果资源所需的同步。
+- 无限档继续跳过应用定时器，有限档沿用原有精度限速。这次变更针对音域回响的独立 D3D12 宿主；极光之环的 CanvasAnimatedControl 仍由 Win2D/合成器调度，不能据此宣称它已经解除显示调度限制。
+
+### 覆盖层
+
+通用设置新增默认关闭的“调试覆盖层”，在渲染区域左上显示。开关经 AppSettings、SaveSetting、DataJsonService 和源生成 JSON 持久化，双语资源齐全。覆盖层不接收鼠标命中，使用主题资源及 DIP 布局，避免随 GPU 渲染比例缩放。
+
+- D3D12 显示渲染 FPS、DXGI 接受的提交 FPS、采样区间内丢弃提交数、CPU Render 包围耗时、CPU Present 调用耗时、CPU fence 等待耗时、实际输入/输出像素、活动 AA/DLSS 请求 preset、HDR 与 tearing/兼容状态。
+- “GPU 等待”是 CPU 等待 GPU fence 的墙钟时间，不是 GPU timestamp。CPU 帧耗时不含应用限速等待。提交成功也不代表每帧都被显示器扫描输出，界面明确区分这一点。
+- Win2D 显示 Draw 回调频率与 CPU Draw 耗时，并标明由 Win2D/合成器调度。
+- 渲染线程仅向共享统计对象写入值，UI 每 500 ms 采样并生成文本。关闭、效果切换、暂停、宿主隐藏和退出时停止统计与 UI 定时器；不采样真实音频或创建额外 GPU 读回。
+
+### 已完成验证及边界
+
+- NativeAOT 离屏探针 `--presentation` 通过：默认 tearing 路径和主动禁用 tearing 的兼容路径、显式队列深度、960×540→801×451→960×540 resize、回读、D3D12 调试检查及释放。
+- 开启 CPU 计时的渲染循环预热 32 帧后，96 帧测得同线程托管分配 0 B；统计 Record 连续 1000 次测得 0 B。仅指测试覆盖的热路径，不包含 UI 每 500 ms 更新文本的分配、冷启动或厂商原生内存。
+- 统计测试区分 100 次渲染 / 70 次提交 / 30 次丢弃，验证关闭不记录、重新启用清除旧样本、默认关闭与 true 的 AOT JSON 回写。
+- 原有 `--reconstruction` 通过所有 AA/SR 模式、输入比例、DLSS preset、历史重置、奇数 resize、运动矢量、空间斜边及第二效果回归。主工程无包 NativeAOT 发布通过，保留既有 nullable、XAML 属性路径、Assembly.Location 和 SharpGen 裁剪警告。
+- 两份资源键及格式占位符静态匹配，XAML 编译与差异检查通过。未启动主应用、操作设置或采集实际显示帧率；离屏成功不证明实屏上限已经解除。覆盖层显示、DPI/主题/壁纸模式与真实无限档呈现交由用户验收。
+
+构建与复测入口（工作目录 `doc/verification`）：
+
+```powershell
+dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true -o HdrProbe/bin/presentation-aot
+./HdrProbe/bin/presentation-aot/HdrProbe.exe --presentation
+./HdrProbe/bin/presentation-aot/HdrProbe.exe --reconstruction
+```
+
+本地日志：`HdrProbe/bin/presentation-aot/presentation.log`、`reconstruction.log`、`app-publish.log`。参考工程未修改。

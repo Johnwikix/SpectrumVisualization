@@ -109,6 +109,10 @@
                                 MinWidth="160" ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
                                 SelectedIndex="{x:Bind ViewModel.RefreshRateIndex, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="ShowDebugOverlay" Margin="10,0,10,0">
+                            <ToggleSwitch x:Uid="ShowDebugOverlaySwitch" VerticalAlignment="Center"
+                                IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
                             <TextBlock Text="{x:Bind ViewModel.SampleRate, Mode=OneWay}" />
                         </controls:SettingsCard>
@@ -336,15 +340,6 @@
                                 Maximum="200"
                                 Minimum="30"
                                 Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicQuality" Margin="10,0,10,0">
-                            <ComboBox x:Uid="SonicQualityCombo" AutomationProperties.AutomationId="SonicQuality" MinWidth="160"
-                                SelectedValue="{x:Bind ViewModel.SonicQuality, Mode=TwoWay}" SelectedValuePath="Tag">
-                                <ComboBoxItem x:Uid="SonicQualityPerformance" Tag="performance" />
-                                <ComboBoxItem x:Uid="SonicQualityBalanced" Tag="balanced" />
-                                <ComboBoxItem x:Uid="SonicQualityHigh" Tag="high" />
-                                <ComboBoxItem x:Uid="SonicQualityCustom" Tag="custom" />
-                            </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicAntiAliasing" Margin="10,0,10,0" Description="{x:Bind ViewModel.SonicReconstructionStatus, Mode=OneWay}">
                             <ComboBox x:Uid="SonicAntiAliasingCombo" AutomationProperties.AutomationId="SonicAntiAliasing" MinWidth="160"

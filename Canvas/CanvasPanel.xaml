@@ -16,5 +16,14 @@
             VerticalAlignment="Stretch"
             Draw="SpectrumCanvasControl_Draw"
             Update="SpectrumCanvasControl_Update" />
+        <Border Margin="12" Padding="12,8" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top"
+            Canvas.ZIndex="10" IsHitTestVisible="False" MaxWidth="560"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+            Visibility="{x:Bind DebugOverlay.Visibility, Mode=OneWay}">
+            <TextBlock FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
+                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                Text="{x:Bind DebugOverlay.Text, Mode=OneWay}" />
+        </Border>
     </Grid>
 </UserControl>

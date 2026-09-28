@@ -19,6 +19,7 @@
     <Compile Include="../../../Rendering/GpuGraphics.cs;../../../Rendering/ColorOutputPipelines.cs;../../../Rendering/ParticleVertex.cs;../../../Rendering/IGpuVisualizerEffect.cs;../../../Rendering/ShaderCompiler.cs" LinkBase="Rendering" />
     <Compile Include="../../../Model/SonicQualitySettings.cs" LinkBase="Settings" />
     <Compile Include="../../../Model/FrameRateSettings.cs" LinkBase="Settings" />
+    <Compile Include="../../../Rendering/GpuGraphics.Presentation.cs;../../../Rendering/RenderDebugStatistics.cs" LinkBase="Rendering" />
     <Compile Include="../../../Rendering/GpuFramePacer.cs" LinkBase="Rendering" />
     <Compile Include="../../../Rendering/SmaaPass.cs;../../../Rendering/TemporalReconstruction.cs" LinkBase="Rendering" />
     <EmbeddedResource Include="../../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />

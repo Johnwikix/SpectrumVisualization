@@ -63,6 +63,8 @@ namespace WinExSpectrumTest.Model
         public static string AppTheme { get => _AppTheme; set => Set(ref _AppTheme, value); }
         private static ElementTheme _elementTheme = ElementTheme.Default;
         public static ElementTheme elementTheme { get => _elementTheme; set => Set(ref _elementTheme, value); }
+        private static bool _showDebugOverlay;
+        public static bool ShowDebugOverlay { get => _showDebugOverlay; set => Set(ref _showDebugOverlay, value); }
         private static float _RefreshRate = 60.0f;
         public static float RefreshRate { get => _RefreshRate; set => Set(ref _RefreshRate, FrameRateSettings.Normalize(value)); }
         private static int _SampleRate = 12000;

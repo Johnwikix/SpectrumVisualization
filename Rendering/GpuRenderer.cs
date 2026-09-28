@@ -15,6 +15,7 @@ internal readonly record struct GpuRenderSettings(int Width, int Height, bool Ac
 internal sealed class GpuRenderer
 {
     private readonly SpectrumAnalyzer _analyzer;
+    private readonly RenderDebugStatistics _debug;
     private readonly nint _hwnd;
     private readonly Action<nint> _bind;
     private readonly Action<HdrOutputMode> _publish;
@@ -30,9 +31,10 @@ internal sealed class GpuRenderer
     private TaskCompletionSource? _paused;
 
     public GpuRenderer(SpectrumAnalyzer analyzer, nint hwnd, Action<nint> bind, Action<HdrOutputMode> publish, GpuRenderSettings settings,
-        Action<ReconstructionStatus> publishReconstruction)
+        Action<ReconstructionStatus> publishReconstruction, RenderDebugStatistics debug)
     {
         _analyzer = analyzer;
+        _debug = debug;
         _hwnd = hwnd;
         _bind = bind;
         _publish = publish;
@@ -176,8 +178,16 @@ internal sealed class GpuRenderer
                     long now = Stopwatch.GetTimestamp();
                     double elapsed = Stopwatch.GetElapsedTime(previous, now).TotalSeconds;
                     previous = now;
-                    if (graphics.Render(elapsed, settings.WhiteNits, settings.PeakNits))
-                        RenderDiagnostics.RecordFrame(activeEffect, _analyzer.PublicationCount);
+                    bool debugEnabled = _debug.Enabled;
+                    graphics.CaptureTimings = debugEnabled;
+                    long renderStarted = debugEnabled ? Stopwatch.GetTimestamp() : 0;
+                    bool submitted = graphics.Render(elapsed, settings.WhiteNits, settings.PeakNits);
+                    if (submitted) RenderDiagnostics.RecordFrame(activeEffect, _analyzer.PublicationCount);
+                    if (debugEnabled && graphics.LastFrameRendered)
+                        _debug.Record(new RenderDebugFrame(true, submitted,
+                            Stopwatch.GetElapsedTime(renderStarted).TotalMilliseconds,
+                            graphics.LastPresentMilliseconds, graphics.LastGpuWaitMilliseconds, graphics.RenderSize,
+                            graphics.Reconstruction.Active, settings.Scene.DlssPreset, hdr, graphics.AllowsTearing, settings.FramesPerSecond));
                     if (_lastReconstruction != graphics.Reconstruction)
                     {
                         _lastReconstruction = graphics.Reconstruction;

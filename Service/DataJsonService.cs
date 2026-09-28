@@ -38,6 +38,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.AppTheme = settings.AppTheme ?? "Default";
             AppSettings.elementTheme = settings.elementTheme == "Light" ? Microsoft.UI.Xaml.ElementTheme.Light : settings.elementTheme == "Dark" ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Default;
             AppSettings.RefreshRate = settings.RefreshRate;
+            AppSettings.ShowDebugOverlay = settings.ShowDebugOverlay;
             AppSettings.SampleRate = settings.SampleRate;
             AppSettings.BarCount = Math.Clamp(settings.BarCount, 128, 512);
             AppSettings.VisualEffect = settings.VisualEffect ?? "aurora-ring";
@@ -85,6 +86,7 @@ namespace WinExSpectrumTest.Service
                 AppTheme = AppSettings.AppTheme,
                 elementTheme = AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Light ? "Light" : AppSettings.elementTheme == Microsoft.UI.Xaml.ElementTheme.Dark ? "Dark" : "Default",
                 RefreshRate = AppSettings.RefreshRate,
+                ShowDebugOverlay = AppSettings.ShowDebugOverlay,
                 SampleRate = AppSettings.SampleRate,
                 BarCount = AppSettings.BarCount,
                 VisualEffect = AppSettings.VisualEffect,

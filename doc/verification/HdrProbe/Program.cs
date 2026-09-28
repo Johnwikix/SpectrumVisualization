@@ -8,6 +8,7 @@ using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
 if (args.Contains("--device-capabilities")) return ReconstructionChecks.DeviceCapabilities();
+if (args.Contains("--presentation")) return PresentationChecks.Run();
 if (args.Contains("--dlss-resolutions")) return ReconstructionResolutionChecks.Run();
 if (args.Contains("--xess-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.XeSS);
 if (args.Contains("--fsr-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.Fsr);
