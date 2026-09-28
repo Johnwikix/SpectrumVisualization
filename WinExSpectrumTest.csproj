@@ -25,6 +25,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
+    <EmbeddedResource Include="External\FXAA\Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
+    <Content Include="External\FXAA\LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
     <Content Include="Assets\Square44x44Logo.scale-200.png" />
@@ -111,7 +113,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateTemporaryStoreCertificate>False</GenerateTemporaryStoreCertificate>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
@@ -121,7 +123,6 @@
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
 	<WindowsPackageType>MSIX</WindowsPackageType>
-	<PackageCertificateThumbprint>0002A085EDBAA55E2DD16A09CF752756DA371596</PackageCertificateThumbprint>
   </PropertyGroup>
   <!-- Native unpackaged publishing must replace any old loose XAML resource index. -->
   <Target Name="CopyUnpackagedXamlResources" AfterTargets="Publish" Condition="'$(WindowsPackageType)' == 'None' and Exists('$(TargetDir)$(AssemblyName).pri')">

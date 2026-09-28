@@ -111,8 +111,19 @@ namespace WinExSpectrumTest.Model
         public static float SonicAudioIntensity { get => _SonicAudioIntensity; set => Set(ref _SonicAudioIntensity, value); }
         private static float _SonicResponseRange = 1.0f;
         public static float SonicResponseRange { get => _SonicResponseRange; set => Set(ref _SonicResponseRange, value); }
-        private static int _SonicGridSize = 160;
-        public static int SonicGridSize { get => _SonicGridSize; set => Set(ref _SonicGridSize, value); }
+        private static SonicQualitySettings _sonicQuality = SonicQualitySettings.Default;
+        /// <summary>Gets or sets an entire quality profile before publishing a single change.</summary>
+        public static SonicQualitySettings SonicQuality
+        {
+            get => _sonicQuality;
+            set => Set(ref _sonicQuality, value.Normalize());
+        }
+        /// <summary>Gets or sets the number of terrain cells on each axis.</summary>
+        public static int SonicGridSize { get => _sonicQuality.GridSize; set => SonicQuality = _sonicQuality with { GridSize = value }; }
+        /// <summary>Gets or sets the scene resolution as a percentage of output dimensions.</summary>
+        public static int SonicRenderScalePercent { get => _sonicQuality.RenderScalePercent; set => SonicQuality = _sonicQuality with { RenderScalePercent = value }; }
+        /// <summary>Gets or sets the stable anti-aliasing mode identifier.</summary>
+        public static string SonicAntiAliasing { get => _sonicQuality.AntiAliasing; set => SonicQuality = _sonicQuality with { AntiAliasing = value }; }
         private static bool _SonicIdleWaveEnabled = true;
         public static bool SonicIdleWaveEnabled { get => _SonicIdleWaveEnabled; set => Set(ref _SonicIdleWaveEnabled, value); }
         private static bool _SonicRippleEnabled = true;

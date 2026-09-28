@@ -199,7 +199,7 @@
     <value>响应范围</value>
   </data>
   <data name="SonicGridSize.Header" xml:space="preserve">
-    <value>渲染精度</value>
+    <value>地形网格</value>
   </data>
   <data name="SonicFx.Header" xml:space="preserve">
     <value>效果选项</value>
@@ -251,8 +251,8 @@
   <data name="AuroraEffectOption.Content" xml:space="preserve"><value>极光之环</value></data>
   <data name="SonicEffectOption.Content" xml:space="preserve"><value>音域回响</value></data>
   <data name="HdrSettings.Header" xml:space="preserve"><value>HDR</value></data>
-  <data name="HdrSettings.Description" xml:space="preserve"><value>仅适用于音域回响。需要在 Windows 中启用当前显示器的 HDR；极光之环保持 SDR。</value></data>
-  <data name="HdrToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>启用音域回响 HDR</value></data>
+  <data name="HdrSettings.Description" xml:space="preserve"><value>适用于音域回响等 GPU 效果。当前显示器须在 Windows 中启用 HDR；极光之环保持 SDR。</value></data>
+  <data name="HdrToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>为支持的效果启用 HDR</value></data>
   <data name="HdrOutputStatus.Header" xml:space="preserve"><value>当前输出</value></data>
   <data name="HdrWhite.Header" xml:space="preserve"><value>白点亮度</value></data>
   <data name="HdrWhite.Description" xml:space="preserve"><value>普通白色的参考亮度。封面与文字由 Windows 按 SDR 亮度合成。</value></data>
@@ -260,10 +260,21 @@
   <data name="HdrPeak.Description" xml:space="preserve"><value>高光输出上限，不能低于白点；建议按显示器实际峰值调整。</value></data>
   <data name="HdrWhiteSlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>白点亮度，尼特</value></data>
   <data name="HdrPeakSlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>最大亮度，尼特</value></data>
-  <data name="HdrStatusAurora" xml:space="preserve"><value>极光之环使用 SDR；HDR 设置将在切换至音域回响后生效。</value></data>
-  <data name="HdrStatusStarting" xml:space="preserve"><value>正在初始化音域回响渲染器…</value></data>
+  <data name="HdrStatusUnsupported" xml:space="preserve"><value>当前效果使用 SDR。</value></data>
+  <data name="HdrStatusStarting" xml:space="preserve"><value>正在初始化 GPU 渲染器…</value></data>
   <data name="HdrStatusDisabled" xml:space="preserve"><value>SDR（HDR 已关闭）</value></data>
   <data name="HdrStatusActive" xml:space="preserve"><value>HDR10 已启用</value></data>
   <data name="HdrStatusUnavailable" xml:space="preserve"><value>当前显示器未启用 HDR 或输出不支持 HDR，已使用 SDR。</value></data>
   <data name="HdrStatusFailed" xml:space="preserve"><value>渲染器暂时不可用，正在尝试恢复。</value></data>
+  <data name="SonicQuality.Header" xml:space="preserve"><value>画质</value></data>
+  <data name="SonicQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>画质</value></data>
+  <data name="SonicQualityPerformance.Content" xml:space="preserve"><value>性能</value></data>
+  <data name="SonicQualityBalanced.Content" xml:space="preserve"><value>均衡</value></data>
+  <data name="SonicQualityHigh.Content" xml:space="preserve"><value>高</value></data>
+  <data name="SonicQualityCustom.Content" xml:space="preserve"><value>自定义</value></data>
+  <data name="SonicAntiAliasing.Header" xml:space="preserve"><value>抗锯齿</value></data>
+  <data name="SonicAntiAliasingCombo.AutomationProperties.Name" xml:space="preserve"><value>抗锯齿</value></data>
+  <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>关闭</value></data>
+  <data name="SonicRenderScale.Header" xml:space="preserve"><value>渲染比例</value></data>
+  <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>渲染比例</value></data>
 </root>

@@ -199,7 +199,7 @@
     <value>Response Range</value>
   </data>
   <data name="SonicGridSize.Header" xml:space="preserve">
-    <value>Render Resolution</value>
+    <value>Terrain Grid</value>
   </data>
   <data name="SonicFx.Header" xml:space="preserve">
     <value>Effect Options</value>
@@ -251,8 +251,8 @@
   <data name="AuroraEffectOption.Content" xml:space="preserve"><value>Aurora Ring</value></data>
   <data name="SonicEffectOption.Content" xml:space="preserve"><value>Sonic Topography</value></data>
   <data name="HdrSettings.Header" xml:space="preserve"><value>HDR</value></data>
-  <data name="HdrSettings.Description" xml:space="preserve"><value>Applies to Sonic Topography. Enable HDR for the current display in Windows; Aurora Ring remains SDR.</value></data>
-  <data name="HdrToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Enable HDR for Sonic Topography</value></data>
+  <data name="HdrSettings.Description" xml:space="preserve"><value>Available for GPU effects, including Sonic Topography. HDR must be enabled for the current display in Windows; Aurora Ring remains SDR.</value></data>
+  <data name="HdrToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Enable HDR for supported effects</value></data>
   <data name="HdrOutputStatus.Header" xml:space="preserve"><value>Current output</value></data>
   <data name="HdrWhite.Header" xml:space="preserve"><value>White point brightness</value></data>
   <data name="HdrWhite.Description" xml:space="preserve"><value>Reference brightness for diffuse white. Windows composites artwork and text at SDR brightness.</value></data>
@@ -260,10 +260,21 @@
   <data name="HdrPeak.Description" xml:space="preserve"><value>Highlight output limit, at least the white point. Match this to your display's actual peak brightness.</value></data>
   <data name="HdrWhiteSlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>White point brightness in nits</value></data>
   <data name="HdrPeakSlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Maximum brightness in nits</value></data>
-  <data name="HdrStatusAurora" xml:space="preserve"><value>Aurora Ring uses SDR. HDR settings apply when you switch to Sonic Topography.</value></data>
-  <data name="HdrStatusStarting" xml:space="preserve"><value>Initializing the Sonic renderer…</value></data>
+  <data name="HdrStatusUnsupported" xml:space="preserve"><value>The current effect uses SDR.</value></data>
+  <data name="HdrStatusStarting" xml:space="preserve"><value>Initializing the GPU renderer…</value></data>
   <data name="HdrStatusDisabled" xml:space="preserve"><value>SDR (HDR is off)</value></data>
   <data name="HdrStatusActive" xml:space="preserve"><value>HDR10 is active</value></data>
   <data name="HdrStatusUnavailable" xml:space="preserve"><value>HDR is unavailable or disabled on the current display. Using SDR.</value></data>
   <data name="HdrStatusFailed" xml:space="preserve"><value>The renderer is unavailable. Attempting to recover.</value></data>
+  <data name="SonicQuality.Header" xml:space="preserve"><value>Quality</value></data>
+  <data name="SonicQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>Quality</value></data>
+  <data name="SonicQualityPerformance.Content" xml:space="preserve"><value>Performance</value></data>
+  <data name="SonicQualityBalanced.Content" xml:space="preserve"><value>Balanced</value></data>
+  <data name="SonicQualityHigh.Content" xml:space="preserve"><value>High</value></data>
+  <data name="SonicQualityCustom.Content" xml:space="preserve"><value>Custom</value></data>
+  <data name="SonicAntiAliasing.Header" xml:space="preserve"><value>Anti-aliasing</value></data>
+  <data name="SonicAntiAliasingCombo.AutomationProperties.Name" xml:space="preserve"><value>Anti-aliasing</value></data>
+  <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>Off</value></data>
+  <data name="SonicRenderScale.Header" xml:space="preserve"><value>Render Scale</value></data>
+  <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>Render Scale</value></data>
 </root>

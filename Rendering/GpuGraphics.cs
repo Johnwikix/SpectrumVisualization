@@ -7,7 +7,6 @@ using Vortice.Direct3D;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 using WinExSpectrumTest.Audio;
-using WinExSpectrumTest.Effects.Sonic;
 
 namespace WinExSpectrumTest.Rendering;
 
@@ -15,10 +14,9 @@ namespace WinExSpectrumTest.Rendering;
 /// All methods run on one render thread. Compute completes before the direct queue reads its
 /// texture; the direct fence completes before that texture or the upload buffer is reused.
 /// </summary>
-internal sealed unsafe partial class SonicGraphics : IDisposable
+internal sealed unsafe partial class GpuGraphics : IDisposable
 {
     private const Format OutputFormat = Format.R10G10B10A2_UNorm;
-    private const int ParticleCapacity = (40 * 2 + 200) * 6;
     private readonly Action<nint> _bind;
     private GraphicsDevice _compute = null!;
     private ID3D12Device _device = null!;
@@ -36,22 +34,25 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
     private int _rtvStride;
     private int _srvStride;
     private readonly ID3D12Resource?[] _backBuffers = new ID3D12Resource?[2];
-    private ReadWriteTexture2D<float4>? _terrain;
-    private ID3D12Resource? _terrainNative;
     private ID3D12Resource? _scene;
-    private ID3D12Resource _vertices = null!;
-    private ParticleVertex* _mappedVertices;
-    private SonicPipelines _pipelines = null!;
-    private SonicTopographyEffect _effect = null!;
+    private ID3D12Resource? _antialias;
+    private ColorOutputPipelines _pipelines = null!;
+    private IGpuVisualizerEffect _effect = null!;
+    private readonly SpectrumAnalyzer _analyzer;
+    private GpuSceneOptions _options;
+    private GpuRenderSize _size;
     private bool _attached;
     private bool _hdr;
     private bool _disposed;
     public int Width { get; private set; }
     public int Height { get; private set; }
 
-    public SonicGraphics(SpectrumAnalyzer analyzer, Action<nint> bind, int width, int height)
+    public GpuGraphics(SpectrumAnalyzer analyzer, Action<nint> bind, int width, int height,
+        Func<IGpuVisualizerEffect> factory, GpuSceneOptions options)
     {
         _bind = bind;
+        _analyzer = analyzer;
+        _options = options;
         try
         {
             _compute = GraphicsDevice.GetDefault();
@@ -66,15 +67,13 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
             _submission[0] = _commands;
             _fence = _device.CreateFence(0, FenceFlags.None);
             _factory = DXGI.CreateDXGIFactory2<IDXGIFactory6>(false);
-            _rtvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, 3));
+            _rtvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, 4));
             _srvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 2, DescriptorHeapFlags.ShaderVisible));
             _rtvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
             _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
-            _vertices = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
-                ResourceDescription.Buffer((ulong)(ParticleCapacity * sizeof(ParticleVertex))), ResourceStates.GenericRead);
-            _mappedVertices = _vertices.Map<ParticleVertex>(0);
-            _pipelines = new SonicPipelines(_device);
-            _effect = new SonicTopographyEffect(_compute, analyzer);
+            _pipelines = new ColorOutputPipelines(_device);
+            _effect = factory();
+            _effect.Initialize(new GpuEffectServices(_compute, _device, analyzer));
             using var chain = _factory.CreateSwapChainForComposition(_queue,
                 new SwapChainDescription1((uint)width, (uint)height, OutputFormat, false, Usage.RenderTargetOutput,
                     2, Scaling.Stretch, SwapEffect.FlipSequential, AlphaMode.Ignore, SwapChainFlags.None), null);
@@ -116,18 +115,74 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
             _backBuffers[i] = _swapChain.GetBuffer<ID3D12Resource>((uint)i);
             _device.CreateRenderTargetView(_backBuffers[i]!, null, Rtv(i));
         }
-        _terrain = _compute.AllocateReadWriteTexture2D<float4>(width, height);
-        Guid resourceId = new("696442BE-A72E-4059-BC79-5B5C98040FAD");
-        void* native = null;
-        InteropServices.GetID3D12Resource(_terrain, &resourceId, &native);
-        _terrainNative = new ID3D12Resource((nint)native);
-        _device.CreateShaderResourceView(_terrainNative, null, _srvs.GetCPUDescriptorHandleForHeapStart());
-        _scene = _device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
-            ResourceDescription.Texture2D(Format.R16G16B16A16_Float, (uint)width, (uint)height, 1, 1, 1, 0, ResourceFlags.AllowRenderTarget),
-            ResourceStates.PixelShaderResource);
-        _device.CreateRenderTargetView(_scene, null, Rtv(2));
-        _device.CreateShaderResourceView(_scene, null, _srvs.GetCPUDescriptorHandleForHeapStart() + _srvStride);
+        CreateSceneResources(_options);
     }
+
+    public void Configure(GpuSceneOptions options)
+    {
+        if (_options == options) return;
+        if (_options.RenderScalePercent != options.RenderScalePercent || _options.AntiAliasing != options.AntiAliasing)
+        {
+            WaitForGpu();
+            CreateSceneResources(options);
+        }
+        _options = options;
+    }
+
+    public void ChangeEffect(Func<IGpuVisualizerEffect> factory)
+    {
+        WaitForGpu();
+        var candidate = factory();
+        try
+        {
+            candidate.Initialize(new GpuEffectServices(_compute, _device, _analyzer));
+            candidate.Resize(_size);
+        }
+        catch
+        {
+            DisposeResource(candidate);
+            throw;
+        }
+        var previous = _effect;
+        _effect = candidate;
+        DisposeResource(previous);
+    }
+
+    private void CreateSceneResources(GpuSceneOptions options)
+    {
+        var size = GpuRenderSize.Create(Width, Height, options.RenderScalePercent);
+        ID3D12Resource? scene = null;
+        ID3D12Resource? antialias = null;
+        try
+        {
+            scene = CreateColorTexture(size.Width, size.Height);
+            if (options.AntiAliasing) antialias = CreateColorTexture(Width, Height);
+            _effect.Resize(size);
+        }
+        catch
+        {
+            DisposeResource(scene);
+            DisposeResource(antialias);
+            throw;
+        }
+        DisposeResource(_scene);
+        DisposeResource(_antialias);
+        _scene = scene;
+        _antialias = antialias;
+        _size = size;
+        _device.CreateRenderTargetView(_scene, null, Rtv(2));
+        _device.CreateShaderResourceView(_scene, null, _srvs.GetCPUDescriptorHandleForHeapStart());
+        if (_antialias != null)
+        {
+            _device.CreateRenderTargetView(_antialias, null, Rtv(3));
+            _device.CreateShaderResourceView(_antialias, null, _srvs.GetCPUDescriptorHandleForHeapStart() + _srvStride);
+        }
+    }
+
+    private ID3D12Resource CreateColorTexture(int width, int height) => _device.CreateCommittedResource(
+        new HeapProperties(HeapType.Default), HeapFlags.None,
+        ResourceDescription.Texture2D(Format.R16G16B16A16_Float, (uint)width, (uint)height, 1, 1, 1, 0, ResourceFlags.AllowRenderTarget),
+        ResourceStates.PixelShaderResource);
 
     public bool SetHdr(bool requested)
     {
@@ -173,50 +228,46 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
         return found;
     }
 
-    public void Render(double elapsed, float white, float peak)
+    public bool Render(double elapsed, float white, float peak)
     {
-        _effect.Update(elapsed);
-        _effect.Render(_terrain!); // ComputeContext completes its queue before returning.
-        int vertexCount = _effect.WriteParticles(new Span<ParticleVertex>(_mappedVertices, ParticleCapacity), Width, Height);
-        ComposeAndPresent(vertexCount, white, peak);
+        _effect.PrepareFrame(elapsed, _options.Detail);
+        BeginCommands();
+        Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+        _effect.RecordScene(_commands, Rtv(2));
+        Transition(_scene!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        return ComposeAndPresent(white, peak);
     }
 
-    private void ComposeAndPresent(int vertexCount, float white, float peak)
+    private bool ComposeAndPresent(float white, float peak)
     {
-        BeginCommands();
-        Transition(_terrainNative!, ResourceStates.UnorderedAccess, ResourceStates.PixelShaderResource);
-        Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         _commands.SetDescriptorHeaps(_srvs);
         _commands.SetGraphicsRootSignature(_pipelines.Root);
         _commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         _commands.RSSetViewport(0, 0, Width, Height, 0, 1);
         _commands.RSSetScissorRect(Width, Height);
-        _commands.OMSetRenderTargets(Rtv(2), null);
         _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart());
-        _commands.SetPipelineState(_pipelines.Copy);
-        _commands.DrawInstanced(3, 1, 0, 0);
-        if (vertexCount > 0)
+        float* constants = stackalloc float[6] { _hdr ? 1 : 0, white, peak, 0, 1f / Width, 1f / Height };
+        _commands.SetGraphicsRoot32BitConstants(1, 6, constants, 0);
+        if (_antialias != null)
         {
-            _commands.SetPipelineState(_pipelines.Particles);
-            var view = new VertexBufferView(_vertices.GPUVirtualAddress, (uint)(ParticleCapacity * sizeof(ParticleVertex)), (uint)sizeof(ParticleVertex));
-            _commands.IASetVertexBuffers(0, 1, &view);
-            _commands.DrawInstanced((uint)vertexCount, 1, 0, 0);
+            Transition(_antialias, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+            _commands.OMSetRenderTargets(Rtv(3), null);
+            _commands.SetPipelineState(_pipelines.PrepareAntialias);
+            _commands.DrawInstanced(3, 1, 0, 0);
+            Transition(_antialias, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+            _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + _srvStride);
         }
-        Transition(_scene!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         int buffer = (int)_swapChain.CurrentBackBufferIndex;
         Transition(_backBuffers[buffer]!, ResourceStates.Common, ResourceStates.RenderTarget);
         _commands.OMSetRenderTargets(Rtv(buffer), null);
-        _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + _srvStride);
-        float* constants = stackalloc float[3] { _hdr ? 1 : 0, white, peak };
-        _commands.SetGraphicsRoot32BitConstants(1, 3, constants, 0);
-        _commands.SetPipelineState(_pipelines.Output);
+        _commands.SetPipelineState(_antialias != null ? _pipelines.AntialiasOutput : _pipelines.Output);
         _commands.DrawInstanced(3, 1, 0, 0);
         Transition(_backBuffers[buffer]!, ResourceStates.RenderTarget, ResourceStates.Common);
-        Transition(_terrainNative!, ResourceStates.PixelShaderResource, ResourceStates.UnorderedAccess);
         Submit();
         var result = _swapChain.Present(0, PresentFlags.DoNotWait);
         if (result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing) result.CheckError();
         WaitForGpu();
+        return result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing;
     }
 
     private void ClearAndPresent()
@@ -263,10 +314,8 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
             DisposeResource(_backBuffers[i]);
             _backBuffers[i] = null;
         }
-        DisposeResource(_terrainNative);
-        _terrainNative = null;
-        DisposeResource(_terrain);
-        _terrain = null;
+        DisposeResource(_antialias);
+        _antialias = null;
         DisposeResource(_scene);
         _scene = null;
     }
@@ -278,17 +327,16 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
         if (_attached)
         {
             try { _bind(0); } // UI-thread acknowledgement, while the UI remains free to dispatch.
-            catch (Exception ex) { App.WriteCrashLog("Sonic detach", ex.Message, ex); }
+            catch (Exception ex) { App.WriteCrashLog("GPU detach", ex.Message, ex); }
             _attached = false;
         }
         try
         {
             if (_fence != null) WaitForGpu();
         }
-        catch (Exception ex) { App.WriteCrashLog("Sonic GPU drain", ex.Message, ex); }
+        catch (Exception ex) { App.WriteCrashLog("GPU drain", ex.Message, ex); }
         ReleaseSizeResources();
         DisposeResource(_effect);
-        DisposeResource(_vertices);
         DisposeResource(_pipelines);
         DisposeResource(_commands);
         DisposeResource(_allocator);
@@ -303,10 +351,10 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
         _gpuDone.Dispose();
     }
 
-    private static void DisposeResource(IDisposable? resource)
+    internal static void DisposeResource(IDisposable? resource)
     {
         try { resource?.Dispose(); }
-        catch (Exception ex) { App.WriteCrashLog("Sonic resource disposal", ex.Message, ex); }
+        catch (Exception ex) { App.WriteCrashLog("GPU resource disposal", ex.Message, ex); }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -317,3 +365,6 @@ internal sealed unsafe partial class SonicGraphics : IDisposable
 }
 
 internal readonly record struct DisplayOutput(bool HdrEnabled, float PeakNits);
+
+/// <summary>Configures scene resolution, postprocessing and effect-specific detail at a frame boundary.</summary>
+internal readonly record struct GpuSceneOptions(int RenderScalePercent, bool AntiAliasing, int Detail);

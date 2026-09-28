@@ -44,7 +44,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.SonicTheme = settings.SonicTheme ?? "nocturnal";
             AppSettings.SonicAudioIntensity = settings.SonicAudioIntensity;
             AppSettings.SonicResponseRange = settings.SonicResponseRange;
-            AppSettings.SonicGridSize = settings.SonicGridSize;
+            AppSettings.SonicQuality = new SonicQualitySettings(settings.SonicRenderScalePercent, settings.SonicGridSize, settings.SonicAntiAliasing);
             AppSettings.SonicIdleWaveEnabled = settings.SonicIdleWaveEnabled;
             AppSettings.SonicRippleEnabled = settings.SonicRippleEnabled;
             AppSettings.SonicMeteorEnabled = settings.SonicMeteorEnabled;
@@ -92,6 +92,8 @@ namespace WinExSpectrumTest.Service
                 SonicAudioIntensity = AppSettings.SonicAudioIntensity,
                 SonicResponseRange = AppSettings.SonicResponseRange,
                 SonicGridSize = AppSettings.SonicGridSize,
+                SonicRenderScalePercent = AppSettings.SonicRenderScalePercent,
+                SonicAntiAliasing = AppSettings.SonicAntiAliasing,
                 SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled,
                 SonicRippleEnabled = AppSettings.SonicRippleEnabled,
                 SonicMeteorEnabled = AppSettings.SonicMeteorEnabled,

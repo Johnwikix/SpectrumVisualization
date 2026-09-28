@@ -5,7 +5,7 @@ using Vortice.DXGI;
 namespace WinExSpectrumTest.Rendering;
 
 // Compiled only into this probe. Exercise the production output PSO and read its RGB10 buffer.
-internal sealed unsafe partial class SonicGraphics
+internal sealed unsafe partial class GpuGraphics
 {
     public void VerifyOutputEncoding()
     {
@@ -29,11 +29,12 @@ internal sealed unsafe partial class SonicGraphics
 
     private void CheckUniform(float linear, float white, float peak, double expected)
     {
-        var pixels = new float4[Width * Height];
-        Array.Fill(pixels, new float4(linear, linear, linear, 1));
-        _terrain!.CopyFrom(pixels);
         int index = (int)_swapChain.CurrentBackBufferIndex;
-        ComposeAndPresent(0, white, peak);
+        BeginCommands();
+        Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+        _commands.ClearRenderTargetView(Rtv(2), new Vortice.Mathematics.Color4(linear, linear, linear, 1));
+        Transition(_scene!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        ComposeAndPresent(white, peak);
         uint pitch = (uint)((Width * 4 + 255) & ~255);
         using var readback = _device.CreateCommittedResource(new HeapProperties(HeapType.Readback), HeapFlags.None,
             ResourceDescription.Buffer((ulong)pitch * (uint)Height), ResourceStates.CopyDest);

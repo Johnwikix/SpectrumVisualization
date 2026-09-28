@@ -9,9 +9,9 @@ using WinRT;
 namespace WinExSpectrumTest.Rendering;
 
 /// <summary>UI-thread bridge. No GPU wait or thread join is ever performed by the UI.</summary>
-internal sealed partial class SonicPanel : SwapChainPanel
+internal sealed partial class GpuPanel : SwapChainPanel
 {
-    private SonicRenderer? _renderer;
+    private GpuRenderer? _renderer;
     private nint _native;
     private bool _stopping;
     private Task? _stopTask;
@@ -19,7 +19,7 @@ internal sealed partial class SonicPanel : SwapChainPanel
     public event Action<HdrOutputMode>? OutputChanged;
     public HdrOutputMode LastOutputMode { get; private set; } = HdrOutputMode.Starting;
 
-    public SonicPanel()
+    public GpuPanel()
     {
         HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Left;
         VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Top;
@@ -27,7 +27,7 @@ internal sealed partial class SonicPanel : SwapChainPanel
         IsHitTestVisible = false;
     }
 
-    public void Configure(SpectrumAnalyzer analyzer, nint hwnd, SonicRenderSettings settings, double dpiScale)
+    public void Configure(SpectrumAnalyzer analyzer, nint hwnd, GpuRenderSettings settings, double dpiScale)
     {
         if (_stopping) return;
         Width = settings.Width;
@@ -37,7 +37,7 @@ internal sealed partial class SonicPanel : SwapChainPanel
         {
             if (!settings.Active || settings.Width == 0 || settings.Height == 0) return;
             _native = GetNative(this);
-            _renderer = new SonicRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings);
+            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings);
             try { _renderer.Start(); }
             catch
             {
@@ -100,7 +100,7 @@ internal sealed partial class SonicPanel : SwapChainPanel
 
     private static unsafe void SetSwapChain(nint instance, nint chain)
     {
-        if (instance == 0) throw new ObjectDisposedException(nameof(SonicPanel));
+        if (instance == 0) throw new ObjectDisposedException(nameof(GpuPanel));
         void** vtable = *(void***)instance;
         int hr = ((delegate* unmanaged[Stdcall]<nint, nint, int>)vtable[3])(instance, chain);
         Marshal.ThrowExceptionForHR(hr);

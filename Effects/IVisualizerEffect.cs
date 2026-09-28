@@ -4,6 +4,8 @@ using System;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Effects.Sonic;
 using WinExSpectrumTest.Services;
+using WinExSpectrumTest.Model;
+using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects
 {
@@ -50,19 +52,43 @@ namespace WinExSpectrumTest.Effects
     {
         public const string DefaultEffectId = AuroraRingEffect.EffectId;
 
+        private static readonly EffectDescriptor[] Effects =
+        [
+            new(AuroraRingEffect.EffectId, "AuroraEffectName", EffectHost.Win2D, false, null, null),
+            new(SonicTopographyEffect.EffectId, "SonicEffectName", EffectHost.Gpu, true,
+                static () => new SonicGpuEffect(), static () =>
+                {
+                    var quality = AppSettings.SonicQuality;
+                    return new GpuSceneOptions(quality.RenderScalePercent, quality.AntiAliasing == "fxaa", quality.GridSize);
+                })
+        ];
+
+        internal static EffectDescriptor Resolve(string? id)
+        {
+            foreach (var effect in Effects)
+                if (effect.Id == id) return effect;
+            return Effects[0];
+        }
+
         /// <returns>(id, localized display name) of every registered effect, in display order.</returns>
         public static (string Id, string DisplayName)[] GetCatalog()
         {
             // Catalog queries must not construct effects or create graphics devices.
-            return
-            [
-                (AuroraRingEffect.EffectId, GetDisplayName(AuroraRingEffect.EffectId)),
-                (SonicTopographyEffect.EffectId, GetDisplayName(SonicTopographyEffect.EffectId)),
-            ];
+            var result = new (string Id, string DisplayName)[Effects.Length];
+            var resources = new ResourceLoader();
+            for (int i = 0; i < result.Length; i++)
+                result[i] = (Effects[i].Id, resources.GetString(Effects[i].ResourceKey));
+            return result;
         }
 
-        public static string GetDisplayName(string id) => new ResourceLoader().GetString(
-            id == SonicTopographyEffect.EffectId ? "SonicEffectName" : "AuroraEffectName");
+        public static string GetDisplayName(string id) => new ResourceLoader().GetString(Resolve(id).ResourceKey);
 
     }
+
+    /// <summary>Identifies the rendering API required by an effect.</summary>
+    internal enum EffectHost { Win2D, Gpu }
+
+    /// <summary>Registers an effect without constructing graphics devices while listing the catalog.</summary>
+    internal sealed record EffectDescriptor(string Id, string ResourceKey, EffectHost Host, bool UsesMedia,
+        Func<IGpuVisualizerEffect>? CreateGpu, Func<GpuSceneOptions>? GetSceneOptions);
 }

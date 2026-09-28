@@ -16,7 +16,10 @@
   <ItemGroup>
     <Compile Include="../../../Audio/SpectrumAnalyzer.cs;../../../Audio/LoopbackWaveFormat.cs" LinkBase="Audio" />
     <Compile Include="../../../Effects/Sonic/**/*.cs" LinkBase="Sonic" />
-    <Compile Include="../../../Rendering/SonicGraphics.cs;../../../Rendering/SonicPipelines.cs;../../../Rendering/ParticleVertex.cs" LinkBase="Rendering" />
+    <Compile Include="../../../Rendering/GpuGraphics.cs;../../../Rendering/ColorOutputPipelines.cs;../../../Rendering/ParticleVertex.cs;../../../Rendering/IGpuVisualizerEffect.cs;../../../Rendering/ShaderCompiler.cs" LinkBase="Rendering" />
+    <Compile Include="../../../Model/SonicQualitySettings.cs" LinkBase="Settings" />
+    <Compile Include="../../../Rendering/GpuFramePacer.cs" LinkBase="Rendering" />
+    <EmbeddedResource Include="../../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
     <Compile Include="../../../Model/AppSettings.cs;../../../Model/SaveSetting.cs;../../../Manager/SettingsJsonContext.cs;../../../Manager/SettingManager.cs" LinkBase="Settings" />
     <PackageReference Include="ComputeSharp" Version="3.2.0" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />

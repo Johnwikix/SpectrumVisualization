@@ -20,7 +20,7 @@ public sealed partial class CanvasPanel : UserControl
 {
     private SpectrumAnalyzer _analyzer = null!;
     private AuroraRingEffect? _aurora;
-    private SonicPanel? _sonic;
+    private GpuPanel? _gpu;
     private SonicMediaViewModel? _media;
     private SonicMediaCard? _card;
     private XamlRoot? _root;
@@ -59,7 +59,7 @@ public sealed partial class CanvasPanel : UserControl
     public void LoadEffect(string id)
     {
         if (_disposed) return;
-        _requestedId = id == SonicTopographyEffect.EffectId ? id : AuroraRingEffect.EffectId;
+        _requestedId = EffectRegistry.Resolve(id).Id;
         if (AppSettings.VisualEffect != _requestedId)
         {
             AppSettings.VisualEffect = _requestedId;
@@ -89,17 +89,18 @@ public sealed partial class CanvasPanel : UserControl
                 _media?.SetActive(false);
                 // Paused does not mean an in-flight Draw has completed.
                 await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { });
-                if (_sonic != null) await _sonic.PauseAsync();
+                if (_gpu != null) await _gpu.PauseAsync();
                 if (_disposed) return;
                 string id = _requestedId;
-                if (id == SonicTopographyEffect.EffectId)
+                var descriptor = EffectRegistry.Resolve(id);
+                if (descriptor.Host == EffectHost.Gpu)
                 {
-                    EnsureSonicHost();
+                    EnsureGpuHost();
                     SpectrumCanvasControl.Visibility = Visibility.Collapsed;
-                    _sonic!.Visibility = Visibility.Visible;
-                    _card!.Visibility = Visibility.Visible;
+                    _gpu!.Visibility = Visibility.Visible;
+                    _card!.Visibility = descriptor.UsesMedia ? Visibility.Visible : Visibility.Collapsed;
                     _activeId = id;
-                    HdrStatus.Set(_sonic.LastOutputMode);
+                    HdrStatus.Set(_gpu.LastOutputMode);
                 }
                 else
                 {
@@ -119,11 +120,11 @@ public sealed partial class CanvasPanel : UserControl
                         }
                         catch { effect.Dispose(); throw; }
                     }
-                    if (_sonic != null) _sonic.Visibility = Visibility.Collapsed;
+                    if (_gpu != null) _gpu.Visibility = Visibility.Collapsed;
                     if (_card != null) _card.Visibility = Visibility.Collapsed;
                     SpectrumCanvasControl.Visibility = Visibility.Visible;
                     _activeId = id;
-                    HdrStatus.Set(HdrOutputMode.Aurora);
+                    HdrStatus.Set(HdrOutputMode.Unsupported);
                 }
                 _switching = false;
                 ApplyActivity();
@@ -140,12 +141,12 @@ public sealed partial class CanvasPanel : UserControl
         }
     }
 
-    private void EnsureSonicHost()
+    private void EnsureGpuHost()
     {
-        if (_sonic != null) return;
-        _sonic = new SonicPanel();
-        _sonic.OutputChanged += OnSonicOutputChanged;
-        RenderHost.Children.Add(_sonic);
+        if (_gpu != null) return;
+        _gpu = new GpuPanel();
+        _gpu.OutputChanged += OnGpuOutputChanged;
+        RenderHost.Children.Add(_gpu);
         _media = new SonicMediaViewModel(App.MediaInfoService, DispatcherQueue);
         _card = new SonicMediaCard(_media)
         {
@@ -156,22 +157,24 @@ public sealed partial class CanvasPanel : UserControl
         RenderHost.Children.Add(_card);
     }
 
-    private void OnSonicOutputChanged(HdrOutputMode mode)
+    private void OnGpuOutputChanged(HdrOutputMode mode)
     {
-        if (!_disposed && _activeId == SonicTopographyEffect.EffectId) HdrStatus.Set(mode);
+        if (!_disposed && EffectRegistry.Resolve(_activeId).Host == EffectHost.Gpu) HdrStatus.Set(mode);
     }
 
-    private void ConfigureSonic()
+    private void ConfigureGpu()
     {
-        if (_sonic == null || _disposed) return;
+        if (_gpu == null || _disposed) return;
         double dpi = XamlRoot?.RasterizationScale ?? 1;
         if (!double.IsFinite(dpi) || dpi <= 0) dpi = 1;
         int width = (int)Math.Clamp(Math.Ceiling(RenderHost.ActualWidth * dpi), 0, 16384);
         int height = (int)Math.Clamp(Math.Ceiling(RenderHost.ActualHeight * dpi), 0, 16384);
         nint hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        _sonic.Configure(_analyzer, hwnd, new SonicRenderSettings(width, height,
-            _activeId == SonicTopographyEffect.EffectId && CanRender,
-            AppSettings.HdrEnabled, AppSettings.HdrWhiteNits, AppSettings.HdrPeakNits, AppSettings.RefreshRate), dpi);
+        var effect = EffectRegistry.Resolve(_activeId);
+        _gpu.Configure(_analyzer, hwnd, new GpuRenderSettings(width, height,
+            effect.Host == EffectHost.Gpu && CanRender,
+            AppSettings.HdrEnabled, AppSettings.HdrWhiteNits, AppSettings.HdrPeakNits, AppSettings.RefreshRate,
+            effect, effect.GetSceneOptions?.Invoke() ?? default), dpi);
     }
 
     private void ApplyActivity()
@@ -182,8 +185,8 @@ public sealed partial class CanvasPanel : UserControl
         _aurora?.SetActive(aurora);
         if (aurora) SpectrumCanvasControl.ResetElapsedTime();
         SpectrumCanvasControl.Paused = !aurora;
-        ConfigureSonic();
-        _media?.SetActive(_activeId == SonicTopographyEffect.EffectId && CanRender);
+        ConfigureGpu();
+        _media?.SetActive(EffectRegistry.Resolve(_activeId).UsesMedia && CanRender);
     }
 
     public void SetRenderingSuspended(bool suspended)
@@ -198,7 +201,7 @@ public sealed partial class CanvasPanel : UserControl
     {
         if (_disposed) return;
         SpectrumCanvasControl.TargetElapsedTime = TimeSpan.FromSeconds(1d / Math.Clamp(AppSettings.RefreshRate, 1, 120));
-        ConfigureSonic();
+        ConfigureGpu();
     }
 
     private void OnSettingsChanged(string name)
@@ -209,9 +212,10 @@ public sealed partial class CanvasPanel : UserControl
             DispatcherQueue.TryEnqueue(() => OnSettingsChanged(name));
             return;
         }
-        if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)) ConfigureSonic();
+        if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)
+            or nameof(AppSettings.SonicQuality)) ConfigureGpu();
     }
-    private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ConfigureSonic();
+    private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ConfigureGpu();
     private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ApplyActivity();
 
     private void SpectrumCanvasControl_Update(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
@@ -251,10 +255,10 @@ public sealed partial class CanvasPanel : UserControl
         if (_root != null) _root.Changed -= OnRootChanged;
         AppSettings.Changed -= OnSettingsChanged;
         if (_switchTask != null) await _switchTask;
-        if (_sonic != null)
+        if (_gpu != null)
         {
-            _sonic.OutputChanged -= OnSonicOutputChanged;
-            try { await _sonic.StopAsync(); }
+            _gpu.OutputChanged -= OnGpuOutputChanged;
+            try { await _gpu.StopAsync(); }
             catch (Exception ex) { App.WriteCrashLog("Sonic host shutdown", ex.Message, ex); }
         }
         if (_media != null)

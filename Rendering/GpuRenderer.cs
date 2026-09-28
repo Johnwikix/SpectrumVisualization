@@ -3,15 +3,16 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using WinExSpectrumTest.Audio;
-using WinExSpectrumTest.Effects.Sonic;
+using WinExSpectrumTest.Effects;
 using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.Rendering;
 
-internal readonly record struct SonicRenderSettings(int Width, int Height, bool Active, bool Hdr, float WhiteNits, float PeakNits, float FramesPerSecond);
+internal readonly record struct GpuRenderSettings(int Width, int Height, bool Active, bool Hdr, float WhiteNits, float PeakNits,
+    float FramesPerSecond, EffectDescriptor Effect, GpuSceneOptions Scene);
 
-/// <summary>One explicitly started worker; only this worker owns SonicGraphics and its effects.</summary>
-internal sealed class SonicRenderer
+/// <summary>Owns the GPU host and active effect on one explicitly started worker.</summary>
+internal sealed class GpuRenderer
 {
     private readonly SpectrumAnalyzer _analyzer;
     private readonly nint _hwnd;
@@ -20,12 +21,12 @@ internal sealed class SonicRenderer
     private readonly object _gate = new();
     private readonly AutoResetEvent _wake = new(false);
     private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private SonicRenderSettings _settings;
+    private GpuRenderSettings _settings;
     private bool _stopping;
     private HdrOutputMode? _lastStatus;
     private TaskCompletionSource? _paused;
 
-    public SonicRenderer(SpectrumAnalyzer analyzer, nint hwnd, Action<nint> bind, Action<HdrOutputMode> publish, SonicRenderSettings settings)
+    public GpuRenderer(SpectrumAnalyzer analyzer, nint hwnd, Action<nint> bind, Action<HdrOutputMode> publish, GpuRenderSettings settings)
     {
         _analyzer = analyzer;
         _hwnd = hwnd;
@@ -36,7 +37,7 @@ internal sealed class SonicRenderer
 
     public void Start()
     {
-        try { new Thread(Run) { IsBackground = true, Name = "Sonic D3D12" }.Start(); }
+        try { new Thread(Run) { IsBackground = true, Name = "Spectrum D3D12" }.Start(); }
         catch
         {
             lock (_gate)
@@ -49,7 +50,7 @@ internal sealed class SonicRenderer
         }
     }
 
-    public void Configure(SonicRenderSettings settings)
+    public void Configure(GpuRenderSettings settings)
     {
         lock (_gate)
         {
@@ -93,7 +94,9 @@ internal sealed class SonicRenderer
 
     private void Run()
     {
-        SonicGraphics? graphics = null;
+        GpuGraphics? graphics = null;
+        GpuFramePacer? pacer = null;
+        string? activeEffect = null;
         long previous = Stopwatch.GetTimestamp();
         long displayChecked = 0;
         DisplayOutput display = default;
@@ -102,9 +105,10 @@ internal sealed class SonicRenderer
         bool hdr = false;
         try
         {
+            pacer = new GpuFramePacer(_wake);
             while (true)
             {
-                SonicRenderSettings settings;
+                GpuRenderSettings settings;
                 lock (_gate)
                 {
                     if (_stopping) break;
@@ -119,21 +123,29 @@ internal sealed class SonicRenderer
                 {
                     _wake.WaitOne();
                     previous = Stopwatch.GetTimestamp();
+                    pacer.Reset();
                     displayChecked = 0;
                     continue;
                 }
-                long started = Stopwatch.GetTimestamp();
                 try
                 {
                     if (graphics == null)
                     {
                         Publish(HdrOutputMode.Starting);
-                        graphics = new SonicGraphics(_analyzer, _bind, settings.Width, settings.Height);
+                        graphics = new GpuGraphics(_analyzer, _bind, settings.Width, settings.Height, settings.Effect.CreateGpu!, settings.Scene);
+                        activeEffect = settings.Effect.Id;
+                        pacer.Reset();
                         previous = Stopwatch.GetTimestamp();
                         displayChecked = 0;
                         previousRequest = null;
                     }
                     graphics.Resize(settings.Width, settings.Height);
+                    graphics.Configure(settings.Scene);
+                    if (activeEffect != settings.Effect.Id)
+                    {
+                        graphics.ChangeEffect(settings.Effect.CreateGpu!);
+                        activeEffect = settings.Effect.Id;
+                    }
                     bool probeDisplay = Environment.TickCount64 - displayChecked >= 500;
                     if (probeDisplay)
                     {
@@ -150,38 +162,38 @@ internal sealed class SonicRenderer
                     long now = Stopwatch.GetTimestamp();
                     double elapsed = Stopwatch.GetElapsedTime(previous, now).TotalSeconds;
                     previous = now;
-                    graphics.Render(elapsed, settings.WhiteNits, settings.PeakNits);
-                    RenderDiagnostics.RecordFrame(SonicTopographyEffect.EffectId, _analyzer.PublicationCount);
+                    if (graphics.Render(elapsed, settings.WhiteNits, settings.PeakNits))
+                        RenderDiagnostics.RecordFrame(activeEffect, _analyzer.PublicationCount);
                     failureLogged = false;
                 }
                 catch (Exception ex)
                 {
                     Publish(HdrOutputMode.Failed);
-                    if (!failureLogged) App.WriteCrashLog("Sonic renderer", ex.Message, ex);
+                    if (!failureLogged) App.WriteCrashLog("GPU renderer", ex.Message, ex);
                     failureLogged = true;
                     try { graphics?.Dispose(); }
-                    catch (Exception cleanup) { App.WriteCrashLog("Sonic recovery", cleanup.Message, cleanup); }
+                    catch (Exception cleanup) { App.WriteCrashLog("GPU recovery", cleanup.Message, cleanup); }
                     graphics = null;
                     // Device recreation owns recovery. A settings change or shutdown wakes this backoff.
                     _wake.WaitOne(2000);
                     previous = Stopwatch.GetTimestamp();
+                    pacer.Reset();
                     continue;
                 }
                 double fps = float.IsFinite(settings.FramesPerSecond) ? Math.Clamp(settings.FramesPerSecond, 1, 120) : 60;
-                double remaining = 1000d / fps
-                    - Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-                if (remaining > 0) _wake.WaitOne((int)Math.Ceiling(remaining));
+                pacer.Wait(fps);
             }
         }
         catch (Exception ex)
         {
-            App.WriteCrashLog("Sonic worker", ex.Message, ex);
+            App.WriteCrashLog("GPU worker", ex.Message, ex);
             Publish(HdrOutputMode.Failed);
         }
         finally
         {
+            pacer?.Dispose();
             try { graphics?.Dispose(); }
-            catch (Exception ex) { App.WriteCrashLog("Sonic shutdown", ex.Message, ex); }
+            catch (Exception ex) { App.WriteCrashLog("GPU shutdown", ex.Message, ex); }
             // Configure/Stop are serialized with disposal of the wake handle.
             lock (_gate)
             {

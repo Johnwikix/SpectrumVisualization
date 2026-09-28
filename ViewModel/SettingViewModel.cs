@@ -39,7 +39,7 @@ namespace WinExSpectrumTest.ViewModel
         public string HdrStatusText => new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString(
             WinExSpectrumTest.Rendering.HdrStatus.Mode switch
             {
-                WinExSpectrumTest.Rendering.HdrOutputMode.Aurora => "HdrStatusAurora",
+                WinExSpectrumTest.Rendering.HdrOutputMode.Unsupported => "HdrStatusUnsupported",
                 WinExSpectrumTest.Rendering.HdrOutputMode.Starting => "HdrStatusStarting",
                 WinExSpectrumTest.Rendering.HdrOutputMode.Active => "HdrStatusActive",
                 WinExSpectrumTest.Rendering.HdrOutputMode.Unavailable => "HdrStatusUnavailable",
@@ -385,20 +385,44 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        private string _sonicGridSize = "160";
-        public string SonicGridSize
+        /// <summary>Gets or selects a preset using the actual quality parameters as the single source of truth.</summary>
+        public string SonicQuality
         {
-            get => _sonicGridSize;
+            get => AppSettings.SonicQuality.Preset;
             set
             {
-                if (string.IsNullOrEmpty(value)) return;
-                if (SetProperty(ref _sonicGridSize, value))
-                {
-                    if (_isInitialized && int.TryParse(value, out int gridSize))
-                    {
-                        AppSettings.SonicGridSize = gridSize;
-                    }
-                }
+                if (_isInitialized && !string.IsNullOrEmpty(value))
+                    AppSettings.SonicQuality = SonicQualitySettings.FromPreset(value, AppSettings.SonicQuality);
+            }
+        }
+
+        /// <summary>Gets or sets the stable anti-aliasing mode.</summary>
+        public string SonicAntiAliasing
+        {
+            get => AppSettings.SonicAntiAliasing;
+            set
+            {
+                if (_isInitialized && value is "off" or "fxaa") AppSettings.SonicAntiAliasing = value;
+            }
+        }
+
+        /// <summary>Gets or sets the internal resolution percentage selected in the settings view.</summary>
+        public string SonicRenderScale
+        {
+            get => AppSettings.SonicRenderScalePercent.ToString();
+            set
+            {
+                if (_isInitialized && int.TryParse(value, out int scale)) AppSettings.SonicRenderScalePercent = scale;
+            }
+        }
+
+        /// <summary>Gets or sets the number of terrain cells per axis.</summary>
+        public string SonicGridSize
+        {
+            get => AppSettings.SonicGridSize.ToString();
+            set
+            {
+                if (_isInitialized && int.TryParse(value, out int gridSize)) AppSettings.SonicGridSize = gridSize;
             }
         }
 
@@ -561,7 +585,25 @@ namespace WinExSpectrumTest.ViewModel
                 _hdrSaveTimer.Start();
                 return;
             }
+            if (name == nameof(AppSettings.SonicQuality))
+            {
+                NotifySonicQuality();
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
+                return;
+            }
             ReloadSettings();
+        }
+
+        private void NotifySonicQuality()
+        {
+            bool initialized = _isInitialized;
+            _isInitialized = false;
+            OnPropertyChanged(nameof(SonicQuality));
+            OnPropertyChanged(nameof(SonicAntiAliasing));
+            OnPropertyChanged(nameof(SonicRenderScale));
+            OnPropertyChanged(nameof(SonicGridSize));
+            _isInitialized = initialized;
         }
 
         private void ReloadSettings()
@@ -600,7 +642,7 @@ namespace WinExSpectrumTest.ViewModel
             SonicTheme = AppSettings.SonicTheme;
             SonicAudioIntensity = AppSettings.SonicAudioIntensity * 100f;
             SonicResponseRange = AppSettings.SonicResponseRange * 100f;
-            SonicGridSize = AppSettings.SonicGridSize.ToString();
+            NotifySonicQuality();
             SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled;
             SonicRippleEnabled = AppSettings.SonicRippleEnabled;
             SonicMeteorEnabled = AppSettings.SonicMeteorEnabled;

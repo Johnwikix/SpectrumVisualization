@@ -37,6 +37,8 @@ namespace WinExSpectrumTest.Model
         public float SonicAudioIntensity { get; set; } = 1.0f;
         public float SonicResponseRange { get; set; } = 1.0f;
         public int SonicGridSize { get; set; } = 160;
+        public int SonicRenderScalePercent { get; set; } = 100;
+        public string SonicAntiAliasing { get; set; } = "off";
         public bool SonicIdleWaveEnabled { get; set; } = true;
         public bool SonicRippleEnabled { get; set; } = true;
         public bool SonicMeteorEnabled { get; set; } = true;

@@ -338,11 +338,36 @@
                                 Minimum="30"
                                 Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicQuality" Margin="10,0,10,0">
+                            <ComboBox x:Uid="SonicQualityCombo" AutomationProperties.AutomationId="SonicQuality" MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.SonicQuality, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="SonicQualityPerformance" Tag="performance" />
+                                <ComboBoxItem x:Uid="SonicQualityBalanced" Tag="balanced" />
+                                <ComboBoxItem x:Uid="SonicQualityHigh" Tag="high" />
+                                <ComboBoxItem x:Uid="SonicQualityCustom" Tag="custom" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicAntiAliasing" Margin="10,0,10,0">
+                            <ComboBox x:Uid="SonicAntiAliasingCombo" AutomationProperties.AutomationId="SonicAntiAliasing" MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.SonicAntiAliasing, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="SonicAntiAliasingOff" Tag="off" />
+                                <ComboBoxItem Content="FXAA" Tag="fxaa" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicRenderScale" Margin="10,0,10,0">
+                            <ComboBox x:Uid="SonicRenderScaleCombo" AutomationProperties.AutomationId="SonicRenderScale" MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.SonicRenderScale, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem Content="50%" Tag="50" />
+                                <ComboBoxItem Content="75%" Tag="75" />
+                                <ComboBoxItem Content="100%" Tag="100" />
+                            </ComboBox>
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
                             <ComboBox
                                 MinWidth="160"
                                 SelectedValue="{x:Bind ViewModel.SonicGridSize, Mode=TwoWay}"
                                 SelectedValuePath="Tag">
+                                <ComboBoxItem Content="80 × 80" Tag="80" />
                                 <ComboBoxItem Content="120 × 120" Tag="120" />
                                 <ComboBoxItem Content="160 × 160" Tag="160" />
                             </ComboBox>

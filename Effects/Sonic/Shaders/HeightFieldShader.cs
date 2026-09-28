@@ -13,9 +13,9 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
     ///   G = squared ripple intensity (normal ripples)
     ///   B = squared ripple intensity (meteor/white ripples)
     ///   A = center peak intensity (sub-bass based, drives the peak color)
-    /// Ripple encoding: one float4 per ripple = (x, z, startTime, strength),
-    /// where a negative strength marks a meteor-type (white, sharper) ripple and
-    /// zero marks an inactive slot.
+    /// Ripple slots contain (x, z, radius, signed strength); slots 20-31 contain
+    /// inverse width, precomputed fade/strength, elevation scale, and padding.
+    /// Audio lift curves and ripple constants are computed once per frame.
     /// </summary>
     [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
     [GeneratedComputeShaderDescriptor]
@@ -54,25 +54,25 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
 
             // 2. Frequency regions with eased animation curves.
             float subRegion = Hlsl.SmoothStep(halfExtent * 0.30f * range, 0f, centerDist);
-            float subLift = EaseLift(subBass, 6f) * subRegion;
+            float subLift = subBass * subRegion;
             float peakIntensity = Hlsl.Clamp(subLift / 6f, 0f, 1f);
 
             float bassNoise = Snoise(pos2D * 0.1f - new float2(0f, time * 0.2f));
             float bassRegion = Hlsl.SmoothStep(halfExtent * 0.42f * range, halfExtent * 0.06f * range, centerDist + bassNoise * 5f);
             float bassRnd = Hlsl.SmoothStep(0f, 1f, rnd + density * 0.5f);
-            float bassLift = EaseLift(bass, 5f) * bassRegion * bassRnd;
+            float bassLift = bass * bassRegion * bassRnd;
 
             float lowMidNoise = Snoise(pos2D * 0.05f + new float2(time * 0.1f, 0f));
-            float lowMidLift = FlowLift(lowMid, 3f) * (lowMidNoise * 0.5f + 0.5f);
+            float lowMidLift = lowMid * (lowMidNoise * 0.5f + 0.5f);
 
             float riverFlow = Hlsl.Sin(pos2D.X * 0.2f + pos2D.Y * 0.2f + Snoise(pos2D * 0.1f) * 2f - time * 2f);
-            float midLift = FlowLift(mid, 4f) * Hlsl.Max(0f, riverFlow);
+            float midLift = mid * Hlsl.Max(0f, riverFlow);
 
             float highMidRegion = Hlsl.SmoothStep(halfExtent * 0.12f * range, halfExtent * 0.54f * range, centerDist);
             float highMidLift = 0f;
             if (Hlsl.Frac(rnd * 13.3f) > 0.8f)
             {
-                highMidLift = EaseLift(highMid, 3f) * highMidRegion * Hlsl.Frac(rnd * 7.7f);
+                highMidLift = highMid * highMidRegion * Hlsl.Frac(rnd * 7.7f);
             }
 
             float audioElevation = (subLift + bassLift + lowMidLift + midLift + highMidLift) * audioIntensity;
@@ -80,26 +80,27 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
             // Energy spike with elastic bounce on rare cells.
             if (rnd > 0.99f)
             {
-                float energyRaw = Hlsl.Clamp(energy, 0f, 1f);
-                float energyBounce = 1f - Hlsl.Pow(1f - energyRaw, 1.5f);
-                energyBounce += Hlsl.Sin(energyRaw * 6.283f * 2f) * Hlsl.Exp(-energyRaw * 5f) * 0.2f;
-                audioElevation += energyBounce * 6f * audioIntensity;
+                audioElevation += energy * audioIntensity;
             }
 
             audioElevation *= globalFalloff;
 
-            // Ambient background waves - always present as base layer.
-            float hillNoise = Snoise(pos2D * 0.08f + new float2(time * 0.12f, 0f));
-            float hillNoise2 = Snoise(pos2D * 0.06f + new float2(0f, time * 0.08f));
-            float rippleNoise = Snoise(pos2D * 0.15f + new float2(time * 0.2f, time * 0.15f));
-            float textureNoise = Snoise(pos2D * 0.4f + new float2(time * 0.3f, time * 0.3f)) * 0.3f;
+            float idleBlockWave = 0f;
+            // All lanes share this branch; an inactive idle layer needs no noise evaluations.
+            if (idleWave > 0f)
+            {
+                float hillNoise = Snoise(pos2D * 0.08f + new float2(time * 0.12f, 0f));
+                float hillNoise2 = Snoise(pos2D * 0.06f + new float2(0f, time * 0.08f));
+                float rippleNoise = Snoise(pos2D * 0.15f + new float2(time * 0.2f, time * 0.15f));
+                float textureNoise = Snoise(pos2D * 0.4f + new float2(time * 0.3f, time * 0.3f)) * 0.3f;
 
-            float baseUndulation = (hillNoise * 0.6f + hillNoise2 * 0.4f) * 0.5f + 0.5f;
-            float rippleUndulation = rippleNoise * 0.3f + 0.5f;
-            float blockVariation = (rnd - 0.5f) * 0.15f;
-            float combinedWave = baseUndulation * 0.5f + rippleUndulation * 0.35f + textureNoise + blockVariation;
-            combinedWave = Hlsl.SmoothStep(0.1f, 0.9f, combinedWave);
-            float idleBlockWave = combinedWave * idleWave * 2.5f * globalFalloff;
+                float baseUndulation = (hillNoise * 0.6f + hillNoise2 * 0.4f) * 0.5f + 0.5f;
+                float rippleUndulation = rippleNoise * 0.3f + 0.5f;
+                float blockVariation = (rnd - 0.5f) * 0.15f;
+                float combinedWave = baseUndulation * 0.5f + rippleUndulation * 0.35f + textureNoise + blockVariation;
+                combinedWave = Hlsl.SmoothStep(0.1f, 0.9f, combinedWave);
+                idleBlockWave = combinedWave * idleWave * 2.5f * globalFalloff;
+            }
 
             float elevation = idleElevation + audioElevation + idleBlockWave;
 
@@ -115,24 +116,12 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
                 if (signedStrength == 0f) continue;
 
                 bool isMeteor = signedStrength < 0f;
-                float strength = Hlsl.Abs(signedStrength);
                 float dist = Hlsl.Length(pos2D - ripple.XY);
-                float timeSince = time - ripple.Z;
-                if (timeSince < 0f) continue;
+                float4 shape = data[20 + i];
+                float d = dist - ripple.Z;
+                float rPulse = Hlsl.Exp(-d * d * shape.X) * shape.Y;
 
-                float curSpeed = isMeteor ? 18f : 14f;
-                float curWidth = isMeteor ? 2.5f : 5f;
-                float curFadeDist = isMeteor ? 18f : 22f;
-                float elevationScale = isMeteor ? 1.8f : 3f;
-
-                float waveRadius = timeSince * curSpeed;
-                float d = dist - waveRadius;
-                float rippleWave = Hlsl.Exp(-d * d / curWidth);
-                float fade = Hlsl.Exp(-waveRadius / curFadeDist);
-                float strengthCurve = Hlsl.Clamp(strength * 0.4f, 0f, 1f);
-                float rPulse = rippleWave * fade * strengthCurve;
-
-                rippleElevation += rPulse * elevationScale;
+                rippleElevation += rPulse * shape.Z;
                 if (isMeteor) rippleIntensityWhite += rPulse;
                 else rippleIntensityNormal += rPulse;
             }
@@ -150,22 +139,6 @@ namespace WinExSpectrumTest.Effects.Sonic.Shaders
         private static float Random(float2 st)
         {
             return Hlsl.Frac(Hlsl.Sin(Hlsl.Dot(st.XY, new float2(12.9898f, 78.233f))) * 43758.5453123f);
-        }
-
-        private static float EaseLift(float raw, float maxHeight)
-        {
-            float x = Hlsl.Clamp(raw, 0f, 1f);
-            float eased = 1f - Hlsl.Pow(1f - x, 2.5f);
-            float overshoot = Hlsl.Sin(x * 6.283f * 1.5f) * Hlsl.Exp(-x * 4f) * 0.15f;
-            return (eased + overshoot) * maxHeight;
-        }
-
-        private static float FlowLift(float raw, float maxHeight)
-        {
-            float x = Hlsl.Clamp(raw, 0f, 1f);
-            float eased = Hlsl.Pow(x, 0.75f);
-            float breathe = Hlsl.Sin(x * 3.14159f) * 0.12f;
-            return (eased + breathe) * maxHeight;
         }
 
         // 2D simplex noise (Ashima / Ian McEwan), ported from the original GLSL.

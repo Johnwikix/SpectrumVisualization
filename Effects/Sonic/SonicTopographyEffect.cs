@@ -109,8 +109,8 @@ internal sealed class SonicTopographyEffect : IDisposable
     {
         _device = device;
         _analyzer = analyzer;
-        _shaderData = device.AllocateReadOnlyBuffer<float4>(20);
-        try { _upload = device.AllocateUploadBuffer<float4>(20); }
+        _shaderData = device.AllocateReadOnlyBuffer<float4>(32);
+        try { _upload = device.AllocateUploadBuffer<float4>(32); }
         catch { _shaderData.Dispose(); throw; }
 
         _lastPulseCount = analyzer.PulseTriggerCount;
@@ -302,9 +302,16 @@ internal sealed class SonicTopographyEffect : IDisposable
     }
 
 
-    public void Render(ReadWriteTexture2D<float4> target)
+    /// <summary>Gets the completed height field borrowed by the raster renderer.</summary>
+    internal ReadWriteTexture2D<float4> HeightField => _heightField!;
+
+    /// <summary>Gets the linear background used by both rendering paths.</summary>
+    internal Vector3 BackgroundColor => _base1;
+
+    /// <summary>Updates the small height texture without tracing a full-screen image.</summary>
+    internal void PrepareHeightField(int requestedGrid)
     {
-        int requestedGrid = Math.Clamp(AppSettings.SonicGridSize, 80, 320);
+        requestedGrid = Math.Clamp(requestedGrid, 80, 320);
         if (_heightField == null || _gridSize != requestedGrid)
         {
             var replacement = _device.AllocateReadWriteTexture2D<float4>(requestedGrid, requestedGrid);
@@ -312,10 +319,18 @@ internal sealed class SonicTopographyEffect : IDisposable
             _heightField = replacement;
             _gridSize = requestedGrid;
         }
-        int width = target.Width;
-        int height = target.Height;
         Span<float4> data = _upload.Span;
-        for (int i = 0; i < 12; i++) data[i] = Ripple(i);
+        for (int i = 0; i < RippleSlots; i++)
+        {
+            float strength = _rippleStrength[i];
+            bool meteor = strength < 0;
+            float age = _time - _rippleTime[i];
+            float radius = age * (meteor ? 18f : 14f);
+            data[i] = new(_rippleX[i], _rippleZ[i], radius, age >= 0 ? strength : 0);
+            data[20 + i] = new(meteor ? .4f : .2f,
+                MathF.Exp(-radius / (meteor ? 18f : 22f)) * Math.Clamp(MathF.Abs(strength) * .4f, 0, 1),
+                meteor ? 1.8f : 3f, 0);
+        }
         data[12] = new(ToFloat3(_base1), 0);
         data[13] = new(ToFloat3(_base2), 0);
         data[14] = new(ToFloat3(_coolCore), 0);
@@ -329,19 +344,17 @@ internal sealed class SonicTopographyEffect : IDisposable
         // 1. Heightfield pass: one texel per bar cell.
         float cellSize = GridExtent / _gridSize;
         float halfExtent = GridExtent * 0.5f;
-        float barSize = cellSize * 0.857f;
 
         ReadOnlySpan<float> f = _analyzer.LatestFeatures;
-        const float gain = 1f;
         context.For(_gridSize, _gridSize, new HeightFieldShader(
             _shaderData, _heightField!,
             _time,
-            Feature(f, FeatureIndex.SubBass) * gain,
-            Feature(f, FeatureIndex.Bass) * gain,
-            Feature(f, FeatureIndex.LowMid) * gain,
-            Feature(f, FeatureIndex.Mid) * gain,
-            Feature(f, FeatureIndex.HighMid) * gain,
-            Feature(f, FeatureIndex.Energy) * gain,
+            EaseLift(Feature(f, FeatureIndex.SubBass), 6),
+            EaseLift(Feature(f, FeatureIndex.Bass), 5),
+            FlowLift(Feature(f, FeatureIndex.LowMid), 3),
+            FlowLift(Feature(f, FeatureIndex.Mid), 4),
+            EaseLift(Feature(f, FeatureIndex.HighMid), 3),
+            EnergyLift(Feature(f, FeatureIndex.Energy)),
             _idleIntensity,
             AppSettings.SonicAudioIntensity,
             AppSettings.SonicResponseRange,
@@ -350,8 +363,19 @@ internal sealed class SonicTopographyEffect : IDisposable
             Feature(f, FeatureIndex.Smoothness),
             Feature(f, FeatureIndex.Density)));
 
-        context.Barrier(_heightField!);
+    }
 
+    /// <summary>Renders the reference DDA image used by verification probes.</summary>
+    public void Render(ReadWriteTexture2D<float4> target)
+    {
+        PrepareHeightField(AppSettings.SonicGridSize);
+        using var context = _device.CreateComputeContext();
+        int width = target.Width;
+        int height = target.Height;
+        float cellSize = GridExtent / _gridSize;
+        float halfExtent = GridExtent * .5f;
+        float barSize = cellSize * .857f;
+        ReadOnlySpan<float> f = _analyzer.LatestFeatures;
         context.For(width, height, new TerrainShader(
             _shaderData, _heightField!, target,
             ToFloat3(_cameraPosition),
@@ -378,7 +402,43 @@ internal sealed class SonicTopographyEffect : IDisposable
 
     }
 
-    private float4 Ripple(int slot) => new(_rippleX[slot], _rippleZ[slot], _rippleTime[slot], _rippleStrength[slot]);
+    /// <summary>Writes the fixed raster constants into caller-owned storage.</summary>
+    internal void WriteSceneData(Span<float4> data, float aspect)
+    {
+        ReadOnlySpan<float> f = _analyzer.LatestFeatures;
+        data[0] = new(ToFloat3(_cameraPosition), _tanHalfFovY);
+        data[1] = new(ToFloat3(_cameraRight), aspect);
+        data[2] = new(ToFloat3(_cameraUp), _time);
+        data[3] = new(ToFloat3(_cameraForward), GridExtent / _gridSize);
+        data[4] = new(ToFloat3(_base1), GridExtent * .5f);
+        data[5] = new(ToFloat3(_base2), _glowIntensity);
+        data[6] = new(ToFloat3(_coolCore), _gridSize);
+        data[7] = new(ToFloat3(_coolEdge), AppSettings.SonicPeakColorEnabled ? 1 : 0);
+        data[8] = new(ToFloat3(_warmCore), AppSettings.SonicPeakIntensity);
+        data[9] = new(ToFloat3(_warmEdge), Feature(f, FeatureIndex.Warmth));
+        data[10] = new(ToFloat3(_rippleColor), Feature(f, FeatureIndex.Brightness));
+        data[11] = new(ToFloat3(_peakColor), Feature(f, FeatureIndex.Sharpness));
+        data[12] = new(Feature(f, FeatureIndex.Presence), Feature(f, FeatureIndex.Brilliance), Feature(f, FeatureIndex.Air), 0);
+    }
+
+    // These curves depend on the frame's audio features, not on individual grid cells.
+    private static float EaseLift(float raw, float height)
+    {
+        float x = Math.Clamp(raw, 0, 1);
+        return (1 - MathF.Pow(1 - x, 2.5f) + MathF.Sin(x * 6.283f * 1.5f) * MathF.Exp(-x * 4) * .15f) * height;
+    }
+
+    private static float FlowLift(float raw, float height)
+    {
+        float x = Math.Clamp(raw, 0, 1);
+        return (MathF.Pow(x, .75f) + MathF.Sin(x * 3.14159f) * .12f) * height;
+    }
+
+    private static float EnergyLift(float raw)
+    {
+        float x = Math.Clamp(raw, 0, 1);
+        return (1 - MathF.Pow(1 - x, 1.5f) + MathF.Sin(x * 6.283f * 2) * MathF.Exp(-x * 5) * .2f) * 6;
+    }
     private static float Feature(ReadOnlySpan<float> f, int i) => f.Length > i ? f[i] : 0;
     private static float3 ToFloat3(Vector3 v) => new(v.X, v.Y, v.Z);
 
