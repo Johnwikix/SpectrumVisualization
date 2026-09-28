@@ -59,7 +59,13 @@ namespace WinExSpectrumTest.Effects
                 static () => new SonicGpuEffect(), static () =>
                 {
                     var quality = AppSettings.SonicQuality;
-                    return new GpuSceneOptions(quality.RenderScalePercent, quality.AntiAliasing == "fxaa", quality.GridSize);
+                    var mode = quality.AntiAliasing switch
+                    {
+                        "fxaa" => ReconstructionMode.Fxaa, "smaa" => ReconstructionMode.Smaa,
+                        "xess" => ReconstructionMode.XeSS, "fsr" => ReconstructionMode.Fsr,
+                        "dlss" => ReconstructionMode.Dlss, _ => ReconstructionMode.Off
+                    };
+                    return new GpuSceneOptions(quality.RenderScalePercent, mode, quality.GridSize, quality.UpscaleQuality);
                 })
         ];
 

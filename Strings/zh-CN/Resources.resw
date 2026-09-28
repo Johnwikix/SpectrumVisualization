@@ -277,4 +277,12 @@
   <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>关闭</value></data>
   <data name="SonicRenderScale.Header" xml:space="preserve"><value>渲染比例</value></data>
   <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>渲染比例</value></data>
+  <data name="SonicUpscaleQuality.Header" xml:space="preserve"><value>重建质量</value></data>
+  <data name="SonicUpscaleQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>重建质量</value></data>
+  <data name="SonicUpscaleNative.Content" xml:space="preserve"><value>原生分辨率 AA</value></data>
+  <data name="SonicUpscaleQualityMode.Content" xml:space="preserve"><value>质量</value></data>
+  <data name="SonicReconstructionPending" xml:space="preserve"><value>尚未检测 GPU 能力</value></data>
+  <data name="SonicReconstructionFallback" xml:space="preserve"><value>所选算法不可用，当前使用 FXAA</value></data>
+  <data name="SonicReconstructionReady" xml:space="preserve"><value>所选算法已生效</value></data>
+  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>图形组件：SMAA、Intel XeSS、AMD FidelityFX FSR 与 NVIDIA DLSS / NGX（NVIDIA RTX™）。应用随附第三方许可文件。</value></data>
 </root>

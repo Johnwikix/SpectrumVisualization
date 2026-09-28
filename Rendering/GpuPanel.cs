@@ -37,7 +37,7 @@ internal sealed partial class GpuPanel : SwapChainPanel
         {
             if (!settings.Active || settings.Width == 0 || settings.Height == 0) return;
             _native = GetNative(this);
-            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings);
+            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings, PublishReconstructionFromWorker);
             try { _renderer.Start(); }
             catch
             {
@@ -57,8 +57,17 @@ internal sealed partial class GpuPanel : SwapChainPanel
             if (!_stopping)
             {
                 LastOutputMode = mode;
+                if (mode is HdrOutputMode.Starting or HdrOutputMode.Failed) ReconstructionAvailability.Clear();
                 OutputChanged?.Invoke(mode);
             }
+        });
+    }
+
+    private void PublishReconstructionFromWorker(ReconstructionStatus status)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_stopping) ReconstructionAvailability.Set(status);
         });
     }
 
@@ -84,6 +93,7 @@ internal sealed partial class GpuPanel : SwapChainPanel
     private async Task StopCoreAsync()
     {
         _stopping = true;
+        ReconstructionAvailability.Clear();
         if (_renderer != null) await _renderer.StopAsync();
         ReleaseNative(_native);
         _native = 0;

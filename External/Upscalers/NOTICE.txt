@@ -1,0 +1,5 @@
+Optional graphics components: Intel XeSS, AMD FidelityFX FSR, NVIDIA DLSS / NGX.
+This software contains source code provided by NVIDIA Corporation.
+NVIDIA RTX is a trademark of NVIDIA Corporation.
+Vendor components remain subject to their respective licenses, not the application's MIT license.
+See XeSS.txt, XeSS-third-party.txt, FSR.md and DLSS.txt in the distributed Licenses directory.

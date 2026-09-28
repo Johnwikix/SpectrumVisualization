@@ -37,6 +37,17 @@ internal static class QualityChecks
             require(new SonicQualitySettings(saved.SonicRenderScalePercent, saved.SonicGridSize, saved.SonicAntiAliasing) == quality, "Quality AOT JSON roundtrip");
         }
         require(new SonicQualitySettings(-1, 500, "unknown").Normalize() == new SonicQualitySettings(100, 320, "off"), "Invalid quality normalization");
+        require(legacy.SonicUpscaleQuality == "quality", "Legacy reconstruction quality default");
+        foreach (string mode in new[] { "off", "fxaa", "smaa", "xess", "fsr", "dlss" })
+        foreach (string quality in new[] { "native", "quality", "balanced", "performance" })
+        {
+            var settings = new SonicQualitySettings(75, 120, mode, quality);
+            require(settings.Normalize() == settings, "Reconstruction normalization");
+            var dto = new SaveSetting { SonicAntiAliasing = mode, SonicUpscaleQuality = quality };
+            var roundtrip = JsonSerializer.Deserialize(JsonSerializer.Serialize(dto, SettingsJsonContext.Default.SaveSetting), SettingsJsonContext.Default.SaveSetting)!;
+            require(roundtrip.SonicAntiAliasing == mode && roundtrip.SonicUpscaleQuality == quality, "Reconstruction AOT roundtrip");
+            require(settings.IsTemporal == (mode is "xess" or "fsr" or "dlss"), "Temporal scale ownership");
+        }
         require(GpuRenderSize.Create(321, 181, 50) == new GpuRenderSize(321, 181, 160, 90), "Odd physical resolution");
         require(GpuRenderSize.Create(1, 1, 50).Width == 1, "Smallest scene");
         AppSettings.SonicQuality = SonicQualitySettings.Default;

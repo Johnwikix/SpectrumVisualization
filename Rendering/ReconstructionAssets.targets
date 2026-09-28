@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <ReconstructionRoot>$(MSBuildThisFileDirectory)..\</ReconstructionRoot>
+    <EnableVendorReconstruction Condition="'$(EnableVendorReconstruction)' == ''">true</EnableVendorReconstruction>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(ReconstructionRoot)External\SMAA\SMAA.hlsl" LogicalName="Spectrum.SMAA.SMAA.hlsl" />
+    <EmbeddedResource Include="$(ReconstructionRoot)External\SMAA\Textures\AreaTexDX10.dds" LogicalName="Spectrum.SMAA.AreaTexDX10.dds" />
+    <EmbeddedResource Include="$(ReconstructionRoot)External\SMAA\Textures\SearchTex.dds" LogicalName="Spectrum.SMAA.SearchTex.dds" />
+    <Content Include="$(ReconstructionRoot)External\SMAA\LICENSE.txt" Link="Licenses\SMAA.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\NOTICE.txt" Link="Licenses\Graphics-NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(EnableVendorReconstruction)' == 'true'">
+    <Content Include="$(ReconstructionRoot)Native\Reconstruction\bin\Spectrum.Reconstruction.dll" Link="Spectrum.Reconstruction.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\xess\bin\libxess.dll" Link="libxess.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\fsr\Kits\FidelityFX\signedbin\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\dlss\lib\Windows_x86_64\rel\nvngx_dlss.dll" Link="nvngx_dlss.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\xess\LICENSE.txt" Link="Licenses\XeSS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\xess\third-party-programs.txt" Link="Licenses\XeSS-third-party.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\fsr\Kits\FidelityFX\docs\license.md" Link="Licenses\FSR.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\dlss\LICENSE.txt" Link="Licenses\DLSS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="BuildReconstructionBridge" BeforeTargets="PrepareForBuild" Condition="'$(EnableVendorReconstruction)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipReconstructionNativeBuild)' != 'true'">
+    <Error Condition="!Exists('$(ReconstructionRoot)External\Upscalers\xess\bin\libxess.dll')" Text="Run External/Upscalers/Restore.ps1 first, or set EnableVendorReconstruction=false for spatial AA only." />
+    <Exec Command="pwsh -NoProfile -File &quot;$(ReconstructionRoot)Native\Reconstruction\Build.ps1&quot;" />
+  </Target>
+</Project>

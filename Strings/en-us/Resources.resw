@@ -277,4 +277,12 @@
   <data name="SonicAntiAliasingOff.Content" xml:space="preserve"><value>Off</value></data>
   <data name="SonicRenderScale.Header" xml:space="preserve"><value>Render Scale</value></data>
   <data name="SonicRenderScaleCombo.AutomationProperties.Name" xml:space="preserve"><value>Render Scale</value></data>
+  <data name="SonicUpscaleQuality.Header" xml:space="preserve"><value>Reconstruction Quality</value></data>
+  <data name="SonicUpscaleQualityCombo.AutomationProperties.Name" xml:space="preserve"><value>Reconstruction Quality</value></data>
+  <data name="SonicUpscaleNative.Content" xml:space="preserve"><value>Native AA</value></data>
+  <data name="SonicUpscaleQualityMode.Content" xml:space="preserve"><value>Quality</value></data>
+  <data name="SonicReconstructionPending" xml:space="preserve"><value>GPU capabilities not yet detected</value></data>
+  <data name="SonicReconstructionFallback" xml:space="preserve"><value>Selected algorithm unavailable; FXAA is active</value></data>
+  <data name="SonicReconstructionReady" xml:space="preserve"><value>Selected algorithm is active</value></data>
+  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>Graphics components: SMAA, Intel XeSS, AMD FidelityFX FSR and NVIDIA DLSS / NGX (NVIDIA RTX™). Third-party licenses are distributed with the application.</value></data>
 </root>

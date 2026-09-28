@@ -53,6 +53,10 @@ internal sealed class ColorOutputPipelines : IDisposable
             c = sqrt(saturate(c/(hdr > .5 ? peakNits : 1)));
             return float4(c,dot(c,float3(.299,.587,.114)));
         }
+        float4 EncodePrepared(float4 p : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
+            float3 c = image.SampleLevel(sampleImage,uv,0).rgb;
+            return EncodeMapped(c*c*(hdr > .5 ? peakNits : 1),p.xy);
+        }
         """;
 
     private const string AntialiasSource = """
@@ -68,6 +72,7 @@ internal sealed class ColorOutputPipelines : IDisposable
     internal ID3D12PipelineState Output { get; private set; } = null!;
     internal ID3D12PipelineState PrepareAntialias { get; private set; } = null!;
     internal ID3D12PipelineState AntialiasOutput { get; private set; } = null!;
+    internal ID3D12PipelineState PreparedOutput { get; private set; } = null!;
 
     internal ColorOutputPipelines(ID3D12Device device)
     {
@@ -81,6 +86,7 @@ internal sealed class ColorOutputPipelines : IDisposable
             byte[] vs = ShaderCompiler.Compile(Source,"VS","vs_5_0");
             Output = Create(device,vs,Source,"Encode",Format.R10G10B10A2_UNorm);
             PrepareAntialias = Create(device,vs,Source,"PrepareAA",Format.R16G16B16A16_Float);
+            PreparedOutput = Create(device,vs,Source,"EncodePrepared",Format.R10G10B10A2_UNorm);
             using var stream = typeof(ColorOutputPipelines).Assembly.GetManifestResourceStream("Spectrum.Fxaa3_11.h")
                 ?? throw new InvalidOperationException("The embedded FXAA shader is missing.");
             using var reader = new StreamReader(stream);
@@ -108,6 +114,7 @@ internal sealed class ColorOutputPipelines : IDisposable
     public void Dispose()
     {
         GpuGraphics.DisposeResource(AntialiasOutput);
+        GpuGraphics.DisposeResource(PreparedOutput);
         GpuGraphics.DisposeResource(PrepareAntialias);
         GpuGraphics.DisposeResource(Output);
         GpuGraphics.DisposeResource(Root);

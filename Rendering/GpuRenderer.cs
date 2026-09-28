@@ -18,6 +18,8 @@ internal sealed class GpuRenderer
     private readonly nint _hwnd;
     private readonly Action<nint> _bind;
     private readonly Action<HdrOutputMode> _publish;
+    private readonly Action<ReconstructionStatus> _publishReconstruction;
+    private ReconstructionStatus? _lastReconstruction;
     private readonly object _gate = new();
     private readonly AutoResetEvent _wake = new(false);
     private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -26,12 +28,14 @@ internal sealed class GpuRenderer
     private HdrOutputMode? _lastStatus;
     private TaskCompletionSource? _paused;
 
-    public GpuRenderer(SpectrumAnalyzer analyzer, nint hwnd, Action<nint> bind, Action<HdrOutputMode> publish, GpuRenderSettings settings)
+    public GpuRenderer(SpectrumAnalyzer analyzer, nint hwnd, Action<nint> bind, Action<HdrOutputMode> publish, GpuRenderSettings settings,
+        Action<ReconstructionStatus> publishReconstruction)
     {
         _analyzer = analyzer;
         _hwnd = hwnd;
         _bind = bind;
         _publish = publish;
+        _publishReconstruction = publishReconstruction;
         _settings = settings;
     }
 
@@ -121,6 +125,7 @@ internal sealed class GpuRenderer
                 }
                 if (!settings.Active || settings.Width <= 0 || settings.Height <= 0)
                 {
+                    graphics?.ResetHistory();
                     _wake.WaitOne();
                     previous = Stopwatch.GetTimestamp();
                     pacer.Reset();
@@ -164,6 +169,11 @@ internal sealed class GpuRenderer
                     previous = now;
                     if (graphics.Render(elapsed, settings.WhiteNits, settings.PeakNits))
                         RenderDiagnostics.RecordFrame(activeEffect, _analyzer.PublicationCount);
+                    if (_lastReconstruction != graphics.Reconstruction)
+                    {
+                        _lastReconstruction = graphics.Reconstruction;
+                        _publishReconstruction(graphics.Reconstruction);
+                    }
                     failureLogged = false;
                 }
                 catch (Exception ex)
@@ -174,6 +184,7 @@ internal sealed class GpuRenderer
                     try { graphics?.Dispose(); }
                     catch (Exception cleanup) { App.WriteCrashLog("GPU recovery", cleanup.Message, cleanup); }
                     graphics = null;
+                    _lastReconstruction = null;
                     // Device recreation owns recovery. A settings change or shutdown wakes this backoff.
                     _wake.WaitOne(2000);
                     previous = Stopwatch.GetTimestamp();

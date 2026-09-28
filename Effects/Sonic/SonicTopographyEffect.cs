@@ -23,7 +23,7 @@ internal sealed class SonicTopographyEffect : IDisposable
     private const float CameraDistance = 85f;
     // 注视点高度偏移：视觉上把音频响应主体居中（透视导致亮顶偏向画面上方）
     private const float CameraLookHeight = 0f;   // 注视点=触发中心：旋转/缩放原点必须投影在屏幕正中
-    private const float FieldOfViewY = 45f;
+    internal const float FieldOfViewY = 45f;
 
     private readonly SpectrumAnalyzer _analyzer;
     private readonly GraphicsDevice _device;

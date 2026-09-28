@@ -7,10 +7,13 @@ using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
+if (args.Contains("--reconstruction")) return ReconstructionChecks.Run(args.Contains("--motion"));
+if (args.Contains("--benchmark-reconstruction")) return ReconstructionBenchmark.Run();
+
 if (args.Contains("--visual"))
 {
     const int width = 960, height = 540;
-    using var input = new SpectrumAnalyzer();
+    using var input = new SpectrumAnalyzer(captureAudio: false);
     using var device = GraphicsDevice.GetDefault();
     using var reference = new SonicTopographyEffect(device, input);
     using var target = device.AllocateReadWriteTexture2D<float4>(width, height);
@@ -44,7 +47,7 @@ if (args.Contains("--visual"))
 
 if (args.Contains("--benchmark"))
 {
-    using var input = new SpectrumAnalyzer();
+    using var input = new SpectrumAnalyzer(captureAudio: false);
     AppSettings.SonicAutoRotate = true;
     using var deviceInfo = GraphicsDevice.GetDefault();
     Console.WriteLine($"BENCHMARK device={deviceInfo.Name}");
@@ -106,7 +109,7 @@ try
     Require(saved.HdrEnabled && saved.HdrWhiteNits == 350 && saved.HdrPeakNits == 1200, "An older asynchronous save overwrote the final snapshot");
     Console.WriteLine("PASS concurrent saves followed by synchronous exit snapshot and JSON reload");
 
-    using var analyzer = new SpectrumAnalyzer();
+    using var analyzer = new SpectrumAnalyzer(captureAudio: false);
     using (var device = GraphicsDevice.GetDefault())
     using (var scene = device.AllocateReadWriteTexture2D<float4>(256, 144))
     using (var effect = new SonicTopographyEffect(device, analyzer))

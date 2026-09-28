@@ -5,13 +5,18 @@ internal static class SonicTerrainSource
 {
     internal const string Code = """
         Texture2D<float4> field : register(t0);
-        cbuffer Scene : register(b0) { float4 d[13]; };
+        Texture2D<float4> previousField : register(t1);
+        cbuffer Scene : register(b0) { float4 d[13]; float4 previous[13]; float4 jitter; float4 temporal; float4 camera; };
+        float ProjectDepth(float z) { return (z-camera.x)*camera.y/(camera.y-camera.x); }
         struct Vertex {
             float4 position : SV_Position;
             float3 world : TEXCOORD0;
             nointerpolation float3 normal : TEXCOORD1;
             nointerpolation float2 center : TEXCOORD2;
             nointerpolation float4 values : TEXCOORD3;
+            float4 currentClip : TEXCOORD4;
+            float4 previousClip : TEXCOORD5;
+            nointerpolation float reactive : TEXCOORD6;
         };
         Vertex TerrainVS(uint id : SV_VertexID, uint instance : SV_InstanceID) {
             const float2 corners[6] = {float2(0,0),float2(0,1),float2(1,0),float2(1,0),float2(0,1),float2(1,1)};
@@ -31,7 +36,21 @@ internal static class SonicTerrainSource
             float3 v = world - d[0].xyz;
             float z = dot(v, d[3].xyz);
             Vertex o;
-            o.position = float4(dot(v,d[1].xyz)/(d[0].w*d[1].w), dot(v,d[2].xyz)/d[0].w, (z-.5)*1000/999.5, z);
+            o.position = float4(dot(v,d[1].xyz)/(d[0].w*d[1].w), dot(v,d[2].xyz)/d[0].w, ProjectDepth(z), z);
+            o.currentClip = o.position;
+            o.previousClip = o.position;
+            o.reactive = 0;
+            if (temporal.w > .5) {
+                float4 oldValues = previousField.Load(int3(cell,0));
+                float3 oldWorld = float3(world.x,p.y*oldValues.x,world.z);
+                float3 oldV = oldWorld-previous[0].xyz;
+                float oldZ = dot(oldV,previous[3].xyz);
+                o.previousClip = float4(dot(oldV,previous[1].xyz)/(previous[0].w*previous[1].w),
+                    dot(oldV,previous[2].xyz)/previous[0].w,ProjectDepth(oldZ),oldZ);
+                float3 delta = abs(values.yzw-oldValues.yzw);
+                o.reactive = saturate(max(delta.x,max(delta.y,delta.z))*2 + temporal.z);
+                o.position.xy += float2(jitter.x,-jitter.y)*2/temporal.xy*o.position.w;
+            }
             o.world = world; o.normal = normal; o.center = center; o.values = values;
             return o;
         }
@@ -42,7 +61,8 @@ internal static class SonicTerrainSource
         float3 toLinear(float3 c) {
             return lerp(c/12.92, pow(max((c+.055)/1.055,0),2.4), saturate((c-.04045)*1e6));
         }
-        float4 TerrainPS(Vertex v) : SV_Target {
+        float4 TerrainColor(Vertex v, out float animated) {
+            animated = 0;
             float rnd = random(v.center);
             float relativeY = saturate(v.world.y / v.values.x);
             float distFromTop = 1-relativeY;
@@ -77,11 +97,15 @@ internal static class SonicTerrainSource
                 float flashChance = smoothstep(.5,1,presence);
                 if (frac(rnd*53) > .985-flashChance*.05) {
                     float flash = sin(d[2].w*8+rnd*50)*.5+.5;
+                    float oldFlash = sin(previous[2].w*8+rnd*50)*.5+.5;
+                    animated = saturate(abs(flash-oldFlash)*presence*(1+sharpness*1.5));
                     color += lerp(float3(1,1,1),float3(.5,1,1),rnd)*flash*presence*(1+sharpness*1.5)*twinkle;
                 }
                 float phase = sin(d[2].w*1.5+rnd*30)*.5+.5;
-                if (edge > .6 && frac(rnd*89) > .992 && phase > .7)
+                if (edge > .6 && frac(rnd*89) > .992 && phase > .7) {
                     color += brilliance*2*twinkle*phase;
+                    animated = max(animated,saturate(brilliance*.5));
+                }
             } else {
                 float falloff = lerp(1,3,sharpness);
                 float sideGlow = smoothstep(.5/falloff,0,distFromTop)*normElevation;
@@ -98,9 +122,21 @@ internal static class SonicTerrainSource
             // Preserve the legacy display palette and opaque sky composition.
             return float4(toLinear(color*fade+toSrgb(d[4].xyz)*(1-fade)),1);
         }
+        float4 TerrainPS(Vertex v) : SV_Target { float animated; return TerrainColor(v,animated); }
         void ParticleVS(float2 p : POSITION, float4 c : COLOR, out float4 position : SV_Position, out float4 color : COLOR) {
             position = float4(p,0,1); color = c;
         }
         float4 ParticlePS(float4 position : SV_Position, float4 color : COLOR) : SV_Target { return color; }
+        struct TemporalOutput { float4 color : SV_Target0; float2 motion : SV_Target1; float reactive : SV_Target2; };
+        TemporalOutput TerrainTemporalPS(Vertex v) {
+            TemporalOutput o;
+            float animated;
+            o.color = TerrainColor(v,animated);
+            float2 current = v.currentClip.xy/max(v.currentClip.w,.0001);
+            float2 previous = v.previousClip.xy/max(v.previousClip.w,.0001);
+            o.motion = (previous-current)*float2(.5,-.5)*temporal.xy;
+            o.reactive = v.previousClip.w <= camera.x ? 1 : max(v.reactive,animated);
+            return o;
+        }
         """;
 }

@@ -89,7 +89,7 @@ namespace WinExSpectrumTest.Audio
                 => base.GetAudioClientStreamFlags() | AudioClientStreamFlags.Loopback;
         }
 
-        private RealtimeLoopbackCapture _capture;
+        private RealtimeLoopbackCapture? _capture;
         private readonly FftProcessor _fft = new(FftSize, FftWindowType.Hann);
         private readonly Complex[] _spectrum = new Complex[SpectrumLength];
         private readonly Complex[] _spectrumL = new Complex[SpectrumLength];
@@ -157,7 +157,10 @@ namespace WinExSpectrumTest.Audio
         public int SampleRate => Volatile.Read(ref _sampleRate);
         public event Action? SampleRateChanged;
 
-        public SpectrumAnalyzer()
+        public SpectrumAnalyzer() : this(captureAudio: true) { }
+
+        /// <summary>Creates isolated analysis buffers for offscreen probes without opening an audio endpoint.</summary>
+        internal SpectrumAnalyzer(bool captureAudio)
         {
             _bandsFront = _bandsA;
             _bandsBack = _bandsB;
@@ -168,6 +171,7 @@ namespace WinExSpectrumTest.Audio
             _featuresFront = _featuresA;
             _featuresBack = _featuresB;
 
+            if (!captureAudio) return;
             _capture = RealtimeLoopbackCapture.Create();
             _sampleRate = _capture.WaveFormat.SampleRate;
             _capture.DataAvailable += OnDataAvailable;
@@ -306,9 +310,10 @@ namespace WinExSpectrumTest.Audio
 
         private void ProcessChunk(ReadOnlySpan<byte> raw, int bytesRecorded)
         {
-            if (bytesRecorded <= 0) return;
+            var capture = _capture;
+            if (bytesRecorded <= 0 || capture == null) return;
             ReadOnlySpan<float> samples = MemoryMarshal.Cast<byte, float>(raw.Slice(0, bytesRecorded));
-            int channels = Math.Max(1, _capture.WaveFormat.Channels);
+            int channels = Math.Max(1, capture.WaveFormat.Channels);
             int frames = samples.Length / channels;
             if (frames <= 0) return;
 
@@ -360,7 +365,7 @@ namespace WinExSpectrumTest.Audio
             AggregateBands(_spectrumL, _bandsLBack);
             AggregateBands(_spectrumR, _bandsRBack);
 
-            Analyze(bands, (float)bytesRecorded / _capture.WaveFormat.AverageBytesPerSecond);
+            Analyze(bands, (float)bytesRecorded / capture.WaveFormat.AverageBytesPerSecond);
             Interlocked.Increment(ref _publicationCount);
         }
 
@@ -550,6 +555,7 @@ namespace WinExSpectrumTest.Audio
         {
             if (_disposed) return;
             _disposed = true;
+            if (_capture == null) return;
             try
             {
                 _capture.DataAvailable -= OnDataAvailable;

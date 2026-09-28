@@ -136,4 +136,5 @@
     </AssignTargetPath>
     <Copy SourceFiles="@(_UnpackagedXbfWithTargetPath)" DestinationFiles="@(_UnpackagedXbfWithTargetPath->'$(PublishDir)%(TargetPath)')" />
   </Target>
+  <Import Project="Rendering\ReconstructionAssets.targets" />
 </Project>

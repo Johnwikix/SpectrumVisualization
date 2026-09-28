@@ -124,6 +124,8 @@ namespace WinExSpectrumTest.Model
         public static int SonicRenderScalePercent { get => _sonicQuality.RenderScalePercent; set => SonicQuality = _sonicQuality with { RenderScalePercent = value }; }
         /// <summary>Gets or sets the stable anti-aliasing mode identifier.</summary>
         public static string SonicAntiAliasing { get => _sonicQuality.AntiAliasing; set => SonicQuality = _sonicQuality with { AntiAliasing = value }; }
+        /// <summary>Gets or sets the native-AA or vendor reconstruction quality mode.</summary>
+        public static string SonicUpscaleQuality { get => _sonicQuality.UpscaleQuality; set => SonicQuality = _sonicQuality with { UpscaleQuality = value }; }
         private static bool _SonicIdleWaveEnabled = true;
         public static bool SonicIdleWaveEnabled { get => _SonicIdleWaveEnabled; set => Set(ref _SonicIdleWaveEnabled, value); }
         private static bool _SonicRippleEnabled = true;

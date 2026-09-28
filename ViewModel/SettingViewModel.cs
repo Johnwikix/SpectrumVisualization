@@ -402,8 +402,39 @@ namespace WinExSpectrumTest.ViewModel
             get => AppSettings.SonicAntiAliasing;
             set
             {
-                if (_isInitialized && value is "off" or "fxaa") AppSettings.SonicAntiAliasing = value;
+                if (_isInitialized && value is "off" or "fxaa" or "smaa" or "xess" or "fsr" or "dlss") AppSettings.SonicAntiAliasing = value;
             }
+        }
+
+        /// <summary>Gets or sets the vendor quality mode independently of spatial render scaling.</summary>
+        public string SonicUpscaleQuality
+        {
+            get => AppSettings.SonicUpscaleQuality;
+            set { if (_isInitialized && value is "native" or "quality" or "balanced" or "performance") AppSettings.SonicUpscaleQuality = value; }
+        }
+
+        public bool SonicTemporalEnabled => AppSettings.SonicQuality.IsTemporal;
+        public bool SonicSpatialScaleEnabled => !SonicTemporalEnabled;
+        public bool SonicXeSSAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.XeSS);
+        public bool SonicFsrAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Fsr);
+        public bool SonicDlssAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Dlss);
+        public string SonicReconstructionStatus
+        {
+            get
+            {
+                var status = Rendering.ReconstructionAvailability.Status;
+                string key = !Rendering.ReconstructionAvailability.Known ? "SonicReconstructionPending" :
+                    status.Requested != status.Active ? "SonicReconstructionFallback" : "SonicReconstructionReady";
+                return new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString(key);
+            }
+        }
+
+        private void OnReconstructionChanged()
+        {
+            OnPropertyChanged(nameof(SonicXeSSAvailable));
+            OnPropertyChanged(nameof(SonicFsrAvailable));
+            OnPropertyChanged(nameof(SonicDlssAvailable));
+            OnPropertyChanged(nameof(SonicReconstructionStatus));
         }
 
         /// <summary>Gets or sets the internal resolution percentage selected in the settings view.</summary>
@@ -550,6 +581,7 @@ namespace WinExSpectrumTest.ViewModel
             ReloadSettings();
             AppSettings.Changed += OnSettingsChanged;
             WinExSpectrumTest.Rendering.HdrStatus.Changed += OnHdrStatusChanged;
+            Rendering.ReconstructionAvailability.Changed += OnReconstructionChanged;
             try
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
@@ -603,6 +635,9 @@ namespace WinExSpectrumTest.ViewModel
             OnPropertyChanged(nameof(SonicAntiAliasing));
             OnPropertyChanged(nameof(SonicRenderScale));
             OnPropertyChanged(nameof(SonicGridSize));
+            OnPropertyChanged(nameof(SonicUpscaleQuality));
+            OnPropertyChanged(nameof(SonicTemporalEnabled));
+            OnPropertyChanged(nameof(SonicSpatialScaleEnabled));
             _isInitialized = initialized;
         }
 

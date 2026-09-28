@@ -8,7 +8,8 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - 与 UI 线程交互只能经 `RunOnGameLoopThreadAsync` 或 `DispatcherQueue`。`CanvasPanel` 串行切换两个宿主并等待旧帧退出；暂停不等于在途帧结束。释放必须在 Win2D 回调屏障 / D3D12 工作线程停止后进行，UI 不得同步等待 GPU 或 Join 渲染线程。
 - 音频数据只从 `SpectrumAnalyzer` 发布的预分配 float 缓冲区读取（512 线性频段 + `FeatureIndex` 特征向量），不要在效果里另起捕获或每帧复制大数组。
 - 新增可视化效果：选择宿主并在 `EffectRegistry` 注册名称；`IVisualizerEffect` 仅用于 Win2D。`Id` 即 `SaveSetting.VisualEffect` 的持久化值，发布后不可更改；显示名称走本地化资源。
-- 音域回响的 ComputeSharp 计算着色器位于 `Effects/Sonic/Shaders`；`Rendering/SonicGraphics` 独占 GPU 资源，FP16 线性场景最终编码为 RGB10 的 SDR 或 HDR10。工作线程帧循环同样禁止堆分配。`SonicPanel` 将 DIP 换算为物理像素并施加逆 DPI 缩放；改窗口尺寸逻辑时同时核对着色器、粒子和 XAML 媒体卡片坐标。
+- 音域回响的 ComputeSharp 计算着色器位于 `Effects/Sonic/Shaders`；`Rendering/GpuGraphics` 拥有交换链与共享后处理，`SonicGpuEffect` 拥有效果的高度场、深度、运动矢量和粒子资源，FP16 线性场景最终编码为 RGB10 的 SDR 或 HDR10。工作线程帧循环同样禁止堆分配。`GpuPanel` 施加逆 DPI 缩放；改窗口尺寸逻辑时同时核对物理像素尺寸、着色器、粒子和 XAML 媒体卡片坐标。
+- 时域重建通过 `ITemporalGpuEffect` + `TemporalReconstruction` 接入；运动矢量为不含 jitter 的当前帧到上一帧输入像素偏移，深度为常规 0..1，近远面与垂直 FOV 由效果的 `TemporalCamera` 提供。相机、投影或效果改动必须同步这个契约。SDK 上下文与资源只由渲染线程使用，并在队列完成后释放；粒子在重建后按输出分辨率叠加。厂商 SDK 恢复脚本及 SHA-256 固定位于 `External/Upscalers`，不得将插帧混入此链路。
 
 ## NativeAOT 发布约束
 
@@ -16,6 +17,14 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - JSON 序列化必须走 `Manager/SettingsJsonContext` 源生成；禁止使用 `JsonSerializer` 的反射重载。
 - 原生互操作用 Vanara.PInvoke 或 `unsafe`，注意委托与原生指针的封送和生命周期（此前出现过 AOT 下封送错误）。
 - `doc/verification` 下的探针工程（AudioProbe、AuroraRenderProbe 等）已从主工程排除，不影响主构建，可作最小复现与测量场景。
+
+## 验证范围（用户约定）
+
+- 默认只由代理执行静态检查、构建 / NativeAOT 发布和离屏测试。离屏 GPU 探针可使用本机显卡，覆盖着色器输出回读、资源生命周期、数值正确性、托管分配及离屏耗时。
+- **实机显示与交互测试由用户自行完成**：除非用户当次明确授权，不启动或操作主应用 / 设置窗口，不执行 UI 自动化、桌面截图、实际呈现帧率采集、壁纸模式切换或显示器 HDR / 分辨率切换，也不通过真实音频播放或采集干预用户环境。
+- 渲染探针必须使用 `new SpectrumAnalyzer(captureAudio: false)` 并注入合成数据。无参构造函数会启动真实 WASAPI 环回采集，不能用于此类离屏验证；测试前检查构造函数的隐式设备活动，不能仅凭“未显示窗口”判定测试隔离。
+- 离屏渲染耗时、GPU 时间及理论吞吐不能表述为屏幕呈现 FPS；离屏颜色回读不能替代显示器上的 HDR 观感、抗锯齿运动画质或 UI / DPI 验收。报告中明确区分已完成的离屏证据和待用户完成的实机验收，不以缺少实机验收为由自行扩大测试范围。
+- 本节优先于其他条款中要求代理执行真实 UI / 设备集成验证的表述；不取消构建、源生成序列化及 NativeAOT 发布约束。
 
 ## 设置体系（一处改动要同步多处）
 
@@ -50,5 +59,5 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - **性能**：检查 UI 线程阻塞、重复 I/O、事件风暴和每帧热路径的重复计算；关闭功能时核对其后台活动（采集、定时器、壁纸宿主）是否也停止。区分冷路径与热路径，优先解决可感知延迟和掉帧，不为微优化引入不必要的复杂度。
 - **内存分配**：检查每帧热路径的闭包、装箱、LINQ/匿名对象、字符串和集合复制，以及 GPU 资源（CanvasBitmap、D2D effect、着色器缓冲）与原生句柄的生命周期。Span/Memory/ArrayPool 仅在收益明确且所有权、线程与异步边界安全时使用；池化缓冲区必须可靠归还。区分短期分配、长期保留与实际泄漏，没有测量不得宣称零分配或具体收益比例。
 - **可读性**：命名准确、控制流清楚、方法职责集中；避免在一行压缩多个状态变更或清理操作。注释解释约束和原因，并随实现同步更新；移除迁移后无效的状态、重复守卫、过时注释和无用依赖。
-- **验证证据**：运行与改动风险相称的构建、回归或最小复现；涉及时用 `doc/verification` 探针和 Release publish 覆盖 AOT/裁剪路径。测试桩应保留真实边界的异步时序、线程切换与失败行为；涉及 WinUI、WASAPI 采集、壁纸宿主或原生资源时，桩测试通过不能代替集成验证。性能结论注明场景与测量依据，未执行的设备/UI 验证明确列出。
+- **验证证据**：运行与改动风险相称的构建、离屏回归或最小复现；涉及时用 `doc/verification` 探针和 Release publish 覆盖 AOT/裁剪路径。测试桩应保留真实边界的异步时序、线程切换与失败行为；涉及 WinUI、WASAPI 采集、壁纸宿主或原生资源时，桩测试通过不能代替集成验证，实机部分按“验证范围”交由用户完成。性能结论注明场景与测量依据，未执行的设备/UI 验证明确列出。
 - **审查输出**：按严重性报告可定位、可复现或有完整调用链证据的问题，给出文件位置、触发条件、影响和修复方向。区分本次引入的回归、既有问题与设计建议；不得为了覆盖维度而凑问题。说明已执行验证及剩余盲区。仅请求 review 时默认交付审查结果，生产代码修复按用户授权范围执行。

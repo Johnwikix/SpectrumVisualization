@@ -347,15 +347,29 @@
                                 <ComboBoxItem x:Uid="SonicQualityCustom" Tag="custom" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicAntiAliasing" Margin="10,0,10,0">
+                        <controls:SettingsCard x:Uid="SonicAntiAliasing" Margin="10,0,10,0" Description="{x:Bind ViewModel.SonicReconstructionStatus, Mode=OneWay}">
                             <ComboBox x:Uid="SonicAntiAliasingCombo" AutomationProperties.AutomationId="SonicAntiAliasing" MinWidth="160"
                                 SelectedValue="{x:Bind ViewModel.SonicAntiAliasing, Mode=TwoWay}" SelectedValuePath="Tag">
                                 <ComboBoxItem x:Uid="SonicAntiAliasingOff" Tag="off" />
                                 <ComboBoxItem Content="FXAA" Tag="fxaa" />
+                                <ComboBoxItem Content="SMAA 1x" Tag="smaa" />
+                                <ComboBoxItem Content="XeSS-SR / XeSS AA" Tag="xess" IsEnabled="{x:Bind ViewModel.SonicXeSSAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="FSR 3.1" Tag="fsr" IsEnabled="{x:Bind ViewModel.SonicFsrAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="DLSS / DLAA" Tag="dlss" IsEnabled="{x:Bind ViewModel.SonicDlssAvailable, Mode=OneWay}" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SonicUpscaleQuality" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.SonicTemporalEnabled, Mode=OneWay}">
+                            <ComboBox x:Uid="SonicUpscaleQualityCombo" AutomationProperties.AutomationId="SonicUpscaleQuality" MinWidth="160"
+                                SelectedValue="{x:Bind ViewModel.SonicUpscaleQuality, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="SonicUpscaleNative" Tag="native" />
+                                <ComboBoxItem x:Uid="SonicUpscaleQualityMode" Tag="quality" />
+                                <ComboBoxItem x:Uid="SonicQualityBalanced" Tag="balanced" />
+                                <ComboBoxItem x:Uid="SonicQualityPerformance" Tag="performance" />
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicRenderScale" Margin="10,0,10,0">
                             <ComboBox x:Uid="SonicRenderScaleCombo" AutomationProperties.AutomationId="SonicRenderScale" MinWidth="160"
+                                IsEnabled="{x:Bind ViewModel.SonicSpatialScaleEnabled, Mode=OneWay}"
                                 SelectedValue="{x:Bind ViewModel.SonicRenderScale, Mode=TwoWay}" SelectedValuePath="Tag">
                                 <ComboBoxItem Content="50%" Tag="50" />
                                 <ComboBoxItem Content="75%" Tag="75" />
@@ -457,6 +471,7 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <TextBlock x:Uid="GraphicsAttribution" Margin="10,16,10,0" TextWrapping="Wrap" FontSize="12" />
                     </StackPanel>
                 </ScrollView>
             </controls:Case>
