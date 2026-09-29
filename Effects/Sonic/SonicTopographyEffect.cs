@@ -28,6 +28,8 @@ internal sealed class SonicTopographyEffect : IDisposable
     private readonly SpectrumAnalyzer _analyzer;
     private readonly GraphicsDevice _device;
     private ReadWriteTexture2D<float4>? _heightField;
+    private readonly ReadWriteTexture2D<float4>?[] _heightFields = new ReadWriteTexture2D<float4>?[2];
+    private int _heightFieldCount = 1;
     private int _gridSize;
     private readonly ReadOnlyBuffer<float4> _shaderData;
     private readonly UploadBuffer<float4> _upload;
@@ -302,23 +304,44 @@ internal sealed class SonicTopographyEffect : IDisposable
     }
 
 
-    /// <summary>Gets the completed height field borrowed by the raster renderer.</summary>
-    internal ReadWriteTexture2D<float4> HeightField => _heightField!;
+    /// <summary>Gets a frame slot's height field, borrowed by the raster renderer.</summary>
+    internal ReadWriteTexture2D<float4> GetHeightField(int index) => _heightFields[index]!;
+
+    /// <summary>Called only after the host drains all readers of the old textures.</summary>
+    internal void ConfigureHeightFields(int requestedGrid, int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(count, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _heightFields.Length);
+        requestedGrid = Math.Clamp(requestedGrid, 80, 320);
+        for (int i = 0; i < _heightFields.Length; i++)
+        {
+            if (i >= count)
+            {
+                _heightFields[i]?.Dispose();
+                _heightFields[i] = null;
+            }
+            else if (_heightFields[i] == null || _heightFields[i]!.Width != requestedGrid)
+            {
+                var replacement = _device.AllocateReadWriteTexture2D<float4>(requestedGrid, requestedGrid);
+                _heightFields[i]?.Dispose();
+                _heightFields[i] = replacement;
+            }
+        }
+        _gridSize = requestedGrid;
+        _heightFieldCount = count;
+        _heightField = _heightFields[0];
+    }
 
     /// <summary>Gets the linear background used by both rendering paths.</summary>
     internal Vector3 BackgroundColor => _base1;
 
     /// <summary>Updates the small height texture without tracing a full-screen image.</summary>
-    internal void PrepareHeightField(int requestedGrid)
+    internal void PrepareHeightField(int requestedGrid, int frameIndex = 0)
     {
         requestedGrid = Math.Clamp(requestedGrid, 80, 320);
-        if (_heightField == null || _gridSize != requestedGrid)
-        {
-            var replacement = _device.AllocateReadWriteTexture2D<float4>(requestedGrid, requestedGrid);
-            _heightField?.Dispose();
-            _heightField = replacement;
-            _gridSize = requestedGrid;
-        }
+        if (_heightFields[frameIndex] == null || _gridSize != requestedGrid)
+            ConfigureHeightFields(requestedGrid, Math.Max(_heightFieldCount, frameIndex + 1));
+        _heightField = _heightFields[frameIndex];
         Span<float4> data = _upload.Span;
         for (int i = 0; i < RippleSlots; i++)
         {
@@ -501,7 +524,7 @@ internal sealed class SonicTopographyEffect : IDisposable
 
     public void Dispose()
     {
-        _heightField?.Dispose();
+        foreach (var field in _heightFields) field?.Dispose();
         _shaderData.Dispose();
         _upload.Dispose();
     }

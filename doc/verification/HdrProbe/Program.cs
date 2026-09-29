@@ -8,6 +8,9 @@ using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
 if (args.Contains("--device-capabilities")) return ReconstructionChecks.DeviceCapabilities();
+if (args.Contains("--dlss-native")) return DlssNativeChecks.Run(args.Contains("--debug"));
+if (args.Contains("--pipeline-checks")) return PipelineChecks.Run();
+if (args.Contains("--pipeline-benchmark")) return PipelineChecks.Benchmark();
 if (args.Contains("--startup-resize")) return StartupResizeChecks.Run();
 if (args.Contains("--presentation")) return PresentationChecks.Run();
 if (args.Contains("--dlss-resolutions")) return ReconstructionResolutionChecks.Run();

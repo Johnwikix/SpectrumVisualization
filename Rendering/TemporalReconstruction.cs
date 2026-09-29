@@ -44,6 +44,9 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     private uint _frame;
     private bool _reset = true;
     internal GpuRenderSize Size { get; private set; }
+    // The pinned DLSS context can corrupt output when Evaluate records
+    // while the preceding dispatch is still executing. Scene submission can still overlap it.
+    internal bool RequiresPreviousDispatchCompletion { get; private init; }
 
     internal static uint Capabilities(ID3D12Device device)
     {
@@ -61,7 +64,12 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
             (uint)size.OutputWidth, (uint)size.OutputHeight, (uint)size.Width, (uint)size.Height, out nint context);
         if (result == -30) throw new ReconstructionSizeException();
         if (result != 0) throw new InvalidOperationException($"{mode} initialization failed ({result}).");
-        return new TemporalReconstruction { _context = context, Size = size };
+        return new TemporalReconstruction
+        {
+            _context = context,
+            Size = size,
+            RequiresPreviousDispatchCompletion = mode == ReconstructionMode.Dlss
+        };
     }
 
     internal void Reset() { _reset = true; _frame = 0; }

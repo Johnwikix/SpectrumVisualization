@@ -89,7 +89,7 @@ internal static class StartupResizeChecks
         using var resized = new AutoResetEvent(false);
         int callbacks = 0, width = 0, height = 0, failed = 0;
         var effect = new EffectDescriptor("probe-sonic", "", EffectHost.Gpu, false, static () => new SonicGpuEffect(), null);
-        var settings = new GpuRenderSettings(320, 180, true, false, 200, 1000, 60, effect, new(100, ReconstructionMode.Fxaa, 80));
+        var settings = new GpuRenderSettings(320, 180, true, false, 200, 1000, 60, effect, new(100, ReconstructionMode.Fsr, 80));
         var worker = new GpuRenderer(input, 0, (chain, w, h) =>
             {
                 if (chain == 0) return;
@@ -113,6 +113,13 @@ internal static class StartupResizeChecks
             Require(resized.WaitOne(15000), "Final resize was lost");
             Require(width == 420 && height == 240, "Worker did not apply latest dimensions");
             Require(worker.PauseAsync().Wait(TimeSpan.FromSeconds(10)), "Pause did not acknowledge frame barrier");
+            for (int i = 0; i < 5; i++)
+            {
+                Task pause = worker.PauseAsync();
+                worker.Configure(settings with { Active = true });
+                Require(pause.Wait(TimeSpan.FromSeconds(10)), "Immediate resume lost a pending pause barrier");
+            }
+            Require(worker.PauseAsync().Wait(TimeSpan.FromSeconds(10)), "Second pause did not drain the pipeline");
             settings = settings with { Width = 801, Height = 451, Active = false };
             worker.Configure(settings);
             settings = settings with { Width = 641, Height = 361, Active = true };

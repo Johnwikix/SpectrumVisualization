@@ -2,6 +2,19 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-09-29 修复 DLSS L/M 原生比例流水线闪烁
+
+- `Rendering/TemporalReconstruction.cs`、`GpuGraphics.Pipeline.cs`：DLSS 路径先提交下一帧场景，再等待前次后处理完成后调用 SDK；修复重叠录制/执行造成的图像异常，保留场景与 SR 的 GPU 重叠，不更改比例或预设。
+- `Rendering/GpuGraphics.cs`：明确 SDK 失败时还需排空已经先行提交的场景，再重建资源。
+- `doc/verification/HdrProbe/`：增加 4K、J/K/L/M、99/100%、奇偶帧的无中途回读对照和 DLSS 场景重叠/失败回退检查；修正 CPU 误用 ComputeSharp 向量运算的断言，固定对照场景随机种子。复现与验证见 `doc/verification/reconstruction.md`。
+
+## 2026-09-29 音域回响渲染与 SR 流水线解耦
+
+- `Rendering/GpuGraphics.Pipeline.cs`、`GpuGraphics.cs`：音域回响启用 SR 时使用独立场景队列与 SR/合成队列，两套帧资源轮转；通过 GPU fence 传递依赖，CPU 仅在复用忙碌帧槽时等待，最多两帧在途。
+- `Effects/Sonic/SonicGpuEffect.cs`、`SonicTopographyEffect.cs`、`Rendering/IGpuVisualizerEffect.cs`：预分配每帧场景、深度、运动矢量、响应遮罩、高度场和上传缓冲，保留有序的模拟与时域历史；仅音域回响实现缓冲契约，未接入 FG。
+- `Rendering/GpuRenderer.cs`：暂停确认前排空 GPU；即使暂停后立即恢复，也完成原暂停屏障。缩放、模式切换和 SDK 失败回退在释放旧资源前等待所有在途帧。
+- `doc/verification/HdrProbe/`：新增阻塞 SR 队列、忙碌帧槽保护、连续历史对照及在途故障回退探针；NativeAOT 和离屏验证结果见 `doc/verification/reconstruction.md`，实屏延迟与画质由用户验收。
+
 ## 2026-09-29 刷新率预设精简
 
 - `Model/FrameRateSettings.cs`：预设列表移除 288/320/480，新增 30，`Normalize` 上限同步收紧到 240；现有 60 默认值与 0（无限帧率）保持不变。

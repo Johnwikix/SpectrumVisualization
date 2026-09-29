@@ -12,8 +12,8 @@ using WinExSpectrumTest.Audio;
 namespace WinExSpectrumTest.Rendering;
 
 /// <summary>
-/// All methods run on one render thread. Compute completes before the direct queue reads its
-/// texture; the direct fence completes before that texture or the upload buffer is reused.
+/// All methods run on one render thread. Buffered effects overlap scene work with ordered
+/// reconstruction on a separate queue. A frame slot is reused only after its final consumer.
 /// </summary>
 internal sealed unsafe partial class GpuGraphics : IDisposable
 {
@@ -36,7 +36,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private int _rtvStride;
     private int _srvStride;
     private readonly ID3D12Resource?[] _backBuffers = new ID3D12Resource?[2];
-    private ID3D12Resource? _scene;
+    private ID3D12Resource? _primaryScene;
+    private ID3D12Resource? _scene => _frameIndex == 0 ? _primaryScene : _secondScene;
     private ID3D12Resource? _antialias;
     private ID3D12Resource? _reconstructed;
     private TemporalReconstruction? _temporal;
@@ -85,11 +86,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _queue = _device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
             _allocator = _device.CreateCommandAllocator(CommandListType.Direct);
             _commands = _device.CreateCommandList<ID3D12GraphicsCommandList>(0, CommandListType.Direct, _allocator, null);
+            _maintenanceCommands = _commands;
             _commands.Close();
             _submission[0] = _commands;
             _fence = _device.CreateFence(0, FenceFlags.None);
             _factory = DXGI.CreateDXGIFactory2<IDXGIFactory6>(false);
-            _rtvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, 5));
+            _rtvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, 6));
             _srvs = _device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 3, DescriptorHeapFlags.ShaderVisible));
             _rtvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
             _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
@@ -156,6 +158,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             WaitForGpu();
             CreateSceneResources(options);
         }
+        else if (_options.Detail != options.Detail && _effect is IBufferedGpuEffect)
+        {
+            WaitForGpu();
+            ConfigurePipeline(options.Detail);
+            _effect.Resize(_size);
+        }
         ResetHistory();
         _options = options;
     }
@@ -200,6 +208,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     private void CreateSceneResources(GpuSceneOptions options, GpuRenderSize size)
     {
+        _frameIndex = 0;
+        _nextFrameIndex = 0;
         _reconstructionDirty = false;
         DisposeResource(_temporal);
         _temporal = null;
@@ -237,12 +247,14 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             if (_temporal == null) _activeMode = ReconstructionMode.Fxaa;
         }
         ID3D12Resource? scene = null;
+        ID3D12Resource? secondScene = null;
         ID3D12Resource? antialias = null;
         ID3D12Resource? reconstructed = null;
         SmaaPass? smaa = null;
         try
         {
             scene = CreateColorTexture(size.Width, size.Height);
+            if (PipelineEnabled) secondScene = CreateColorTexture(size.Width, size.Height);
             if (_activeMode is ReconstructionMode.Fxaa or ReconstructionMode.Smaa) antialias = CreateColorTexture(Width, Height);
             if (_temporal != null) reconstructed = _device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
                 ResourceDescription.Texture2D(Format.R16G16B16A16_Float, (uint)Width, (uint)Height, 1, 1, 1, 0,
@@ -256,26 +268,31 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
                 smaa.ReleaseUploads();
             }
             if (_effect is ITemporalGpuEffect temporal) temporal.ConfigureTemporal(_temporal != null);
+            ConfigurePipeline(options.Detail);
             _effect.Resize(size);
         }
         catch
         {
             DisposeResource(scene);
+            DisposeResource(secondScene);
             DisposeResource(antialias);
             DisposeResource(reconstructed);
             DisposeResource(smaa);
             throw;
         }
-        DisposeResource(_scene);
+        DisposeResource(_primaryScene);
+        DisposeResource(_secondScene);
         DisposeResource(_antialias);
         DisposeResource(_smaa);
         DisposeResource(_reconstructed);
-        _scene = scene;
+        _primaryScene = scene;
+        _secondScene = secondScene;
         _antialias = antialias;
         _reconstructed = reconstructed;
         _smaa = smaa;
         _size = size;
         _device.CreateRenderTargetView(_scene, null, Rtv(2));
+        if (_secondScene != null) _device.CreateRenderTargetView(_secondScene, null, Rtv(5));
         _device.CreateShaderResourceView(_scene, null, _srvs.GetCPUDescriptorHandleForHeapStart());
         if (_antialias != null)
         {
@@ -297,6 +314,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public bool SetHdr(bool requested)
     {
         if (_hdr == requested) return _hdr;
+        WaitForGpu();
         try
         {
             _swapChain.SetColorSpace1(requested ? ColorSpaceType.RgbFullG2084NoneP2020 : ColorSpaceType.RgbFullG22NoneP709);
@@ -341,6 +359,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public bool Render(double elapsed, float white, float peak)
     {
         LastFrameRendered = false;
+        LastPresentMilliseconds = 0;
+        LastGpuWaitMilliseconds = 0;
+        if (PipelineEnabled) return RenderPipelined(elapsed, white, peak);
         TemporalFrame frame = _temporal?.BeginFrame(elapsed) ?? default;
         if (_effect is ITemporalGpuEffect temporalEffect) temporalEffect.SetTemporalFrame(frame);
         _effect.PrepareFrame(elapsed, _options.Detail);
@@ -348,36 +369,52 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         _effect.RecordScene(_commands, Rtv(2));
         Transition(_scene!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-        if (_temporal != null)
-        {
-            Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
-            Transition(_reconstructed!, ResourceStates.PixelShaderResource, ResourceStates.UnorderedAccess);
-            try { _temporal.Record(_commands, _scene!, (ITemporalGpuEffect)_effect, _reconstructed!, frame, elapsed); }
-            catch (Exception ex)
-            {
-                _commands.Close();
-                App.WriteCrashLog("Reconstruction dispatch", ex.Message, ex);
-                _capabilities &= ~(1u << (int)_activeMode);
-                // No commands from this frame were submitted. Recreate effect-side state as well as SDK history.
-                DisposeResource(_temporal);
-                _temporal = null;
-                DisposeResource(_effect);
-                _effect = _effectFactory();
-                _effect.Initialize(new GpuEffectServices(_compute, _device, _analyzer));
-                CreateSceneResources(_options);
-                return false;
-            }
-            Transition(_reconstructed!, ResourceStates.UnorderedAccess, ResourceStates.RenderTarget);
-            ((ITemporalGpuEffect)_effect).RecordOverlay(_commands, Rtv(4));
-            Transition(_reconstructed!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-            Transition(_scene!, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
-        }
+        if (_temporal != null && !RecordReconstruction(in frame, elapsed)) return false;
         return ComposeAndPresent(white, peak);
+    }
+
+    private bool RecordReconstruction(in TemporalFrame frame, double elapsed)
+    {
+        Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
+        Transition(_reconstructed!, ResourceStates.PixelShaderResource, ResourceStates.UnorderedAccess);
+        try { _temporal!.Record(_commands, _scene!, (ITemporalGpuEffect)_effect, _reconstructed!, frame, elapsed); }
+        catch (Exception ex)
+        {
+            _commands.Close();
+            App.WriteCrashLog("Reconstruction dispatch", ex.Message, ex);
+            _capabilities &= ~(1u << (int)_activeMode);
+            // Older slots and a scene submitted before the SDK call may still own effect resources.
+            WaitForGpu();
+            DisposeResource(_temporal);
+            _temporal = null;
+            DisposeResource(_effect);
+            _effect = _effectFactory();
+            _effect.Initialize(new GpuEffectServices(_compute, _device, _analyzer));
+            CreateSceneResources(_options);
+            return false;
+        }
+        Transition(_reconstructed!, ResourceStates.UnorderedAccess, ResourceStates.RenderTarget);
+        ((ITemporalGpuEffect)_effect).RecordOverlay(_commands, Rtv(4));
+        Transition(_reconstructed!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        Transition(_scene!, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
+        return true;
     }
 
     internal void ResetHistory() => _temporal?.Reset();
 
     private bool ComposeAndPresent(float white, float peak)
+    {
+        RecordComposition(white, peak);
+        Submit();
+        ulong rendered = SignalGpu();
+        bool presented = PresentFrame();
+        long started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
+        WaitForGpu(rendered);
+        if (CaptureTimings) LastGpuWaitMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        return presented;
+    }
+
+    private void RecordComposition(float white, float peak)
     {
         _commands.SetDescriptorHeaps(_srvs);
         _commands.SetGraphicsRootSignature(_pipelines.Root);
@@ -409,17 +446,14 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.SetPipelineState(_smaa != null ? _pipelines.PreparedOutput : _antialias != null ? _pipelines.AntialiasOutput : _pipelines.Output);
         _commands.DrawInstanced(3, 1, 0, 0);
         Transition(_backBuffers[buffer]!, ResourceStates.RenderTarget, ResourceStates.Common);
-        Submit();
-        // Fence only rendering commands. A signal after Present also waits for presentation
-        // queue work, which can reintroduce compositor pacing despite DO_NOT_WAIT.
-        ulong rendered = SignalGpu();
+    }
+
+    private bool PresentFrame()
+    {
         long started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
         var result = _swapChain.Present(0, PresentationFlags(nonblocking: true));
         if (CaptureTimings) LastPresentMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         if (result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing) result.CheckError();
-        started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
-        WaitForGpu(rendered);
-        if (CaptureTimings) LastGpuWaitMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         LastFrameRendered = true;
         if (_resized && result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing)
         {
@@ -441,17 +475,23 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         WaitForGpu();
     }
 
-    private CpuDescriptorHandle Rtv(int index) => _rtvs.GetCPUDescriptorHandleForHeapStart() + index * _rtvStride;
+    private CpuDescriptorHandle Rtv(int index) => _rtvs.GetCPUDescriptorHandleForHeapStart() +
+        (index == 2 && _frameIndex == 1 ? 5 : index) * _rtvStride;
     private void Transition(ID3D12Resource resource, ResourceStates before, ResourceStates after)
         => _commands.ResourceBarrierTransition(resource, before, after, uint.MaxValue, ResourceBarrierFlags.None);
     private void BeginCommands()
     {
+        // Maintenance/readback lists have a single allocator and may access any frame slot.
+        if (_sceneFence != null) WaitForFence(_sceneFence, _sceneFenceValue);
+        WaitForGpu(_fenceValue);
+        _commands = _maintenanceCommands;
         _allocator.Reset();
         _commands.Reset(_allocator, null);
     }
     private void Submit()
     {
         _commands.Close();
+        _submission[0] = _commands;
         _queue.ExecuteCommandLists(_submission);
     }
     private ulong SignalGpu()
@@ -460,11 +500,28 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _queue.Signal(_fence, value).CheckError();
         return value;
     }
-    private void WaitForGpu() => WaitForGpu(SignalGpu());
-    private void WaitForGpu(ulong value)
+    private void WaitForGpu()
     {
-        _fence.SetEventOnCompletion(value, _gpuDone.SafeWaitHandle.DangerousGetHandle()).CheckError();
-        while (_fence.CompletedValue < value)
+        if (_sceneFence != null)
+        {
+            ulong scene = ++_sceneFenceValue;
+            _sceneQueue!.Signal(_sceneFence, scene).CheckError();
+            WaitForFence(_sceneFence, scene);
+        }
+        WaitForGpu(SignalGpu());
+    }
+    private void WaitForGpu(ulong value)
+        => WaitForFence(_fence, value);
+
+    private void WaitForFence(ID3D12Fence fence, ulong value)
+    {
+        if (fence.CompletedValue >= value)
+        {
+            _device.DeviceRemovedReason.CheckError();
+            return;
+        }
+        fence.SetEventOnCompletion(value, _gpuDone.SafeWaitHandle.DangerousGetHandle()).CheckError();
+        while (fence.CompletedValue < value)
         {
             if (!_gpuDone.WaitOne(100)) _device.DeviceRemovedReason.CheckError();
         }
@@ -486,8 +543,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _reconstructed = null;
         DisposeResource(_smaa);
         _smaa = null;
-        DisposeResource(_scene);
-        _scene = null;
+        DisposeResource(_primaryScene);
+        _primaryScene = null;
+        DisposeResource(_secondScene);
+        _secondScene = null;
     }
 
     public void Dispose()
@@ -508,7 +567,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         ReleaseSizeResources();
         DisposeResource(_effect);
         DisposeResource(_pipelines);
-        DisposeResource(_commands);
+        DisposePipeline();
+        DisposeResource(_maintenanceCommands);
         DisposeResource(_allocator);
         DisposeResource(_rtvs);
         DisposeResource(_srvs);

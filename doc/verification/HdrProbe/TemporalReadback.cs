@@ -32,6 +32,7 @@ internal sealed unsafe partial class GpuGraphics
         Configure(new(100, ReconstructionMode.XeSS, 80, "native"));
         AppSettings.SonicAutoRotate = false;
         Render(1d / 120, 200, 1000);
+        WaitForGpu();
         var effect = (ITemporalGpuEffect)_effect;
         for (int i = 0; i < 2; i++)
         {

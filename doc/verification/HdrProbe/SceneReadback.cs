@@ -6,6 +6,8 @@ namespace WinExSpectrumTest.Rendering;
 
 internal sealed unsafe partial class GpuGraphics
 {
+    internal void SeedSimulationForProbe() => ((WinExSpectrumTest.Effects.Sonic.SonicGpuEffect)_effect).SeedForProbe();
+
     internal float4[] ReadLinearScene(bool reconstructed = false)
     {
         int width = reconstructed ? Width : _size.Width;

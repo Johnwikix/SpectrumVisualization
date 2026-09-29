@@ -19,7 +19,7 @@
     <Compile Include="../../../Rendering/GpuGraphics.cs;../../../Rendering/ColorOutputPipelines.cs;../../../Rendering/ParticleVertex.cs;../../../Rendering/IGpuVisualizerEffect.cs;../../../Rendering/ShaderCompiler.cs" LinkBase="Rendering" />
     <Compile Include="../../../Model/SonicQualitySettings.cs" LinkBase="Settings" />
     <Compile Include="../../../Model/FrameRateSettings.cs" LinkBase="Settings" />
-    <Compile Include="../../../Rendering/GpuGraphics.Presentation.cs;../../../Rendering/RenderDebugStatistics.cs" LinkBase="Rendering" />
+    <Compile Include="../../../Rendering/GpuGraphics.Presentation.cs;../../../Rendering/GpuGraphics.Pipeline.cs;../../../Rendering/RenderDebugStatistics.cs" LinkBase="Rendering" />
     <Compile Include="../../../Rendering/GpuDeviceLease.cs;../../../Rendering/GpuShaderWarmup.cs" LinkBase="Rendering" />
     <Compile Include="../../../Rendering/GpuRenderer.cs;../../../Rendering/HdrStatus.cs;../../../Service/RenderDiagnostics.cs;../../../Effects/EffectDescriptor.cs" LinkBase="Worker" />
     <Compile Include="../../../Rendering/GpuFramePacer.cs" LinkBase="Rendering" />

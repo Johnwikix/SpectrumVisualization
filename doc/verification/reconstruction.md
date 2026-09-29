@@ -288,6 +288,101 @@ dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true
 
 本地忽略目录 `HdrProbe/bin/dlss-size-aot/` 保留 `baseline.log` 原始 SDK 查询、`regression-before.log` 失败断言、三个 `*-resolutions-final.log`、`reconstruction-final.log` 及 `app-publish.log`。未启动主应用、采集真实音频或进行实机呈现/功耗/画质验收。
 
+## 2026-09-29 音域回响场景与 SR 双队列流水线
+
+本次仅实现音域回响的渲染与 SR 解耦，没有 FG，也没有修改通用刷新率的含义或设置。FSR、XeSS、DLSS 活动时自动启用；空间 AA 仍使用原单帧路径，极光之环不变。
+
+### 资源所有权与同步
+
+- `GpuGraphics.Pipeline.cs` 新增场景 DIRECT 队列；原 DIRECT 队列继续拥有 SR、输出分辨率粒子、色彩编码和 Present。普通路径先录制两份命令列表，成功后才提交；后处理队列通过 GPU fence 等待本帧场景，因此下一帧场景无需等待上一帧 SR。DLSS 后来增加了 SDK 调用边界保护，见下节。
+- 固定两个帧槽，每槽拥有场景纹理、深度、运动矢量、响应遮罩、ComputeSharp 高度场、常量/粒子上传缓冲和两套命令 allocator/list。帧槽的退休 fence 在后处理提交之后、Present 之前发出；再次使用该槽时才在 CPU 上等待。忙时施加背压，不增加第三帧、不覆盖在途输入。
+- 一个渲染工作线程按原顺序更新模拟、读取音频特征和调用 SDK。上一高度场只供有序执行的场景队列使用；SR 上下文与重建输出只供有序执行的后处理队列使用，所以这两类历史无需按槽复制。粒子在所属帧的 SR 后叠加。
+- `IBufferedGpuEffect` 仅由音域回响实现。槽切换不分配；缓冲配置和描述符更新集中在已排空的冷路径。ComputeSharp 高度场生成仍保留其自身同步，本次没有将该阶段改成异步提交。
+- resize、网格/SR 配置变化、效果切换、HDR 色彩空间切换、故障回退与退出先排空在途工作，再重建或释放。暂停由工作线程排空两条队列后确认，UI 不同步等待 GPU。暂停后立即恢复也不会遗失原暂停请求。
+
+额外显存主要是一套输入分辨率纹理（约 `输入宽 × 输入高 × 17` 字节，未计资源对齐）、一个网格高度场和小型上传/命令缓冲。两帧在途可能改变排队延迟；不能把吞吐改善直接解释为音画延迟降低。GPU 已饱和时仍会在帧槽复用处等待；调试覆盖层的 GPU 等待项对应这段显式 CPU fence 等待，不包含 ComputeSharp 内部等待或全部 GPU 执行时间。
+
+### 回归证据
+
+- 先在旧生产代码运行阻塞探针：SR/后处理队列等待一个由测试线程释放的 fence，第一帧不能返回，断言按预期失败。新路径可在后处理被阻塞时让两帧场景都在 GPU 上完成，第三帧等待测试释放 fence，证明独立推进且没有提前复用忙碌资源。
+- 首轮 96 帧历史对照的“差值为 0”结论无效：CPU 比较误用了 ComputeSharp 的 shader 向量减法，且未固定场景随机种子。下节改为 CPU 标量比较和固定种子后重跑；不能以首轮结果证明流水线历史正确。
+- 在两帧在途时注入原生 SDK 的空上下文错误，保留真实旧上下文直到队列排空，验证记录失败后不会提交半帧、会释放旧资源并回退 FXAA。日志中的 dispatch `-1` 是预期注入；D3D12 调试层无错误。
+- SR 回归覆盖三家 SDK、100/75/50/34/33/1/67% 比例、DLSS J/K/L/M 切换、静止及旋转运动矢量、历史重置、空间 AA 和第二效果契约。工作线程探针覆盖 SR 活动下 resize、暂停/立即恢复、异步停止及启动取消。
+- 主工程与探针 Release NativeAOT/Trimmed 发布通过，主工程使用独立 `obj/pipeline/`；保留既有 SharpGen IL2104 和主工程 nullable/obsolete 等警告。未启动主应用、显示探针窗口或采集真实音频。
+
+### 离屏前后采样
+
+RTX 5070 Ti，NativeAOT，输出 3840×2160、输入 50%、网格 160、DLSS K、合成音频。关闭调试层，每档预热 120 帧，采样 360 帧；循环不设帧率上限，模拟步长为 1/120 秒，最后排空在途工作并计入总耗时。前后顺序均为 FXAA/FSR/XeSS/DLSS。
+
+| 模式 | 改前平均耗时 ms | 改后平均耗时 ms | 改前 CPU fence 等待 ms | 改后 CPU fence 等待 ms |
+| --- | ---: | ---: | ---: | ---: |
+| FXAA（单帧对照） | 0.4221 | 0.4447 | 0.1850 | 0.1656 |
+| FSR | 1.2149 | 0.9979 | 0.8577 | 0.5288 |
+| XeSS | 2.2955 | 2.0058 | 1.7646 | 1.4224 |
+| DLSS | 1.9613 | 1.7833 | 1.5017 | 1.2247 |
+
+所有采样循环的当前线程托管分配为 0 B/帧。表格是本机一次离屏采样，未锁 GPU 频率，也不代表其他显卡的收益。这里的平均耗时包含 CPU、同步、离屏交换链提交及最终排空，不能倒数换算为屏幕呈现 FPS；没有测量端到端音画延迟、真实显示帧率或功耗。旧 `--profile-pipeline` 仍是逐阶段串行测量工具，不应用它推断多队列吞吐。
+
+上表的 DLSS 数值属于加入下节 SDK 调用边界保护之前的实现，不能作为最终修复版本的 DLSS 性能结论。
+
+复测命令（工作目录 `doc/verification`，.NET SDK 10.0.401）：
+
+```powershell
+dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true -o HdrProbe/bin/pipeline-after-aot
+./HdrProbe/bin/pipeline-after-aot/HdrProbe.exe --pipeline-checks
+./HdrProbe/bin/pipeline-after-aot/HdrProbe.exe --reconstruction
+./HdrProbe/bin/pipeline-after-aot/HdrProbe.exe --startup-resize
+./HdrProbe/bin/pipeline-after-aot/HdrProbe.exe --pipeline-benchmark
+```
+
+最终回归与发布日志保存在本地忽略目录 `HdrProbe/bin/pipeline-after-aot/` 和 `HdrProbe/bin/app-pipeline/`。实机仍需用户检查三种 SR 的持续运动/粒子画质、调试覆盖层、音画延迟、暂停恢复、壁纸与小组件切换、多 DPI 和 HDR。
+
+## 2026-09-29 DLSS L/M 原生比例闪烁回归修复
+
+用户在本次流水线更新后报告：RTX 5070 Ti、4K 壁纸、无限帧率，仅 DLSS L/M 在 100% 下呈现类似帧序错乱的闪烁；99%、J/K 以及其他 SR/AA 正常。用户将同场景改为 60 Hz 后，闪烁消失。代理没有启动主应用或操作显示设置。
+
+### 复现与定位
+
+- 新探针先用连续回读对照，随后确认逐帧 Copy/资源转换会掩盖问题。最终用 4K、合成音频、固定随机种子、不限循环节奏的连续渲染，仅在轨迹结束后等待并回读；串行参考保留更新前的单输入槽、单场景/SR 命令列表和逐帧等待。
+- 修改前 M + 100% 在 256 帧后产生可重复的 RGB 差异，一轮中央区域平均最大通道差 0.012756、最大 1.346680。增加场景队列对前次后处理的 GPU 等待仍有差异（M 平均 0.009893、L 平均 0.009824）；在下一次 SDK 调用前排空 GPU 后差值为 0。该问题受时序影响，个别无保护采样也可能通过。
+- 这将失败边界定位到同一 DLSS 上下文的下一次 CPU Evaluate 录制与前次 GPU dispatch 重叠。单独依靠 GPU 命令队列顺序不足以保护此路径。具体 SDK 内部资源如何复用不可见，因此不将“SDK 内部某个缓冲被覆盖”或“交换链显示顺序错乱”写作已证实根因。
+- 扩大到输出主体比较后，未保护的 J + 100% 也曾出现平均 0.000615、最大 1.714844 的差异，M + 99% 则在压力回归中出现平均 0.124034、最大 11.074017 的差异。因此同步要求绑定到 DLSS 上下文，覆盖全部比例和预设，而不按最初显现症状的组合特判；没有据此声称 L/M 不支持 DLAA，也没有升级 DLL、降为 99% 或切换为 K。
+
+### 修复边界
+
+- `TemporalReconstruction` 在创建上下文时记录是否需要前次 dispatch 完成，覆盖 DLSS 全部预设与比例，而非按原生尺寸特判。
+- `GpuGraphics` 先在独立队列提交当前帧场景，再由渲染线程等待前次后处理 fence，随后调用本帧 SDK 并提交 SR/粒子/合成。等待期间 GPU 可以继续渲染下一帧场景，FSR、XeSS 保持原调度。
+- SDK 错误恢复同时排空已先行提交的场景和旧后处理，再释放效果/上下文。GPU 等待统计包含新增 SDK 边界等待；这段等待是修复所需的同步，不能再宣称该配置的 CPU 只在帧槽复用时等待。
+
+### 修正此前回归探针
+
+- `ComputeSharp.Float4` 的算术运算是 GPU shader intrinsic，CPU 行为未定义。本机 `(float4(1,2,3,4) - default).X` 返回 0，导致之前的差值断言假通过。`PipelineChecks` 和 `TemporalEffectChecks` 已改用逐通道标量运算。
+- 每条对照轨迹通过 probe-only `UnsafeAccessor` 设置相同的模拟随机种子，防止粒子/波纹随机差异污染比较。生产随机行为不变。
+- 新原生 DLSS 回归按每个 J/K/L/M × 99/100% 组合分别运行 255 和 256 帧，再对比串行参考。比较输出主体全部 RGB，排除底部 160 行，避免用户启用的 NVIDIA 指示器中动态计时文字污染断言；没有在中途插入回读命令。
+- 单独阻塞后处理队列，断言前两帧场景都在 GPU 上完成后才释放阻塞，验证 SDK fence 没有把场景渲染退回串行；另覆盖此先行提交路径的 SDK dispatch 失败回退。
+
+### 最终验证
+
+- NativeAOT 探针分别关闭/开启 D3D12 调试层运行 J/K/L/M × 99/100% × 255/256 帧的 16 组对照，两轮输出主体的平均/最大 RGB 差均为 0；调试层未报资源状态或生命周期错误。
+- DLSS 场景重叠、先行场景提交后的 SDK 失败回退通过；故意注入的 dispatch `-1` 日志属于预期结果。
+- 修正后的 FSR、XeSS、DLSS 四检查点历史回归通过，平均/最大差均为 0，取代此前无效的 CPU 向量差值证据。
+- 配置切换、100/75/50/34/33/1/67% 比例、DLSS J/K/L/M 切换、静止/旋转运动矢量、历史重置和第二效果回归通过；稳定帧采样托管分配 0 B/帧。
+- 主工程和探针 Release NativeAOT/Trimmed 发布通过，保留既有 SharpGen IL2104、主工程 nullable/obsolete/IL3000 等警告。主应用未启动。
+
+修复后另测无调试层、4K 输出/50% 输入、网格 160 的 360 帧离屏循环（预热 120 帧、包含末尾排空）：FXAA/FSR/XeSS/DLSS 平均分别为 3.0363/5.4546/6.8450/4.2202 ms，DLSS K 的显式 CPU fence 等待 1.7448 ms，各模式当前线程托管分配均为 0 B/帧。本轮没有同环境配对旧版，连未修改调度的 FXAA 对照耗时也与上一节明显不同，因此不以这些时间与旧记录相减推断修复收益或回退；它们也不是屏幕呈现 FPS。
+
+复测命令（工作目录 `doc/verification`）：
+
+```powershell
+dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true -o HdrProbe/bin/dlss-native-aot
+./HdrProbe/bin/dlss-native-aot/HdrProbe.exe --dlss-native
+./HdrProbe/bin/dlss-native-aot/HdrProbe.exe --dlss-native --debug
+./HdrProbe/bin/dlss-native-aot/HdrProbe.exe --pipeline-checks
+./HdrProbe/bin/dlss-native-aot/HdrProbe.exe --reconstruction
+```
+
+定位日志在本地忽略目录 `HdrProbe/bin/dlss-native/`，最终 NativeAOT 回归日志在 `HdrProbe/bin/dlss-native-aot/`。实机仍需用户恢复原来的 4K 壁纸、无限帧率、100%、L/M 设置检查闪烁；离屏修复证据不能替代实际呈现验收。
+
 ## 留给用户的实机验收
 
 - Arc 140T 上真实 1440p / 120 FPS、持续运行功耗、帧时间稳定性和桌面合成负载。

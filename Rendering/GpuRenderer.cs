@@ -126,20 +126,34 @@ internal sealed class GpuRenderer
                 GpuRenderSettings settings;
                 long scaleChangedAt;
                 long sizeChangedAt;
+                TaskCompletionSource? pauseRequest;
                 lock (_gate)
                 {
                     if (_stopping) break;
                     settings = _settings;
                     scaleChangedAt = _scaleChangedAt;
                     sizeChangedAt = _sizeChangedAt;
-                    if (!settings.Active)
+                    pauseRequest = _paused;
+                    _paused = null;
+                }
+                // A pause is a GPU barrier even if a newer Configure already resumed rendering.
+                // Acknowledge only after both queues release all in-flight frame resources.
+                if (pauseRequest != null)
+                {
+                    try
                     {
-                        _paused?.TrySetResult();
-                        _paused = null;
+                        graphics?.Drain();
+                        pauseRequest.TrySetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        pauseRequest.TrySetException(ex);
+                        throw;
                     }
                 }
                 if (!settings.Active || settings.Width <= 0 || settings.Height <= 0)
                 {
+                    if (pauseRequest == null) graphics?.Drain();
                     graphics?.ResetHistory();
                     _wake.WaitOne();
                     previous = Stopwatch.GetTimestamp();

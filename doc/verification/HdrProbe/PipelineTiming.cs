@@ -10,11 +10,12 @@ internal readonly record struct PipelineSample(double PrepareCpu, double RecordC
 
 internal sealed unsafe partial class GpuGraphics
 {
-    // Probe-only success path matching Render/ComposeAndPresent. Fail fast on SDK errors;
-    // timestamps must never silently report a fallback as the requested algorithm.
+    // Deliberately serialized stage-cost sampler. Use --pipeline-benchmark for the actual
+    // overlapping production path; these timestamps do not measure multi-queue throughput.
     internal PipelineSample ProfileFrame(ID3D12QueryHeap queries, ID3D12Resource readback, ulong frequency)
     {
         const double elapsed = 1d / 120;
+        WaitForGpu();
         long start = Stopwatch.GetTimestamp();
         TemporalFrame frame = _temporal?.BeginFrame(elapsed) ?? default;
         if (_effect is ITemporalGpuEffect effect) effect.SetTemporalFrame(frame);

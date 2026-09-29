@@ -22,10 +22,19 @@ internal interface IGpuVisualizerEffect : IDisposable
 {
     /// <summary>Allocates effect resources on the render thread.</summary>
     void Initialize(in GpuEffectServices services);
-    /// <summary>Rebuilds size-dependent resources after the previous frame completes.</summary>
+    /// <summary>Rebuilds size-dependent resources after the host drains all in-flight frames.</summary>
     void Resize(in GpuRenderSize size);
     /// <summary>Updates the simulation and completes compute work before direct rendering.</summary>
     void PrepareFrame(double elapsedSeconds, int detail);
     /// <summary>Records drawing into the supplied FP16 target without submitting the borrowed command list.</summary>
     void RecordScene(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target);
+}
+
+/// <summary>Optional frame storage for effects whose scene can overlap the previous frame's reconstruction.</summary>
+internal interface IBufferedGpuEffect
+{
+    /// <summary>Allocates one or two slots at a drained boundary, sharing one ordered simulation.</summary>
+    void ConfigureFrames(int count, int detail);
+    /// <summary>Selects a slot only after its last GPU consumer has completed.</summary>
+    void SelectFrame(int index);
 }
