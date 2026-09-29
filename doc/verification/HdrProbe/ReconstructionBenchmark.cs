@@ -11,7 +11,7 @@ internal static class ReconstructionBenchmark
     {
         using var input = new SpectrumAnalyzer(captureAudio: false);
         AppSettings.SonicAutoRotate = true;
-        using var renderer = new GpuGraphics(input, _ => { }, 2560, 1440, static () => new SonicGpuEffect(), new(50, false, 80));
+        using var renderer = new GpuGraphics(input, (_, _, _) => { }, 2560, 1440, static () => new SonicGpuEffect(), new(50, false, 80));
         using var device = GraphicsDevice.GetDefault();
         Console.WriteLine($"OFFSCREEN benchmark device={device.Name}, output=2560x1440, synthetic audio only, no display FPS");
         foreach (var mode in new[] { ReconstructionMode.Off, ReconstructionMode.Fxaa, ReconstructionMode.Smaa, ReconstructionMode.XeSS, ReconstructionMode.Fsr })

@@ -31,7 +31,7 @@ internal static class PipelineBenchmark
         {
             // Fresh simulation/history gives each mode identical camera/audio trajectories.
             using var input = new SpectrumAnalyzer(captureAudio: false);
-            using var renderer = new GpuGraphics(input, static _ => { }, 3840, 2160,
+            using var renderer = new GpuGraphics(input, static (_, _, _) => { }, 3840, 2160,
                 static () => new SonicGpuEffect(), new(config.Scale, config.Mode, grid, config.Preset));
             if (renderer.Reconstruction.Active != config.Mode)
                 throw new InvalidOperationException($"Requested {config.Mode}, active {renderer.Reconstruction.Active}");

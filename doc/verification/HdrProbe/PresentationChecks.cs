@@ -21,7 +21,7 @@ internal static class PresentationChecks
             using var input = new SpectrumAnalyzer(captureAudio: false);
             foreach (bool requestTearing in new[] { true, false })
             {
-                using var renderer = new GpuGraphics(input, static _ => { }, 960, 540, static () => new SonicGpuEffect(), new(100, true, 80), requestTearing);
+                using var renderer = new GpuGraphics(input, static (_, _, _) => { }, 960, 540, static () => new SonicGpuEffect(), new(100, true, 80), requestTearing);
                 renderer.VerifyPresentationConfiguration(requestTearing);
                 renderer.CaptureTimings = true;
                 for (int i = 0; i < 32; i++) { ProbeSignal.Update(input, i, true); renderer.Render(1d / 120, 200, 1000); }

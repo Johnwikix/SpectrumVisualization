@@ -11,6 +11,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Keep pure geometry regression checks independent of WinForms, windows and audio devices.
+        if (args is ["--geometry"]) return GeometryChecks.Run();
         ApplicationConfiguration.Initialize();
         if (args.Length != 3) throw new ArgumentException("Arguments: wallpaper HWND, render-metrics.log, results.txt");
         IntPtr wallpaper = new(long.Parse(args[0]));
@@ -68,6 +70,18 @@ internal static class Program
                 }
 
                 await Check("partial window", false);
+                cover.FormBorderStyle = FormBorderStyle.Sizable;
+                cover.WindowState = FormWindowState.Maximized;
+                await Check("maximized work-area window", true);
+                await Check("maximized held for three seconds", true, 3000);
+                cover.WindowState = FormWindowState.Minimized;
+                await Check("minimized maximized window resumes rendering", false);
+                cover.WindowState = FormWindowState.Maximized;
+                await Check("restored maximized window pauses again", true);
+                cover.WindowState = FormWindowState.Normal;
+                cover.FormBorderStyle = FormBorderStyle.None;
+                cover.Bounds = new Rectangle(100, 100, 480, 240);
+                await Check("restored partial window resumes rendering", false);
                 cover.Bounds = primary;
                 await Check("opaque full-screen", true);
                 await Check("full-screen held for three seconds", true, 3000);

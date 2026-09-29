@@ -23,6 +23,7 @@ namespace WinExSpectrumTest
         public static MainWindow MainWindow { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; } = new();
         public static IServiceProvider Services { get; private set; }
+        internal static Rendering.GpuShaderWarmup ShaderWarmup { get; } = new();
         private static readonly IHost _host = Host.CreateDefaultBuilder()
              .ConfigureServices((context, services) =>
              {
@@ -92,6 +93,7 @@ namespace WinExSpectrumTest
             if (_exitTask != null) return;
             await DataJsonService.LoadSettingAsync();
             if (_exitTask != null) return;
+            _ = ShaderWarmup.Start();
             MainWindow = new MainWindow();
             MainWindow.Activate();
             if (Model.AppSettings.WallpaperEnabled)
@@ -109,6 +111,7 @@ namespace WinExSpectrumTest
 
         private static async Task ExitAsync()
         {
+            Task warmupShutdown = ShaderWarmup.StopAsync();
             try
             {
                 DataJsonService.SaveSettingNow();
@@ -118,6 +121,8 @@ namespace WinExSpectrumTest
             {
                 WriteCrashLog("Render shutdown", ex.Message, ex);
             }
+            try { await warmupShutdown; }
+            catch (Exception ex) { WriteCrashLog("Shader warmup shutdown", ex.Message, ex); }
             try { await MediaInfoService.StopAsync(); }
             catch (Exception ex) { WriteCrashLog("Media shutdown", ex.Message, ex); }
             try { MainWindow?.ReleaseWallpaper(); }

@@ -38,7 +38,7 @@ internal static class ReconstructionChecks
             using var input = new SpectrumAnalyzer(captureAudio: false);
             QualityChecks.Run(static (condition, message) => { if (!condition) throw new InvalidOperationException(message); }, new SaveSetting());
             AppSettings.SonicAutoRotate = true;
-            using var renderer = new GpuGraphics(input, _ => { }, 960, 540, static () => new SonicGpuEffect(), new(100, false, 80));
+            using var renderer = new GpuGraphics(input, (_, _, _) => { }, 960, 540, static () => new SonicGpuEffect(), new(100, false, 80));
             Console.WriteLine($"Reconstruction capabilities: 0x{renderer.Reconstruction.Capabilities:X}");
             if (dlssOnly && (renderer.Reconstruction.Capabilities & (1u << (int)ReconstructionMode.Dlss)) == 0)
                 throw new InvalidOperationException("DLSS capability is unavailable on the selected GPU");

@@ -18,8 +18,9 @@ namespace WinExSpectrumTest.Rendering;
 internal sealed unsafe partial class GpuGraphics : IDisposable
 {
     private const Format OutputFormat = Format.R10G10B10A2_UNorm;
-    private readonly Action<nint> _bind;
+    private readonly Action<nint, int, int> _bind;
     private GraphicsDevice _compute = null!;
+    private GpuDeviceLease? _deviceLease;
     private ID3D12Device _device = null!;
     private ID3D12CommandQueue _queue = null!;
     private ID3D12CommandAllocator _allocator = null!;
@@ -53,6 +54,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private bool _attached;
     private bool _hdr;
     private bool _disposed;
+    private bool _resized;
+    private bool _reconstructionDeferred;
+    private bool _reconstructionDirty;
     public int Width { get; private set; }
     public int Height { get; private set; }
     internal int RenderScalePercent => _options.RenderScalePercent;
@@ -62,16 +66,18 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     internal double LastPresentMilliseconds { get; private set; }
     internal double LastGpuWaitMilliseconds { get; private set; }
 
-    public GpuGraphics(SpectrumAnalyzer analyzer, Action<nint> bind, int width, int height,
-        Func<IGpuVisualizerEffect> factory, GpuSceneOptions options, bool requestTearing = true)
+    public GpuGraphics(SpectrumAnalyzer analyzer, Action<nint, int, int> bind, int width, int height,
+        Func<IGpuVisualizerEffect> factory, GpuSceneOptions options, bool requestTearing = true, bool deferReconstruction = false)
     {
         _bind = bind;
         _analyzer = analyzer;
         _options = options;
         _effectFactory = factory;
+        _reconstructionDeferred = deferReconstruction;
         try
         {
-            _compute = GraphicsDevice.GetDefault();
+            _deviceLease = GpuDeviceLease.Acquire();
+            _compute = _deviceLease.Device;
             Guid deviceId = new("189819F1-1DB6-4B57-BE54-1821339B85F7");
             void* native = null;
             InteropServices.GetID3D12Device(_compute, &deviceId, &native);
@@ -90,12 +96,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _pipelines = new ColorOutputPipelines(_device);
             _effect = factory();
             _effect.Initialize(new GpuEffectServices(_compute, _device, analyzer));
-            _capabilities = TemporalReconstruction.Capabilities(_device);
+            if (!deferReconstruction) _capabilities = TemporalReconstruction.Capabilities(_device);
             CreatePresentationSwapChain(width, height, requestTearing);
             CreateSizeResources(width, height);
             // Establish a live SDR chain with black content before setting a color space.
             ClearAndPresent();
-            _bind(_swapChain.NativePointer);
+            _bind(_swapChain.NativePointer, Width, Height);
             _attached = true;
         }
         catch
@@ -105,9 +111,15 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         }
     }
 
-    public void Resize(int width, int height)
+    public void Resize(int width, int height) => Resize(width, height, _options);
+
+    internal void Resize(int width, int height, GpuSceneOptions options)
     {
-        if (width == Width && height == Height) return;
+        if (width == Width && height == Height)
+        {
+            Configure(options);
+            return;
+        }
         WaitForGpu();
         ReleaseSizeResources();
         // Release every application reference before ResizeBuffers; each resize is followed by a present.
@@ -115,9 +127,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         var actual = _swapChain.Description1;
         if (actual.Width != width || actual.Height != height)
             throw new InvalidOperationException("The swap chain did not apply its requested size.");
+        _options = options;
         CreateSizeResources(width, height);
         _swapChain.SetColorSpace1(_hdr ? ColorSpaceType.RgbFullG2084NoneP2020 : ColorSpaceType.RgbFullG22NoneP709);
-        ClearAndPresent();
+        // Keep the previous composed image until Render submits a complete replacement.
+        // Presenting a black clear here caused a flash on every resize event.
+        _resized = true;
     }
 
     private void CreateSizeResources(int width, int height)
@@ -134,8 +149,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     public void Configure(GpuSceneOptions options)
     {
-        if (_options == options) return;
-        if (_options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode ||
+        if (_options == options && !_reconstructionDirty) return;
+        if (_reconstructionDirty || _options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode ||
             (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset))
         {
             WaitForGpu();
@@ -143,6 +158,15 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         }
         ResetHistory();
         _options = options;
+    }
+
+    /// <summary>Called on the live worker only after startup releases all of its SDK contexts.</summary>
+    internal void CompleteWarmup()
+    {
+        if (!_reconstructionDeferred) return;
+        _capabilities = TemporalReconstruction.Capabilities(_device);
+        _reconstructionDeferred = false;
+        _reconstructionDirty = _options.Mode >= ReconstructionMode.XeSS;
     }
 
     public void ChangeEffect(Func<IGpuVisualizerEffect> factory)
@@ -176,6 +200,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     private void CreateSceneResources(GpuSceneOptions options, GpuRenderSize size)
     {
+        _reconstructionDirty = false;
         DisposeResource(_temporal);
         _temporal = null;
         _activeMode = options.Mode;
@@ -396,6 +421,11 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         WaitForGpu(rendered);
         if (CaptureTimings) LastGpuWaitMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         LastFrameRendered = true;
+        if (_resized && result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing)
+        {
+            _bind(_swapChain.NativePointer, Width, Height);
+            _resized = false;
+        }
         return result.Code != (int)Vortice.DXGI.ResultCode.WasStillDrawing;
     }
 
@@ -466,7 +496,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _disposed = true;
         if (_attached)
         {
-            try { _bind(0); } // UI-thread acknowledgement, while the UI remains free to dispatch.
+            try { _bind(0, Width, Height); } // UI-thread acknowledgement, while the UI remains free to dispatch.
             catch (Exception ex) { App.WriteCrashLog("GPU detach", ex.Message, ex); }
             _attached = false;
         }
@@ -488,7 +518,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         DisposeResource(_fence);
         DisposeResource(_queue);
         DisposeResource(_device);
-        DisposeResource(_compute);
+        DisposeResource(_deviceLease);
         _gpuDone.Dispose();
     }
 

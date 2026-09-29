@@ -16,6 +16,9 @@ internal sealed partial class GpuPanel : SwapChainPanel
     private bool _stopping;
     private Task? _stopTask;
     private readonly ScaleTransform _scale = new();
+    private int _bufferWidth, _bufferHeight;
+    private int _requestedWidth, _requestedHeight;
+    private double _dpiScale = 1;
     public event Action<HdrOutputMode>? OutputChanged;
     public HdrOutputMode LastOutputMode { get; private set; } = HdrOutputMode.Starting;
 
@@ -33,14 +36,18 @@ internal sealed partial class GpuPanel : SwapChainPanel
     public void Configure(SpectrumAnalyzer analyzer, nint hwnd, GpuRenderSettings settings, double dpiScale)
     {
         if (_stopping) return;
-        Width = settings.Width;
-        Height = settings.Height;
-        _scale.ScaleX = _scale.ScaleY = 1 / dpiScale;
+        _requestedWidth = settings.Width;
+        _requestedHeight = settings.Height;
+        _dpiScale = dpiScale;
         if (_renderer == null)
         {
             if (!settings.Active || settings.Width == 0 || settings.Height == 0) return;
+            _bufferWidth = settings.Width;
+            _bufferHeight = settings.Height;
+            ApplySurfaceSize();
             _native = GetNative(this);
-            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings, PublishReconstructionFromWorker, _debug);
+            _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings,
+                PublishReconstructionFromWorker, _debug, App.ShaderWarmup);
             try { _renderer.Start(); }
             catch
             {
@@ -50,7 +57,21 @@ internal sealed partial class GpuPanel : SwapChainPanel
                 throw;
             }
         }
-        else _renderer.Configure(settings);
+        else
+        {
+            ApplySurfaceSize();
+            _renderer.Configure(settings);
+        }
+    }
+
+    private void ApplySurfaceSize()
+    {
+        Width = _bufferWidth;
+        Height = _bufferHeight;
+        // .NET 10: reuse one transform; no per-frame delegate, UI notification, or buffer copy.
+        // Scaling includes physical-pixel resize and inverse DPI; media-card coordinates stay in DIPs.
+        _scale.ScaleX = (double)_requestedWidth / _bufferWidth / _dpiScale;
+        _scale.ScaleY = (double)_requestedHeight / _bufferHeight / _dpiScale;
     }
 
     private void PublishFromWorker(HdrOutputMode mode)
@@ -74,7 +95,7 @@ internal sealed partial class GpuPanel : SwapChainPanel
         });
     }
 
-    private void BindFromWorker(nint swapChain)
+    private void BindFromWorker(nint swapChain, int width, int height)
     {
         var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!DispatcherQueue.TryEnqueue(() =>
@@ -82,6 +103,13 @@ internal sealed partial class GpuPanel : SwapChainPanel
             try
             {
                 // Pending binds are still acknowledged during shutdown; the worker will then detach.
+                // Commit buffer dimensions and inverse-DPI transform in the same UI callback.
+                if (swapChain != 0)
+                {
+                    _bufferWidth = width;
+                    _bufferHeight = height;
+                    ApplySurfaceSize();
+                }
                 SetSwapChain(_native, swapChain);
                 completed.SetResult();
             }

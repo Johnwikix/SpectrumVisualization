@@ -20,7 +20,7 @@ internal static class ReconstructionResolutionChecks
             using var input = new SpectrumAnalyzer(captureAudio: false);
             foreach (var (width, height) in new[] { (960, 540), (3840, 2160) })
             {
-                using var renderer = new GpuGraphics(input, static _ => { }, width, height, static () => new SonicGpuEffect(), new(100, false, 80));
+                using var renderer = new GpuGraphics(input, static (_, _, _) => { }, width, height, static () => new SonicGpuEffect(), new(100, false, 80));
                 foreach (int scale in new[] { 50, 49, 40, 34, 33, 32, 10, 1, 67, 75, 90, 99, 100 })
                 {
                     renderer.Configure(new(scale, mode, 80, "k"));

@@ -8,6 +8,7 @@ using WinExSpectrumTest.Rendering;
 using System.Diagnostics;
 
 if (args.Contains("--device-capabilities")) return ReconstructionChecks.DeviceCapabilities();
+if (args.Contains("--startup-resize")) return StartupResizeChecks.Run();
 if (args.Contains("--presentation")) return PresentationChecks.Run();
 if (args.Contains("--dlss-resolutions")) return ReconstructionResolutionChecks.Run();
 if (args.Contains("--xess-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.XeSS);
@@ -30,7 +31,7 @@ if (args.Contains("--visual"))
     using var device = GraphicsDevice.GetDefault();
     using var reference = new SonicTopographyEffect(device, input);
     using var target = device.AllocateReadWriteTexture2D<float4>(width, height);
-    using var renderer = new GpuGraphics(input, _ => { }, width, height, static () => new SonicGpuEffect(), new(100, false, 160));
+    using var renderer = new GpuGraphics(input, (_, _, _) => { }, width, height, static () => new SonicGpuEffect(), new(100, false, 160));
     for (int i = 0; i < 120; i++)
     {
         ProbeSignal.Update(input, i, false);
@@ -68,7 +69,7 @@ if (args.Contains("--benchmark"))
     foreach (var test in new[] { ("performance", 50, 80, false), ("balanced", 75, 120, true), ("high", 100, 160, true), ("legacy-quality", 100, 160, false) })
     {
         AppSettings.SonicGridSize = test.Item3;
-        using var renderer = new GpuGraphics(input, _ => { }, 2560, 1440, static () => new SonicGpuEffect(), new(test.Item2, test.Item4, test.Item3));
+        using var renderer = new GpuGraphics(input, (_, _, _) => { }, 2560, 1440, static () => new SonicGpuEffect(), new(test.Item2, test.Item4, test.Item3));
         for (int i = 0; i < 360; i++)
         {
             if (stress) ProbeSignal.Update(input, i, true);
@@ -146,10 +147,10 @@ try
         }
     }
     AppSettings.SonicGridSize = 160;
-    int attachments = 0;
+    bool attached = false;
     for (int cycle = 0; cycle < 3; cycle++)
     {
-        using var graphics = new GpuGraphics(analyzer, pointer => attachments += pointer == 0 ? -1 : 1, 256, 144, static () => new SonicGpuEffect(), new(100, false, 160));
+        using var graphics = new GpuGraphics(analyzer, (pointer, _, _) => attached = pointer != 0, 256, 144, static () => new SonicGpuEffect(), new(100, false, 160));
         if (cycle == 0)
         {
             graphics.VerifyOutputEncoding();
@@ -171,7 +172,7 @@ try
         for (int i = 0; i < 60; i++) graphics.Render(1d / 60, 200, 1000);
         Console.WriteLine($"Measured render allocation: {(GC.GetAllocatedBytesForCurrentThread() - before) / 60d:0.0} bytes/frame");
     }
-    Require(attachments == 0, "Composition chain ownership did not balance");
+    Require(!attached, "Composition chain remained attached after disposal");
     QualityChecks.VerifyPacer(Require);
     Console.WriteLine("PASS repeated creation, resize, SDR/HDR encoding and disposal");
     return 0;

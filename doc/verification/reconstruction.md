@@ -1,5 +1,41 @@
 # SMAA 与时域重建验证
 
+## 2026-09-29 启动预热与缩放回归
+
+### 根因及实现
+
+- 设置调用链 `SettingViewModel -> AppSettings.Changed -> CanvasPanel.ConfigureGpu -> GpuRenderer.Configure` 只提交状态；SDK 初始化、HLSL 编译及 GPU 等待在工作线程。可以确认首次切换会停顿渲染，未采集 UI 线程堆栈，不能把用户观察直接归因为 UI 线程同步等待。
+- 旧 `GpuGraphics.Resize` 每次尺寸变化都销毁尺寸资源、重建 SDK 上下文并 `ClearAndPresent` 纯黑帧；SMAA 等 HLSL 也会重复编译。现在缓存静态 HLSL 字节码；窗口尺寸稳定 180 ms 才重建，拖动期间用已有表面的 XAML 变换缩放，重建之后只提交完整场景。
+- 新尺寸首帧成功 Present 后重新绑定同一交换链，并在同一 UI 回调中提交表面物理尺寸和逆 DPI 变换。粒子仍按效果的实际输入/输出尺寸生成，媒体卡片保持逻辑坐标。首次启动建立交换链的黑色初始化保留，缩放时的黑帧删除。
+- 启动预热使用独立低优先级线程、无窗口绑定交换链、`SpectrumAnalyzer(captureAudio: false)` 的静默输入；覆盖空间模式、可用 XeSS/FSR/DLSS 的 50% 和 100% 输入，以及 DLSS J/K/L/M。会实际 dispatch，随后释放临时纹理与 SDK 上下文；共享设备引用交给实时渲染器或在退出时释放。没有每个尺寸都常驻一套 SDK 上下文。
+- 预热尚未完成时，实时宿主不创建或探测厂商 SDK，上次保存的 SR 选择暂用 FXAA 绘制；完成后应用最新设置。这样避免 NGX 设备级初始化/Shutdown 与另一上下文相互干扰，也不让首个窗口等待整个预热过程。SDK 同步创建不能中途强杀，退出采用取消后续步骤并异步等待当前调用结束。
+- 预热覆盖产品使用的路径和代表性输入比例，不保证驱动/SDK 的所有内部排列组合都提前完成，也不能消除实际输出尺寸的纹理分配、SDK 上下文创建和 GPU 排空耗时。设备故障恢复时也会放掉预热引用，避免一直保留失效设备。
+
+### 验证证据
+
+- 本机 Intel Arc 140T，厂商能力掩码 `0x18`（XeSS/FSR）；D3D12 调试层，NativeAOT，禁用真实音频采集，实时探针注入合成频谱与触发数据。全部交换链均未绑定窗口。
+- `--startup-resize`：重复 Start 只启动一次；后台预热同时运行真实 FXAA 帧；设备引用交接后 SR 创建/回读正常；支持模式预热掩码 `0x1F`。FXAA/SMAA/XeSS/FSR 的奇数和多组尺寸切换均断言 resize 本身不增加 Present 次数，回读有限且非空，调试层无错误，32 帧稳定循环 0 B/帧托管分配。
+- 真实 `GpuRenderer` 离屏线程接收 20 次连续尺寸变化，仅发布最终 420×240；暂停期间改尺寸，恢复后正确应用 641×361；暂停屏障、异步停止、启动取消、重复停止和停止后不重启通过。没有用同步假渲染器替代异步边界。
+- 一次最终运行预热约 672 ms，期间完成 594 次离屏帧；另一个 320×180 输出、67% 输入切换加首帧 CPU 包围耗时：FXAA 6.9 ms、SMAA 4.9 ms、XeSS 60.2 ms、FSR 42.5 ms。包含队列等待；不是屏幕 FPS。驱动缓存未清空、未隔离系统负载，这些数值不是首次安装冷启动保证，也没有据此宣称固定加速比例。
+- `--presentation`：tearing/兼容标志、帧延迟、resize 后回读、稳定分配检查通过；`--reconstruction`：空间 AA、XeSS/FSR 1%–100% 多比例、历史重置、运动矢量、第二效果及不可用 DLSS 回退通过。首次从仓库根目录执行该旧探针时，回读图片输出目录不存在；改用它要求的 `doc/verification` 工作目录后通过，非渲染失败。
+- 主工程 Debug 构建、主工程 Release NativeAOT/裁剪发布、探针 NativeAOT 发布通过。保留既有 nullable、缺失 publish profile、IL3000 与 SharpGen IL2104 警告。原生桥接未修改，后续发布使用已构建的桥接 DLL。
+
+命令（工作目录 `doc/verification`；主工程发布在仓库根目录执行）：
+
+```powershell
+dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true --no-restore -o HdrProbe/bin/startup-resize-aot
+./HdrProbe/bin/startup-resize-aot/HdrProbe.exe --startup-resize
+./HdrProbe/bin/startup-resize-aot/HdrProbe.exe --presentation
+./HdrProbe/bin/startup-resize-aot/HdrProbe.exe --reconstruction
+dotnet publish WinExSpectrumTest.csproj -c Release -r win-x64 -p:Platform=x64 -p:WindowsPackageType=None -p:SkipReconstructionNativeBuild=true --no-restore -o bin/startup-resize-publish
+```
+
+本地忽略日志：`startup-resize-final.log`、`presentation.log`、`reconstruction-final.log`、`app-warmup-publish.log`、`probe-warmup-publish.log`。未启动主应用、操作设置窗口、截图、播放/采集真实音频或切换显示器状态；真实第二窗口拖动的闪烁改善、跨 DPI/壁纸切换、HDR 观感和 RTX 上 DLSS 预热仍由用户验收。拖动中临时拉伸的画面会稍软，稳定后恢复准确像素尺寸。
+
+参考：[Intel XeSS 初始化及管线预构建说明](https://www.intel.com/content/www/us/en/developer/articles/guide/xe-super-sampling-developer-guide.html)、[Microsoft XAML 交换链缩放及重新绑定约定](https://learn.microsoft.com/en-us/windows/uwp/gaming/directx-and-xaml-interop)。
+
+## 2026-09-28 初始实现记录
+
 日期：2026-09-28。范围：音域回响、共享 GPU 宿主、设置持久化和厂商适配层；不含插帧。
 
 ## 实现边界

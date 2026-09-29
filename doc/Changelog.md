@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-09-29 壁纸在普通窗口最大化时自动暂停
+
+- `Helper/WallpaperOcclusionDetector.cs`：同屏最大化窗口按显示器工作区判断遮挡，修复任务栏区域未覆盖导致壁纸持续渲染；保留全屏、透明/隐藏窗口和副屏排除规则，轮询类名改用栈缓冲。
+- `doc/verification/WallpaperOcclusionProbe/`：补充无窗口几何回归及最大化/最小化/还原的实机验收场景，验证范围见 `doc/verification/wallpaper-occlusion.md`。
+
+## 2026-09-29 启动后台预热与音域回响缩放防闪烁
+
+- `App.xaml.cs`、`Rendering/GpuShaderWarmup.cs`、`GpuDeviceLease.cs`、`ShaderCompiler.cs`：启动后低优先级离屏预热音域回响及可用 AA/SR，覆盖 DLSS J/K/L/M；缓存 HLSL 字节码，复用设备直到渲染器接手，退出异步取消并等待收尾，无新增音频采集。
+- `Rendering/GpuRenderer.cs`、`GpuGraphics.cs`：预热期间用空间路径保持渲染，结束后应用当前 SR 选择；窗口尺寸稳定 180 ms 后合并重建，移除 resize 的纯黑 Present，尺寸与 SR 配置一并更新。
+- `Rendering/GpuPanel.cs`：拖动时缩放已有交换链画面，新尺寸首帧后在同一 UI 回调提交绑定与逆 DPI 变换；媒体卡片仍使用逻辑坐标。
+- `Effects/EffectDescriptor.cs`、`doc/verification/HdrProbe/`：独立注册描述类型供真实工作线程离屏回归复用；验证预热并发、取消退出、缩放事件合并、GPU 回读和稳定帧分配。主工程及探针 NativeAOT 发布通过，Arc 140T 覆盖 XeSS/FSR，实机拖动/DPI/画质与 RTX 上 DLSS 由用户验收，详见 `doc/verification/reconstruction.md`。
+
 ## 2026-09-28 解锁 D3D12 呈现并添加调试覆盖层
 
 - `Rendering/GpuGraphics.Presentation.cs`、`GpuGraphics.cs`：参考 ComputeSharpDemo，为交换链和 Present 配对启用支持的 `ALLOW_TEARING`，显式设置两帧呈现队列深度，resize 保留标志；渲染完成 fence 移至 Present 前，仍等待 GPU 完成后复用单份资源，兼容路径保留合成呈现。

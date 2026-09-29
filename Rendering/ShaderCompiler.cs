@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using SharpGen.Runtime;
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
@@ -10,7 +12,15 @@ namespace WinExSpectrumTest.Rendering;
 /// <summary>Compiles statically selected shader sources during resource initialization.</summary>
 internal static class ShaderCompiler
 {
-    internal static unsafe byte[] Compile(string sourceText, string entry, string profile)
+    // Only initialization calls this cache. Reuse bytecode across sizes and hosts;
+    // Lazy also prevents startup warmup and a consumer compiling the same source twice.
+    private static readonly ConcurrentDictionary<(string Source, string Entry, string Profile), Lazy<byte[]>> Cache = new();
+
+    internal static byte[] Compile(string sourceText, string entry, string profile) =>
+        Cache.GetOrAdd((sourceText, entry, profile), static key => new Lazy<byte[]>(
+            () => CompileCore(key.Source, key.Entry, key.Profile), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+
+    private static unsafe byte[] CompileCore(string sourceText, string entry, string profile)
     {
         byte[] source = Encoding.UTF8.GetBytes(sourceText);
         fixed (byte* pointer = source)
