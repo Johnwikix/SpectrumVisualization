@@ -202,6 +202,12 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <controls:SettingsCard x:Uid="ResetSettings" Margin="10,0,10,0">
+                            <Button
+                                x:Uid="ResetSettingsButton"
+                                AutomationProperties.AutomationId="ResetSettingsButton"
+                                Click="OnResetSettingsClick" />
+                        </controls:SettingsCard>
                     </StackPanel>
                 </ScrollView>
             </controls:Case>

@@ -2,6 +2,17 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-09-29 主窗口默认尺寸放大
+
+- `MainWindow.xaml.cs`：启动默认窗口尺寸由 512×512 改为 1024×1024（`AppWindow.Resize` 单位为物理像素，显示缩放非 100% 时视觉尺寸仍按比例缩小）。
+
+## 2026-09-29 设置页新增重置所有设置
+
+- `View/SettingWindow.xaml`、`SettingWindow.xaml.cs`：通用页底部新增"重置所有设置"卡片，点击弹出 ContentDialog 确认（默认焦点在取消）后执行重置。
+- `ViewModel/SettingViewModel.cs`：新增 `ResetSettingsCommand`；壁纸模式开启时先经 `SetWallpaperMode(false)` 正规退出，再重置、按默认值补发效果切换与窗口主题/材质。
+- `Service/DataJsonService.cs`：加载映射提取为 `ApplySettings` 供启动加载与重置复用；新增 `ResetSettingAsync` 以 `SaveSetting` 默认值写入运行时并落盘。
+- `Strings/zh-CN`、`Strings/en-us`：同步新增卡片、按钮与对话框资源键。
+
 ## 2026-09-29 修复 DLSS L/M 原生比例流水线闪烁
 
 - `Rendering/TemporalReconstruction.cs`、`GpuGraphics.Pipeline.cs`：DLSS 路径先提交下一帧场景，再等待前次后处理完成后调用 SDK；修复重叠录制/执行造成的图像异常，保留场景与 SR 的 GPU 重叠，不更改比例或预设。

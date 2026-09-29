@@ -11,7 +11,20 @@ namespace WinExSpectrumTest.Service
     {
         public static async Task LoadSettingAsync()
         {
-            var settings = await SettingManager.LoadSettingsAsync();
+            ApplySettings(await SettingManager.LoadSettingsAsync());
+        }
+
+        /// <summary>恢复全部持久化设置为默认值（SaveSetting 的属性初始值即默认值）并落盘。</summary>
+        public static async Task ResetSettingAsync()
+        {
+            var defaults = new SaveSetting();
+            ApplySettings(defaults);
+            await SettingManager.SaveSettingsAsync(defaults);
+        }
+
+        /// <summary>把 SaveSetting 快照写入运行时 AppSettings；每项赋值都会发布 Changed 通知。</summary>
+        private static void ApplySettings(SaveSetting settings)
+        {
             AppSettings.HdrPeakNits = settings.HdrPeakNits;
             AppSettings.HdrWhiteNits = settings.HdrWhiteNits;
             AppSettings.HdrEnabled = settings.HdrEnabled;

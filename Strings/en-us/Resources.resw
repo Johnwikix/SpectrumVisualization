@@ -296,4 +296,11 @@ Submit rate is not the display frame rate</value></data>
 {2} | Scheduled by Win2D and the compositor</value></data>
   <data name="RenderDebugTearing" xml:space="preserve"><value>Unsynchronized presentation enabled</value></data>
   <data name="RenderDebugComposed" xml:space="preserve"><value>Compatibility presentation (may be compositor-limited)</value></data>
+  <data name="ResetSettings.Header" xml:space="preserve"><value>Reset all settings</value></data>
+  <data name="ResetSettings.Description" xml:space="preserve"><value>Restore every setting to its default value; wallpaper mode will be turned off and the effect and window appearance revert immediately.</value></data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve"><value>Reset</value></data>
+  <data name="ResetSettingsDialogTitle" xml:space="preserve"><value>Reset all settings</value></data>
+  <data name="ResetSettingsDialogMessage" xml:space="preserve"><value>All settings will be restored to their defaults. This cannot be undone. Continue?</value></data>
+  <data name="ResetSettingsDialogConfirm" xml:space="preserve"><value>Reset</value></data>
+  <data name="ResetSettingsDialogCancel" xml:space="preserve"><value>Cancel</value></data>
 </root>

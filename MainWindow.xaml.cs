@@ -47,7 +47,7 @@ namespace WinExSpectrumTest
             // 全程只用字段——原生 Window 的 AppWindow 属性在首次布局期间会返回 null。
             _hwnd = WindowNative.GetWindowHandle(this);
             _appWindow = AppWindow ?? Microsoft.UI.Windowing.AppWindow.GetFromWindowId(new WindowId((ulong)_hwnd));
-            _appWindow.Resize(new SizeInt32(512, 512));
+            _appWindow.Resize(new SizeInt32(1024, 1024));
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets/icon.ico");
             if (File.Exists(iconPath))
             {

@@ -1,12 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.IO;
 using WinExSpectrumTest.ViewModel;
 using WinUIEx;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+// To learn more about WinUI, visit the WinUI project structure,
+// and more about WinUI project templates, see: http://aka.ms/winui-project-info.
 
 namespace WinExSpectrumTest.View
 {
@@ -35,5 +37,24 @@ namespace WinExSpectrumTest.View
             ViewModel.PersistSettingsCommand.Execute(null);
         }
 
+        /// <summary>重置是破坏性操作，先经确认对话框再执行 ViewModel 命令。</summary>
+        private async void OnResetSettingsClick(object sender, RoutedEventArgs e)
+        {
+            if (Content?.XamlRoot is null) return;
+            var resources = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = resources.GetString("ResetSettingsDialogTitle"),
+                Content = resources.GetString("ResetSettingsDialogMessage"),
+                PrimaryButtonText = resources.GetString("ResetSettingsDialogConfirm"),
+                CloseButtonText = resources.GetString("ResetSettingsDialogCancel"),
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                await ViewModel.ResetSettingsCommand.ExecuteAsync(null);
+            }
+        }
     }
 }

@@ -779,6 +779,20 @@ namespace WinExSpectrumTest.ViewModel
         [RelayCommand]
         private void PersistSettings() => DataJsonService.SaveSettingNow();
 
+        [RelayCommand]
+        private async Task ResetSettingsAsync()
+        {
+            // 壁纸模式持有宿主与窗口形态，必须先走正规入口退出；只翻转标志位会让会话状态不一致。
+            if (AppSettings.WallpaperEnabled)
+            {
+                App.MainWindow?.SetWallpaperMode(false);
+            }
+            await DataJsonService.ResetSettingAsync();
+            // Changed 事件只刷新绑定值与渲染参数；效果宿主切换和窗口材质/主题需按默认值补发。
+            App.MainWindow?.SwitchToEffect(AppSettings.VisualEffect);
+            App.MainWindow?.SetAppTheme();
+        }
+
         public async Task SaveSettings()
         {
             await DataJsonService.SaveSettingAsync();

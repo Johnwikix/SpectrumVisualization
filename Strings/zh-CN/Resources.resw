@@ -296,4 +296,11 @@ CPU 帧 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
 {2} | 由 Win2D 与合成器调度</value></data>
   <data name="RenderDebugTearing" xml:space="preserve"><value>已启用无垂直同步呈现</value></data>
   <data name="RenderDebugComposed" xml:space="preserve"><value>兼容呈现（可能受合成器限速）</value></data>
+  <data name="ResetSettings.Header" xml:space="preserve"><value>重置所有设置</value></data>
+  <data name="ResetSettings.Description" xml:space="preserve"><value>将全部设置恢复为默认值；壁纸模式会被关闭，当前效果与窗口外观立即还原。</value></data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve"><value>重置</value></data>
+  <data name="ResetSettingsDialogTitle" xml:space="preserve"><value>重置所有设置</value></data>
+  <data name="ResetSettingsDialogMessage" xml:space="preserve"><value>所有设置将恢复为默认值，此操作无法撤销。是否继续？</value></data>
+  <data name="ResetSettingsDialogConfirm" xml:space="preserve"><value>重置</value></data>
+  <data name="ResetSettingsDialogCancel" xml:space="preserve"><value>取消</value></data>
 </root>
