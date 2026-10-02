@@ -20,8 +20,6 @@
     <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?logo=windows" alt="Windows 10/11">
   </p>
 
-  <img src="doc/pic/example.gif" alt="SpectrumVisualization Demo" width="100%" style="border-radius: 10px; margin-top: 20px; margin-bottom: 20px;">
-
 </div>
 
 ---
@@ -94,6 +92,15 @@
 主窗口默认尺寸 1024×1024，支持小组件 / 全屏 / 最大化 / 锁定四种状态；托盘勾选"壁纸模式（主屏幕）"后效果铺满主屏桌面图标下方。
 
 > 演示动图：[doc/pic/example.gif](doc/pic/example.gif)
+
+### 模式截图
+
+两个效果在窗口小组件、壁纸模式（主屏幕）与锁定模式下的实机截图（窗口居中于 4K 主屏）：
+
+| 效果 | 窗口小组件 | 壁纸模式（主屏幕） | 锁定模式 |
+| :--- | :---: | :---: | :---: |
+| **极光之环** | <img src="doc/pic/aurora-window.png" width="100%" alt="极光之环 窗口小组件"> | <img src="doc/pic/aurora-wallpaper.png" width="100%" alt="极光之环 壁纸模式"> | <img src="doc/pic/aurora-lock.png" width="100%" alt="极光之环 锁定模式"> |
+| **音域回响** | <img src="doc/pic/sonic-window.png" width="100%" alt="音域回响 窗口小组件"> | <img src="doc/pic/sonic-wallpaper.png" width="100%" alt="音域回响 壁纸模式"> | <img src="doc/pic/sonic-lock.png" width="100%" alt="音域回响 锁定模式"> |
 
 效果示例（来自 `doc/verification/` 的离屏 / 实机回归截图）：
 

@@ -95,6 +95,15 @@ The main window opens at 1024×1024 and supports widget / fullscreen / maximized
 
 > Animated demo: [doc/pic/example.gif](doc/pic/example.gif)
 
+### Mode screenshots
+
+Both effects captured live in the window widget, wallpaper (primary screen) and locked modes (window centered on a 4K primary display):
+
+| Effect | Window widget | Wallpaper (primary screen) | Locked |
+| :--- | :---: | :---: | :---: |
+| **Aurora Ring** | <img src="doc/pic/aurora-window.png" width="100%" alt="Aurora Ring, window widget"> | <img src="doc/pic/aurora-wallpaper.png" width="100%" alt="Aurora Ring, wallpaper mode"> | <img src="doc/pic/aurora-lock.png" width="100%" alt="Aurora Ring, locked"> |
+| **Sonic Topography** | <img src="doc/pic/sonic-window.png" width="100%" alt="Sonic Topography, window widget"> | <img src="doc/pic/sonic-wallpaper.png" width="100%" alt="Sonic Topography, wallpaper mode"> | <img src="doc/pic/sonic-lock.png" width="100%" alt="Sonic Topography, locked"> |
+
 Snapshots gathered by the offscreen / on-machine verification scripts (see [`doc/verification/`](doc/verification/)):
 
 - [Aurora cover transition](doc/verification/aurora-cover-transition.png)
