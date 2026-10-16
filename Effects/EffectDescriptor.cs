@@ -8,4 +8,8 @@ internal enum EffectHost { Win2D, Gpu }
 
 /// <summary>Registers an effect without constructing graphics devices while listing the catalog.</summary>
 internal sealed record EffectDescriptor(string Id, string ResourceKey, EffectHost Host, bool UsesMedia,
-    Func<IGpuVisualizerEffect>? CreateGpu, Func<GpuSceneOptions>? GetSceneOptions);
+    Func<IGpuVisualizerEffect>? CreateGpu, Func<int>? GetDetail = null)
+{
+    // Resolution and AA always come from the host; registrations only supply effect detail.
+    internal GpuSceneOptions GetSceneOptions() => GpuSceneOptions.FromSettings(GetDetail?.Invoke() ?? 0);
+}

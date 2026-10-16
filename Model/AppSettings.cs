@@ -106,6 +106,21 @@ namespace WinExSpectrumTest.Model
             }
         }
 
+        // Shared quality for swap-chain effects; Win2D owns its own render path.
+        private static GpuQualitySettings _gpuQuality = GpuQualitySettings.Default;
+        /// <summary>Gets or sets an entire quality profile before publishing a single change.</summary>
+        public static GpuQualitySettings GpuQuality
+        {
+            get => _gpuQuality;
+            set => Set(ref _gpuQuality, value.Normalize());
+        }
+        /// <summary>Gets or sets the scene resolution as a percentage of output dimensions.</summary>
+        public static int GpuRenderScalePercent { get => _gpuQuality.RenderScalePercent; set => GpuQuality = _gpuQuality with { RenderScalePercent = value }; }
+        /// <summary>Gets or sets the stable anti-aliasing mode identifier.</summary>
+        public static string GpuAntiAliasing { get => _gpuQuality.AntiAliasing; set => GpuQuality = _gpuQuality with { AntiAliasing = value }; }
+        /// <summary>Gets or sets the explicit DLSS model preset independently of resolution.</summary>
+        public static string GpuDlssPreset { get => _gpuQuality.DlssPreset; set => GpuQuality = _gpuQuality with { DlssPreset = value }; }
+
         // Sonic Topography effect settings.
         private static string _SonicTheme = "nocturnal";
         public static string SonicTheme { get => _SonicTheme; set => Set(ref _SonicTheme, value); }
@@ -113,21 +128,9 @@ namespace WinExSpectrumTest.Model
         public static float SonicAudioIntensity { get => _SonicAudioIntensity; set => Set(ref _SonicAudioIntensity, value); }
         private static float _SonicResponseRange = 1.0f;
         public static float SonicResponseRange { get => _SonicResponseRange; set => Set(ref _SonicResponseRange, value); }
-        private static SonicQualitySettings _sonicQuality = SonicQualitySettings.Default;
-        /// <summary>Gets or sets an entire quality profile before publishing a single change.</summary>
-        public static SonicQualitySettings SonicQuality
-        {
-            get => _sonicQuality;
-            set => Set(ref _sonicQuality, value.Normalize());
-        }
+        private static int _sonicGridSize = 160;
         /// <summary>Gets or sets the number of terrain cells on each axis.</summary>
-        public static int SonicGridSize { get => _sonicQuality.GridSize; set => SonicQuality = _sonicQuality with { GridSize = value }; }
-        /// <summary>Gets or sets the scene resolution as a percentage of output dimensions.</summary>
-        public static int SonicRenderScalePercent { get => _sonicQuality.RenderScalePercent; set => SonicQuality = _sonicQuality with { RenderScalePercent = value }; }
-        /// <summary>Gets or sets the stable anti-aliasing mode identifier.</summary>
-        public static string SonicAntiAliasing { get => _sonicQuality.AntiAliasing; set => SonicQuality = _sonicQuality with { AntiAliasing = value }; }
-        /// <summary>Gets or sets the explicit DLSS model preset independently of resolution.</summary>
-        public static string SonicDlssPreset { get => _sonicQuality.DlssPreset; set => SonicQuality = _sonicQuality with { DlssPreset = value }; }
+        public static int SonicGridSize { get => _sonicGridSize; set => Set(ref _sonicGridSize, Math.Clamp(value, 80, 320)); }
         private static bool _SonicIdleWaveEnabled = true;
         public static bool SonicIdleWaveEnabled { get => _SonicIdleWaveEnabled; set => Set(ref _SonicIdleWaveEnabled, value); }
         private static bool _SonicRippleEnabled = true;

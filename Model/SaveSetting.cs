@@ -38,6 +38,7 @@ namespace WinExSpectrumTest.Model
         public float SonicAudioIntensity { get; set; } = 1.0f;
         public float SonicResponseRange { get; set; } = 1.0f;
         public int SonicGridSize { get; set; } = 160;
+        // Shared GPU quality: keep the original JSON field names for existing installations.
         public int SonicRenderScalePercent { get; set; } = 100;
         public string SonicAntiAliasing { get; set; } = "fxaa";
         public string SonicUpscaleQuality { get; set; } = "quality";

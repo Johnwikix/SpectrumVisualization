@@ -5,10 +5,11 @@ namespace WinExSpectrumTest.Rendering;
 
 internal readonly record struct RenderDebugFrame(bool Gpu, bool Submitted, double CpuMilliseconds,
     double PresentMilliseconds, double WaitMilliseconds, GpuRenderSize Size, ReconstructionMode Mode,
-    string? DlssPreset, bool Hdr, bool Tearing, float Limit);
+    string? DlssPreset, bool Hdr, bool Tearing, float Limit, double? AntialiasMilliseconds = null);
 
 internal readonly record struct RenderDebugSnapshot(long Frames, long Submissions, long Dropped, double Seconds,
-    double CpuMilliseconds, double PresentMilliseconds, double WaitMilliseconds, RenderDebugFrame Last);
+    double CpuMilliseconds, double PresentMilliseconds, double WaitMilliseconds, RenderDebugFrame Last,
+    double? AntialiasMilliseconds);
 
 /// <summary>Render threads only write values; UI owns sampling and text. Disabled means no sampling work.</summary>
 internal sealed class RenderDebugStatistics
@@ -17,6 +18,8 @@ internal sealed class RenderDebugStatistics
     private bool _enabled;
     private long _started, _frames, _submissions, _dropped;
     private double _cpu, _present, _wait;
+    private double _antialias;
+    private long _antialiasSamples;
     private RenderDebugFrame _last;
     internal bool Enabled => Volatile.Read(ref _enabled);
 
@@ -45,6 +48,16 @@ internal sealed class RenderDebugStatistics
             _cpu += frame.CpuMilliseconds;
             _present += frame.PresentMilliseconds;
             _wait += frame.WaitMilliseconds;
+            if (_last.Mode != frame.Mode || _last.Size != frame.Size || _last.DlssPreset != frame.DlssPreset || _last.Gpu != frame.Gpu)
+            {
+                _antialias = 0;
+                _antialiasSamples = 0;
+            }
+            if (frame.AntialiasMilliseconds is double milliseconds)
+            {
+                _antialias += milliseconds;
+                _antialiasSamples++;
+            }
             _last = frame;
         }
     }
@@ -55,7 +68,8 @@ internal sealed class RenderDebugStatistics
         {
             long count = System.Math.Max(1, _frames);
             var snapshot = new RenderDebugSnapshot(_frames, _submissions, _dropped,
-                Stopwatch.GetElapsedTime(_started).TotalSeconds, _cpu / count, _present / count, _wait / count, _last);
+                Stopwatch.GetElapsedTime(_started).TotalSeconds, _cpu / count, _present / count, _wait / count, _last,
+                _antialiasSamples == 0 ? null : _antialias / _antialiasSamples);
             Reset();
             return snapshot;
         }
@@ -66,5 +80,7 @@ internal sealed class RenderDebugStatistics
         _started = Stopwatch.GetTimestamp();
         _frames = _submissions = _dropped = 0;
         _cpu = _present = _wait = 0;
+        _antialias = 0;
+        _antialiasSamples = 0;
     }
 }

@@ -13,6 +13,7 @@ if (args.Contains("--pipeline-checks")) return PipelineChecks.Run();
 if (args.Contains("--pipeline-benchmark")) return PipelineChecks.Benchmark();
 if (args.Contains("--startup-resize")) return StartupResizeChecks.Run();
 if (args.Contains("--presentation")) return PresentationChecks.Run();
+if (args.Contains("--debug-timing")) return DebugTimingChecks.Run(args.Contains("--debug"));
 if (args.Contains("--dlss-resolutions")) return ReconstructionResolutionChecks.Run();
 if (args.Contains("--xess-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.XeSS);
 if (args.Contains("--fsr-resolutions")) return ReconstructionResolutionChecks.Run(WinExSpectrumTest.Rendering.ReconstructionMode.Fsr);

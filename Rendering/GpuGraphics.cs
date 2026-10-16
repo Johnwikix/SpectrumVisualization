@@ -62,7 +62,19 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public int Height { get; private set; }
     internal int RenderScalePercent => _options.RenderScalePercent;
     internal GpuRenderSize RenderSize => _size;
-    internal bool CaptureTimings { get; set; }
+    private bool _captureTimings;
+    internal bool CaptureTimings
+    {
+        get => _captureTimings;
+        set
+        {
+            if (_captureTimings == value) return;
+            _captureTimings = value;
+            _aaAcceptPending = false;
+            LastAntialiasMilliseconds = null;
+            if (value) _aaNextSampleAt = 0;
+        }
+    }
     internal bool LastFrameRendered { get; private set; }
     internal double LastPresentMilliseconds { get; private set; }
     internal double LastGpuWaitMilliseconds { get; private set; }
@@ -208,6 +220,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     private void CreateSceneResources(GpuSceneOptions options, GpuRenderSize size)
     {
+        _aaAcceptPending = false;
         _frameIndex = 0;
         _nextFrameIndex = 0;
         _reconstructionDirty = false;
@@ -361,6 +374,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         LastFrameRendered = false;
         LastPresentMilliseconds = 0;
         LastGpuWaitMilliseconds = 0;
+        BeginAntialiasTimingFrame();
         if (PipelineEnabled) return RenderPipelined(elapsed, white, peak);
         TemporalFrame frame = _temporal?.BeginFrame(elapsed) ?? default;
         if (_effect is ITemporalGpuEffect temporalEffect) temporalEffect.SetTemporalFrame(frame);
@@ -377,6 +391,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     {
         Transition(_scene!, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
         Transition(_reconstructed!, ResourceStates.PixelShaderResource, ResourceStates.UnorderedAccess);
+        BeginAntialiasTiming();
         try { _temporal!.Record(_commands, _scene!, (ITemporalGpuEffect)_effect, _reconstructed!, frame, elapsed); }
         catch (Exception ex)
         {
@@ -393,6 +408,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             CreateSceneResources(_options);
             return false;
         }
+        EndAntialiasTiming();
         Transition(_reconstructed!, ResourceStates.UnorderedAccess, ResourceStates.RenderTarget);
         ((ITemporalGpuEffect)_effect).RecordOverlay(_commands, Rtv(4));
         Transition(_reconstructed!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
@@ -407,6 +423,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         RecordComposition(white, peak);
         Submit();
         ulong rendered = SignalGpu();
+        CommitAntialiasTiming(rendered);
         bool presented = PresentFrame();
         long started = CaptureTimings ? Stopwatch.GetTimestamp() : 0;
         WaitForGpu(rendered);
@@ -416,6 +433,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     private void RecordComposition(float white, float peak)
     {
+        if (_antialias != null) BeginAntialiasTiming();
         _commands.SetDescriptorHeaps(_srvs);
         _commands.SetGraphicsRootSignature(_pipelines.Root);
         _commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
@@ -434,6 +452,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             if (_smaa != null)
             {
                 _smaa.Record(_commands, _hdr ? MathF.Sqrt(white / peak) : 1);
+                EndAntialiasTiming();
                 _commands.SetDescriptorHeaps(_srvs);
                 _commands.SetGraphicsRootSignature(_pipelines.Root);
                 _commands.SetGraphicsRoot32BitConstants(1, 6, constants, 0);
@@ -445,7 +464,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.OMSetRenderTargets(Rtv(buffer), null);
         _commands.SetPipelineState(_smaa != null ? _pipelines.PreparedOutput : _antialias != null ? _pipelines.AntialiasOutput : _pipelines.Output);
         _commands.DrawInstanced(3, 1, 0, 0);
+        // FXAA is fused with color encoding in AntialiasOutput; report that whole pass.
+        if (_activeMode == ReconstructionMode.Fxaa) EndAntialiasTiming();
         Transition(_backBuffers[buffer]!, ResourceStates.RenderTarget, ResourceStates.Common);
+        ResolveAntialiasTiming();
     }
 
     private bool PresentFrame()
@@ -565,6 +587,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         }
         catch (Exception ex) { App.WriteCrashLog("GPU drain", ex.Message, ex); }
         ReleaseSizeResources();
+        DisposeAntialiasTiming();
         DisposeResource(_effect);
         DisposeResource(_pipelines);
         DisposePipeline();
@@ -601,6 +624,18 @@ internal readonly record struct DisplayOutput(bool HdrEnabled, float PeakNits);
 internal readonly record struct GpuSceneOptions(int RenderScalePercent, ReconstructionMode Mode, int Detail, string DlssPreset = "k")
 {
     internal GpuSceneOptions(int scale, bool antialias, int detail) : this(scale, antialias ? ReconstructionMode.Fxaa : ReconstructionMode.Off, detail) { }
+
+    internal static GpuSceneOptions FromSettings(int detail)
+    {
+        var quality = Model.AppSettings.GpuQuality;
+        var mode = quality.AntiAliasing switch
+        {
+            "fxaa" => ReconstructionMode.Fxaa, "smaa" => ReconstructionMode.Smaa,
+            "xess" => ReconstructionMode.XeSS, "fsr" => ReconstructionMode.Fsr,
+            "dlss" => ReconstructionMode.Dlss, _ => ReconstructionMode.Off
+        };
+        return new(quality.RenderScalePercent, mode, detail, quality.DlssPreset);
+    }
 }
 
 /// <summary>Immutable render-thread status, marshalled to the UI only when it changes.</summary>

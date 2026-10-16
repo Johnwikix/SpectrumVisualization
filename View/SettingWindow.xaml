@@ -104,6 +104,38 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <TextBlock x:Uid="GpuSettingsScope" Margin="10,16,10,8" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <controls:SettingsCard x:Uid="GpuAntiAliasing" Margin="10,0,10,0">
+                            <ComboBox x:Uid="GpuAntiAliasingCombo" AutomationProperties.AutomationId="GpuAntiAliasing" MinWidth="160"
+                                SelectedIndex="{x:Bind ViewModel.GpuAntiAliasingIndex, Mode=TwoWay}">
+                                <ComboBoxItem x:Uid="GpuAntiAliasingOff" Tag="off" />
+                                <ComboBoxItem Content="FXAA" Tag="fxaa" />
+                                <ComboBoxItem Content="SMAA 1x" Tag="smaa" />
+                                <ComboBoxItem Content="XeSS" Tag="xess" IsEnabled="{x:Bind ViewModel.GpuXeSSAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="FSR 3.1" Tag="fsr" IsEnabled="{x:Bind ViewModel.GpuFsrAvailable, Mode=OneWay}" />
+                                <ComboBoxItem Content="DLSS" Tag="dlss" IsEnabled="{x:Bind ViewModel.GpuDlssAvailable, Mode=OneWay}" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="GpuDlssPreset" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.GpuDlssSelected, Mode=OneWay}">
+                            <ComboBox x:Uid="GpuDlssPresetCombo" AutomationProperties.AutomationId="GpuDlssPreset" MinWidth="160"
+                                SelectedIndex="{x:Bind ViewModel.GpuDlssPresetIndex, Mode=TwoWay}">
+                                <ComboBoxItem Content="J" />
+                                <ComboBoxItem Content="K" />
+                                <ComboBoxItem Content="L" />
+                                <ComboBoxItem Content="M" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="GpuRenderScale" Margin="10,0,10,0">
+                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <Slider x:Uid="GpuRenderScaleSlider" AutomationProperties.AutomationId="GpuRenderScale"
+                                    Width="220" Minimum="1" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
+                                    Value="{x:Bind ViewModel.GpuRenderScale, Mode=TwoWay}" />
+                                <TextBlock Width="48" VerticalAlignment="Center" Text="{x:Bind ViewModel.GpuRenderScaleLabel, Mode=OneWay}" />
+                            </StackPanel>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="GpuReconstructionStatus" Margin="10,0,10,0">
+                            <TextBlock Text="{x:Bind ViewModel.GpuReconstructionStatus, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="380" />
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
                             <ComboBox x:Uid="RefreshRateCombo" AutomationProperties.AutomationId="RefreshRate"
                                 MinWidth="160" ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
@@ -337,7 +369,7 @@
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicAudioIntensity" Margin="10,0,10,0">
                             <Slider
-                                Maximum="250"
+                                Maximum="400"
                                 Minimum="30"
                                 Value="{x:Bind ViewModel.SonicAudioIntensity, Mode=TwoWay}" />
                         </controls:SettingsCard>
@@ -346,34 +378,6 @@
                                 Maximum="200"
                                 Minimum="30"
                                 Value="{x:Bind ViewModel.SonicResponseRange, Mode=TwoWay}" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicAntiAliasing" Margin="10,0,10,0" Description="{x:Bind ViewModel.SonicReconstructionStatus, Mode=OneWay}">
-                            <ComboBox x:Uid="SonicAntiAliasingCombo" AutomationProperties.AutomationId="SonicAntiAliasing" MinWidth="160"
-                                SelectedValue="{x:Bind ViewModel.SonicAntiAliasing, Mode=TwoWay}" SelectedValuePath="Tag">
-                                <ComboBoxItem x:Uid="SonicAntiAliasingOff" Tag="off" />
-                                <ComboBoxItem Content="FXAA" Tag="fxaa" />
-                                <ComboBoxItem Content="SMAA 1x" Tag="smaa" />
-                                <ComboBoxItem Content="XeSS" Tag="xess" IsEnabled="{x:Bind ViewModel.SonicXeSSAvailable, Mode=OneWay}" />
-                                <ComboBoxItem Content="FSR 3.1" Tag="fsr" IsEnabled="{x:Bind ViewModel.SonicFsrAvailable, Mode=OneWay}" />
-                                <ComboBoxItem Content="DLSS" Tag="dlss" IsEnabled="{x:Bind ViewModel.SonicDlssAvailable, Mode=OneWay}" />
-                            </ComboBox>
-                        </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicDlssPreset" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.SonicDlssSelected, Mode=OneWay}">
-                            <ComboBox x:Uid="SonicDlssPresetCombo" AutomationProperties.AutomationId="SonicDlssPreset" MinWidth="160"
-                                SelectedIndex="{x:Bind ViewModel.SonicDlssPresetIndex, Mode=TwoWay}">
-                                <ComboBoxItem Content="J" />
-                                <ComboBoxItem Content="K" />
-                                <ComboBoxItem Content="L" />
-                                <ComboBoxItem Content="M" />
-                            </ComboBox>
-                        </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="SonicRenderScale" Margin="10,0,10,0">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Slider x:Uid="SonicRenderScaleSlider" AutomationProperties.AutomationId="SonicRenderScale"
-                                    Width="220" Minimum="1" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
-                                    Value="{x:Bind ViewModel.SonicRenderScale, Mode=TwoWay}" />
-                                <TextBlock Width="48" VerticalAlignment="Center" Text="{x:Bind ViewModel.SonicRenderScaleLabel, Mode=OneWay}" />
-                            </StackPanel>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
                             <ComboBox

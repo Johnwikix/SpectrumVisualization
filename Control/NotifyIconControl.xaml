@@ -25,7 +25,8 @@
                         x:Name="WallpaperMode"
                         x:Uid="WallpaperMode"
                         AutomationProperties.AutomationId="WallpaperMode"
-                        Command="{x:Bind ToggleWallpaperModeCommand}">
+                        IsChecked="{x:Bind ViewModel.WallpaperEnabled, Mode=OneWay}"
+                        Command="{x:Bind ViewModel.ToggleWallpaperModeCommand}">
                         <ToggleMenuFlyoutItem.Icon>
                             <SymbolIcon Symbol="Pictures" />
                         </ToggleMenuFlyoutItem.Icon>

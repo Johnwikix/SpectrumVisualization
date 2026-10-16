@@ -2,6 +2,15 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-17 通用 GPU 画质、抗锯齿计时与壁纸快捷按钮
+
+- `Model/GpuQualitySettings.cs`、`AppSettings.cs`、`Service/DataJsonService.cs`：将渲染比例、抗锯齿与 DLSS 预设独立为通用 GPU 配置；保留原 JSON 字段名与旧版比例迁移，默认值不变。
+- `Effects/EffectDescriptor.cs`、`EffectRegistry`、`Canvas/CanvasPanel.xaml.cs`：GPU 宿主统一读取画质配置；新效果仅注册工厂及可选细节参数，时域算法仍须实现深度 / 运动矢量契约。
+- `View/SettingWindow.xaml`、`ViewModel/SettingViewModel.cs`、两份 `Resources.resw`：画质选项移至通用页，分别补充说明与当前状态；音域回响音频响应强度上限由 250 提高到 400。
+- `Rendering/GpuGraphics.Timing.cs`、`RenderDebugStatistics.cs`、`ViewModel/RenderDebugViewModel.cs`：覆盖层新增每 250 ms 采样的 GPU 抗锯齿 / 重建耗时，只读取已完成 fence，不增加同步等待；FXAA 明示包含输出编码，关闭覆盖层后停止采样。
+- `MainWindow.xaml`、`Control/NotifyIconControl`、`SettingViewModel.cs`：最大化旁新增壁纸按钮，与托盘共用 ViewModel 命令及设置状态；附本地化工具提示和无障碍名称。
+- `doc/verification/HdrProbe`：覆盖通用配置继承、旧配置迁移、计时切换 / 资源生命周期、双队列和失败回退、分配与离屏耗时；实屏 UI、壁纸交互及覆盖层合成开销由用户验收。
+
 ## 2026-09-29 主窗口默认尺寸放大
 
 - `MainWindow.xaml.cs`：启动默认窗口尺寸由 512×512 改为 1024×1024（`AppWindow.Resize` 单位为物理像素，显示缩放非 100% 时视觉尺寸仍按比例缩小）。

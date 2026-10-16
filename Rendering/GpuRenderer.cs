@@ -220,7 +220,8 @@ internal sealed class GpuRenderer
                         _debug.Record(new RenderDebugFrame(true, submitted,
                             Stopwatch.GetElapsedTime(renderStarted).TotalMilliseconds,
                             graphics.LastPresentMilliseconds, graphics.LastGpuWaitMilliseconds, graphics.RenderSize,
-                            graphics.Reconstruction.Active, settings.Scene.DlssPreset, hdr, graphics.AllowsTearing, settings.FramesPerSecond));
+                            graphics.Reconstruction.Active, settings.Scene.DlssPreset, hdr, graphics.AllowsTearing, settings.FramesPerSecond,
+                            graphics.LastAntialiasMilliseconds));
                     if (_warmup.IsReady && _lastReconstruction != graphics.Reconstruction)
                     {
                         _lastReconstruction = graphics.Reconstruction;

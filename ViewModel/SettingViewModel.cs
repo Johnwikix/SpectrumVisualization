@@ -426,61 +426,64 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        /// <summary>Gets or sets the stable anti-aliasing mode.</summary>
-        public string SonicAntiAliasing
+        /// <summary>Uses a typed index so NativeAOT does not reflect over ComboBoxItem.Tag.</summary>
+        public int GpuAntiAliasingIndex
         {
-            get => AppSettings.SonicAntiAliasing;
+            get => AppSettings.GpuAntiAliasing switch { "off" => 0, "smaa" => 2, "xess" => 3, "fsr" => 4, "dlss" => 5, _ => 1 };
             set
             {
-                if (_isInitialized && value is "off" or "fxaa" or "smaa" or "xess" or "fsr" or "dlss") AppSettings.SonicAntiAliasing = value;
+                if (_isInitialized && value is >= 0 and <= 5)
+                    AppSettings.GpuAntiAliasing = value switch { 0 => "off", 2 => "smaa", 3 => "xess", 4 => "fsr", 5 => "dlss", _ => "fxaa" };
             }
         }
 
         /// <summary>Gets or sets the explicitly requested DLSS model.</summary>
-        public int SonicDlssPresetIndex
+        public int GpuDlssPresetIndex
         {
-            get => AppSettings.SonicDlssPreset switch { "j" => 0, "l" => 2, "m" => 3, _ => 1 };
+            get => AppSettings.GpuDlssPreset switch { "j" => 0, "l" => 2, "m" => 3, _ => 1 };
             set
             {
                 if (_isInitialized && value is >= 0 and <= 3)
-                    AppSettings.SonicDlssPreset = value switch { 0 => "j", 2 => "l", 3 => "m", _ => "k" };
+                    AppSettings.GpuDlssPreset = value switch { 0 => "j", 2 => "l", 3 => "m", _ => "k" };
             }
         }
 
-        public bool SonicDlssSelected => AppSettings.SonicAntiAliasing == "dlss";
-        public bool SonicXeSSAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.XeSS);
-        public bool SonicFsrAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Fsr);
-        public bool SonicDlssAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Dlss);
-        public string SonicReconstructionStatus
+        public bool GpuDlssSelected => AppSettings.GpuAntiAliasing == "dlss";
+        public bool GpuXeSSAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.XeSS);
+        public bool GpuFsrAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Fsr);
+        public bool GpuDlssAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Dlss);
+        public string GpuReconstructionStatus
         {
             get
             {
+                if (Effects.EffectRegistry.Resolve(AppSettings.VisualEffect).Host != Effects.EffectHost.Gpu)
+                    return new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString("GpuReconstructionWin2D");
                 var status = Rendering.ReconstructionAvailability.Status;
-                string key = !Rendering.ReconstructionAvailability.Known ? "SonicReconstructionPending" :
-                    status.UnsupportedScale ? "SonicReconstructionScaleUnsupported" :
-                    status.Requested != status.Active ? "SonicReconstructionFallback" : "SonicReconstructionReady";
+                string key = !Rendering.ReconstructionAvailability.Known ? "GpuReconstructionPending" :
+                    status.UnsupportedScale ? "GpuReconstructionScaleUnsupported" :
+                    status.Requested != status.Active ? "GpuReconstructionFallback" : "GpuReconstructionReady";
                 return new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString(key);
             }
         }
 
         private void OnReconstructionChanged()
         {
-            OnPropertyChanged(nameof(SonicXeSSAvailable));
-            OnPropertyChanged(nameof(SonicFsrAvailable));
-            OnPropertyChanged(nameof(SonicDlssAvailable));
-            OnPropertyChanged(nameof(SonicReconstructionStatus));
+            OnPropertyChanged(nameof(GpuXeSSAvailable));
+            OnPropertyChanged(nameof(GpuFsrAvailable));
+            OnPropertyChanged(nameof(GpuDlssAvailable));
+            OnPropertyChanged(nameof(GpuReconstructionStatus));
         }
 
         /// <summary>Gets or sets the internal resolution percentage selected in the settings view.</summary>
-        public double SonicRenderScale
+        public double GpuRenderScale
         {
-            get => AppSettings.SonicRenderScalePercent;
+            get => AppSettings.GpuRenderScalePercent;
             set
             {
-                if (_isInitialized && double.IsFinite(value)) AppSettings.SonicRenderScalePercent = (int)Math.Clamp(Math.Round(value), 1, 100);
+                if (_isInitialized && double.IsFinite(value)) AppSettings.GpuRenderScalePercent = (int)Math.Clamp(Math.Round(value), 1, 100);
             }
         }
-        public string SonicRenderScaleLabel => $"{AppSettings.SonicRenderScalePercent}%";
+        public string GpuRenderScaleLabel => $"{AppSettings.GpuRenderScalePercent}%";
 
         /// <summary>Gets or sets the number of terrain cells per axis.</summary>
         public string SonicGridSize
@@ -659,26 +662,38 @@ namespace WinExSpectrumTest.ViewModel
                 _hdrSaveTimer.Start();
                 return;
             }
-            if (name == nameof(AppSettings.SonicQuality))
+            if (name == nameof(AppSettings.GpuQuality))
             {
-                NotifySonicQuality();
+                NotifyGpuQuality();
                 _hdrSaveTimer.Stop();
                 _hdrSaveTimer.Start();
+                return;
+            }
+            if (name == nameof(AppSettings.SonicGridSize))
+            {
+                OnPropertyChanged(nameof(SonicGridSize));
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
+                return;
+            }
+            if (name == nameof(AppSettings.WallpaperEnabled))
+            {
+                OnPropertyChanged(nameof(WallpaperEnabled));
                 return;
             }
             ReloadSettings();
         }
 
-        private void NotifySonicQuality()
+        private void NotifyGpuQuality()
         {
             bool initialized = _isInitialized;
             _isInitialized = false;
-            OnPropertyChanged(nameof(SonicAntiAliasing));
-            OnPropertyChanged(nameof(SonicRenderScale));
-            OnPropertyChanged(nameof(SonicRenderScaleLabel));
-            OnPropertyChanged(nameof(SonicGridSize));
-            OnPropertyChanged(nameof(SonicDlssPresetIndex));
-            OnPropertyChanged(nameof(SonicDlssSelected));
+            OnPropertyChanged(nameof(GpuAntiAliasingIndex));
+            OnPropertyChanged(nameof(GpuRenderScale));
+            OnPropertyChanged(nameof(GpuRenderScaleLabel));
+            OnPropertyChanged(nameof(GpuDlssPresetIndex));
+            OnPropertyChanged(nameof(GpuDlssSelected));
+            OnPropertyChanged(nameof(GpuReconstructionStatus));
             _isInitialized = initialized;
         }
 
@@ -719,7 +734,9 @@ namespace WinExSpectrumTest.ViewModel
             SonicTheme = AppSettings.SonicTheme;
             SonicAudioIntensity = AppSettings.SonicAudioIntensity * 100f;
             SonicResponseRange = AppSettings.SonicResponseRange * 100f;
-            NotifySonicQuality();
+            NotifyGpuQuality();
+            OnPropertyChanged(nameof(SonicGridSize));
+            OnPropertyChanged(nameof(WallpaperEnabled));
             SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled;
             SonicRippleEnabled = AppSettings.SonicRippleEnabled;
             SonicMeteorEnabled = AppSettings.SonicMeteorEnabled;
@@ -769,6 +786,20 @@ namespace WinExSpectrumTest.ViewModel
 
         [RelayCommand]
         private void ShowSettings() => WinExSpectrumTest.Helper.WindowHelper.OpenWindow<WinExSpectrumTest.View.SettingWindow>();
+
+        public bool WallpaperEnabled => AppSettings.WallpaperEnabled;
+
+        [RelayCommand]
+        private void ToggleWallpaperMode()
+        {
+            try { App.MainWindow?.SetWallpaperMode(!AppSettings.WallpaperEnabled); }
+            finally
+            {
+                // The flyout toggles its check before executing. Republish confirmed state
+                // even if attachment failed before AppSettings could raise a change.
+                OnPropertyChanged(nameof(WallpaperEnabled));
+            }
+        }
 
         [RelayCommand]
         private void NextEffect() => App.MainWindow?.SwitchEffect(1);

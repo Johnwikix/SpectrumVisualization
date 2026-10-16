@@ -115,6 +115,11 @@
                         FontSize="14"
                         Glyph="&#xE71A;" />
                 </Button>
+                <Button x:Uid="WallpaperButton" AutomationProperties.AutomationId="ToggleWallpaperMode"
+                    Background="Transparent" BorderThickness="0"
+                    Command="{x:Bind ViewModel.ToggleWallpaperModeCommand}">
+                    <FontIcon FontSize="14" Glyph="&#xE91B;" />
+                </Button>
                 <Button
                     Background="Transparent"
                     BorderThickness="0"

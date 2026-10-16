@@ -2,7 +2,7 @@
 
 日期：2026-09-28。状态：已按用户授权实现公共 GPU 宿主、地形光栅化、画质档位与 FXAA；用户要求停止后续验证，实屏 1440p / 120 FPS 由用户验收。
 
-实现对应关系：`SonicSceneRenderer` 最终命名为 `SonicGpuEffect`；公共类型位于 `Rendering/Gpu*`，档位定义位于 `Model/SonicQualitySettings.cs`。下文“已核对事实”记录的是改动前基线，不代表现行代码。已取得的验证证据、保留边界和接入说明见 [实现记录](../verification/gpu-quality-aa.md)。
+实现对应关系：`SonicSceneRenderer` 最终命名为 `SonicGpuEffect`；公共类型位于 `Rendering/Gpu*`，通用画质配置现位于 `Model/GpuQualitySettings.cs`，效果细节由各效果独立提供。下文“已核对事实”记录的是改动前基线，不代表现行代码。已取得的验证证据、保留边界和接入说明见 [实现记录](../verification/gpu-quality-aa.md)。
 
 ## 1. 目标与范围
 

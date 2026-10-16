@@ -56,17 +56,7 @@ namespace WinExSpectrumTest.Effects
         [
             new(AuroraRingEffect.EffectId, "AuroraEffectName", EffectHost.Win2D, false, null, null),
             new(SonicTopographyEffect.EffectId, "SonicEffectName", EffectHost.Gpu, true,
-                static () => new SonicGpuEffect(), static () =>
-                {
-                    var quality = AppSettings.SonicQuality;
-                    var mode = quality.AntiAliasing switch
-                    {
-                        "fxaa" => ReconstructionMode.Fxaa, "smaa" => ReconstructionMode.Smaa,
-                        "xess" => ReconstructionMode.XeSS, "fsr" => ReconstructionMode.Fsr,
-                        "dlss" => ReconstructionMode.Dlss, _ => ReconstructionMode.Off
-                    };
-                    return new GpuSceneOptions(quality.RenderScalePercent, mode, quality.GridSize, quality.DlssPreset);
-                })
+                static () => new SonicGpuEffect(), static () => AppSettings.SonicGridSize)
         ];
 
         internal static EffectDescriptor Resolve(string? id)

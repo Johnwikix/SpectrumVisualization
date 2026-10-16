@@ -1,8 +1,55 @@
 # GPU 效果、画质与 FXAA 实现记录
 
-2026-09-28。用户已授权实现，并在验证过程中明确要求停止后续验证、由用户自行验收。本文只记录停止前实际取得的证据，不将未完成项目标为通过。
+按时间记录 GPU 宿主、画质设置与验证证据。2026-09-28 的初始记录保留在下方历史部分。
 
-## 当前行为
+## 2026-10-17 通用 GPU 配置与覆盖层计时
+
+- 运行时配置为 `AppSettings.GpuQuality` / `GpuQualitySettings`；音域回响的 `SonicGridSize` 保留为效果私有细节。`SaveSetting.SonicRenderScalePercent` / `SonicAntiAliasing` / `SonicDlssPreset` 的旧 JSON 名称保持不变，仍执行 `SonicResolutionVersion` 的旧比例迁移。
+- `EffectDescriptor` 仅允许效果提供可选 `GetDetail`。`CanvasPanel` 统一通过 `GetSceneOptions()` 取得通用配置，新增 GPU 效果无需再手动接 AA / DLSS / 渲染比例。深度与运动矢量仍属于 `ITemporalGpuEffect` 契约；没有时域输入时回退到 FXAA。
+- 抗锯齿、DLSS 模型、渲染比例与独立状态卡移入通用设置，三项各有说明；GPU 画质不作用于 Win2D 效果。音频响应强度滑块上限由 250 提高到 400。主窗口最大化旁新增壁纸按钮，与托盘绑定同一个 ViewModel 命令和运行时状态。
+- 覆盖层继续每 500 ms 在 UI 线程格式化文本；渲染线程只记录值。新增 GPU 时间戳每 250 ms 至多采样一次，复用一对 query 和常驻映射的 16 字节 readback；只在 post 队列 fence 已完成后读取，不为诊断新增 GPU / CPU 等待。关闭后停止计时、数值记录与 UI 定时器，已分配的查询资源在渲染器排空后释放。
+- SMAA 计时包含输出尺寸准备和 SMAA passes；XeSS / FSR / DLSS 仅覆盖重建，不含后叠加粒子。FXAA 已融合输出编码，显示为“抗锯齿＋输出 GPU”，不改变渲染链路来拆分它。实现依据 [D3D12 timestamp 文档](https://learn.microsoft.com/en-us/windows/win32/direct3d12/timing)。
+
+验证：主工程 Debug 构建、主工程 Release NativeAOT/Trimmed 发布及探针 NativeAOT/Trimmed 发布通过。保留既有 nullable、旧 API、IL3000、SharpGen IL2104、缺失发布配置及 Satori 实验性提示。初次发布遇到旧还原缓存的 10.0.12 / 10.0.13 不一致，使用本机缓存重新还原后验证；没有修改项目依赖版本。
+
+离屏探针使用 `SpectrumAnalyzer(captureAudio: false)` 与合成频谱，交换链未绑定窗口。D3D12 调试层下，全部五种 AA / 重建算法取得有效时间戳；关闭 AA 无样本。另一个最小 GPU 效果正确继承通用比例与 SMAA，并在缺少时域输入时回退。计时开关、尺寸 / 算法切换、样本只消费一次、稀疏样本均值、双队列重叠与注入 SDK 失败后的排空 / 回退均通过。探针的预期 `Temporal reconstruction dispatch failed (-1)` 日志来自主动注入的失败场景。
+
+两种离屏呈现标志路径（允许 tearing / 兼容模式）的 resize、排空、回读及 0 B 热循环检查也通过。中英文资源静态检查覆盖键集合一致性、独立字符串键、覆盖层 16 个格式参数以及附加属性的完整命名空间语法（[WinUI 本地化说明](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/apps/windows-app-sdk/mrtcore/localize-strings.md)）。
+
+命令（工作目录 `doc/verification`，使用其中的稳定 SDK 配置；NativeAOT 发布仅生成文件）：
+
+```powershell
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1'
+$env:NUGET_SCRATCH=(Join-Path (Resolve-Path ../..) 'obj/nuget-scratch')
+dotnet publish HdrProbe/HdrProbe.csproj -c Release -r win-x64 --no-restore -p:PublishAot=true -p:PublishTrimmed=true -p:SkipReconstructionNativeBuild=true -o HdrProbe/bin/gpu-common-aot
+./HdrProbe/bin/gpu-common-aot/HdrProbe.exe --quality-controls
+./HdrProbe/bin/gpu-common-aot/HdrProbe.exe --debug-timing --debug
+./HdrProbe/bin/gpu-common-aot/HdrProbe.exe --debug-timing
+./HdrProbe/bin/gpu-common-aot/HdrProbe.exe --presentation
+```
+
+实机待验收：中英文设置页布局 / 状态 / 保存重开、响应强度 400、标题栏壁纸按钮与托盘恢复及窗口尺寸 / DPI 下命中区域。未启动主应用、操作桌面、采集真实音频或切换显示器模式。以下离屏耗时不能当作屏幕 FPS，也不能证明 XAML 覆盖层合成完全没有开销。
+
+### 离屏性能证据（2026-10-17）
+
+RTX 5070 Ti，.NET 10 NativeAOT，960×540 输出、67% 输入、网格 80、合成频谱、SDR。关闭 D3D12 调试层；每组预热 240 帧、记录 6000 帧，按关 / 开 / 开 / 关顺序运行，两端排空 GPU。下表为同状态两组的平均 `Render` 墙钟耗时（含末尾排空摊销），没有启动主应用或呈现到屏幕。
+
+| 算法 | 统计关闭 ms / 帧 | 统计开启 ms / 帧 | 开启组实际 GPU 样本数 |
+| --- | ---: | ---: | --- |
+| Off | 0.21903 | 0.21736 | 0 / 0 |
+| Fxaa | 0.22103 | 0.22276 | 5 / 6 |
+| Smaa | 0.23730 | 0.23819 | 6 / 5 |
+| Fsr | 0.33783 | 0.33694 | 8 / 8 |
+| XeSS | 0.44173 | 0.44007 | 10 / 11 |
+| Dlss | 0.47486 | 0.46760 | 11 / 11 |
+
+24 组渲染热循环均测得 0 B 当前线程托管分配；单独数值记录约 18.44 ns / 次。当前场景未见一致的离屏耗时回归，不能据此宣称零开销：功耗 / 频率及系统调度未固定，且未包含 UI 线程格式化、XAML 布局 / 合成和屏幕呈现。覆盖层文本保持 500 ms 一次；GPU timestamp 本身也有成本，250 ms 低频采样只将它限制在少量帧中。逻辑长度为 16 字节的 readback 实际 GPU 内存分配由 D3D12 对齐规则决定。
+
+原始日志：`gpu-common-timing-benchmark.log`、`gpu-common-aot-debug.log`、`gpu-common-quality.log`、`gpu-common-build.log`、`gpu-common-publish.log`（本地产物，不入库）。
+
+## 历史行为（2026-09-28）
+
+当次用户在验证过程中要求停止后续验证、由用户自行验收；本节只记录当时停止前实际取得的证据。
 
 | 档位 | 内部渲染比例 | 地形网格 | 抗锯齿 |
 | --- | --- | --- | --- |
@@ -21,7 +68,7 @@
 
 1. 实现 `IGpuVisualizerEffect`：在渲染线程初始化和调整尺寸，`PrepareFrame` 完成私有 compute 工作，`RecordScene` 向宿主提供的 FP16 RTV 记录绘制。
 2. 场景输出必须是不透明的线性 Rec.709，参考白为 1，允许高光超过 1。效果负责自身 PSO、descriptor heap、深度和私有资源屏障，不负责交换链或输出编码。
-3. 在 `EffectRegistry` 增加稳定 ID、本地化键、`EffectHost.Gpu`、静态创建工厂、`GetSceneOptions` 和是否使用媒体覆盖层。增加效果不需要在 `CanvasPanel`、`GpuRenderer` 或 `GpuGraphics` 增加按 ID 判断的分支。
+3. 在 `EffectRegistry` 增加稳定 ID、本地化键、`EffectHost.Gpu`、静态创建工厂、可选的 `GetDetail`（仅效果细节参数）和是否使用媒体覆盖层；通用渲染比例、抗锯齿和 DLSS 预设由宿主统一读取 `AppSettings.GpuQuality`。增加效果不需要在 `CanvasPanel`、`GpuRenderer` 或 `GpuGraphics` 增加按 ID 判断的分支。
 4. 添加两个语言资源中的显示名称及效果自己的设置项。不要改变已发布的两个效果 ID。
 
 公共宿主负责设备、直接队列、交换链、FP16 目标、缩放、FXAA、SDR/HDR10 输出和帧节奏；`SonicGpuEffect` 独占地形/粒子绘制资源。`IVisualizerEffect` 仍属于 Win2D。此抽取不是运行时 shader 插件系统或通用后处理图，新后处理算法仍需在公共输出阶段明确接入。

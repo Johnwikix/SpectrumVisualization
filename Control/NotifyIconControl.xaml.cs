@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using Vanara.PInvoke;
@@ -16,6 +17,8 @@ namespace WinExSpectrumTest.Control
 {
     public sealed partial class NotifyIconControl : UserControl
     {
+        public ViewModel.SettingViewModel ViewModel { get; } = App.Services.GetRequiredService<ViewModel.SettingViewModel>();
+        private bool _disposed;
         public NotifyIconControl()
         {
             InitializeComponent();
@@ -49,30 +52,28 @@ namespace WinExSpectrumTest.Control
 
         private void OnSettingsChanged(string propertyName)
         {
-            if (propertyName is nameof(AppSettings.WallpaperEnabled) or nameof(AppSettings.IsLocked))
-                UpdateTrayState();
+            if (_disposed || propertyName is not (nameof(AppSettings.WallpaperEnabled) or nameof(AppSettings.IsLocked))) return;
+            if (!DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(() => OnSettingsChanged(propertyName));
+                return;
+            }
+            UpdateTrayState();
         }
 
         private void UpdateTrayState()
         {
-            WallpaperMode.IsChecked = AppSettings.WallpaperEnabled;
             Unlock.IsEnabled = AppSettings.IsLocked && !AppSettings.WallpaperEnabled;
         }
 
         internal void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             AppSettings.Changed -= OnSettingsChanged;
             NotifyIcon.Dispose();
         }
 
-        [RelayCommand]
-        private void ToggleWallpaperMode()
-        {
-            // SecondWindow owns a separate flyout; use the actual window state,
-            // not a flyout Opening event or the transient menu check mark.
-            App.MainWindow?.SetWallpaperMode(!AppSettings.WallpaperEnabled);
-            WallpaperMode.IsChecked = AppSettings.WallpaperEnabled;
-        }
         [RelayCommand]
         public void Setting()
         {

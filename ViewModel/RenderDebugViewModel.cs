@@ -55,12 +55,14 @@ public sealed class RenderDebugViewModel : ObservableObject, IDisposable
             return;
         }
         string aa = frame.Mode == ReconstructionMode.Dlss ? $"DLSS {frame.DlssPreset?.ToUpperInvariant()}" : frame.Mode.ToString();
+        string timing = sample.AntialiasMilliseconds is double milliseconds ? $"{milliseconds:F3} ms" : "—";
+        string timingLabel = _resources.GetString(frame.Mode == ReconstructionMode.Fxaa ? "RenderDebugAaOutput" : "RenderDebugAa");
         Text = string.Format(CultureInfo.CurrentCulture, _resources.GetString("RenderDebugGpu"),
             sample.Frames / seconds, sample.Submissions / seconds, sample.Dropped,
             sample.CpuMilliseconds, sample.PresentMilliseconds, sample.WaitMilliseconds,
             frame.Size.Width, frame.Size.Height, frame.Size.OutputWidth, frame.Size.OutputHeight,
             frame.Hdr ? "HDR10" : "SDR", aa, limit,
-            _resources.GetString(frame.Tearing ? "RenderDebugTearing" : "RenderDebugComposed"));
+            _resources.GetString(frame.Tearing ? "RenderDebugTearing" : "RenderDebugComposed"), timingLabel, timing);
     }
 
     public void Dispose()

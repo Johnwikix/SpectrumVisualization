@@ -177,7 +177,7 @@ public sealed partial class CanvasPanel : UserControl
         _gpu.Configure(_analyzer, hwnd, new GpuRenderSettings(width, height,
             effect.Host == EffectHost.Gpu && CanRender,
             AppSettings.HdrEnabled, AppSettings.HdrWhiteNits, AppSettings.HdrPeakNits, AppSettings.RefreshRate,
-            effect, effect.GetSceneOptions?.Invoke() ?? default), dpi);
+            effect, effect.GetSceneOptions()), dpi);
     }
 
     private void ApplyActivity()
@@ -223,7 +223,7 @@ public sealed partial class CanvasPanel : UserControl
         if (name == nameof(AppSettings.ShowDebugOverlay)) { UpdateDebugOverlay(); return; }
         if (name == nameof(AppSettings.RefreshRate)) { ChangeRefreshRate(); return; }
         if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)
-            or nameof(AppSettings.SonicQuality)) ConfigureGpu();
+            or nameof(AppSettings.GpuQuality) or nameof(AppSettings.SonicGridSize)) ConfigureGpu();
     }
     private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ConfigureGpu();
     private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ApplyActivity();

@@ -117,6 +117,7 @@ internal sealed unsafe partial class GpuGraphics
         _queue.ExecuteCommandLists(_submission);
         // Signal before Present so slot retirement does not inherit compositor pacing.
         slot.RetireFenceValue = SignalGpu();
+        CommitAntialiasTiming(slot.RetireFenceValue);
         _nextFrameIndex = (_frameIndex + 1) % PipelineDepth;
         return PresentFrame();
     }
