@@ -25,6 +25,13 @@ namespace WinExSpectrumTest.Service
         /// <summary>把 SaveSetting 快照写入运行时 AppSettings；每项赋值都会发布 Changed 通知。</summary>
         private static void ApplySettings(SaveSetting settings)
         {
+            AppSettings.FoliaLyricMode = settings.FoliaLyricMode;
+            AppSettings.FoliaCoverBackground = settings.FoliaCoverBackground;
+            AppSettings.FoliaBackground = settings.FoliaBackground;
+            AppSettings.FoliaImageEffect = settings.FoliaImageEffect;
+            AppSettings.FoliaFontScale = settings.FoliaFontScale;
+            AppSettings.FoliaFontFamily = settings.FoliaFontFamily;
+            AppSettings.FoliaFontWeight = settings.FoliaFontWeight;
             AppSettings.HdrPeakNits = settings.HdrPeakNits;
             AppSettings.HdrWhiteNits = settings.HdrWhiteNits;
             AppSettings.HdrEnabled = settings.HdrEnabled;
@@ -74,6 +81,13 @@ namespace WinExSpectrumTest.Service
         {
             return new SaveSetting
             {
+                FoliaLyricMode = AppSettings.FoliaLyricMode,
+                FoliaCoverBackground = AppSettings.FoliaCoverBackground,
+                FoliaBackground = AppSettings.FoliaBackground,
+                FoliaImageEffect = AppSettings.FoliaImageEffect,
+                FoliaFontScale = AppSettings.FoliaFontScale,
+                FoliaFontFamily = AppSettings.FoliaFontFamily,
+                FoliaFontWeight = AppSettings.FoliaFontWeight,
                 HdrEnabled = AppSettings.HdrEnabled,
                 HdrWhiteNits = AppSettings.HdrWhiteNits,
                 HdrPeakNits = AppSettings.HdrPeakNits,

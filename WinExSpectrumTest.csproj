@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <Sdk Name="PublishWithSatoriGC" Version="10.0.13-satori.38707290103.1" />
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -15,7 +15,10 @@
 	<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Jint" Version="4.17.0" />
+    <EmbeddedResource Include="External\Folia\native-layout.js" LogicalName="Spectrum.Folia.native-layout.js" />
     <Compile Remove="doc\verification\**\*.cs" />
+    <Compile Remove="External\Lyricify.Lyrics.Helper\**\*.cs" />
     <Page Remove="doc\verification\**\*.xaml" />
     <ApplicationDefinition Remove="doc\verification\**\*.xaml" />
     <None Remove="Assets\HQplayer.png" />
@@ -23,6 +26,14 @@
     <None Remove="Canvas\CanvasPanel.xaml" />
     <None Remove="Style\ConverterDictionary.xaml" />
     <None Remove="View\SettingWindow.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="External\Lyricify.Lyrics.Helper\Lyricify.Lyrics.Helper.csproj" />
+    <EmbeddedResource Include="Effects\Folia\Shaders\*.hlsl" LogicalName="Spectrum.Folia.%(Filename).hlsl" />
+    <EmbeddedResource Include="External\Folia\Cappella\emo\*.png" LogicalName="Spectrum.Folia.Emoji.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="External\Folia\noise.png" LogicalName="Spectrum.Folia.noise.png" />
+    <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Lyricify.Lyrics.Helper\LICENSE"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -138,4 +149,5 @@
     <Copy SourceFiles="@(_UnpackagedXbfWithTargetPath)" DestinationFiles="@(_UnpackagedXbfWithTargetPath->'$(PublishDir)%(TargetPath)')" />
   </Target>
   <Import Project="Rendering\ReconstructionAssets.targets" />
+  <Import Project="Rendering/FoliaTextAssets.targets" />
 </Project>

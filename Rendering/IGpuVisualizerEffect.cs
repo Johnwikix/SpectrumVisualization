@@ -8,6 +8,7 @@ namespace WinExSpectrumTest.Rendering;
 /// <summary>Describes the output and internal scene sizes in physical pixels.</summary>
 internal readonly record struct GpuRenderSize(int OutputWidth, int OutputHeight, int Width, int Height)
 {
+    internal float PixelsPerDip { get; init; } = 1;
     public static GpuRenderSize Create(int width, int height, int scale) => new(width, height,
         Math.Max(1, (int)((long)width * Math.Clamp(scale, 1, 100) / 100)),
         Math.Max(1, (int)((long)height * Math.Clamp(scale, 1, 100) / 100)));

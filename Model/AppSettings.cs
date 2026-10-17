@@ -9,6 +9,21 @@ namespace WinExSpectrumTest.Model
     {
         public static event Action<string>? Changed;
 
+        private static string _foliaLyricMode = "classic";
+        private static bool _foliaCoverBackground;
+        public static bool FoliaCoverBackground { get => _foliaCoverBackground; set => Set(ref _foliaCoverBackground, value); }
+        public static string FoliaLyricMode { get => _foliaLyricMode; set => Set(ref _foliaLyricMode, FoliaSettings.NormalizeLyricMode(value)); }
+        private static string _foliaBackground = "common";
+        public static string FoliaBackground { get => _foliaBackground; set => Set(ref _foliaBackground, FoliaSettings.NormalizeBackground(value)); }
+        private static string _foliaImageEffect = "dithering";
+        public static string FoliaImageEffect { get => _foliaImageEffect; set => Set(ref _foliaImageEffect, FoliaSettings.NormalizeImageEffect(value)); }
+        private static float _foliaFontScale = 1;
+        public static float FoliaFontScale { get => _foliaFontScale; set => Set(ref _foliaFontScale, float.IsFinite(value) ? Math.Clamp(value, .5f, 2) : 1); }
+        private static string _foliaFontFamily = "Microsoft YaHei";
+        public static string FoliaFontFamily { get => _foliaFontFamily; set => Set(ref _foliaFontFamily, string.IsNullOrWhiteSpace(value) ? "Microsoft YaHei" : value.Trim()); }
+        private static int _foliaFontWeight = 300;
+        public static int FoliaFontWeight { get => _foliaFontWeight; set => Set(ref _foliaFontWeight, Math.Clamp(value, 100, 900)); }
+
         private static void Set<T>(ref T storage, T value, [CallerMemberName] string name = "")
         {
             if (EqualityComparer<T>.Default.Equals(storage, value)) return;

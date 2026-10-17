@@ -90,6 +90,7 @@ public sealed partial class CanvasPanel : UserControl
                 SpectrumCanvasControl.Paused = true;
                 _aurora?.SetActive(false);
                 _media?.SetActive(false);
+                App.FoliaPlayback.SetActive(false);
                 // Paused does not mean an in-flight Draw has completed.
                 await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { });
                 if (_gpu != null) await _gpu.PauseAsync();
@@ -177,7 +178,7 @@ public sealed partial class CanvasPanel : UserControl
         _gpu.Configure(_analyzer, hwnd, new GpuRenderSettings(width, height,
             effect.Host == EffectHost.Gpu && CanRender,
             AppSettings.HdrEnabled, AppSettings.HdrWhiteNits, AppSettings.HdrPeakNits, AppSettings.RefreshRate,
-            effect, effect.GetSceneOptions()), dpi);
+            effect, effect.GetSceneOptions((float)dpi)), dpi);
     }
 
     private void ApplyActivity()
@@ -190,6 +191,7 @@ public sealed partial class CanvasPanel : UserControl
         SpectrumCanvasControl.Paused = !aurora;
         ConfigureGpu();
         _media?.SetActive(EffectRegistry.Resolve(_activeId).UsesMedia && CanRender);
+        App.FoliaPlayback.SetActive(_activeId == Effects.Folia.FoliaGpuEffect.EffectId && CanRender);
         UpdateDebugOverlay();
     }
 
@@ -263,6 +265,7 @@ public sealed partial class CanvasPanel : UserControl
     private async Task StopCoreAsync()
     {
         _disposed = true;
+        App.FoliaPlayback.SetActive(false);
         DebugOverlay.Dispose();
         _drawAurora = false;
         SpectrumCanvasControl.Paused = true;

@@ -22,12 +22,13 @@ namespace WinExSpectrumTest
     {
         public static MainWindow MainWindow { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; } = new();
+        internal static FoliaPlaybackService FoliaPlayback { get; } = new(MediaInfoService);
         public static IServiceProvider Services { get; private set; }
         internal static Rendering.GpuShaderWarmup ShaderWarmup { get; } = new();
         private static readonly IHost _host = Host.CreateDefaultBuilder()
              .ConfigureServices((context, services) =>
              {
-                 services.AddSingleton<WinExSpectrumTest.Audio.SpectrumAnalyzer>();
+                 services.AddSingleton(_ => new WinExSpectrumTest.Audio.SpectrumAnalyzer(captureAudio: !FoliaPlaybackService.PreviewEnabled));
                  services.AddSingleton<SettingViewModel>();
              }).Build();
 
@@ -92,6 +93,11 @@ namespace WinExSpectrumTest
             await _host.StartAsync();
             if (_exitTask != null) return;
             await DataJsonService.LoadSettingAsync();
+            if (FoliaPlaybackService.PreviewEnabled)
+            {
+                Model.AppSettings.VisualEffect = "folia";
+                Model.AppSettings.WallpaperEnabled = false;
+            }
             if (_exitTask != null) return;
             _ = ShaderWarmup.Start();
             MainWindow = new MainWindow();
@@ -103,7 +109,7 @@ namespace WinExSpectrumTest
             }
             // SMTC session enumeration can take hundreds of milliseconds; don't let it
             // delay the first frame. Effects receive late media updates through events.
-            _ = MediaInfoService.InitializeAsync();
+            if (!FoliaPlaybackService.PreviewEnabled) _ = MediaInfoService.InitializeAsync();
         }
 
         private static Task? _exitTask;
@@ -125,6 +131,8 @@ namespace WinExSpectrumTest
             catch (Exception ex) { WriteCrashLog("Shader warmup shutdown", ex.Message, ex); }
             try { await MediaInfoService.StopAsync(); }
             catch (Exception ex) { WriteCrashLog("Media shutdown", ex.Message, ex); }
+            try { await FoliaPlayback.StopAsync(); }
+            catch (Exception ex) { WriteCrashLog("Lyrics shutdown", ex.Message, ex); }
             try { MainWindow?.ReleaseWallpaper(); }
             catch (Exception ex) { WriteCrashLog("Wallpaper shutdown", ex.Message, ex); }
             try

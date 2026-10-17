@@ -21,6 +21,8 @@ internal sealed class ReconstructionSizeException : Exception
 /// <summary>Optional effect contract. Particles and other non-temporal overlays are drawn after reconstruction.</summary>
 internal interface ITemporalGpuEffect
 {
+    /// <summary>Requests a new history before jitter is selected for a discontinuous scene change.</summary>
+    bool ResetHistoryRequested => false;
     /// <summary>Creates or disables temporal-only effect resources at a drained frame boundary.</summary>
     void ConfigureTemporal(bool enabled);
     /// <summary>Supplies jitter and discontinuity state before simulation and scene recording.</summary>

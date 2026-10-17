@@ -1,0 +1,6 @@
+msdfgen v1.13, upstream commit 1874bcf7d9624ccc85b4bc9a85d78116f690f35b
+https://github.com/Chlumsky/msdfgen/tree/v1.13
+Copyright Viktor Chlumsky, MIT license in LICENSE.txt.
+Spectrum builds only the dependency-free core, using the original algorithms.
+DirectWrite / Direct2D provides glyph outlines through official Win2D native resource interop.
+No FreeType, SVG, PNG, standalone executable, or upstream binary is required.

@@ -26,6 +26,12 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - 离屏渲染耗时、GPU 时间及理论吞吐不能表述为屏幕呈现 FPS；离屏颜色回读不能替代显示器上的 HDR 观感、抗锯齿运动画质或 UI / DPI 验收。报告中明确区分已完成的离屏证据和待用户完成的实机验收，不以缺少实机验收为由自行扩大测试范围。
 - 本节优先于其他条款中要求代理执行真实 UI / 设备集成验证的表述；不取消构建、源生成序列化及 NativeAOT 发布约束。
 
+## 测试脚本与产物（不提交 Git）
+
+- 代理为测试 / 验证生成的临时脚本、临时探针工程、临时验证报告、日志、截图、GPU 回读图像、性能跟踪及其构建产物，不得加入 Git 或提交；优先放在已忽略的 `.tools/` 下。已有验证目录中生成的临时内容也必须配置忽略。
+- 正式工程和受版本控制的既有探针不得依赖这些本地忽略文件。需要扩展临时验证时，在 `.tools/` 中建立独立入口，不把临时测试入口混入正式工程。
+- 应用运行必需的源码、着色器 / 资源和正式构建脚本仍正常纳入版本控制；不要把测试产物伪装成应用资源。
+
 ## 设置体系（一处改动要同步多处）
 
 - 三层结构：`Model/AppSettings`（static 运行时状态 + `Changed` 事件，渲染侧消费）、`Model/SaveSetting`（持久化 DTO）、`Manager/SettingManager`（读写 `ApplicationData.LocalFolder` 下的 appsettings.json，源生成序列化）；`Service/DataJsonService` 负责双向映射。

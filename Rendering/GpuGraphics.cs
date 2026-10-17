@@ -165,7 +165,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     {
         if (_options == options && !_reconstructionDirty) return;
         if (_reconstructionDirty || _options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode ||
-            (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset))
+            _options.PixelsPerDip != options.PixelsPerDip || (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset))
         {
             WaitForGpu();
             CreateSceneResources(options);
@@ -216,7 +216,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     }
 
     private void CreateSceneResources(GpuSceneOptions options)
-        => CreateSceneResources(options, GpuRenderSize.Create(Width, Height, options.RenderScalePercent));
+        => CreateSceneResources(options, GpuRenderSize.Create(Width, Height, options.RenderScalePercent) with { PixelsPerDip = options.PixelsPerDip });
 
     private void CreateSceneResources(GpuSceneOptions options, GpuRenderSize size)
     {
@@ -375,6 +375,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         LastPresentMilliseconds = 0;
         LastGpuWaitMilliseconds = 0;
         BeginAntialiasTimingFrame();
+        if (_effect is ITemporalGpuEffect { ResetHistoryRequested: true }) _temporal?.Reset();
         if (PipelineEnabled) return RenderPipelined(elapsed, white, peak);
         TemporalFrame frame = _temporal?.BeginFrame(elapsed) ?? default;
         if (_effect is ITemporalGpuEffect temporalEffect) temporalEffect.SetTemporalFrame(frame);
@@ -623,6 +624,7 @@ internal readonly record struct DisplayOutput(bool HdrEnabled, float PeakNits);
 /// <summary>Configures scene resolution, postprocessing and effect-specific detail at a frame boundary.</summary>
 internal readonly record struct GpuSceneOptions(int RenderScalePercent, ReconstructionMode Mode, int Detail, string DlssPreset = "k")
 {
+    internal float PixelsPerDip { get; init; } = 1;
     internal GpuSceneOptions(int scale, bool antialias, int detail) : this(scale, antialias ? ReconstructionMode.Fxaa : ReconstructionMode.Off, detail) { }
 
     internal static GpuSceneOptions FromSettings(int detail)

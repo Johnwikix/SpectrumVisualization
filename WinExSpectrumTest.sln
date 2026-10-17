@@ -4,6 +4,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 18.0.11109.219 d18.0-oob
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinExSpectrumTest", "WinExSpectrumTest.csproj", "{BA8DE567-F758-4EDF-9883-6324F3683694}"
+	ProjectSection(ProjectDependencies) = postProject
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F} = {75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "External", "External", "{A288BEE0-695A-BEEA-455C-649571D89326}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lyricify.Lyrics.Helper", "External\Lyricify.Lyrics.Helper\Lyricify.Lyrics.Helper.csproj", "{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,9 +24,16 @@ Global
 		{BA8DE567-F758-4EDF-9883-6324F3683694}.Release|x64.ActiveCfg = Release|x64
 		{BA8DE567-F758-4EDF-9883-6324F3683694}.Release|x64.Build.0 = Release|x64
 		{BA8DE567-F758-4EDF-9883-6324F3683694}.Release|x64.Deploy.0 = Release|x64
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}.Debug|x64.Build.0 = Debug|Any CPU
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}.Release|x64.ActiveCfg = Release|Any CPU
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{75CAA3A4-DFDF-44B6-94AE-4DF94F05450F} = {A288BEE0-695A-BEEA-455C-649571D89326}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A94D15D1-A7A3-43FE-9F2E-F1BED5C47B12}

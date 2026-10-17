@@ -56,7 +56,9 @@ namespace WinExSpectrumTest.Effects
         [
             new(AuroraRingEffect.EffectId, "AuroraEffectName", EffectHost.Win2D, false, null, null),
             new(SonicTopographyEffect.EffectId, "SonicEffectName", EffectHost.Gpu, true,
-                static () => new SonicGpuEffect(), static () => AppSettings.SonicGridSize)
+                static () => new SonicGpuEffect(), static () => AppSettings.SonicGridSize),
+            new(Folia.FoliaGpuEffect.EffectId, "FoliaEffectName", EffectHost.Gpu, false,
+                static () => new Folia.FoliaGpuEffect(App.FoliaPlayback.State))
         ];
 
         internal static EffectDescriptor Resolve(string? id)

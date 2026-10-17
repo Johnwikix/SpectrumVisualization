@@ -3,6 +3,13 @@ namespace WinExSpectrumTest.Model
 {
     public class SaveSetting
     {
+        public string FoliaLyricMode { get; set; } = "classic";
+        public bool FoliaCoverBackground { get; set; }
+        public string FoliaBackground { get; set; } = "common";
+        public string FoliaImageEffect { get; set; } = "dithering";
+        public float FoliaFontScale { get; set; } = 1;
+        public string FoliaFontFamily { get; set; } = "Microsoft YaHei";
+        public int FoliaFontWeight { get; set; } = 300;
         public bool CoverPulseEnabled { get; set; } = true;
         public string SmtcTextAnimation { get; set; } = "none";
         public bool WallpaperEnabled { get; set; } = false;

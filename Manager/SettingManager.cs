@@ -26,6 +26,9 @@ namespace WinExSpectrumTest.Manager
         /// </summary>
         private static string GetSettingFilePath()
         {
+            // The opt-in verification process has its own settings; it never edits the user's profile.
+            if (Environment.GetEnvironmentVariable("SPECTRUM_FOLIA_PREVIEW") == "1")
+                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "folia-preview-settings.json");
             try
             {
                 var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;

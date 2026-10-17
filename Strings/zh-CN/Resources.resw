@@ -282,7 +282,7 @@
   <data name="GpuReconstructionPending" xml:space="preserve"><value>尚未检测 GPU 能力</value></data>
   <data name="GpuReconstructionFallback" xml:space="preserve"><value>所选算法不可用，当前使用 FXAA</value></data>
   <data name="GpuReconstructionReady" xml:space="preserve"><value>所选算法已生效</value></data>
-  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>图形组件：SMAA、Intel XeSS、AMD FidelityFX FSR 与 NVIDIA DLSS / NGX（NVIDIA RTX™）。应用随附第三方许可文件。</value></data>
+  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>图形组件：SMAA、Intel XeSS、AMD FidelityFX FSR、NVIDIA DLSS / NGX（NVIDIA RTX™）、Folia、Paper Shaders、Jint 与 Lyricify。应用随附第三方许可文件。</value></data>
   <data name="ShowDebugOverlay.Header" xml:space="preserve"><value>调试覆盖层</value></data>
   <data name="ShowDebugOverlay.Description" xml:space="preserve"><value>显示渲染与提交速率、CPU 耗时、低频采样的抗锯齿 / 重建 GPU 耗时及输出状态。FXAA 耗时包含输出编码。</value></data>
   <data name="ShowDebugOverlaySwitch.AutomationProperties.Name" xml:space="preserve"><value>显示调试覆盖层</value></data>
@@ -312,4 +312,52 @@ CPU 帧 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="WallpaperButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>切换壁纸模式（主显示器）；可通过托盘恢复窗口</value></data>
   <data name="RenderDebugAa" xml:space="preserve"><value>抗锯齿 / 重建 GPU</value></data>
   <data name="RenderDebugAaOutput" xml:space="preserve"><value>抗锯齿＋输出 GPU</value></data>
+  <data name="FoliaEffectName" xml:space="preserve"><value>辞曲新境 · Folia</value></data>
+  <data name="FoliaEffectOption.Content" xml:space="preserve"><value>辞曲新境 · Folia</value></data>
+  <data name="SettingsSectionFolia.Text" xml:space="preserve"><value>辞曲新境</value></data>
+  <data name="FoliaIntroduction.Text" xml:space="preserve"><value>以原生 GPU 着色器绘制动态背景与歌词。通用设置中的 HDR、抗锯齿、DLSS 预设与渲染比例在此效果中同样生效。</value></data>
+  <data name="FoliaLyricsMode.Header" xml:space="preserve"><value>歌词模式</value></data>
+  <data name="FoliaLyricsMode.Description" xml:space="preserve"><value>切换歌词的排版、运动与光效。</value></data>
+  <data name="FoliaBackgroundMode.Header" xml:space="preserve"><value>动态背景</value></data>
+  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>选择封面流光、渐变、封面滤镜或星空。</value></data>
+  <data name="FoliaImageMode.Header" xml:space="preserve"><value>封面滤镜</value></data>
+  <data name="FoliaImageMode.Description" xml:space="preserve"><value>用于 Nomand 背景。</value></data>
+  <data name="FoliaFontScale.Header" xml:space="preserve"><value>歌词大小</value></data>
+  <data name="FoliaFontScale.Description" xml:space="preserve"><value>相对于原始布局的百分比（50–200%）。</value></data>
+  <data name="FoliaFontFamily.Header" xml:space="preserve"><value>歌词字体</value></data>
+  <data name="FoliaFontFamily.Description" xml:space="preserve"><value>使用本机安装的字体，缺字由系统字体回退处理。</value></data>
+  <data name="FoliaFontWeight.Header" xml:space="preserve"><value>字重</value></data>
+  <data name="FoliaFontWeight.Description" xml:space="preserve"><value>100 为细，900 为黑。</value></data>
+  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>QQ 音乐歌词</value></data>
+  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>通过当前媒体的歌名、歌手与时长匹配。支持 QRC 逐字歌词、LRC 逐行歌词和翻译；播放进度来自系统媒体会话。</value></data>
+  <data name="FoliaRetry.Content" xml:space="preserve"><value>重新匹配</value></data>
+  <data name="FoliaStatuswaiting" xml:space="preserve"><value>等待当前播放歌曲；请让播放器公开系统媒体信息。</value></data>
+  <data name="FoliaStatusloading" xml:space="preserve"><value>正在按歌曲信息查找歌词…</value></data>
+  <data name="FoliaStatusready" xml:space="preserve"><value>歌词已就绪。</value></data>
+  <data name="FoliaStatusmissing" xml:space="preserve"><value>未找到匹配歌词，显示歌曲信息。</value></data>
+  <data name="FoliaStatusfailed" xml:space="preserve"><value>歌词获取失败，可重新匹配。</value></data>
+  <data name="FoliaOption_classic.Content" xml:space="preserve"><value>Luminous</value></data>
+  <data name="FoliaOption_cadenza.Content" xml:space="preserve"><value>Mindscape</value></data>
+  <data name="FoliaOption_partita.Content" xml:space="preserve"><value>云阶</value></data>
+  <data name="FoliaOption_fume.Content" xml:space="preserve"><value>Fume</value></data>
+  <data name="FoliaOption_cappella.Content" xml:space="preserve"><value>Cappella</value></data>
+  <data name="FoliaOption_tilt.Content" xml:space="preserve"><value>Tilt</value></data>
+  <data name="FoliaOption_claddagh.Content" xml:space="preserve"><value>Claddagh</value></data>
+  <data name="FoliaOption_monet.Content" xml:space="preserve"><value>Monet</value></data>
+  <data name="FoliaOption_diorama.Content" xml:space="preserve"><value>镜台</value></data>
+  <data name="FoliaOption_pendolo.Content" xml:space="preserve"><value>Pendolo</value></data>
+  <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>商籁</value></data>
+  <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>凝彩</value></data>
+  <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>绘光</value></data>
+  <data name="FoliaOption_common.Content" xml:space="preserve"><value>封面流光</value></data>
+  <data name="FoliaOption_latent.Content" xml:space="preserve"><value>流动渐变</value></data>
+  <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>封面滤镜</value></data>
+  <data name="FoliaOption_sora.Content" xml:space="preserve"><value>星空</value></data>
+  <data name="FoliaOption_dithering.Content" xml:space="preserve"><value>抖色</value></data>
+  <data name="FoliaOption_fluted-glass.Content" xml:space="preserve"><value>长虹玻璃</value></data>
+  <data name="FoliaOption_paper-texture.Content" xml:space="preserve"><value>纸张肌理</value></data>
+  <data name="FoliaOption_halftone-dots.Content" xml:space="preserve"><value>半调网点</value></data>
+  <data name="FoliaOption_lens-distortion.Content" xml:space="preserve"><value>镜头畸变</value></data>
+<data name="FoliaCoverBackground.Header" xml:space="preserve"><value>封面流光叠加</value></data>
+<data name="FoliaCoverBackground.Description" xml:space="preserve"><value>在通用动态背景中叠加模糊封面；关闭时使用主题底色和几何图形。</value></data>
 </root>

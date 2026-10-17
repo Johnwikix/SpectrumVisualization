@@ -45,6 +45,7 @@
                         x:Uid="SettingsSectionSonic"
                         FontSize="16"
                         Tag="Sonic" />
+                    <SelectorBarItem x:Uid="SettingsSectionFolia" FontSize="16" Tag="Folia" />
                     <SelectorBarItem
                         x:Uid="SettingsSectionAbout"
                         FontSize="16"
@@ -77,6 +78,7 @@
                                         SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="AuroraEffectOption" Tag="aurora-ring" />
                                         <ComboBoxItem x:Uid="SonicEffectOption" Tag="sonic-topography" />
+                                        <ComboBoxItem x:Uid="FoliaEffectOption" Tag="folia" />
                                     </ComboBox>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -420,6 +422,67 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                    </StackPanel>
+                </ScrollView>
+            </controls:Case>
+
+            <controls:Case Value="Folia">
+                <ScrollView>
+                    <StackPanel Margin="32,0,32,24" Spacing="4">
+                        <TextBlock x:Uid="FoliaIntroduction" Margin="10,8,10,16" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <controls:SettingsCard x:Uid="FoliaLyricsMode" Margin="10,0,10,0" >
+                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaLyricMode" SelectedValue="{x:Bind ViewModel.FoliaLyricMode, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="FoliaOption_classic" Tag="classic" />
+                                <ComboBoxItem x:Uid="FoliaOption_cadenza" Tag="cadenza" />
+                                <ComboBoxItem x:Uid="FoliaOption_partita" Tag="partita" />
+                                <ComboBoxItem x:Uid="FoliaOption_fume" Tag="fume" />
+                                <ComboBoxItem x:Uid="FoliaOption_cappella" Tag="cappella" />
+                                <ComboBoxItem x:Uid="FoliaOption_tilt" Tag="tilt" />
+                                <ComboBoxItem x:Uid="FoliaOption_claddagh" Tag="claddagh" />
+                                <ComboBoxItem x:Uid="FoliaOption_monet" Tag="monet" />
+                                <ComboBoxItem x:Uid="FoliaOption_diorama" Tag="diorama" />
+                                <ComboBoxItem x:Uid="FoliaOption_pendolo" Tag="pendolo" />
+                                <ComboBoxItem x:Uid="FoliaOption_sonnet" Tag="sonnet" />
+                                <ComboBoxItem x:Uid="FoliaOption_tempera" Tag="tempera" />
+                                <ComboBoxItem x:Uid="FoliaOption_lumiere" Tag="lumiere" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0" >
+                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaBackground" SelectedValue="{x:Bind ViewModel.FoliaBackground, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="FoliaOption_common" Tag="common" />
+                                <ComboBoxItem x:Uid="FoliaOption_latent" Tag="latent" />
+                                <ComboBoxItem x:Uid="FoliaOption_monet" Tag="monet" />
+                                <ComboBoxItem x:Uid="FoliaOption_nomand" Tag="nomand" />
+                                <ComboBoxItem x:Uid="FoliaOption_sora" Tag="sora" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaImageMode" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.IsFoliaImageBackground, Mode=OneWay}">
+                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaImageEffect" SelectedValue="{x:Bind ViewModel.FoliaImageEffect, Mode=TwoWay}" SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="FoliaOption_dithering" Tag="dithering" />
+                                <ComboBoxItem x:Uid="FoliaOption_fluted-glass" Tag="fluted-glass" />
+                                <ComboBoxItem x:Uid="FoliaOption_paper-texture" Tag="paper-texture" />
+                                <ComboBoxItem x:Uid="FoliaOption_halftone-dots" Tag="halftone-dots" />
+                                <ComboBoxItem x:Uid="FoliaOption_lens-distortion" Tag="lens-distortion" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaCoverBackground" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" VerticalAlignment="Center" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaFontScale" Margin="10,0,10,0">
+                            <NumberBox Width="130" Minimum="50" Maximum="200" SmallChange="5" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaFontFamily" Margin="10,0,10,0">
+                            <TextBox MinWidth="230" Text="{x:Bind ViewModel.FoliaFontFamily, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaFontWeight" Margin="10,0,10,0">
+                            <NumberBox Width="130" Minimum="100" Maximum="900" SmallChange="100" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaLyricsSource" Margin="10,12,10,0">
+                            <StackPanel Spacing="8" MaxWidth="380">
+                                <TextBlock Text="{x:Bind ViewModel.FoliaLyricsStatus, Mode=OneWay}" TextWrapping="Wrap" />
+                                <Button x:Uid="FoliaRetry" Command="{x:Bind ViewModel.RetryFoliaLyricsCommand}" HorizontalAlignment="Right" />
+                            </StackPanel>
+                        </controls:SettingsCard>
                     </StackPanel>
                 </ScrollView>
             </controls:Case>

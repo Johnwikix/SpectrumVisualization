@@ -282,7 +282,7 @@
   <data name="GpuReconstructionPending" xml:space="preserve"><value>GPU capabilities not yet detected</value></data>
   <data name="GpuReconstructionFallback" xml:space="preserve"><value>Selected algorithm unavailable; FXAA is active</value></data>
   <data name="GpuReconstructionReady" xml:space="preserve"><value>Selected algorithm is active</value></data>
-  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>Graphics components: SMAA, Intel XeSS, AMD FidelityFX FSR and NVIDIA DLSS / NGX (NVIDIA RTX™). Third-party licenses are distributed with the application.</value></data>
+  <data name="GraphicsAttribution.Text" xml:space="preserve"><value>Graphics components: SMAA, Intel XeSS, AMD FidelityFX FSR, NVIDIA DLSS / NGX (NVIDIA RTX™), Folia, Paper Shaders, Jint and Lyricify. Third-party licenses are distributed with the application.</value></data>
   <data name="ShowDebugOverlay.Header" xml:space="preserve"><value>Debug overlay</value></data>
   <data name="ShowDebugOverlay.Description" xml:space="preserve"><value>Show render and submit rates, CPU timings, sampled AA / reconstruction GPU time, and output status. FXAA time includes output encoding.</value></data>
   <data name="ShowDebugOverlaySwitch.AutomationProperties.Name" xml:space="preserve"><value>Show debug overlay</value></data>
@@ -312,4 +312,52 @@ Submit rate is not the display frame rate</value></data>
   <data name="WallpaperButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Toggle wallpaper mode (primary display); restore the window from the tray</value></data>
   <data name="RenderDebugAa" xml:space="preserve"><value>AA / reconstruction GPU</value></data>
   <data name="RenderDebugAaOutput" xml:space="preserve"><value>AA + output GPU</value></data>
+  <data name="FoliaEffectName" xml:space="preserve"><value>Folia</value></data>
+  <data name="FoliaEffectOption.Content" xml:space="preserve"><value>Folia</value></data>
+  <data name="SettingsSectionFolia.Text" xml:space="preserve"><value>Folia</value></data>
+  <data name="FoliaIntroduction.Text" xml:space="preserve"><value>GPU-rendered animated backgrounds and lyrics. HDR, anti-aliasing, DLSS presets and render scale follow General settings.</value></data>
+  <data name="FoliaLyricsMode.Header" xml:space="preserve"><value>Lyric mode</value></data>
+  <data name="FoliaLyricsMode.Description" xml:space="preserve"><value>Choose lyric typography, motion and lighting.</value></data>
+  <data name="FoliaBackgroundMode.Header" xml:space="preserve"><value>Animated background</value></data>
+  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>Choose cover flow, gradients, image filters or stars.</value></data>
+  <data name="FoliaImageMode.Header" xml:space="preserve"><value>Cover filter</value></data>
+  <data name="FoliaImageMode.Description" xml:space="preserve"><value>Used by the Nomand background.</value></data>
+  <data name="FoliaFontScale.Header" xml:space="preserve"><value>Lyric size</value></data>
+  <data name="FoliaFontScale.Description" xml:space="preserve"><value>Percentage of the original layout (50–200%).</value></data>
+  <data name="FoliaFontFamily.Header" xml:space="preserve"><value>Lyric font</value></data>
+  <data name="FoliaFontFamily.Description" xml:space="preserve"><value>Use an installed font. Missing glyphs use system font fallback.</value></data>
+  <data name="FoliaFontWeight.Header" xml:space="preserve"><value>Font weight</value></data>
+  <data name="FoliaFontWeight.Description" xml:space="preserve"><value>100 is thin; 900 is black.</value></data>
+  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>QQ Music lyrics</value></data>
+  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>Match the current title, artist and duration. Supports word-synced QRC, line-synced LRC and translations. Position follows the system media session.</value></data>
+  <data name="FoliaRetry.Content" xml:space="preserve"><value>Match again</value></data>
+  <data name="FoliaStatuswaiting" xml:space="preserve"><value>Waiting for a song. Enable system media information in your player.</value></data>
+  <data name="FoliaStatusloading" xml:space="preserve"><value>Finding matching lyrics…</value></data>
+  <data name="FoliaStatusready" xml:space="preserve"><value>Lyrics ready.</value></data>
+  <data name="FoliaStatusmissing" xml:space="preserve"><value>No matching lyrics. Showing song information.</value></data>
+  <data name="FoliaStatusfailed" xml:space="preserve"><value>Lyrics could not be loaded. Try matching again.</value></data>
+  <data name="FoliaOption_classic.Content" xml:space="preserve"><value>Luminous</value></data>
+  <data name="FoliaOption_cadenza.Content" xml:space="preserve"><value>Mindscape</value></data>
+  <data name="FoliaOption_partita.Content" xml:space="preserve"><value>Partita</value></data>
+  <data name="FoliaOption_fume.Content" xml:space="preserve"><value>Fume</value></data>
+  <data name="FoliaOption_cappella.Content" xml:space="preserve"><value>Cappella</value></data>
+  <data name="FoliaOption_tilt.Content" xml:space="preserve"><value>Tilt</value></data>
+  <data name="FoliaOption_claddagh.Content" xml:space="preserve"><value>Claddagh</value></data>
+  <data name="FoliaOption_monet.Content" xml:space="preserve"><value>Monet</value></data>
+  <data name="FoliaOption_diorama.Content" xml:space="preserve"><value>Diorama</value></data>
+  <data name="FoliaOption_pendolo.Content" xml:space="preserve"><value>Pendolo</value></data>
+  <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>Sonnet</value></data>
+  <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>Tempera</value></data>
+  <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>Lumiere</value></data>
+  <data name="FoliaOption_common.Content" xml:space="preserve"><value>Fluid</value></data>
+  <data name="FoliaOption_latent.Content" xml:space="preserve"><value>Latent</value></data>
+  <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>Nomand</value></data>
+  <data name="FoliaOption_sora.Content" xml:space="preserve"><value>Sora</value></data>
+  <data name="FoliaOption_dithering.Content" xml:space="preserve"><value>Dithering</value></data>
+  <data name="FoliaOption_fluted-glass.Content" xml:space="preserve"><value>Fluted glass</value></data>
+  <data name="FoliaOption_paper-texture.Content" xml:space="preserve"><value>Paper texture</value></data>
+  <data name="FoliaOption_halftone-dots.Content" xml:space="preserve"><value>Halftone dots</value></data>
+  <data name="FoliaOption_lens-distortion.Content" xml:space="preserve"><value>Lens distortion</value></data>
+<data name="FoliaCoverBackground.Header" xml:space="preserve"><value>Cover color overlay</value></data>
+<data name="FoliaCoverBackground.Description" xml:space="preserve"><value>Blend a blurred cover into the Fluid background. When off, use the theme color and geometric shapes.</value></data>
 </root>

@@ -11,5 +11,6 @@ internal sealed record EffectDescriptor(string Id, string ResourceKey, EffectHos
     Func<IGpuVisualizerEffect>? CreateGpu, Func<int>? GetDetail = null)
 {
     // Resolution and AA always come from the host; registrations only supply effect detail.
-    internal GpuSceneOptions GetSceneOptions() => GpuSceneOptions.FromSettings(GetDetail?.Invoke() ?? 0);
+    internal GpuSceneOptions GetSceneOptions(float pixelsPerDip = 1) => GpuSceneOptions.FromSettings(GetDetail?.Invoke() ?? 0)
+        with { PixelsPerDip = float.IsFinite(pixelsPerDip) && pixelsPerDip > 0 ? pixelsPerDip : 1 };
 }

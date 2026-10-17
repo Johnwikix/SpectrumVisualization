@@ -2,6 +2,29 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-17 Folia 字形清晰度与视觉对齐
+
+- `FoliaTextAtlas`、`FoliaDistanceField`、`Native/FoliaText`、`Stage.hlsl`：由字体贝塞尔轮廓生成半精度 MTSDF，以实际屏幕导数恢复字形边缘，修正固定低分辨率覆盖贴图放大模糊及逐字填充裁切范围。
+- `FoliaLumiere*`、`FoliaBloom`：使用原版逐歌曲镜头 / 光位种子、窗口槽位、连续运镜、字形飞行 / 径迹 / 追光 / 星点、回声、浮尘、星雨、开场点亮及十字爆闪；图形和文字分别接入原版多级柔光，运行时复用数值状态与 GPU 资源。
+- `FoliaGlyphShadow`、`FoliaTextAtlas`：辉光使用冷路径高斯覆盖，避免距离场光晕抹糊文字；缓存斜体轮廓，上传后释放距离场 CPU 像素，布局缓存仅保留图集身份。
+- `FoliaFume`、`FoliaTilt`：补齐 Fume 种子背景 / 频带响应 / 整行辉光和打印章时窗，修正 Tilt 斜体轮廓、行高、逐字错落与唱后余辉。
+- `FoliaCadenza`：布局改由原版规划器生成，使用预分配的片段动画状态，修正文字焦点高度与活动词缩放。
+- `FoliaMonetDrift`、`FoliaBackgroundGeometry`、`Stage.hlsl`：修正 Monet 固定背景画布的双重裁切、原版漂移和模糊半径，以及通用背景的运动缓动、十字形和实心圆。
+- `FoliaGlowWords`、`FoliaPartita`：Classic / 云阶采用渲染线程独占的逐词状态动画；云阶使用原版语义分句规划，避免暂停时随 SMTC 刷新重新计时。
+- `FoliaLyricLayout.Score`、`FoliaLyricLayout.Chat`、`FoliaTextAtlas`：修正 Monet 响应式海报 / 封面 / 歌词栏布局、Cappella 气泡边距与时间戳，标题和时间戳保留原版固定字重。
+- `FoliaDiorama`、`Stage.hlsl`：镜台字形使用四角透视插值，移植原版相机阻尼 / 阅读回正，修正三维偏航方向、文字基线与邻行雾化。
+- `FoliaSonnet`、`FoliaTempera`、`Print.hlsl`：补齐商籁红青色散的 Screen 混合与默认辉光、凝彩默认的透镜 / 颗粒 / 暗角 GPU 链路。
+- `FoliaLatent`、`FoliaCoverSampling`、Paper / Sora 着色器：修正 Latent 封面六色取色与独立暂停时钟、Paper 默认坐标 / 点阵枚举 / 噪声通道，以及 Sora 的 GPU 星点哈希。
+- `Rendering/FoliaTextAssets.targets`：正式构建和发布自动构建 / 携带原生字形辅助库，保留 msdfgen 固定版本来源与许可。
+
+## 2026-10-17 Folia 原生交换链歌词与动态背景
+
+- `Effects/Folia`、`EffectRegistry`：新增 `folia` GPU 效果，提供 13 种歌词模式、5 种内置背景和 Nomand 的 5 种图像处理；字形图集只在歌曲 / 字体变化时生成，逐帧由 D3D12 着色器绘制。
+- `External/Folia`：迁入原版 Paper / Lumiere 着色器、绘光 100 套灯光配方与表情资源；原版商籁、凝彩、镜台、Pendolo、Fume、Tilt 的纯布局规划在冷路径编译成原生数组，保留来源及许可。
+- `Services/FoliaPlaybackService.cs`、`External/Lyricify.Lyrics.Helper`：按 SMTC 歌名、歌手和时长匹配 QQ 歌词，优先 QRC、回退 LRC；处理逐字时间、译文、封面、迟到请求、重试与关闭取消。
+- `Rendering`、`Canvas/CanvasPanel.xaml.cs`：新效果共享 HDR、抗锯齿、DLSS 预设和渲染比例；补齐 DPI 布局比例与歌曲 / 模式 / 字体切换后的时域历史重置。
+- `AppSettings`、`SaveSetting`、`DataJsonService`、`SettingViewModel.Folia.cs`、`SettingWindow.xaml`、两份资源：新增独立 Folia 设置页，保持 MVVM 和源生成持久化。
+
 ## 2026-10-17 通用 GPU 画质、抗锯齿计时与壁纸快捷按钮
 
 - `Model/GpuQualitySettings.cs`、`AppSettings.cs`、`Service/DataJsonService.cs`：将渲染比例、抗锯齿与 DLSS 预设独立为通用 GPU 配置；保留原 JSON 字段名与旧版比例迁移，默认值不变。

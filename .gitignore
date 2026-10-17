@@ -358,6 +358,19 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+.tools/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Generated native Folia verification frames and planner dumps
+doc/verification/FoliaReference/native/*.bmp
+doc/verification/FoliaReference/plans/
+
+# Agent-generated Folia verification scripts and artifacts (local only)
+doc/verification/FoliaReference/
+doc/verification/FoliaSourceProbe/
+doc/verification/folia-*.png
+doc/verification/folia-*.json
+doc/verification/HdrProbe/FoliaChecks.cs
+doc/verification/folia.md

@@ -618,6 +618,7 @@ namespace WinExSpectrumTest.ViewModel
             _analyzer.SampleRateChanged += () => dispatcher.TryEnqueue(() => OnPropertyChanged(nameof(SampleRate)));
             ReloadSettings();
             AppSettings.Changed += OnSettingsChanged;
+            App.FoliaPlayback.Changed += OnFoliaStatusChanged;
             WinExSpectrumTest.Rendering.HdrStatus.Changed += OnHdrStatusChanged;
             Rendering.ReconstructionAvailability.Changed += OnReconstructionChanged;
             try
@@ -644,6 +645,13 @@ namespace WinExSpectrumTest.ViewModel
             if (!_dispatcher.HasThreadAccess)
             {
                 _dispatcher.TryEnqueue(() => OnSettingsChanged(name));
+                return;
+            }
+            if (name.StartsWith("Folia", StringComparison.Ordinal))
+            {
+                NotifyFoliaSettings();
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
                 return;
             }
             if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits))
@@ -731,6 +739,7 @@ namespace WinExSpectrumTest.ViewModel
             BarCount = Math.Clamp(AppSettings.BarCount, 128, 512);
             PowCoe = AppSettings.PowCoe;
             VisualEffect = AppSettings.VisualEffect;
+            NotifyFoliaSettings();
             SonicTheme = AppSettings.SonicTheme;
             SonicAudioIntensity = AppSettings.SonicAudioIntensity * 100f;
             SonicResponseRange = AppSettings.SonicResponseRange * 100f;
