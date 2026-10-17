@@ -10,6 +10,21 @@ internal static unsafe partial class FoliaDistanceField
 {
     internal const float Range = 48;
 
+    [LibraryImport("Spectrum.FoliaText.dll", EntryPoint = "FoliaOutlineSignature")]
+    private static partial int GetSignature(nint geometry, byte* digest);
+
+    internal static void Signature(CanvasGeometry geometry, Span<byte> signature)
+    {
+        if (signature.Length < 32) throw new ArgumentException("An outline signature requires 32 bytes.", nameof(signature));
+        nint pointer = ((WinRT.IWinRTObject)geometry).NativeObject.ThisPtr;
+        fixed (byte* output = signature)
+        {
+            int result = GetSignature(pointer, output);
+            GC.KeepAlive(geometry);
+            Marshal.ThrowExceptionForHR(result);
+        }
+    }
+
     [LibraryImport("Spectrum.FoliaText.dll", EntryPoint = "FoliaGenerateMtsdf")]
     private static partial int Generate(nint geometry, int width, int height, float translateX, float translateY, float range, float* pixels);
 

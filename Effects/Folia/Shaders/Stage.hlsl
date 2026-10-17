@@ -1,5 +1,6 @@
 // Folia's cover blur / drift and Sora point field, composed in perceptual space.
 float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
+    uv-=Jitter.xy/Screen.xy;
     float3 color=Palette[0].rgb;
     if(Parameters.x<.5 || abs(Parameters.x-2)<.5) {
         bool monet=Parameters.x>1;
@@ -67,6 +68,7 @@ float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 }
 
 float4 LatentCompositePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
+    uv-=Jitter.xy/Screen.xy;
     float3 mesh=LayerTexture.SampleLevel(LinearClamp,(uv-.5)/LatentStyle.x+.5,0).rgb;
     float lum=dot(mesh,float3(.213,.715,.072));mesh=(lum+(mesh-lum)*LatentStyle.z)*LatentStyle.w;
     float4 dither=BackdropTexture.SampleLevel(LinearClamp,(uv-.5)/LatentStyle.y+.5,0);
@@ -75,40 +77,70 @@ float4 LatentCompositePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 }
 
 float4 VignettePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
+    uv-=Jitter.xy/Screen.xy;
     float radius=length((uv-.5)*Screen.xy)/(length(Screen.xy)*.5);
     return float4(0,0,0,saturate((radius-.4)/.6)*.6);
 }
 float Cross2(float2 a,float2 b){return a.x*b.y-a.y*b.x;}
 float InversionLuminance(float2 uv){return dot(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,float3(.2126,.7152,.0722));}
 float4 CopyPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
-    return float4(ToLinear(max(BackdropTexture.SampleLevel(LinearClamp,uv+Jitter.xy/Screen.xy,0).rgb,0)),1);
+    return float4(ToLinear(max(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,0)),1);
 }
 struct TemporalOutput { float4 color:SV_Target0;float2 motion:SV_Target1;float reactive:SV_Target2;float depth:SV_Depth; };
 TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
     TemporalOutput o; o.color=CopyPS(p,uv);o.motion=0;
-    // Procedural emission changes rather than camera movement. The complete stage is a planar emissive surface.
-    o.reactive=.9; o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5; return o;
+    // The stage is a planar emissive surface. Reject changing pixels, while static text retains temporal history.
+    float2 sampleUV=uv;
+    float3 current=BackdropTexture.SampleLevel(LinearClamp,sampleUV,0).rgb;
+    if(Jitter.z>.5) o.reactive=1;
+    else {
+        float2 previousUV=sampleUV+(PreviousJitter.xy-Jitter.xy)/Screen.xy;
+        float3 previous=PreviousStageTexture.SampleLevel(LinearClamp,previousUV,0).rgb;
+        float3 low=previous,high=previous;
+        // A subpixel raster sample can change edge coverage on a static glyph. Compare
+        // with its previous local color envelope before treating that change as animation.
+        [unroll]for(int axis=0;axis<2;axis++) [unroll]for(int side=-1;side<=1;side+=2) {
+            float2 offset=axis==0?float2(side,0):float2(0,side);
+            float3 neighbor=PreviousStageTexture.SampleLevel(LinearClamp,previousUV+offset/Screen.xy,0).rgb;
+            low=min(low,neighbor);high=max(high,neighbor);
+        }
+        float3 delta=abs(current-clamp(current,low,high));
+        float difference=max(delta.r,max(delta.g,delta.b));
+        float signal=max(max(current.r,max(current.g,current.b)),max(previous.r,max(previous.g,previous.b)));
+        o.reactive=saturate(difference/max(signal,.1)*2);
+    }
+     o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5; return o;
 }
 
 struct Instance { float4 rect,uv,color,transform,shape,effect; };
 StructuredBuffer<Instance> Instances:register(t5);
+Instance ReadInstance(uint id) {
+    Instance v=Instances[id];
+    // Layout stays in DIPs; physical pixel scaling is parallel GPU work.
+    if(Options.z!=1) {
+        v.rect*=Options.z;
+        if((int)v.shape.x==25) v.transform*=Options.z;
+        else { v.transform.z*=Options.z; v.shape.yz*=Options.z; }
+    }
+    return v;
+}
 cbuffer Draw:register(b2) { uint InstanceOffset; };
 struct SpriteOutput { float4 position:SV_Position;float2 uv:TEXCOORD0;nointerpolation uint instance:TEXCOORD1;float2 pixel:TEXCOORD2; };
 SpriteOutput SpriteVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     id+=InstanceOffset;
-    Instance v=Instances[id];
+    Instance v=ReadInstance(id);
     float2 quad=float2((vertex==1||vertex==2||vertex==4)?1:0,(vertex>=2&&vertex<=4)?1:0);
     if((int)v.shape.x==25) {
         uint corner=vertex==0||vertex==5?0:vertex==1?1:vertex==2||vertex==4?2:3;
         float2 xy=corner==0?v.rect.xy:corner==1?v.rect.zw:corner==2?v.transform.xy:v.transform.zw;
         float clipW=corner==0?v.shape.y:corner==1?v.shape.z:corner==2?v.shape.w:v.effect.x;
-        SpriteOutput o;o.position=float4((xy/Screen.zw*float2(2,-2)+float2(-1,1))*clipW,0,clipW);
+        SpriteOutput o;o.position=float4((xy/Screen.zw*float2(2,-2)+float2(-1,1)+Jitter.xy/Screen.xy*float2(2,-2))*clipW,0,clipW);
         o.uv=quad;o.instance=id;o.pixel=xy/Screen.zw;return o;
     }
     float2 local=(quad-.5)*v.rect.zw;
     local.x+=local.y*v.transform.y;
     float2 xy=Rot(local,v.transform.x)+v.rect.xy+v.rect.zw*.5;
-    SpriteOutput o;o.position=float4(xy/Screen.zw*float2(2,-2)+float2(-1,1),0,1);
+    SpriteOutput o;o.position=float4(xy/Screen.zw*float2(2,-2)+float2(-1,1)+Jitter.xy/Screen.xy*float2(2,-2),0,1);
     o.uv=quad;o.instance=id;o.pixel=xy/Screen.zw;return o;
 }
 float Median3(float3 v) { return max(min(v.x,v.y),min(max(v.x,v.y),v.z)); }
@@ -119,14 +151,17 @@ float GlyphPixelRange(float2 atlasUV) {
     return Options.y/max(max(length(dx),length(dy)),.0001);
 }
 float4 SpritePS(SpriteOutput input):SV_Target {
-    Instance v=Instances[input.instance];float2 uv=input.uv;
+    Instance v=ReadInstance(input.instance);float2 uv=input.uv;
     float alpha=v.color.a;float3 color=v.color.rgb;
     float2 local=(uv-.5)*v.rect.zw;
     float edge=max(fwidth(local.x),fwidth(local.y));
     int kind=(int)v.shape.x;
     if(kind==0||kind==25) {
         float2 atlasUV=v.uv.xy+uv*v.uv.zw;
-        float4 distances=AtlasTexture.SampleLevel(LinearClamp,atlasUV,0);
+        // Clamp to this glyph's texel centers: linear filtering must never mix differently colored MSDF channels from a neighbor.
+        float2 halfTexel=.5/TextureSize.xy;
+        float2 glyphUV=clamp(atlasUV,v.uv.xy+halfTexel,v.uv.xy+v.uv.zw-halfTexel);
+        float4 distances=AtlasTexture.SampleLevel(LinearClamp,glyphUV,0);
         float range=GlyphPixelRange(atlasUV);
         float signedDistance=(Median3(distances.rgb)-.5)*range;
         float trueDistance=(distances.a-.5)*range;
@@ -135,11 +170,12 @@ float4 SpritePS(SpriteOutput input):SV_Target {
         if(blur>.01) coverage=saturate(.5+trueDistance/max(1,blur*2.5));
         if(v.effect.z>0) coverage=max(saturate(v.effect.z*Screen.x/Screen.z+.5-abs(trueDistance)),coverage*.14);
         float glowStrength=kind==25?v.effect.w:v.transform.w;
-        float halo=glowStrength>0 ? ModeAtlasTexture.SampleLevel(LinearClamp,atlasUV,0).r : 0;
-        if(kind==0&&v.effect.w>0) { float3 base=BackdropTexture.SampleLevel(LinearClamp,input.pixel,0).rgb;color=abs(base-v.color.rgb); }
+        float halo=glowStrength>0 ? ModeAtlasTexture.SampleLevel(LinearClamp,glyphUV,0).r : 0;
+        float2 backdropUV=input.pixel+Jitter.xy/Screen.xy;
+        if(kind==0&&v.effect.w>0) { float3 base=BackdropTexture.SampleLevel(LinearClamp,backdropUV,0).rgb;color=abs(base-v.color.rgb); }
         if(kind==0&&v.effect.w>1.5){
-            float2 d=1.5/Screen.xy;float lum=InversionLuminance(input.pixel)*.4;
-            lum+=(InversionLuminance(input.pixel+d)+InversionLuminance(input.pixel-d)+InversionLuminance(input.pixel+float2(d.x,-d.y))+InversionLuminance(input.pixel+float2(-d.x,d.y)))*.15;
+            float2 d=1.5/Screen.xy;float lum=InversionLuminance(backdropUV)*.4;
+            lum+=(InversionLuminance(backdropUV+d)+InversionLuminance(backdropUV-d)+InversionLuminance(backdropUV+float2(d.x,-d.y))+InversionLuminance(backdropUV+float2(-d.x,d.y)))*.15;
             float ink=dot(Palette[4].rgb,float3(.2126,.7152,.0722)),paper=dot(Palette[5].rgb,float3(.2126,.7152,.0722));
             color=lerp(Palette[4].rgb,Palette[5].rgb,step(abs(lum-ink)+.015,abs(lum-paper)));
         }
@@ -223,6 +259,6 @@ ClockOutput ClockworkVS(uint id:SV_VertexID) {
     ClockVertex v=ClockVertices[id];
     float4 t=ClockParts[(uint)(v.part+.5)];
     float2 xy=float2(v.position.x*t.z-v.position.y*t.w,v.position.x*t.w+v.position.y*t.z)+t.xy;
-    ClockOutput o;o.position=float4(xy/ClockViewport.xy*float2(2,-2)+float2(-1,1),0,1);o.color=v.color;return o;
+    ClockOutput o;o.position=float4(xy/ClockViewport.xy*float2(2,-2)+float2(-1,1)+Jitter.xy/Screen.xy*float2(2,-2),0,1);o.color=v.color;return o;
 }
 float4 ClockworkPS(ClockOutput input):SV_Target { return float4(input.color.rgb*input.color.a,input.color.a); }

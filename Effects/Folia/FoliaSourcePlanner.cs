@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -12,7 +13,9 @@ namespace WinExSpectrumTest.Effects.Folia;
 /// Only immutable native plans cross into the allocation-free D3D12 frame loop.</summary>
 internal static class FoliaSourcePlanner
 {
-    private static string? _source;
+    // Jint's prepared scripts are immutable and shareable; each plan still uses an isolated
+    // engine, so song data and planner globals cannot leak into a later song.
+    private static readonly Lazy<Prepared<Acornima.Ast.Script>> Source = new(() => Engine.PrepareScript(LoadSource()));
     internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight)
     {
         using var input = new MemoryStream();
@@ -98,12 +101,12 @@ internal static class FoliaSourcePlanner
         }
         return Encoding.UTF8.GetString(input.GetBuffer(), 0, (int)input.Length);
     }
-    internal static string Compile(string json, string function)
+    internal static string Compile(string json, string function, CancellationToken token = default)
     {
-        _source ??= LoadSource();
         // Only locally embedded source executes; lyric content is passed as data, with no CLR interop.
-        var engine = new Engine();
-        engine.Execute(_source);
+        token.ThrowIfCancellationRequested();
+        var engine = new Engine(options => options.CancellationToken(token));
+        engine.Execute(Source.Value);
         engine.SetValue("nativeInput", json);
         string result = engine.Evaluate("FoliaNativeSource." + function + "(nativeInput)").AsString();
         return result;

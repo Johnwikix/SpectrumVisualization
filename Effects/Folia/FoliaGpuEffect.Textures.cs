@@ -45,10 +45,10 @@ internal sealed unsafe partial class FoliaGpuEffect
             {
                 // Do not bind a private render target as an SRV during its own pass.
                 var texture = slot == 3 ? ((table == 2 || table == 3) ? _textures[3] : _textures[1]) : slot == 4 ? ((table == 1 || table == 3) ? _textures[4] : _textures[1]) : _textures[slot];
-                _device.CreateShaderResourceView(texture!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 7 + slot) * _srvStride);
+                _device.CreateShaderResourceView(texture!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + slot) * _srvStride);
             }
-            _device.CreateShaderResourceView(_textures[5] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 7 + 6) * _srvStride);
-
+            _device.CreateShaderResourceView(_textures[5] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + 6) * _srvStride);
+            _device.CreateShaderResourceView(_textures[6] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + 7) * _srvStride);
         }
     }
 }

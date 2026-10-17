@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Numerics;
 using System.Text.Json;
 
@@ -19,12 +20,12 @@ internal sealed class FoliaPendolo
     private double _position = double.NaN;
     private const float AngleStep = 100 * MathF.PI / 180 / 8;
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
         using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(
-            FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePendolo"));
+            FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePendolo", token));
         var root = document.RootElement;
         var parts = root.GetProperty("parts");
         _parts = new Part[parts.GetArrayLength()];

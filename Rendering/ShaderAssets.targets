@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <ShaderBuildRoot>$(MSBuildThisFileDirectory)..\</ShaderBuildRoot>
+  </PropertyGroup>
+  <Target Name="PrecompileApplicationShaders" BeforeTargets="AssignTargetPaths" Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipShaderPrecompilation)' != 'true'">
+    <PropertyGroup>
+      <PrecompiledShaderDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'PrecompiledShaders'))</PrecompiledShaderDirectory>
+    </PropertyGroup>
+    <Exec Command="dotnet run --project &quot;$(ShaderBuildRoot)Build\ShaderPrecompiler\ShaderPrecompiler.csproj&quot; --configuration Release --no-launch-profile -- &quot;$(PrecompiledShaderDirectory)&quot;" />
+    <ItemGroup>
+      <!-- Use a private item type: batching on Content's Filename also sees unrelated app assets. -->
+      <_SpectrumShader Include="$(PrecompiledShaderDirectory)\*.bin" />
+      <Content Include="@(_SpectrumShader)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
+        <Link>ShaderCache\%(_SpectrumShader.Filename)%(_SpectrumShader.Extension)</Link>
+        <TargetPath>ShaderCache\%(_SpectrumShader.Filename)%(_SpectrumShader.Extension)</TargetPath>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

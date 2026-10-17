@@ -17,7 +17,7 @@
   <ItemGroup>
     <PackageReference Include="Jint" Version="4.17.0" />
     <EmbeddedResource Include="External\Folia\native-layout.js" LogicalName="Spectrum.Folia.native-layout.js" />
-    <Compile Remove="doc\verification\**\*.cs" />
+    <Compile Remove="doc\verification\**\*.cs;Build\**\*.cs" />
     <Compile Remove="External\Lyricify.Lyrics.Helper\**\*.cs" />
     <Page Remove="doc\verification\**\*.xaml" />
     <ApplicationDefinition Remove="doc\verification\**\*.xaml" />
@@ -150,4 +150,5 @@
   </Target>
   <Import Project="Rendering\ReconstructionAssets.targets" />
   <Import Project="Rendering/FoliaTextAssets.targets" />
+  <Import Project="Rendering/ShaderAssets.targets" />
 </Project>

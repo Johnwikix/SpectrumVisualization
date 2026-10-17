@@ -118,6 +118,7 @@ namespace WinExSpectrumTest
         private static async Task ExitAsync()
         {
             Task warmupShutdown = ShaderWarmup.StopAsync();
+            Task shaderMaintenance = Rendering.ShaderCacheMaintenance.StopAsync();
             try
             {
                 DataJsonService.SaveSettingNow();
@@ -127,6 +128,8 @@ namespace WinExSpectrumTest
             {
                 WriteCrashLog("Render shutdown", ex.Message, ex);
             }
+            try { await shaderMaintenance; }
+            catch (Exception ex) { WriteCrashLog("Shader cache shutdown", ex.Message, ex); }
             try { await warmupShutdown; }
             catch (Exception ex) { WriteCrashLog("Shader warmup shutdown", ex.Message, ex); }
             try { await MediaInfoService.StopAsync(); }

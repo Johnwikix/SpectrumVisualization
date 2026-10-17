@@ -374,3 +374,8 @@ doc/verification/folia-*.png
 doc/verification/folia-*.json
 doc/verification/HdrProbe/FoliaChecks.cs
 doc/verification/folia.md
+
+# Runtime rendering caches and generated shader bytecode
+**/ShaderCache/
+**/GlyphCache/
+**/PipelineCache/

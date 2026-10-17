@@ -49,7 +49,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
             throw;
         }
     }
-    private ID3D12PipelineState Pipeline(string source, ReadOnlyMemory<byte> vertex, string entry) => _device.CreateGraphicsPipelineState(new GraphicsPipelineStateDescription
+    private ID3D12PipelineState Pipeline(string source, ReadOnlyMemory<byte> vertex, string entry) => GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
     {
         RootSignature = _root,
         VertexShader = vertex,
@@ -61,7 +61,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
         BlendState = BlendDescription.Opaque,
         RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
         DepthStencilState = new() { DepthEnable = false, StencilEnable = false }
-    });
+    }, "FoliaBloom/root-v1/" + entry);
     internal void Resize(int width, int height, ID3D12Resource backdrop)
     {
         _width = width;

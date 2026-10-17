@@ -292,7 +292,7 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         commands.DrawInstanced((uint)_vertexCount, 1, 0, 0);
     }
 
-    private ID3D12PipelineState CreatePipeline(string vs, string ps, bool particles, bool temporal = false) => _device.CreateGraphicsPipelineState(new GraphicsPipelineStateDescription
+    private ID3D12PipelineState CreatePipeline(string vs, string ps, bool particles, bool temporal = false) => GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
     {
         RootSignature = particles ? _particleRoot : _root,
         VertexShader = ShaderCompiler.Compile(SonicTerrainSource.Code, vs, "vs_5_0"),
@@ -308,7 +308,7 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         BlendState = particles ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
         RasterizerState = new RasterizerDescription { CullMode = particles ? CullMode.None : CullMode.Back, FrontCounterClockwise = true, FillMode = FillMode.Solid, DepthClipEnable = true },
         DepthStencilState = new DepthStencilDescription { DepthEnable = !particles, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Less, StencilEnable = false }
-    });
+    }, $"Sonic/root-v1/{vs}/{ps}/{particles}/{temporal}");
 
     public void Dispose()
     {

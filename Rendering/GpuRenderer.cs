@@ -48,9 +48,11 @@ internal sealed class GpuRenderer
 
     public void Start()
     {
+        ShaderCacheMaintenance.Rebuilt += OnShaderCacheRebuilt;
         try { new Thread(Run) { IsBackground = true, Name = "Spectrum D3D12" }.Start(); }
         catch
         {
+            ShaderCacheMaintenance.Rebuilt -= OnShaderCacheRebuilt;
             lock (_gate)
             {
                 _stopping = true;
@@ -59,6 +61,11 @@ internal sealed class GpuRenderer
             _stopped.TrySetResult();
             throw;
         }
+    }
+
+    private void OnShaderCacheRebuilt()
+    {
+        lock (_gate) if (!_stopping) _wake.Set();
     }
 
     public void Configure(GpuRenderSettings settings)
@@ -118,6 +125,7 @@ internal sealed class GpuRenderer
         bool failureLogged = false;
         bool? previousRequest = null;
         bool hdr = false;
+        long shaderGeneration = ShaderCacheMaintenance.Generation;
         try
         {
             pacer = new GpuFramePacer(_wake);
@@ -163,6 +171,16 @@ internal sealed class GpuRenderer
                 }
                 try
                 {
+                    long currentGeneration = ShaderCacheMaintenance.Generation;
+                    if (currentGeneration != shaderGeneration)
+                    {
+                        // Dispose drains the queues on this worker; no GPU wait or thread join occurs on the UI thread.
+                        graphics?.Dispose();
+                        graphics = null;
+                        activeEffect = null;
+                        _lastReconstruction = null;
+                        shaderGeneration = currentGeneration;
+                    }
                     if (graphics == null)
                     {
                         Publish(HdrOutputMode.Starting);
@@ -218,7 +236,8 @@ internal sealed class GpuRenderer
                     if (submitted) RenderDiagnostics.RecordFrame(activeEffect, _analyzer.PublicationCount);
                     if (debugEnabled && graphics.LastFrameRendered)
                         _debug.Record(new RenderDebugFrame(true, submitted,
-                            Stopwatch.GetElapsedTime(renderStarted).TotalMilliseconds,
+                            Math.Max(0, Stopwatch.GetElapsedTime(renderStarted).TotalMilliseconds
+                                - graphics.LastPresentMilliseconds - graphics.LastGpuWaitMilliseconds),
                             graphics.LastPresentMilliseconds, graphics.LastGpuWaitMilliseconds, graphics.RenderSize,
                             graphics.Reconstruction.Active, settings.Scene.DlssPreset, hdr, graphics.AllowsTearing, settings.FramesPerSecond,
                             graphics.LastAntialiasMilliseconds));
@@ -257,6 +276,7 @@ internal sealed class GpuRenderer
         }
         finally
         {
+            ShaderCacheMaintenance.Rebuilt -= OnShaderCacheRebuilt;
             pacer?.Dispose();
             try { graphics?.Dispose(); }
             catch (Exception ex) { App.WriteCrashLog("GPU shutdown", ex.Message, ex); }

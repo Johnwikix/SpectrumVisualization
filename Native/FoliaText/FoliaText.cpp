@@ -5,6 +5,9 @@
 #include <Microsoft.Graphics.Canvas.native.h>
 #include "msdfgen.h"
 #include <new>
+#include <vector>
+#include <bcrypt.h>
+#pragma comment(lib, "bcrypt.lib")
 
 using Microsoft::WRL::ComPtr;
 using Point = D2D1_POINT_2F;
@@ -48,6 +51,42 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Close() override { return status; }
 };
+
+// The cache identity follows the resolved DirectWrite outlines, including fallback fonts and font updates.
+extern "C" __declspec(dllexport) HRESULT __cdecl FoliaOutlineSignature(IUnknown* object, BYTE* digest) noexcept {
+    if (!object || !digest) return E_INVALIDARG;
+    try {
+        ComPtr<ABI::Microsoft::Graphics::Canvas::ICanvasResourceWrapperNative> wrapper;
+        HRESULT hr = object->QueryInterface(IID_PPV_ARGS(&wrapper));
+        if (FAILED(hr)) return hr;
+        ComPtr<ID2D1Geometry> outline;
+        hr = wrapper->GetNativeResource(nullptr, 96, IID_PPV_ARGS(&outline));
+        if (FAILED(hr)) return hr;
+        auto receiver = Microsoft::WRL::Make<OutlineReceiver>();
+        hr = outline->Simplify(D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES, nullptr, .001f, receiver.Get());
+        if (SUCCEEDED(hr)) hr = receiver->Close();
+        if (FAILED(hr)) return hr;
+        std::vector<double> values;
+        values.push_back(receiver->evenOdd ? 1 : 0);
+        values.push_back(double(receiver->shape.contours.size()));
+        for (const auto& contour : receiver->shape.contours) {
+            values.push_back(double(contour.edges.size()));
+            for (const auto& edge : contour.edges) {
+                int type = edge->type();
+                values.push_back(type);
+                const auto points = edge->controlPoints();
+                for (int i = 0; i <= type; ++i) {
+                    values.push_back(points[i].x);
+                    values.push_back(points[i].y);
+                }
+            }
+        }
+        NTSTATUS result = BCryptHash(BCRYPT_SHA256_ALG_HANDLE, nullptr, 0,
+            reinterpret_cast<PUCHAR>(values.data()), ULONG(values.size() * sizeof(double)), digest, 32);
+        return result >= 0 ? S_OK : HRESULT_FROM_NT(result);
+    } catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+      catch (...) { return E_FAIL; }
+}
 
 extern "C" __declspec(dllexport) HRESULT __cdecl FoliaGenerateMtsdf(
     IUnknown* object, int width, int height, float translateX, float translateY, float range, float* pixels) noexcept {

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -16,11 +17,11 @@ internal sealed partial class FoliaLumiere
     private Vector2 _span;
     private Vector4 _camera;
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (_atlasIdentity == atlas.Identity && width == _width && height == _height && scale == _fontScale)
             return;
-        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileLumiere");
+        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileLumiere", token);
         using var document = JsonDocument.Parse(output);
         var root = document.RootElement;
         var shots = new List<Shot>();

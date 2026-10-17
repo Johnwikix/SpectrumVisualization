@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -13,11 +14,11 @@ internal sealed partial class FoliaFume
     private float _width, _height, _scale;
     private Block[] _blocks = [];
     private Vector3[] _camera = [];
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
-        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileFume");
+        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileFume", token);
         using var document = JsonDocument.Parse(output);
         var blocks = new List<Block>();
         var camera = new List<Vector3>();

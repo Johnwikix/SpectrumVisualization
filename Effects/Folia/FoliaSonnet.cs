@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -18,7 +19,7 @@ internal sealed class FoliaSonnet
     private Shot[] _shots = [];
     internal int ChromaticCount { get; private set; }
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && fontScale == _scale)
             return;
@@ -26,7 +27,7 @@ internal sealed class FoliaSonnet
         if (atlas.Lines.Length > 0)
         {
             string input = FoliaSourcePlanner.CreateInput(atlas, width, height, fontScale, family, weight);
-            string result = FoliaSourcePlanner.Compile(input, "compile");
+            string result = FoliaSourcePlanner.Compile(input, "compile", token);
             using var document = JsonDocument.Parse(result);
             var shots = new List<Shot>();
             foreach (var item in document.RootElement.EnumerateArray())

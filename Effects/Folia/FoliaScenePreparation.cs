@@ -1,0 +1,174 @@
+using System;
+using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace WinExSpectrumTest.Effects.Folia;
+
+internal readonly record struct FoliaSceneRequest(FoliaSong Song, string Family, int Weight,
+    string Mode, string Background, float Width, float Height, float Scale)
+{
+    internal bool Matches(in FoliaSceneRequest other) => ReferenceEquals(Song, other.Song)
+        && Family == other.Family && Weight == other.Weight && Mode == other.Mode && Background == other.Background
+        && Width == other.Width && Height == other.Height && Scale == other.Scale;
+
+    internal static bool SameText(FoliaSong a, FoliaSong b) => a.Title == b.Title && a.Artist == b.Artist
+        && ReferenceEquals(a.Lines, b.Lines);
+}
+
+/// <summary>Prepared off-thread, then transferred exclusively to the render worker. No GPU resources.</summary>
+internal sealed class FoliaModePlan
+{
+    internal FoliaLumiere Lumiere { get; } = new();
+    internal FoliaCadenza Cadenza { get; } = new();
+    internal FoliaGlowWords GlowWords { get; } = new();
+    internal FoliaPartita Partita { get; } = new();
+    internal FoliaSonnet Sonnet { get; } = new();
+    internal FoliaDiorama Diorama { get; } = new();
+    internal FoliaFume Fume { get; } = new();
+    internal FoliaTilt Tilt { get; } = new();
+    internal FoliaPendolo Pendolo { get; } = new();
+    internal FoliaTempera Tempera { get; } = new();
+
+    internal FoliaModePlan(FoliaTextAtlas atlas, in FoliaSceneRequest request, CancellationToken token)
+    {
+        if (atlas.Lines.Length != 0)
+            switch (request.Mode)
+            {
+                case "lumiere": Lumiere.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "cadenza": Cadenza.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "partita": Partita.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "tempera": Tempera.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "fume": Fume.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "diorama": Diorama.Prepare(atlas, token); break;
+                case "tilt": Tilt.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+            }
+        token.ThrowIfCancellationRequested();
+        GlowWords.Prepare(atlas);
+        if (request.Mode == "cappella") _ = FoliaAssets.Emojis;
+    }
+}
+
+internal sealed record FoliaPreparedScene(FoliaSceneRequest Request, FoliaTextAtlas? Atlas,
+    FoliaModePlan? Plan, Vector3[] Colors, Exception? Error = null);
+
+/// <summary>One cancellable CPU worker with a single latest request. Active render state is never mutated here.</summary>
+internal sealed class FoliaScenePreparation : IDisposable
+{
+    private readonly object _gate = new();
+    private FoliaSceneRequest? _pending;
+    private FoliaPreparedScene? _ready;
+    private CancellationTokenSource? _cancellation;
+    private Task? _work;
+    private bool _running, _stopped;
+    private FoliaTextAtlas? _atlas;
+    private FoliaSceneRequest _atlasRequest, _planRequest;
+    private FoliaModePlan? _plan;
+    private byte[]? _cover;
+    private Vector3[] _colors = [];
+
+    internal bool HasReady => Volatile.Read(ref _ready) != null;
+    internal FoliaPreparedScene? TakeReady() => Interlocked.Exchange(ref _ready, null);
+
+    internal void Request(in FoliaSceneRequest request)
+    {
+        lock (_gate)
+        {
+            if (_stopped) return;
+            _pending = request;
+            _cancellation?.Cancel();
+            Volatile.Write(ref _ready, null);
+            if (_running) return;
+            _running = true;
+            _work = Task.Run(RunAsync);
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        while (true)
+        {
+            FoliaSceneRequest request;
+            CancellationTokenSource cancellation;
+            lock (_gate)
+            {
+                if (_stopped || _pending is not { } next)
+                {
+                    _running = false;
+                    return;
+                }
+                request = next;
+                _pending = null;
+                cancellation = _cancellation = new CancellationTokenSource();
+            }
+            var token = cancellation.Token;
+            try
+            {
+                // Coalesce metadata / thumbnail bursts and slider drags before expensive work.
+                await Task.Delay(40, token).ConfigureAwait(false);
+                if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
+                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song))
+                {
+                    var atlas = new FoliaTextAtlas(request.Song, request.Family, request.Weight, token);
+                    token.ThrowIfCancellationRequested();
+                    _atlas = atlas;
+                    _atlasRequest = request;
+                    _plan = null;
+                }
+                if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
+                    || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale)
+                {
+                    var plan = new FoliaModePlan(_atlas, request, token);
+                    token.ThrowIfCancellationRequested();
+                    _plan = plan;
+                    _planRequest = request;
+                }
+                if (request.Background == "latent" && !ReferenceEquals(_cover, request.Song.CoverRgba))
+                {
+                    var colors = FoliaLatent.Extract(request.Song, token);
+                    token.ThrowIfCancellationRequested();
+                    _colors = colors;
+                    _cover = request.Song.CoverRgba;
+                }
+                var result = new FoliaPreparedScene(request, _atlas, _plan, _colors);
+                lock (_gate)
+                    if (!_stopped && !token.IsCancellationRequested) Volatile.Write(ref _ready, result);
+            }
+            catch (Exception) when (token.IsCancellationRequested) { }
+            catch (Exception error)
+            {
+                lock (_gate)
+                    if (!_stopped && !token.IsCancellationRequested)
+                        Volatile.Write(ref _ready, new(request, null, null, [], error));
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    _cancellation = null;
+                    cancellation.Dispose();
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Task? work;
+        lock (_gate)
+        {
+            _stopped = true;
+            _pending = null;
+            _cancellation?.Cancel();
+            work = _work;
+        }
+        // The owning render worker calls this after its frame barrier. CPU preparation never
+        // dispatches to UI or waits for rendering, so joining here has no circular dependency.
+        work?.GetAwaiter().GetResult();
+        _ready = null;
+        _atlas = null;
+        _plan = null;
+    }
+}

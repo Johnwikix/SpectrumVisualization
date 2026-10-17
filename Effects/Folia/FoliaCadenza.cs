@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -23,11 +24,11 @@ internal sealed class FoliaCadenza
     private double _lastTime = double.NaN;
     internal float FrameDelta;
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (_atlasIdentity == atlas.Identity && _width == width && _height == height && _scale == scale)
             return;
-        string json = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileCadenza");
+        string json = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileCadenza", token);
         using var document = JsonDocument.Parse(json);
         var layouts = new LineLayout[atlas.Lines.Length];
         int lineIndex = 0;

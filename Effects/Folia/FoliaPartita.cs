@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -15,11 +16,11 @@ internal sealed class FoliaPartita
     private Line[] _lines = [];
     private float _width, _height, _scale;
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
-        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePartita"));
+        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePartita", token));
         var layouts = new List<Line>();
         int li = 0;
         foreach (var row in document.RootElement.EnumerateArray())

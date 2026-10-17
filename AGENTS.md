@@ -10,6 +10,7 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - 新增可视化效果：选择宿主并在 `EffectRegistry` 注册名称；`IVisualizerEffect` 仅用于 Win2D。`Id` 即 `SaveSetting.VisualEffect` 的持久化值，发布后不可更改；显示名称走本地化资源。
 - 音域回响的 ComputeSharp 计算着色器位于 `Effects/Sonic/Shaders`；`Rendering/GpuGraphics` 拥有交换链与共享后处理，`SonicGpuEffect` 拥有效果的高度场、深度、运动矢量和粒子资源，FP16 线性场景最终编码为 RGB10 的 SDR 或 HDR10。工作线程帧循环同样禁止堆分配。`GpuPanel` 施加逆 DPI 缩放；改窗口尺寸逻辑时同时核对物理像素尺寸、着色器、粒子和 XAML 媒体卡片坐标。
 - 时域重建通过 `ITemporalGpuEffect` + `TemporalReconstruction` 接入；运动矢量为不含 jitter 的当前帧到上一帧输入像素偏移，深度为常规 0..1，近远面与垂直 FOV 由效果的 `TemporalCamera` 提供。相机、投影或效果改动必须同步这个契约。SDK 上下文与资源只由渲染线程使用，并在队列完成后释放；粒子在重建后按输出分辨率叠加。厂商 SDK 恢复脚本及 SHA-256 固定位于 `External/Upscalers`，不得将插帧混入此链路。
+- HLSL 统一经 `ShaderCompiler`，新增入口同步 `ShaderCatalog`，由正式构建工具预编译。字节码按完整源码 / 入口 / 目标 / 编译选项失效；`GpuPipelineCache` 的驱动缓存另含显卡实例、型号、驱动及系统标识。根签名、固定管线状态或资源契约改变时必须更新调用处的管线版本键，避免旧 PSO 被错误复用。缓存只走冷路径，不能在逐帧绘制中读写磁盘或建立管线；手动重建完成后由渲染工作线程在安全边界重新加载。
 
 ## NativeAOT 发布约束
 

@@ -50,6 +50,19 @@ internal sealed partial class FoliaLumiereGeometry
         var line = _lines[_activeLine];
         int count = line.Glyphs.Length;
         bool flying = false;
+        // Most slides do not fly. Inspect the small transform history before resolving every
+        // glyph at 21 sample times; those discarded poses were the dominant CPU frame cost.
+        for (int sample = 0; sample <= 20 && !flying; sample++)
+        {
+            var transform = ComputeTransform(_activeLine, from + (time - from) * sample / 20);
+            for (int m = 0; m < transform.Moves; m++)
+                flying |= _moves[m].Fly;
+        }
+        if (!flying)
+        {
+            _transform = ComputeTransform(_activeLine, time);
+            return;
+        }
         for (int sample = 0; sample <= 20; sample++)
         {
             _time = from + (time - from) * sample / 20;

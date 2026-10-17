@@ -143,6 +143,15 @@
                                 MinWidth="160" ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
                                 SelectedIndex="{x:Bind ViewModel.RefreshRateIndex, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="ShaderManagement" Margin="10,0,10,0">
+                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsRebuildingShaders, Mode=OneWay}" />
+                                <Button x:Uid="ShaderCacheRebuildButton" AutomationProperties.AutomationId="RebuildShaderCache"
+                                    Command="{x:Bind ViewModel.RebuildShadersCommand}" />
+                            </StackPanel>
+                        </controls:SettingsCard>
+                        <TextBlock Margin="10,0,10,6" Text="{x:Bind ViewModel.ShaderCacheStatus, Mode=OneWay}" TextWrapping="Wrap"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <controls:SettingsCard x:Uid="ShowDebugOverlay" Margin="10,0,10,0">
                             <ToggleSwitch x:Uid="ShowDebugOverlaySwitch" VerticalAlignment="Center"
                                 IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />

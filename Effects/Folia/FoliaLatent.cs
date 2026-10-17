@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.IO;
 using System.Numerics;
 using System.Text;
@@ -24,7 +25,13 @@ internal sealed class FoliaLatent
         _colors = Extract(song);
         _cover = song.CoverRgba;
     }
-    private static Vector3[] Extract(FoliaSong song)
+    internal void SetPalette(FoliaSong song, Vector3[] colors)
+    {
+        _cover = song.CoverRgba;
+        _colors = colors;
+    }
+
+    internal static Vector3[] Extract(FoliaSong song, CancellationToken token = default)
     {
         if (song.CoverRgba.Length == 0 || song.CoverWidth <= 0 || song.CoverHeight <= 0)
             return [];
@@ -42,7 +49,7 @@ internal sealed class FoliaLatent
             }
             writer.WriteEndArray();
         }
-        string json = FoliaSourcePlanner.Compile(Encoding.UTF8.GetString(input.GetBuffer(), 0, (int)input.Length), "compilePalette");
+        string json = FoliaSourcePlanner.Compile(Encoding.UTF8.GetString(input.GetBuffer(), 0, (int)input.Length), "compilePalette", token);
         using var document = JsonDocument.Parse(json);
         var colors = new Vector3[document.RootElement.GetArrayLength()];
         for (int i = 0; i < colors.Length; i++)

@@ -14,6 +14,11 @@
     <UseAppHost>true</UseAppHost>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Keep ignored, locally generated Folia tests out of this versioned probe. -->
+    <Compile Remove="FoliaChecks.cs" />
+    <Compile Include="../../../Rendering/RenderCacheFile.cs;../../../Rendering/GpuPipelineCache.cs;../../../Rendering/ColorOutputShaderSource.cs;../../../Rendering/SmaaShaderSource.cs;../../../Rendering/ShaderCatalog.cs;../../../Rendering/ShaderCacheMaintenance.cs" LinkBase="Rendering" />
+    <Compile Include="../../../Effects/Folia/FoliaShaderLibrary.cs;../../../Model/FoliaSettings.cs" LinkBase="Folia" />
+    <EmbeddedResource Include="../../../Effects/Folia/Shaders/*.hlsl" LogicalName="Spectrum.Folia.%(Filename).hlsl" />
     <Compile Include="../../../Audio/SpectrumAnalyzer.cs;../../../Audio/LoopbackWaveFormat.cs" LinkBase="Audio" />
     <Compile Include="../../../Effects/Sonic/**/*.cs" LinkBase="Sonic" />
     <Compile Include="../../../Rendering/GpuGraphics.cs;../../../Rendering/ColorOutputPipelines.cs;../../../Rendering/ParticleVertex.cs;../../../Rendering/IGpuVisualizerEffect.cs;../../../Rendering/ShaderCompiler.cs" LinkBase="Rendering" />

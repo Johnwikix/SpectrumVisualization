@@ -12,7 +12,7 @@ StarVertex VS(uint vertex:SV_VertexID,uint index:SV_InstanceID) {
  float pointSize=max(2*Options.z*Screen.x/Screen.z,size*Screen.y*3.5);
  float2 quad=float2((vertex==1||vertex==2||vertex==4)?1:0,(vertex>=2&&vertex<=4)?1:0);
  float2 center=float2(x/(aspect*.5),y/.5);
- StarVertex v;v.position=float4(center+(quad-.5)*pointSize/Screen.xy*float2(2,-2),0,1);v.uv=quad;
+ StarVertex v;v.position=float4(center+((quad-.5)*pointSize+Jitter.xy)/Screen.xy*float2(2,-2),0,1);v.uv=quad;
  v.intensity=.3+.7*sin(time*(1+blinkRand*2.5)+xRand*6.283);v.colorType=colorRand;return v;
 }
 float4 PS(StarVertex v):SV_Target {

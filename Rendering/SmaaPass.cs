@@ -22,41 +22,6 @@ internal sealed unsafe class SmaaPass : IDisposable
     private readonly int _height;
     internal ID3D12Resource Output => _textures[2]!;
 
-    // Source color is perceptual, brightness-mapped FP16. Encoding remains the host's responsibility.
-    private const string Prefix = """
-        #define SMAA_HLSL_4 1
-        // HIGH preset with brightness-relative edge sensitivity for HDR.
-        #define SMAA_MAX_SEARCH_STEPS 16
-        #define SMAA_MAX_SEARCH_STEPS_DIAG 8
-        #define SMAA_CORNER_ROUNDING 25
-        #define SMAA_THRESHOLD (.1 * edgeScale)
-        cbuffer Settings : register(b0) { float4 metrics; float edgeScale; };
-        #define SMAA_RT_METRICS metrics
-        """;
-    private const string Suffix = """
-        Texture2D colorTex : register(t0);
-        Texture2D edgesTex : register(t1);
-        Texture2D blendTex : register(t2);
-        Texture2D areaTex : register(t3);
-        Texture2D searchTex : register(t4);
-        void VS(uint id : SV_VertexID, out float4 position : SV_Position, out float2 uv : TEXCOORD0) {
-            float2 xy = float2((id << 1) & 2, id & 2);
-            position = float4(xy * 2 - 1, 0, 1); uv = float2(xy.x, 1 - xy.y);
-        }
-        float2 Edges(float4 p : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
-            float4 offsets[3]; SMAAEdgeDetectionVS(uv,offsets);
-            return SMAAColorEdgeDetectionPS(uv,offsets,colorTex);
-        }
-        float4 Weights(float4 p : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
-            float2 pixel; float4 offsets[3]; SMAABlendingWeightCalculationVS(uv,pixel,offsets);
-            return SMAABlendingWeightCalculationPS(uv,pixel,offsets,edgesTex,areaTex,searchTex,0);
-        }
-        float4 Blend(float4 p : SV_Position, float2 uv : TEXCOORD0) : SV_Target {
-            float4 offset; SMAANeighborhoodBlendingVS(uv,offset);
-            return SMAANeighborhoodBlendingPS(uv,offset,colorTex,blendTex);
-        }
-        """;
-
     /// <summary>Records lookup uploads. The caller must drain this list before releasing uploads or disposing.</summary>
     internal SmaaPass(ID3D12Device device, ID3D12GraphicsCommandList commands, ID3D12Resource source, int width, int height)
     {
@@ -72,9 +37,7 @@ internal sealed unsafe class SmaaPass : IDisposable
                 [new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView, 5, 0, 0, 0, DescriptorRangeFlags.None)]), ShaderVisibility.Pixel),
                  new RootParameter1(new RootConstants(0, 0, 5), ShaderVisibility.Pixel)],
                 [Sampler(0, Filter.MinMagMipLinear), Sampler(1, Filter.MinMagMipPoint)]));
-            using var stream = Resource("SMAA.hlsl");
-            using var reader = new StreamReader(stream);
-            string shader = Prefix + "\n" + reader.ReadToEnd() + "\n" + Suffix;
+            string shader = SmaaShaderSource.Load();
             var vs = ShaderCompiler.Compile(shader, "VS", "vs_5_0");
             Format[] formats = [Format.R8G8_UNorm, Format.R8G8B8A8_UNorm, Format.R16G16B16A16_Float];
             string[] entries = ["Edges", "Weights", "Blend"];
@@ -83,14 +46,14 @@ internal sealed unsafe class SmaaPass : IDisposable
                 _textures[i] = device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
                     ResourceDescription.Texture2D(formats[i], (uint)width, (uint)height, 1, 1, 1, 0, ResourceFlags.AllowRenderTarget), ResourceStates.PixelShaderResource);
                 device.CreateRenderTargetView(_textures[i]!, null, _rtv.GetCPUDescriptorHandleForHeapStart() + i * _stride);
-                _passes[i] = device.CreateGraphicsPipelineState(new GraphicsPipelineStateDescription
+                _passes[i] = GpuPipelineCache.Create(device, new GraphicsPipelineStateDescription
                 {
                     RootSignature = _root, VertexShader = vs, PixelShader = ShaderCompiler.Compile(shader, entries[i], "ps_5_0"),
                     PrimitiveTopologyType = PrimitiveTopologyType.Triangle, RenderTargetFormats = [formats[i]],
                     SampleDescription = new(1, 0), SampleMask = uint.MaxValue, BlendState = BlendDescription.Opaque,
                     RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
                     DepthStencilState = new() { DepthEnable = false, StencilEnable = false }
-                });
+                }, "smaa/root-v1/" + entries[i]);
             }
             UploadLookup(device, commands, 0, "AreaTexDX10.dds", 160, 560, 3, Format.R8G8_UNorm);
             UploadLookup(device, commands, 1, "SearchTex.dds", 64, 16, 1, Format.R8_UNorm);

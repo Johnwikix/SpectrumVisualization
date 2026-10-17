@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
@@ -12,11 +13,11 @@ internal sealed class FoliaTilt
     private long _atlasIdentity;
     private float _width, _height, _scale;
     private Layout[] _layouts = [];
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && _width == width && _height == height && _scale == scale)
             return;
-        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileTilt"));
+        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileTilt", token));
         var layouts = new List<Layout>();
         int li = 0;
         foreach (var item in document.RootElement.EnumerateArray())

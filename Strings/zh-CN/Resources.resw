@@ -288,7 +288,7 @@
   <data name="ShowDebugOverlaySwitch.AutomationProperties.Name" xml:space="preserve"><value>显示调试覆盖层</value></data>
   <data name="RenderDebugWaiting" xml:space="preserve"><value>等待渲染采样…</value></data>
   <data name="RenderDebugGpu" xml:space="preserve"><value>渲染 {0:F1} FPS  提交 {1:F1} FPS  丢弃 {2}
-CPU 帧 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
+CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
 {6}×{7} → {8}×{9} | {10} | {11}
 {14} {15}
 {12} | {13}
@@ -360,4 +360,11 @@ CPU 帧 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaOption_lens-distortion.Content" xml:space="preserve"><value>镜头畸变</value></data>
 <data name="FoliaCoverBackground.Header" xml:space="preserve"><value>封面流光叠加</value></data>
 <data name="FoliaCoverBackground.Description" xml:space="preserve"><value>在通用动态背景中叠加模糊封面；关闭时使用主题底色和几何图形。</value></data>
+  <data name="ShaderManagement.Header" xml:space="preserve"><value>着色器管理</value></data>
+  <data name="ShaderManagement.Description" xml:space="preserve"><value>缓存位于程序目录。源码或编译选项变化时更新字节码；显卡、驱动或系统变化时重建相关管线。</value></data>
+  <data name="ShaderCacheRebuildButton.Content" xml:space="preserve"><value>清理并重建</value></data>
+  <data name="ShaderCacheStatusReady" xml:space="preserve"><value>可清理着色器与驱动管线缓存，并重新编译内置着色器。</value></data>
+  <data name="ShaderCacheStatusRunning" xml:space="preserve"><value>正在清理并重建着色器缓存…</value></data>
+  <data name="ShaderCacheStatusComplete" xml:space="preserve"><value>已重建 {0} 个着色器入口，GPU 效果将自动重新载入。</value></data>
+  <data name="ShaderCacheStatusFailed" xml:space="preserve"><value>缓存重建失败：{0}</value></data>
 </root>

@@ -33,6 +33,7 @@ internal sealed class GpuDeviceLease : IDisposable
             if (--_owners != 0) return;
             var device = _device;
             _device = null;
+            GpuPipelineCache.ReleaseDeviceCache();
             device?.Dispose();
         }
     }

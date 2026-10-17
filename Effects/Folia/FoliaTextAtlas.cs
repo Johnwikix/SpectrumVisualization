@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.Graphics.Canvas;
@@ -20,6 +21,21 @@ internal sealed record FoliaPreparedLine(FoliaLine Source, FoliaPreparedGlyph[] 
 /// <summary>DirectWrite Bezier outlines become MTSDF once per song / font change; frame shaders reconstruct sharp coverage at the actual scale.</summary>
 internal sealed class FoliaTextAtlas
 {
+    internal static FoliaTextAtlas Placeholder { get; } = new();
+
+    private FoliaTextAtlas()
+    {
+        Seed = "";
+        Width = Height = 1;
+        Pixels = new byte[8];
+        ShadowPixels = [0];
+        CharacterGlyphs = new Dictionary<string, FoliaGlyph>();
+        Lines = [];
+        Title = Artist = MonetTitle = MonetLabel = [];
+        ChatTimestamps = [];
+        ChatTimestampWidths = [];
+        ChatSenders = [];
+    }
     private static long _nextIdentity;
     internal long Identity { get; } = System.Threading.Interlocked.Increment(ref _nextIdentity);
     internal void ReleaseDistancePixels() => Pixels = [];
@@ -76,7 +92,7 @@ internal sealed class FoliaTextAtlas
         get;
     }
 
-    internal FoliaTextAtlas(FoliaSong song, string family, int weight)
+    internal FoliaTextAtlas(FoliaSong song, string family, int weight, CancellationToken token = default)
     {
         Seed = song.Title.StartsWith("Folia ·", StringComparison.Ordinal) ? "spectrum-reference" : song.Title + "\n" + song.Artist;
         var characters = new SortedSet<string>(StringComparer.Ordinal);
@@ -121,6 +137,7 @@ internal sealed class FoliaTextAtlas
         int x = 0, y = 0, row = 0;
         foreach (var request in requests)
         {
+            token.ThrowIfCancellationRequested();
             string character = request.Text;
             format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
             format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
@@ -162,20 +179,23 @@ internal sealed class FoliaTextAtlas
         ShadowPixels = new byte[Width * Height];
         foreach (var entry in entries)
         {
+            token.ThrowIfCancellationRequested();
             format.FontWeight = new FontWeight { Weight = (ushort)entry.Weight };
             format.FontStyle = entry.Italic ? FontStyle.Italic : FontStyle.Normal;
             using var layout = new CanvasTextLayout(device, entry.Text, format, 2048, 256);
             using var outline = CanvasGeometry.CreateText(layout);
-            FoliaDistanceField.Render(outline, entry.Width, entry.Height, Padding - entry.XBearing, Padding - entry.YBearing, field);
+            byte[] tile = FoliaGlyphCache.Get(outline, entry.Width, entry.Height, Padding - entry.XBearing, Padding - entry.YBearing,
+                field, coverage, horizontal, kernel);
+            int tilePixels = entry.Width * entry.Height;
+            var tileDistances = MemoryMarshal.Cast<byte, Half>(tile.AsSpan(0, tilePixels * 8));
+            var tileShadow = tile.AsSpan(tilePixels * 8);
             for (int rowIndex = 0; rowIndex < entry.Height; rowIndex++)
             {
-                var destination = atlasPixels.Slice(((entry.Y + rowIndex) * Width + entry.X) * 4, entry.Width * 4);
-                var source = field.AsSpan(rowIndex * entry.Width * 4, entry.Width * 4);
-                for (int i = 0; i < source.Length; i++)
-                    destination[i] = (Half)source[i];
+                tileDistances.Slice(rowIndex * entry.Width * 4, entry.Width * 4)
+                    .CopyTo(atlasPixels.Slice(((entry.Y + rowIndex) * Width + entry.X) * 4, entry.Width * 4));
+                tileShadow.Slice(rowIndex * entry.Width, entry.Width)
+                    .CopyTo(ShadowPixels.AsSpan((entry.Y + rowIndex) * Width + entry.X, entry.Width));
             }
-            FoliaGlyphShadow.Write(field, entry.Width, entry.Height, kernel, coverage, horizontal,
-                ShadowPixels, Width, entry.X, entry.Y);
             var destinationGlyphs = entry.Italic ? italicGlyphs : entry.Weight == weight ? glyphs : entry.Weight == 600 ? titleGlyphs : timestampGlyphs;
             destinationGlyphs[entry.Text] = new((float)entry.X / Width, (float)entry.Y / Height,
                 (float)entry.Width / Width, (float)entry.Height / Height,

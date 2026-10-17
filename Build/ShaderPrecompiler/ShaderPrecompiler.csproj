@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
+    <Compile Include="../../Rendering/ShaderCompiler.cs;../../Rendering/ShaderCatalog.cs;../../Rendering/RenderCacheFile.cs;../../Rendering/ColorOutputShaderSource.cs;../../Rendering/SmaaShaderSource.cs;../../Effects/Sonic/SonicTerrainSource.cs;../../Effects/Folia/FoliaShaderLibrary.cs" LinkBase="Runtime" />
+    <EmbeddedResource Include="../../Effects/Folia/Shaders/*.hlsl" LogicalName="Spectrum.Folia.%(Filename).hlsl" />
+    <EmbeddedResource Include="../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
+    <EmbeddedResource Include="../../External/SMAA/SMAA.hlsl" LogicalName="Spectrum.SMAA.SMAA.hlsl" />
+  </ItemGroup>
+</Project>

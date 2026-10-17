@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
@@ -22,13 +23,13 @@ internal sealed class FoliaTempera
     {
         get; private set;
     }
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         GraphicsCount = 0;
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
         string input = FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight);
-        string output = FoliaSourcePlanner.Compile(input, "compileTempera");
+        string output = FoliaSourcePlanner.Compile(input, "compileTempera", token);
         using var document = JsonDocument.Parse(output);
         var shots = new List<Shot>();
         foreach (var item in document.RootElement.EnumerateArray())

@@ -6,6 +6,7 @@ Texture2D<float4> BackdropTexture : register(t3);
 Texture2D<float4> LayerTexture : register(t4);
 // Cappella emoji tiles, or the matching glyph Gaussian coverage atlas in other modes.
 Texture2D<float4> ModeAtlasTexture : register(t6);
+Texture2D<float4> PreviousStageTexture : register(t8);
 SamplerState LinearClamp : register(s0);
 SamplerState LinearWrap : register(s1);
 cbuffer Frame : register(b0) {
@@ -22,6 +23,7 @@ cbuffer Frame : register(b0) {
     float4 LatentStyle;
     float4 LatentDistortion;
     float4 PostProcess;
+    float4 PreviousJitter;
 };
 void Fullscreen(uint id : SV_VertexID, out float4 p : SV_Position, out float2 uv : TEXCOORD0) {
     float2 xy = float2((id << 1) & 2, id & 2);

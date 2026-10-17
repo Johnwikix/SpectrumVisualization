@@ -2,6 +2,22 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-17 SMTC 切歌后台准备
+
+- `FoliaScenePreparation`、`FoliaTextAtlas`、`FoliaSourcePlanner`、各模式规划器：字形图集、歌词布局和封面取色移到可取消的后台任务，合并连续的歌曲信息更新；仅封面变化时复用图集和布局。
+- `FoliaGpuEffect.Preparation`、`FoliaGpuEffect`：准备期间继续绘制背景，完成后在渲染线程安全提交并重置时域历史；快速切歌丢弃过时结果，退出等待后台准备结束。
+
+## 2026-10-17 着色器管理、时域稳定性与 CPU 帧开销
+
+- `Build/ShaderPrecompiler`、`ShaderAssets.targets`、`ShaderCompiler`：构建 / 发布预编译全部内置 HLSL，程序目录的校验缓存按完整源码、入口、目标及编译选项失效；损坏或缺失时回退编译，目录不可写时继续使用内存结果。
+- `GpuPipelineCache`、`GpuDeviceLease`：共享设备上的管线复用，并缓存驱动管线；显卡标识、驱动、系统、着色器及管线版本参与键值，不兼容的驱动缓存自动重建，在最后一个设备租约释放时清理内存管线。
+- `SettingViewModel.Shaders`、`SettingWindow`、双语资源：通用设置增加清理并重建命令、进度与失败状态；后台编译，渲染工作线程在安全边界重建资源，退出等待后台维护结束。
+- `FoliaGlyphCache`、`FoliaTextAtlas`、`Native/FoliaText`：按实际字体轮廓缓存 MTSDF / 高斯字形瓦片，减少切歌重复生成；CPU 内存缓存有容量限制，磁盘产物位于程序目录。
+- `FoliaSourcePlanner`：预解析并复用同一份内置布局脚本，每次规划使用独立解释器，避免切换模式重复解析源码和跨歌曲全局状态污染。
+- `Stage.hlsl`、`FoliaShaderLibrary`、`Sora.hlsl`：修正 jitter 方向，在几何 / 背景栅格化时采样；响应掩码区分内容变化和静态边缘的覆盖变化，避免全画面持续拒绝历史；限制字形与辉光采样到本字的纹理范围，消除邻字串扰竖条。
+- `FoliaGpuEffect`、`FoliaLumiereGeometry.Decor`：实例布局在预分配的 CPU 缓冲完成后连续上传，避免反复读取写合并上传堆；DPI 缩放移入 GPU，跳过没有飞行的字形轨迹采样。
+- `GpuRenderer`、双语资源：覆盖层 CPU 工作时间扣除显式 GPU 等待及 Present，三项分开显示，关闭覆盖层时不启用额外计时。
+
 ## 2026-10-17 Folia 字形清晰度与视觉对齐
 
 - `FoliaTextAtlas`、`FoliaDistanceField`、`Native/FoliaText`、`Stage.hlsl`：由字体贝塞尔轮廓生成半精度 MTSDF，以实际屏幕导数恢复字形边缘，修正固定低分辨率覆盖贴图放大模糊及逐字填充裁切范围。

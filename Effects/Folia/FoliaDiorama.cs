@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
@@ -25,7 +26,7 @@ internal sealed partial class FoliaDiorama
         private get; set;
     }
 
-    internal void Prepare(FoliaTextAtlas atlas)
+    internal void Prepare(FoliaTextAtlas atlas, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity)
             return;
@@ -56,7 +57,7 @@ internal sealed partial class FoliaDiorama
             w.WriteEndArray();
             w.WriteEndObject();
         }
-        string json = FoliaSourcePlanner.Compile(Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length), "compileDiorama");
+        string json = FoliaSourcePlanner.Compile(Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length), "compileDiorama", token);
         using var document = JsonDocument.Parse(json);
         var lines = new List<Line>();
         var surfaces = new List<Surface>();
