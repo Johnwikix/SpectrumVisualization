@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,8 +52,17 @@ internal sealed class FoliaModePlan
     }
 }
 
-internal sealed record FoliaPreparedScene(FoliaSceneRequest Request, FoliaTextAtlas? Atlas,
-    FoliaModePlan? Plan, Vector3[] Colors, Exception? Error = null);
+internal sealed class FoliaPreparedScene(FoliaSceneRequest request, FoliaTextAtlas? atlas,
+    FoliaModePlan? plan, Vector3[] colors, Exception? error = null) : IDisposable
+{
+    internal FoliaSceneRequest Request { get; } = request;
+    internal FoliaTextAtlas? Atlas { get; } = atlas;
+    internal FoliaModePlan? Plan { get; } = plan;
+    internal Vector3[] Colors { get; } = colors;
+    internal Exception? Error { get; } = error;
+    private FoliaTextAtlas? _owner = atlas?.Retain();
+    public void Dispose() => Interlocked.Exchange(ref _owner, null)?.ReleaseLease();
+}
 
 /// <summary>One cancellable CPU worker with a single latest request. Active render state is never mutated here.</summary>
 internal sealed class FoliaScenePreparation : IDisposable
@@ -60,6 +70,7 @@ internal sealed class FoliaScenePreparation : IDisposable
     private readonly object _gate = new();
     private FoliaSceneRequest? _pending;
     private FoliaPreparedScene? _ready;
+    private readonly Queue<FoliaPixelBuffer> _retiredPixels = new();
     private CancellationTokenSource? _cancellation;
     private Task? _work;
     private bool _running, _stopped;
@@ -79,31 +90,58 @@ internal sealed class FoliaScenePreparation : IDisposable
             if (_stopped) return;
             _pending = request;
             _cancellation?.Cancel();
-            Volatile.Write(ref _ready, null);
-            if (_running) return;
-            _running = true;
-            _work = Task.Run(RunAsync);
+            Interlocked.Exchange(ref _ready, null)?.Dispose();
+            StartWorker();
         }
+    }
+
+    internal void RetirePixels(FoliaPixelBuffer? pixels)
+    {
+        if (pixels == null) return;
+        lock (_gate)
+        {
+            if (_stopped) { pixels.Dispose(); return; }
+            _retiredPixels.Enqueue(pixels);
+            StartWorker();
+        }
+    }
+
+    // Called only under _gate. Pixel decommit can take milliseconds, so retire it on the
+    // same observed worker rather than moving a large allocation's free into the commit frame.
+    private void StartWorker()
+    {
+        if (_running) return;
+        _running = true;
+        _work = Task.Run(RunAsync);
     }
 
     private async Task RunAsync()
     {
         while (true)
         {
-            FoliaSceneRequest request;
-            CancellationTokenSource cancellation;
+            FoliaSceneRequest request = default;
+            CancellationTokenSource? cancellation = null;
+            FoliaPixelBuffer? retired;
             lock (_gate)
             {
-                if (_stopped || _pending is not { } next)
+                if (!_retiredPixels.TryDequeue(out retired))
                 {
-                    _running = false;
-                    return;
+                    if (_stopped || _pending is not { } next)
+                    {
+                        _running = false;
+                        return;
+                    }
+                    request = next;
+                    _pending = null;
+                    cancellation = _cancellation = new CancellationTokenSource();
                 }
-                request = next;
-                _pending = null;
-                cancellation = _cancellation = new CancellationTokenSource();
             }
-            var token = cancellation.Token;
+            if (retired != null)
+            {
+                retired.Dispose();
+                continue;
+            }
+            var token = cancellation!.Token;
             try
             {
                 // Coalesce metadata / thumbnail bursts and slider drags before expensive work.
@@ -112,7 +150,12 @@ internal sealed class FoliaScenePreparation : IDisposable
                     || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song))
                 {
                     var atlas = new FoliaTextAtlas(request.Song, request.Family, request.Weight, token);
-                    token.ThrowIfCancellationRequested();
+                    if (token.IsCancellationRequested)
+                    {
+                        atlas.Dispose();
+                        token.ThrowIfCancellationRequested();
+                    }
+                    _atlas?.Dispose();
                     _atlas = atlas;
                     _atlasRequest = request;
                     _plan = null;
@@ -134,14 +177,16 @@ internal sealed class FoliaScenePreparation : IDisposable
                 }
                 var result = new FoliaPreparedScene(request, _atlas, _plan, _colors);
                 lock (_gate)
-                    if (!_stopped && !token.IsCancellationRequested) Volatile.Write(ref _ready, result);
+                    if (!_stopped && !token.IsCancellationRequested)
+                        Interlocked.Exchange(ref _ready, result)?.Dispose();
+                    else result.Dispose();
             }
             catch (Exception) when (token.IsCancellationRequested) { }
             catch (Exception error)
             {
                 lock (_gate)
                     if (!_stopped && !token.IsCancellationRequested)
-                        Volatile.Write(ref _ready, new(request, null, null, [], error));
+                        Interlocked.Exchange(ref _ready, new(request, null, null, [], error))?.Dispose();
             }
             finally
             {
@@ -167,8 +212,13 @@ internal sealed class FoliaScenePreparation : IDisposable
         // The owning render worker calls this after its frame barrier. CPU preparation never
         // dispatches to UI or waits for rendering, so joining here has no circular dependency.
         work?.GetAwaiter().GetResult();
-        _ready = null;
+        Interlocked.Exchange(ref _ready, null)?.Dispose();
+        _atlas?.Dispose();
         _atlas = null;
         _plan = null;
+        _cover = null;
+        _colors = [];
+        _atlasRequest = _planRequest = default;
+        _work = null;
     }
 }

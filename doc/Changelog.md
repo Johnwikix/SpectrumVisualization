@@ -2,6 +2,14 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-17 切歌峰值与资源释放
+
+- `FoliaPixelBuffer`、`FoliaTextAtlas`、`FoliaScenePreparation`：大图集像素改为显式租约持有的原生缓冲，构造失败、取消、替换和退出均释放；大块像素回收移出渲染提交帧。
+- `FoliaSceneUpload`、`FoliaGpuEffect`：使用最多 4 MiB 的复用上传缓冲，按帧限时复制 CPU 数据并分块录制 GPU 上传，候选纹理完成后才替换活动场景；时域历史在实际提交帧重置，取消上传等待既有帧屏障。
+- `FoliaSourcePlanner`：最多 16 条 / 8 MiB 的不可变布局结果缓存，重复切模式、切效果时避免再次产生解释器临时对象；不复用可变解释器。
+- `External/Folia/native-layout.js`：Cadenza 碰撞搜索按需计算候选，去除每次尝试的数组和结果对象；12 组布局输出与原算法逐字一致。
+- `FoliaGpuEffect`、`FoliaPlaybackService`、`MediaInfoService`、`App`：释放后清除歌曲和布局引用，服务停止清除歌曲 / SMTC 快照并阻止迟到回调回写；退出时清理 CPU 缓存，保存设置失败也继续停止渲染。
+
 ## 2026-10-17 SMTC 切歌后台准备
 
 - `FoliaScenePreparation`、`FoliaTextAtlas`、`FoliaSourcePlanner`、各模式规划器：字形图集、歌词布局和封面取色移到可取消的后台任务，合并连续的歌曲信息更新；仅封面变化时复用图集和布局。

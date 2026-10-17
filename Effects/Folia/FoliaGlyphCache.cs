@@ -18,6 +18,16 @@ internal static class FoliaGlyphCache
     private static long _bytes;
     internal static string CacheDirectory => RenderCacheFile.DirectoryFor("GlyphCache");
 
+    internal static void ClearMemory()
+    {
+        lock (Gate)
+        {
+            Tiles.Clear();
+            Order.Clear();
+            _bytes = 0;
+        }
+    }
+
     internal static byte[] Get(CanvasGeometry outline, int width, int height, float x, float y,
         Span<float> field, Span<float> coverage, Span<float> horizontal, float[] kernel)
     {

@@ -16,6 +16,21 @@ internal static class FoliaSourcePlanner
     // Jint's prepared scripts are immutable and shareable; each plan still uses an isolated
     // engine, so song data and planner globals cannot leak into a later song.
     private static readonly Lazy<Prepared<Acornima.Ast.Script>> Source = new(() => Engine.PrepareScript(LoadSource()));
+    private const int ResultLimit = 8 * 1024 * 1024, EntryLimit = 16;
+    private static readonly object CacheGate = new();
+    private static readonly Dictionary<(string Function, string Input), string> Results = new();
+    private static readonly Queue<(string Function, string Input)> ResultOrder = new();
+    private static int _resultBytes;
+
+    internal static void ClearResults()
+    {
+        lock (CacheGate)
+        {
+            Results.Clear();
+            ResultOrder.Clear();
+            _resultBytes = 0;
+        }
+    }
     internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight)
     {
         using var input = new MemoryStream();
@@ -105,11 +120,36 @@ internal static class FoliaSourcePlanner
     {
         // Only locally embedded source executes; lyric content is passed as data, with no CLR interop.
         token.ThrowIfCancellationRequested();
+        var key = (Function: function, Input: json);
+        lock (CacheGate)
+            if (Results.TryGetValue(key, out string? cached)) return cached;
+        string result = CompileUncached(json, function, token);
+        token.ThrowIfCancellationRequested();
+        // Cache only immutable output, never an engine or its mutable song globals. Repeated
+        // mode/effect switches avoid the interpreter's short-lived number/object graph.
+        long bytes = ((long)function.Length + json.Length + result.Length) * sizeof(char);
+        if (bytes <= ResultLimit)
+            lock (CacheGate)
+            {
+                if (Results.TryGetValue(key, out string? existing)) return existing;
+                while ((_resultBytes + bytes > ResultLimit || Results.Count >= EntryLimit)
+                    && ResultOrder.TryDequeue(out var oldest))
+                    if (Results.Remove(oldest, out string? value))
+                        _resultBytes -= (oldest.Function.Length + oldest.Input.Length + value.Length) * sizeof(char);
+                Results.Add(key, result);
+                ResultOrder.Enqueue(key);
+                _resultBytes += (int)bytes;
+            }
+        return result;
+    }
+
+    private static string CompileUncached(string json, string function, CancellationToken token)
+    {
+        // Keep the captured options delegate out of the cache-hit path.
         var engine = new Engine(options => options.CancellationToken(token));
         engine.Execute(Source.Value);
         engine.SetValue("nativeInput", json);
-        string result = engine.Evaluate("FoliaNativeSource." + function + "(nativeInput)").AsString();
-        return result;
+        return engine.Evaluate("FoliaNativeSource." + function + "(nativeInput)").AsString();
     }
     private static string LoadSource()
     {

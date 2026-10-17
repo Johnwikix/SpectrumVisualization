@@ -47,7 +47,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
     private string _lastMode = "", _lastBackground = "", _lastImageEffect = "";
     private bool _lastCoverBackground;
     private double _lastPosition;
-    public bool ResetHistoryRequested => _preparation.HasReady
+    public bool ResetHistoryRequested => _upload is { Complete: true }
         || _lyricsVisible != (_hasScene && FoliaSceneRequest.SameText(_song!, playback.Song))
         || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
         || Math.Abs(playback.Clock.Now - _lastPosition) > .5;
@@ -209,23 +209,6 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         string mode = _lyricsVisible && _atlas!.Lines.Length > 0 ? _activeRequest.Mode : "classic";
         string backgroundMode = _hasScene ? _activeRequest.Background : "common";
         float fontScale = _hasScene ? _activeRequest.Scale : 1;
-        if (mode == "cappella")
-        {
-            var emojis = FoliaAssets.Emojis;
-            if (!ReferenceEquals(_modeAtlasSource, emojis))
-            {
-                SetImage(5, emojis.Width, emojis.Height, emojis.Pixels, Format.B8G8R8A8_UNorm);
-                _modeAtlasSource = emojis;
-                Descriptors();
-            }
-        }
-        else if (!ReferenceEquals(_modeAtlasSource, _atlas))
-        {
-            // Cappella and glyph shadows never coexist. The shared mode atlas has one render-worker owner.
-            SetImage(5, _atlas!.Width, _atlas.Height, _atlas.ShadowPixels, Format.R8_UNorm);
-            _modeAtlasSource = _atlas;
-            Descriptors();
-        }
         var clock = playback.Clock;
         double position = clock.Now;
         bool modeChanged = _lastMode != mode;
@@ -332,6 +315,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
 
     public void RecordScene(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target)
     {
+        _upload?.Record(commands);
         UploadImages(commands);
         commands.SetDescriptorHeaps(_srv);
         commands.SetGraphicsRootSignature(_root);
@@ -496,6 +480,26 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _disposed = true;
         try { _preparation.Dispose(); }
         catch (Exception error) { App.WriteCrashLog("Folia preparation shutdown", error.Message, error); }
+        _upload?.Dispose();
+        _activeScene?.Dispose();
+        _upload = _activeScene = null;
+        _hasScene = _hasRequest = _lyricsVisible = false;
+        _atlas = null;
+        _song = null;
+        _modeAtlasSource = null;
+        _requested = _activeRequest = default;
+        _prepared = [];
+        _lumiere = null!;
+        _cadenza = null!;
+        _glowWords = null!;
+        _partita = null!;
+        _sonnet = null!;
+        _diorama = null!;
+        _fume = null!;
+        _tilt = null!;
+        _pendolo = null!;
+        _tempera = null!;
+        _latent.SetPalette(FoliaSong.Empty, []);
         foreach (var p in _backgrounds)
             GpuGraphics.DisposeResource(p);
         foreach (var t in _textures)

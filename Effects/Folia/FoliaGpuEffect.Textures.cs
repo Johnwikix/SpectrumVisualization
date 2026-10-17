@@ -1,6 +1,7 @@
 using System;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
+using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -9,6 +10,21 @@ internal sealed unsafe partial class FoliaGpuEffect
     private readonly int[] _imageWidths = new int[6], _imageHeights = new int[6];
     private readonly Format[] _imageFormats = new Format[6];
     private static int ImagePixelSize(Format format) => format == Format.R16G16B16A16_Float ? 8 : format == Format.R8_UNorm ? 1 : 4;
+    private void InstallImage(FoliaImageUpload? image)
+    {
+        if (image == null) return;
+        int slot = image.Slot;
+        GpuGraphics.DisposeResource(_textures[slot]);
+        GpuGraphics.DisposeResource(_uploads[slot]);
+        _textures[slot] = image.Texture;
+        _uploads[slot] = image.Upload;
+        image.Texture = image.Upload = null;
+        _imageWidths[slot] = image.Width;
+        _imageHeights[slot] = image.Height;
+        _imageFormats[slot] = image.Format;
+        // Candidate copies and their final transition completed on the preceding frame's fence.
+        _pending[slot] = false;
+    }
     private void SetImage(int slot, int width, int height, ReadOnlySpan<byte> pixels, Format format)
     {
         _textures[slot]?.Dispose();

@@ -119,9 +119,10 @@ namespace WinExSpectrumTest
         {
             Task warmupShutdown = ShaderWarmup.StopAsync();
             Task shaderMaintenance = Rendering.ShaderCacheMaintenance.StopAsync();
+            try { DataJsonService.SaveSettingNow(); }
+            catch (Exception ex) { WriteCrashLog("Settings shutdown", ex.Message, ex); }
             try
             {
-                DataJsonService.SaveSettingNow();
                 if (MainWindow != null) await MainWindow.StopRenderingAsync();
             }
             catch (Exception ex)
@@ -136,6 +137,8 @@ namespace WinExSpectrumTest
             catch (Exception ex) { WriteCrashLog("Media shutdown", ex.Message, ex); }
             try { await FoliaPlayback.StopAsync(); }
             catch (Exception ex) { WriteCrashLog("Lyrics shutdown", ex.Message, ex); }
+            Effects.Folia.FoliaSourcePlanner.ClearResults();
+            Effects.Folia.FoliaGlyphCache.ClearMemory();
             try { MainWindow?.ReleaseWallpaper(); }
             catch (Exception ex) { WriteCrashLog("Wallpaper shutdown", ex.Message, ex); }
             try

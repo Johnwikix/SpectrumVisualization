@@ -229,6 +229,17 @@ internal sealed class FoliaPlaybackService
             pending = [.. _operations];
         }
         Changed?.Invoke();
-        await Task.WhenAll(pending).ConfigureAwait(false);
+        try { await Task.WhenAll(pending).ConfigureAwait(false); }
+        finally
+        {
+            lock (_gate)
+            {
+                _operations.Clear();
+                _request = null;
+                _trackKey = "";
+                State.Publish(FoliaSong.Empty);
+                State.SetClock(0, 0, false);
+            }
+        }
     }
 }

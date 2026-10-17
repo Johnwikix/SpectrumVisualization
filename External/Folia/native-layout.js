@@ -1215,11 +1215,12 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				else occupiedBands.set(band, [rectIndex]);
 			}
 		};
+		// Native planner: reuse scalar results and evaluate candidates lazily. The search
+		// order and arithmetic stay identical without allocating arrays/objects per trial.
+		let collisionOverlapArea = 0;
 		const evaluateCollisionRect = (left, top, right, bottom) => {
-			if (occupiedRects.length === 0) return {
-				intersects: false,
-				overlapArea: 0
-			};
+			collisionOverlapArea = 0;
+			if (occupiedRects.length === 0) return false;
 			occupiedQueryStamp += 1;
 			const stamp = occupiedQueryStamp;
 			const startBand = getBandIndex(top);
@@ -1241,10 +1242,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 					overlapArea += overlapWidth * overlapHeight;
 				}
 			}
-			return {
-				intersects,
-				overlapArea
-			};
+			collisionOverlapArea = overlapArea;
+			return intersects;
 		};
 		const pushPlacementRect = (left, top, width, height, padding) => {
 			registerOccupiedRect({
@@ -1343,26 +1342,25 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			const baseAngle = heroMetrics && emphasis <= 1 ? Math.atan2(preferredY, preferredX + width / 2) : 0;
 			for (let radius = 0; radius <= maxRadius && !found; radius += step) {
 				const sampleCount = radius === 0 ? 1 : emphasis > 1 ? 8 : Math.max(12, Math.round(Math.PI * 2 * radius / Math.max(step * 1.1, 10)));
-				const candidates = radius === 0 ? [[0, 0]] : Array.from({ length: sampleCount }, (_, sampleIndex) => {
+				for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
 					const angle = baseAngle + sampleIndex / sampleCount * Math.PI * 2;
 					const ellipseY = radius * (emphasis > 1 ? .8 : .92);
-					return [Math.cos(angle) * radius, Math.sin(angle) * ellipseY];
-				});
-				for (const [dx, dy] of candidates) {
+					const dx = radius === 0 ? 0 : Math.cos(angle) * radius;
+					const dy = radius === 0 ? 0 : Math.sin(angle) * ellipseY;
 					const left = preferredX + dx - padding;
 					const top = preferredY + dy - collisionHeight - padding;
 					const right = left + collisionWidth + padding * 2;
 					const bottom = top + collisionHeight + padding * 2;
 					if (!(left >= horizontalMin && right <= horizontalMax && top >= verticalMin && bottom <= verticalMax)) continue;
-					const collision = evaluateCollisionRect(left, top, right, bottom);
+					const intersects = evaluateCollisionRect(left, top, right, bottom);
 					const travel = Math.hypot(dx, dy);
-					const score = collision.overlapArea * 2.2 + travel;
+					const score = collisionOverlapArea * 2.2 + travel;
 					if (score < bestFallback.score) bestFallback = {
 						x: preferredX + dx,
 						y: preferredY + dy,
 						score
 					};
-					if (!collision.intersects) {
+					if (!intersects) {
 						chosenX = preferredX + dx;
 						chosenY = preferredY + dy;
 						pushPlacementRect(chosenX, chosenY, collisionWidth, collisionHeight, padding);

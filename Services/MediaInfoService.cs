@@ -22,6 +22,7 @@ namespace WinExSpectrumTest.Services
 
         // 串行化 UpdateSessionAsync（SessionsChanged / PlaybackInfoChanged / 健康检查并发触发）
         private readonly SemaphoreSlim _gate = new(1, 1);
+        private readonly object _snapshotGate = new();
         // 空枚举需连续两次（间隔 500ms）才认定"真的没有会话"——WinRT 在会话增删
         // 瞬间可能短暂返回空列表，单次就清空并解绑会让文字永久消失
         private int _emptyEnumerations;
@@ -269,14 +270,23 @@ namespace WinExSpectrumTest.Services
                 {
                     return;
                 }
-                CurrentTitle = props.Title;
-                CurrentArtist = props.Artist;
-                CurrentThumbnail = props.Thumbnail;
+                PublishSnapshot(props.Title, props.Artist, props.Thumbnail);
                 App.WriteCrashLog("SMTC", $"push title='{props.Title}' artist='{props.Artist}'", null);
-                MediaTextChanged?.Invoke(props.Title, props.Artist, props.Thumbnail);
             }
             catch (Exception)
             {
+            }
+        }
+
+        private void PublishSnapshot(string title, string artist, IRandomAccessStreamReference? thumbnail)
+        {
+            lock (_snapshotGate)
+            {
+                if (_stopping) return;
+                CurrentTitle = title;
+                CurrentArtist = artist;
+                CurrentThumbnail = thumbnail;
+                MediaTextChanged?.Invoke(title, artist, thumbnail);
             }
         }
 
@@ -285,18 +295,23 @@ namespace WinExSpectrumTest.Services
             try
             {
                 if (_stopping || _session == null) return;
-                var playbackInfo = _session.GetPlaybackInfo();
+                var session = _session;
+                var playbackInfo = session.GetPlaybackInfo();
                 bool playing = playbackInfo?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-                if (playing != IsPlaying)
+                var timeline = session.GetTimelineProperties();
+                lock (_snapshotGate)
                 {
-                    IsPlaying = playing;
-                    PlaybackChanged?.Invoke(playing);
-                }
+                    if (_stopping || !ReferenceEquals(session, _session)) return;
+                    if (playing != IsPlaying)
+                    {
+                        IsPlaying = playing;
+                        PlaybackChanged?.Invoke(playing);
+                    }
 
-                var timeline = _session.GetTimelineProperties();
-                Position = timeline.Position;
-                Duration = timeline.EndTime;
-                TimelineChanged?.Invoke(timeline.Position, timeline.EndTime);
+                    Position = timeline.Position;
+                    Duration = timeline.EndTime;
+                    TimelineChanged?.Invoke(timeline.Position, timeline.EndTime);
+                }
             }
             catch (Exception)
             {
@@ -305,7 +320,7 @@ namespace WinExSpectrumTest.Services
 
         public async Task StopAsync()
         {
-            _stopping = true;
+            lock (_snapshotGate) _stopping = true;
             _lifetime.Cancel();
             if (_initialization != null) await _initialization;
             if (_watchdog != null) await _watchdog;
@@ -321,6 +336,11 @@ namespace WinExSpectrumTest.Services
                 }
                 _session = null;
                 _manager = null;
+                CurrentTitle = null;
+                CurrentArtist = null;
+                CurrentThumbnail = null;
+                IsPlaying = false;
+                Position = Duration = TimeSpan.Zero;
             }
             finally { _gate.Release(); }
         }
