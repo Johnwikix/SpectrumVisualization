@@ -9,6 +9,11 @@ namespace WinExSpectrumTest.Model
     {
         public static event Action<string>? Changed;
 
+        private static bool _lyricsCacheEnabled = true;
+        public static bool LyricsCacheEnabled { get => _lyricsCacheEnabled; set => Set(ref _lyricsCacheEnabled, value); }
+        private static string _lyricsCacheFolder = "";
+        public static string LyricsCacheFolder { get => _lyricsCacheFolder; set => Set(ref _lyricsCacheFolder, value?.Trim() ?? ""); }
+
         private static string _foliaLyricMode = "classic";
         private static bool _foliaCoverBackground;
         public static bool FoliaCoverBackground { get => _foliaCoverBackground; set => Set(ref _foliaCoverBackground, value); }

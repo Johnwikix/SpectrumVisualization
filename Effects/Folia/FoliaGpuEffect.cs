@@ -32,6 +32,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
     private FoliaTilt _tilt = new();
     private FoliaPendolo _pendolo = new();
     private FoliaTempera _tempera = new();
+    private FoliaMonet _monet = new();
     private int _stageGraphicsCount;
     private ID3D12PipelineState _clockwork = null!;
     private ID3D12Resource _clockConstants = null!;
@@ -304,8 +305,10 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
             }
         }
         _glowWords.FrameDelta = (float)elapsedSeconds;
+        _monet.FrameDelta = (float)elapsedSeconds;
         _glowWords.Begin(lineIndex, (int)_data[2].Y, position);
-        _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita) : 0;
+        _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet)
+            : _metadataVisible ? FoliaLyricLayout.WriteMetadata(instances[_backgroundCount..], _atlas, song, layoutWidth, layoutHeight, fontScale) : 0;
         _data[26] = new(_tempera.PostSeed, 0, 0, 0);
         _stageGraphicsCount = (int)_data[2].Y == 11 ? _tempera.GraphicsCount : (int)_data[2].Y == 9 && _atlas.Lines.Length > 0 ? 1 : 0;
         _data[8] = new(FoliaTempera.Ink, 1);

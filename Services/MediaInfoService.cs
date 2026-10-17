@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
+using WinExSpectrumTest.Services.Lyrics;
 
 namespace WinExSpectrumTest.Services
 {
@@ -14,9 +15,6 @@ namespace WinExSpectrumTest.Services
     /// </summary>
     public sealed class MediaInfoService
     {
-        /// <summary>Preferred source app (the bundled HQPlayer package), kept from the legacy behavior.</summary>
-        private const string PreferredAppUserModelIdFragment = "SennpaiStudio.528762A6196EF_z79ft30j24epr";
-
         private GlobalSystemMediaTransportControlsSessionManager? _manager;
         private GlobalSystemMediaTransportControlsSession? _session;
 
@@ -34,9 +32,16 @@ namespace WinExSpectrumTest.Services
 
         /// <summary>最近一次的媒体信息快照。效果页切换后重建时从这里回放，
         /// 否则 SMTC 只在新曲目属性变化时推送（表现为切回 Aurora 后信息丢失）。</summary>
-        public string? CurrentTitle { get; private set; }
-        public string? CurrentArtist { get; private set; }
-        public IRandomAccessStreamReference? CurrentThumbnail { get; private set; }
+        public sealed record TrackSnapshot(string? Title, string? Artist, string? Album, string? SourceAppId, IRandomAccessStreamReference? Thumbnail);
+        private static readonly TrackSnapshot EmptyTrack = new(null, null, null, null, null);
+        private TrackSnapshot _currentTrack = EmptyTrack;
+        public TrackSnapshot CurrentTrack => Volatile.Read(ref _currentTrack);
+        public string? CurrentTitle => CurrentTrack.Title;
+        public string? CurrentArtist => CurrentTrack.Artist;
+        public string? CurrentAlbum => CurrentTrack.Album;
+        public string? CurrentSourceAppId => CurrentTrack.SourceAppId;
+        public IRandomAccessStreamReference? CurrentThumbnail => CurrentTrack.Thumbnail;
+        private long _mediaRequestVersion;
 
         public event Action<string?, string?, IRandomAccessStreamReference?>? MediaTextChanged;
         public event Action<bool>? PlaybackChanged;
@@ -127,12 +132,16 @@ namespace WinExSpectrumTest.Services
                     }
                     if (CurrentTitle != null || CurrentArtist != null)
                     {
-                        CurrentTitle = null;
-                        CurrentArtist = null;
-                        CurrentThumbnail = null;
-                        MediaTextChanged?.Invoke(null, null, null);
-                        PlaybackChanged?.Invoke(false);
-                        TimelineChanged?.Invoke(TimeSpan.Zero, TimeSpan.Zero);
+                        lock (_snapshotGate)
+                        {
+                            Interlocked.Increment(ref _mediaRequestVersion);
+                            Volatile.Write(ref _currentTrack, EmptyTrack);
+                            IsPlaying = false;
+                            Position = Duration = TimeSpan.Zero;
+                            MediaTextChanged?.Invoke(null, null, null);
+                            PlaybackChanged?.Invoke(false);
+                            TimelineChanged?.Invoke(TimeSpan.Zero, TimeSpan.Zero);
+                        }
                     }
                     return;
                 }
@@ -146,7 +155,7 @@ namespace WinExSpectrumTest.Services
                 GlobalSystemMediaTransportControlsSession? selected = null;
                 for (int i = 0; i < sessions.Count; i++)
                 {
-                    if (sessions[i].SourceAppUserModelId.Contains(PreferredAppUserModelIdFragment))
+                    if (MediaSourceIdentity.IsOriginalSound(sessions[i].SourceAppUserModelId))
                     {
                         try
                         {
@@ -231,11 +240,13 @@ namespace WinExSpectrumTest.Services
 
         private async void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
         {
+            if (!IsCurrentSession(sender)) return;
             await RefreshMediaPropertiesAsync();
         }
 
         private async void OnPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
         {
+            if (!IsCurrentSession(sender)) return;
             RefreshPlaybackAndTimeline();
             await RefreshMediaPropertiesAsync();
             // 当前会话停止/暂停而别的会话可能开始播放：重跑选择策略
@@ -254,7 +265,15 @@ namespace WinExSpectrumTest.Services
 
         private void OnTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
         {
+            if (!IsCurrentSession(sender)) return;
             RefreshPlaybackAndTimeline();
+        }
+
+        private bool IsCurrentSession(GlobalSystemMediaTransportControlsSession sender)
+        {
+            // WinRT may project another wrapper for the same session. Use the same source identity as selection.
+            try { return !_stopping && _session is { } current && sender.SourceAppUserModelId == current.SourceAppUserModelId; }
+            catch (Exception) { return false; }
         }
 
         private async Task RefreshMediaPropertiesAsync()
@@ -262,7 +281,9 @@ namespace WinExSpectrumTest.Services
             try
             {
                 if (_stopping || _session == null) return;
-                var props = await _session.TryGetMediaPropertiesAsync();
+                var session = _session;
+                long version = Interlocked.Increment(ref _mediaRequestVersion);
+                var props = await session.TryGetMediaPropertiesAsync();
                 if (_stopping || props == null) return;
                 // 标题与歌手全空视为"无效快照"（切歌瞬间/暂停态可能拿到）——不更新不推送，
                 // 保留旧值等下一次推送；否则空串会把正在显示的信息冲掉（表现为文字消失）。
@@ -270,7 +291,11 @@ namespace WinExSpectrumTest.Services
                 {
                     return;
                 }
-                PublishSnapshot(props.Title, props.Artist, props.Thumbnail);
+                lock (_snapshotGate)
+                {
+                    if (_stopping || !ReferenceEquals(session, _session) || version != Volatile.Read(ref _mediaRequestVersion)) return;
+                    PublishSnapshot(new(props.Title, props.Artist, props.AlbumTitle, session.SourceAppUserModelId, props.Thumbnail));
+                }
                 App.WriteCrashLog("SMTC", $"push title='{props.Title}' artist='{props.Artist}'", null);
             }
             catch (Exception)
@@ -278,15 +303,13 @@ namespace WinExSpectrumTest.Services
             }
         }
 
-        private void PublishSnapshot(string title, string artist, IRandomAccessStreamReference? thumbnail)
+        private void PublishSnapshot(TrackSnapshot track)
         {
             lock (_snapshotGate)
             {
                 if (_stopping) return;
-                CurrentTitle = title;
-                CurrentArtist = artist;
-                CurrentThumbnail = thumbnail;
-                MediaTextChanged?.Invoke(title, artist, thumbnail);
+                Volatile.Write(ref _currentTrack, track);
+                MediaTextChanged?.Invoke(track.Title, track.Artist, track.Thumbnail);
             }
         }
 
@@ -336,9 +359,7 @@ namespace WinExSpectrumTest.Services
                 }
                 _session = null;
                 _manager = null;
-                CurrentTitle = null;
-                CurrentArtist = null;
-                CurrentThumbnail = null;
+                Volatile.Write(ref _currentTrack, EmptyTrack);
                 IsPlaying = false;
                 Position = Duration = TimeSpan.Zero;
             }

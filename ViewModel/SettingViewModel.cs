@@ -647,6 +647,13 @@ namespace WinExSpectrumTest.ViewModel
                 _dispatcher.TryEnqueue(() => OnSettingsChanged(name));
                 return;
             }
+            if (name is nameof(AppSettings.LyricsCacheEnabled) or nameof(AppSettings.LyricsCacheFolder))
+            {
+                NotifyLyricsSettings();
+                _hdrSaveTimer.Stop();
+                _hdrSaveTimer.Start();
+                return;
+            }
             if (name.StartsWith("Folia", StringComparison.Ordinal))
             {
                 NotifyFoliaSettings();
@@ -740,6 +747,7 @@ namespace WinExSpectrumTest.ViewModel
             PowCoe = AppSettings.PowCoe;
             VisualEffect = AppSettings.VisualEffect;
             NotifyFoliaSettings();
+            NotifyLyricsSettings();
             SonicTheme = AppSettings.SonicTheme;
             SonicAudioIntensity = AppSettings.SonicAudioIntensity * 100f;
             SonicResponseRange = AppSettings.SonicResponseRange * 100f;

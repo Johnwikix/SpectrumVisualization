@@ -98,7 +98,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
     }
 
     internal void Glyph(in FoliaGlyph glyph, float x, float y, float font, Vector3 color, float alpha,
-        float rotation = 0, float blur = 0, float glow = 0, float shear = 0, float reveal = 1, float difference = 0, bool outline = false, float outlineWidth = 1.05f)
+        float rotation = 0, float blur = 0, float glow = 0, float shear = 0, float reveal = 1, float difference = 0, bool outline = false, float outlineWidth = 1.05f, float revealSoftness = 0)
     {
         if (alpha <= .001f || font < .1f || reveal <= 0 || Count >= _instances.Length)
             return;
@@ -113,7 +113,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Color = new(color, Math.Clamp(alpha, 0, 1)),
             Transform = new(rotation, shear, blur, glow),
             Shape = new(0, 0, 0, 0),
-            Effect = new(reveal >= 1 ? 1 : Math.Clamp((glyph.Advance * reveal - glyph.BearingX) / glyph.Width, 0, 1), 0, outline ? outlineWidth : 0, difference)
+            Effect = new(reveal >= 1 ? 1 : Math.Clamp((glyph.Advance * reveal - glyph.BearingX) / glyph.Width, 0, 1), reveal >= 1 ? 0 : revealSoftness, outline ? outlineWidth : 0, difference)
         };
     }
 

@@ -8,7 +8,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private readonly FoliaScenePreparation _preparation = new();
     private FoliaSceneUpload? _upload, _activeScene;
     private FoliaSceneRequest _requested, _activeRequest;
-    private bool _hasRequest, _hasScene, _lyricsVisible;
+    private bool _hasRequest, _hasScene, _lyricsVisible, _metadataVisible;
     private static readonly byte[] EmptyCover = [14, 17, 24, 255];
 
     private FoliaSceneRequest DesiredScene()
@@ -72,6 +72,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _tilt = plan.Tilt;
             _pendolo = plan.Pendolo;
             _tempera = plan.Tempera;
+            _monet = plan.Monet;
             _latent.SetPalette(request.Song, scene.Colors);
             _activeRequest = request;
             _hasScene = true;
@@ -81,6 +82,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _upload = null;
         }
         _lyricsVisible = _hasScene && FoliaSceneRequest.SameText(_song!, request.Song);
+        _metadataVisible = _hasScene && _song!.Title == request.Song.Title && _song.Artist == request.Song.Artist;
         return textChanged;
     }
 }

@@ -7,7 +7,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal static partial class FoliaLyricLayout
 {
     internal static int Write(Span<FoliaInstance> output, FoliaTextAtlas atlas, FoliaSong song,
-        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita)
+        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita, FoliaMonet monet)
     {
         var painter = new FoliaPainter(output, width, height);
         var palette = song.Palette;
@@ -15,11 +15,7 @@ internal static partial class FoliaLyricLayout
         int index = FindLine(atlas.Lines, time);
         if (atlas.Lines.Length == 0)
         {
-            float font = Math.Min(width * .055f, 58) * fontScale;
-            font = Math.Min(font, width * .8f / Math.Max(atlas.TitleWidth, 1));
-            painter.Text(atlas.Title, (width - atlas.TitleWidth * font) * .5f, height * .43f, font, primary, .9f);
-            painter.Text(atlas.Artist, (width - atlas.ArtistWidth * 20) * .5f, height * .43f + font * 1.6f, 20, secondary, .75f);
-            return painter.Count;
+            return WriteMetadata(output, atlas, song, width, height, fontScale);
         }
         index = Math.Clamp(index, 0, atlas.Lines.Length - 1);
         switch (mode)
@@ -43,7 +39,7 @@ internal static partial class FoliaLyricLayout
                 Claddagh(ref painter, atlas.Lines, index, time, animationTime, fontScale, primary, accent);
                 break;
             case 7:
-                Monet(ref painter, atlas, index, time, fontScale, primary, secondary, accent);
+                monet.Write(ref painter, atlas, song, index, time);
                 break;
             case 8:
                 diorama.Write(ref painter, atlas, index, time, fontScale, primary, secondary, accent);
@@ -66,6 +62,22 @@ internal static partial class FoliaLyricLayout
         }
         if (mode is not (3 or 4 or 7 or 9))
             Subtitle(ref painter, atlas.Lines[index], primary, secondary);
+        return painter.Count;
+    }
+
+    internal static int WriteMetadata(Span<FoliaInstance> output, FoliaTextAtlas atlas, FoliaSong song, float width, float height, float scale)
+    {
+        var painter = new FoliaPainter(output, width, height);
+        float font = Math.Min(Math.Min(width * .045f, 42) * scale, width * .84f / Math.Max(atlas.TitleWidth, 1));
+        float artist = Math.Min(18, width * .8f / Math.Max(atlas.ArtistWidth, 1));
+        float top = height * .44f;
+        if (song.CoverWidth > 0)
+        {
+            float cover = Math.Min(160, Math.Min(width * .28f, height * .28f));
+            painter.Shape(10, (width - cover) * .5f, top - cover - 28, cover, cover, Vector3.One, 1, radius: 12, uv: new(0, 0, 1, 1));
+        }
+        painter.Text(atlas.Title, (width - atlas.TitleWidth * font) * .5f, top, font, song.Palette[1], .95f);
+        painter.Text(atlas.Artist, (width - atlas.ArtistWidth * artist) * .5f, top + font * 1.45f + 8, artist, song.Palette[1], .65f);
         return painter.Count;
     }
 

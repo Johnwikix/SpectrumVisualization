@@ -6,23 +6,27 @@ using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 using WinExSpectrumTest.Effects.Folia;
-using Lyricify.Lyrics.Helpers;
-using Lyricify.Lyrics.Models;
-using Lyricify.Lyrics.Searchers;
-using Lyricify.Lyrics.Searchers.Helpers;
+using WinExSpectrumTest.Services.Lyrics;
 
 namespace WinExSpectrumTest.Services;
 
-/// <summary>Active-effect scoped QQ lookup. Requests, cancellation and cover decoding stay off the render / UI threads.</summary>
+/// <summary>Active-effect scoped player/cache/network lookup. I/O, parsing and cover decoding stay off render / UI threads.</summary>
 internal sealed class FoliaPlaybackService
 {
     private readonly MediaInfoService _media;
+    private readonly OriginalSoundLyricsSource _playerLyrics;
+    private readonly LyricsOnlineSearch _onlineLyrics;
+    private readonly Func<IRandomAccessStreamReference?, CancellationToken, Task<(byte[] Bytes, int Width, int Height)>> _decodeCover;
     private readonly object _gate = new();
     private readonly HashSet<Task> _operations = [];
     private CancellationTokenSource? _request;
+    private CancellationTokenSource? _coverRequest;
+    private IRandomAccessStreamReference? _thumbnail;
+    private long _coverVersion;
     private bool _active, _stopped;
     private long _version;
     private string _trackKey = "";
+    private string _songKey = "";
     private string _status = "waiting";
     internal FoliaPlaybackState State { get; } = new();
     internal string Status { get { lock (_gate) return _status; } }
@@ -30,7 +34,14 @@ internal sealed class FoliaPlaybackService
     internal event Action? Changed;
     internal static bool PreviewEnabled => Environment.GetEnvironmentVariable("SPECTRUM_FOLIA_PREVIEW") == "1";
 
-    internal FoliaPlaybackService(MediaInfoService media) => _media = media;
+    internal FoliaPlaybackService(MediaInfoService media, OriginalSoundLyricsSource? playerLyrics = null, LyricsOnlineSearch? onlineLyrics = null,
+        Func<IRandomAccessStreamReference?, CancellationToken, Task<(byte[] Bytes, int Width, int Height)>>? decodeCover = null)
+    {
+        _media = media;
+        _playerLyrics = playerLyrics ?? new();
+        _onlineLyrics = onlineLyrics ?? new();
+        _decodeCover = decodeCover ?? DecodeCoverAsync;
+    }
 
     internal void SetActive(bool active)
     {
@@ -60,8 +71,11 @@ internal sealed class FoliaPlaybackService
                 _media.PlaybackChanged -= OnPlaybackChanged;
                 _media.TimelineChanged -= OnTimelineChanged;
                 _request?.Cancel();
+                _coverRequest?.Cancel();
+                _coverVersion++;
+                _thumbnail = null;
                 _version++;
-                if (_status == "loading") _trackKey = "";
+                _trackKey = ""; // Re-read player preferences and lyrics when this effect is activated again.
             }
         }
         if (active && !PreviewEnabled) RequestCurrent(false);
@@ -93,29 +107,34 @@ internal sealed class FoliaPlaybackService
         lock (_gate)
         {
             if (!_active || _stopped || PreviewEnabled) return;
-            string title = _media.CurrentTitle?.Trim() ?? "";
-            string artist = _media.CurrentArtist?.Trim() ?? "";
-            string key = title + "\n" + artist;
-            if (!retry && key == _trackKey) return;
+            var snapshot = _media.CurrentTrack;
+            string title = snapshot.Title?.Trim() ?? "";
+            string artist = snapshot.Artist?.Trim() ?? "";
+            var track = new LyricsTrack(title, artist, snapshot.Album?.Trim() ?? "", _media.Duration.TotalSeconds);
+            string sourceId = snapshot.SourceAppId ?? "";
+            string key = sourceId + "\n" + track.CacheKey;
+            if (!retry && key == _trackKey)
+            {
+                RequestCover(snapshot.Thumbnail, _version);
+                return;
+            }
             _trackKey = key;
             _request?.Cancel();
-            var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             _request = cancellation;
             long version = ++_version;
-            State.Publish(FoliaSong.Empty with { Title = title, Artist = artist });
+            // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
+            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with { Title = title, Artist = artist });
+            _songKey = key;
+            _thumbnail = null;
+            _coverRequest?.Cancel();
+            _coverVersion++;
+            RequestCover(snapshot.Thumbnail, version);
             _status = title.Length == 0 ? "waiting" : "loading";
             if (title.Length != 0)
             {
                 // Task.Run also keeps any synchronous parser, image decode and search setup off UI.
-                double duration = _media.Duration.TotalSeconds;
-                var thumbnail = _media.CurrentThumbnail;
-                Task task = Task.Run(() => ResolveAsync(title, artist, duration, thumbnail, version, cancellation));
-                _operations.Add(task);
-                _ = task.ContinueWith(static (completed, state) =>
-                {
-                    var owner = (FoliaPlaybackService)state!;
-                    lock (owner._gate) owner._operations.Remove(completed);
-                }, this, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                TrackOperation(Task.Run(() => ResolveAsync(track, sourceId, retry, version, cancellation)));
             }
             else
             {
@@ -126,47 +145,91 @@ internal sealed class FoliaPlaybackService
         Changed?.Invoke();
     }
 
-    private async Task ResolveAsync(string title, string artist, double duration, IRandomAccessStreamReference? thumbnail,
-        long version, CancellationTokenSource cancellation)
+    private void TrackOperation(Task task)
+    {
+        _operations.Add(task);
+        _ = task.ContinueWith(static (completed, state) =>
+        {
+            var owner = (FoliaPlaybackService)state!;
+            lock (owner._gate) owner._operations.Remove(completed);
+        }, this, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    // Called under _gate. Same-song thumbnail updates have their own cancellation/epoch and never restart lyrics.
+    private void RequestCover(IRandomAccessStreamReference? thumbnail, long version)
+    {
+        if (thumbnail is null || ReferenceEquals(_thumbnail, thumbnail)) return;
+        _thumbnail = thumbnail;
+        _coverRequest?.Cancel();
+        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        _coverRequest = cancellation;
+        long coverVersion = ++_coverVersion;
+        TrackOperation(Task.Run(async () =>
+        {
+            try
+            {
+                var cover = await _decodeCover(thumbnail, cancellation.Token).ConfigureAwait(false);
+                cancellation.Token.ThrowIfCancellationRequested();
+                lock (_gate)
+                {
+                    if (!_active || _stopped || version != _version || coverVersion != _coverVersion || cover.Width <= 0 || cover.Height <= 0) return;
+                    var song = State.Song;
+                    if (song.CoverWidth == cover.Width && song.CoverHeight == cover.Height && song.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
+                    State.Publish(song with { CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height });
+                }
+                Changed?.Invoke();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { App.WriteCrashLog("Folia cover", ex.Message, ex); }
+            finally
+            {
+                lock (_gate) if (ReferenceEquals(_coverRequest, cancellation)) _coverRequest = null;
+                cancellation.Dispose();
+            }
+        }));
+    }
+
+    private async Task ResolveAsync(LyricsTrack track, string sourceId, bool retry, long version, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
         try
         {
-            var cover = await DecodeCoverAsync(thumbnail, token).ConfigureAwait(false);
-            Publish(version, FoliaSong.Empty with { Title = title, Artist = artist, CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height }, "loading");
-            var track = new TrackMultiArtistMetadata
+            await Task.Delay(120, token).ConfigureAwait(false);
+            // Session metadata can arrive before its timeline; take the duration after coalescing those updates.
+            track = track with { Duration = _media.Duration.TotalSeconds };
+            var player = await _playerLyrics.ReadAsync(track, sourceId, token).ConfigureAwait(false);
+            var content = player.Content ?? ((!retry || !player.AllowOnline) && player.AllowCache
+                ? await LyricsDiskCache.ReadAsync(track, token).ConfigureAwait(false) : null);
+            var status = LyricsSearchStatus.NoResult;
+            if (content is null && player.AllowOnline)
             {
-                Title = title,
-                Artists = [.. artist.Split([" / ", ";", ", ", "、", " & "], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)],
-                DurationMs = duration > 0 ? (int)Math.Min(int.MaxValue, duration * 1000) : null
-            };
-            var match = await new QQMusicSearcher().SearchForResult(track, CompareHelper.MatchType.High, token).ConfigureAwait(false) as QQMusicSearchResult;
-            token.ThrowIfCancellationRequested();
-            if (match == null)
-            {
-                Publish(version, State.Song, "missing");
-                return;
-            }
-            string original = "", translated = "";
-            try
-            {
-                var lyrics = await ProviderHelper.QQMusicApi.GetLyricsAsync(match.Id, token).ConfigureAwait(false);
-                original = lyrics?.Lyrics ?? "";
-                translated = lyrics?.Trans ?? "";
-            }
-            catch (Exception) when (!token.IsCancellationRequested)
-            {
-                // QRC can be unavailable for a track even when its line-synced LRC exists.
+                var online = await _onlineLyrics.SearchAsync(track, retry, token).ConfigureAwait(false);
+                content = online.Content;
+                status = online.Status;
+                if (content is not null) await LyricsDiskCache.WriteAsync(track, content, token).ConfigureAwait(false);
             }
             token.ThrowIfCancellationRequested();
-            double trackDuration = duration > 0 ? duration : (match.DurationMs ?? 0) / 1000d;
-            var lines = FoliaSong.Parse(original, translated, trackDuration);
-            if (lines.Length == 0)
+            var lines = content is null ? [] : FoliaSong.Parse(content.Original, content.Translation, track.Duration);
+            // The player's positive offset delays its lyric clock; shift this immutable snapshot equivalently.
+            double offset = player.OffsetMs / 1000d;
+            for (int i = 0; i < lines.Length; i++)
             {
-                var lyrics = await ProviderHelper.QQMusicApi.GetLyric(match.Mid, token).ConfigureAwait(false);
-                lines = FoliaSong.Parse(lyrics?.Lyric ?? "", lyrics?.Trans, trackDuration);
+                var line = lines[i];
+                if (offset != 0)
+                {
+                    for (int w = 0; w < line.Words.Length; w++)
+                        line.Words[w] = line.Words[w] with { Start = line.Words[w].Start + offset, End = line.Words[w].End + offset };
+                }
+                if (offset != 0 || !player.ShowTranslation)
+                    lines[i] = line with { Start = line.Start + offset, End = line.End + offset, Translation = player.ShowTranslation ? line.Translation : "" };
             }
-            Publish(version, new(title, artist, lines, cover.Bytes, cover.Width, cover.Height, FoliaSong.Empty.Palette), lines.Length == 0 ? "missing" : "ready");
+            lock (_gate)
+            {
+                if (!_active || _stopped || version != _version) return;
+                State.Publish(State.Song with { Lines = lines });
+                _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
+            }
+            Changed?.Invoke();
         }
         catch (OperationCanceledException)
         {
@@ -225,6 +288,8 @@ internal sealed class FoliaPlaybackService
             _media.PlaybackChanged -= OnPlaybackChanged;
             _media.TimelineChanged -= OnTimelineChanged;
             _request?.Cancel();
+            _coverRequest?.Cancel();
+            _coverVersion++;
             _version++;
             pending = [.. _operations];
         }
@@ -236,7 +301,10 @@ internal sealed class FoliaPlaybackService
             {
                 _operations.Clear();
                 _request = null;
+                _coverRequest = null;
+                _thumbnail = null;
                 _trackKey = "";
+                _songKey = "";
                 State.Publish(FoliaSong.Empty);
                 State.SetClock(0, 0, false);
             }

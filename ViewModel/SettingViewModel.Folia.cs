@@ -1,4 +1,7 @@
 using System;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using Microsoft.Graphics.Canvas.Text;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Windows.ApplicationModel.Resources;
 using WinExSpectrumTest.Model;
@@ -7,6 +10,40 @@ namespace WinExSpectrumTest.ViewModel;
 
 public partial class SettingViewModel
 {
+    private ObservableCollection<FontChoice>? _foliaFonts;
+    public ObservableCollection<FontChoice> FoliaFonts
+    {
+        get
+        {
+            if (_foliaFonts is not null) return _foliaFonts;
+            _foliaFonts = [];
+            try
+            {
+                var names = CanvasTextFormat.GetSystemFontFamilies();
+                var displayNames = CanvasTextFormat.GetSystemFontFamilies([CultureInfo.CurrentUICulture.Name]);
+                var choices = new FontChoice[names.Length];
+                for (int i = 0; i < names.Length; i++) choices[i] = new(names[i], i < displayNames.Length ? displayNames[i] : names[i]);
+                Array.Sort(choices, static (a, b) => StringComparer.CurrentCultureIgnoreCase.Compare(a.DisplayName, b.DisplayName));
+                foreach (var choice in choices) _foliaFonts.Add(choice);
+            }
+            catch (Exception ex) { App.WriteCrashLog("System lyric fonts", ex.Message, ex); }
+            return _foliaFonts;
+        }
+    }
+
+    public FontChoice SelectedFoliaFont
+    {
+        get
+        {
+            foreach (var font in FoliaFonts)
+                if (string.Equals(font.Name, AppSettings.FoliaFontFamily, StringComparison.OrdinalIgnoreCase)) return font;
+            // Keep an unavailable saved face; opening settings must not silently replace it.
+            var saved = new FontChoice(AppSettings.FoliaFontFamily, AppSettings.FoliaFontFamily);
+            FoliaFonts.Add(saved);
+            return saved;
+        }
+        set { if (value is not null) AppSettings.FoliaFontFamily = value.Name; }
+    }
     public string FoliaLyricMode
     {
         get => AppSettings.FoliaLyricMode;
@@ -70,6 +107,7 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(IsFoliaImageBackground));
         OnPropertyChanged(nameof(FoliaFontScale));
         OnPropertyChanged(nameof(FoliaFontFamily));
+        OnPropertyChanged(nameof(SelectedFoliaFont));
         OnPropertyChanged(nameof(FoliaFontWeight));
     }
 }

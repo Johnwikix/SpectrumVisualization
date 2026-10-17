@@ -328,24 +328,24 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaFontFamily.Description" xml:space="preserve"><value>使用本机安装的字体，缺字由系统字体回退处理。</value></data>
   <data name="FoliaFontWeight.Header" xml:space="preserve"><value>字重</value></data>
   <data name="FoliaFontWeight.Description" xml:space="preserve"><value>100 为细，900 为黑。</value></data>
-  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>QQ 音乐歌词</value></data>
-  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>通过当前媒体的歌名、歌手与时长匹配。支持 QRC 逐字歌词、LRC 逐行歌词和翻译；播放进度来自系统媒体会话。</value></data>
+  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>歌曲歌词</value></data>
+  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>按 OriginalSound 设置的优先级只读获取歌词，再回退 Spectrum 缓存和网络。通过歌名、艺术家与专辑匹配，播放进度来自系统媒体会话。</value></data>
   <data name="FoliaRetry.Content" xml:space="preserve"><value>重新匹配</value></data>
   <data name="FoliaStatuswaiting" xml:space="preserve"><value>等待当前播放歌曲；请让播放器公开系统媒体信息。</value></data>
   <data name="FoliaStatusloading" xml:space="preserve"><value>正在按歌曲信息查找歌词…</value></data>
   <data name="FoliaStatusready" xml:space="preserve"><value>歌词已就绪。</value></data>
   <data name="FoliaStatusmissing" xml:space="preserve"><value>未找到匹配歌词，显示歌曲信息。</value></data>
   <data name="FoliaStatusfailed" xml:space="preserve"><value>歌词获取失败，可重新匹配。</value></data>
-  <data name="FoliaOption_classic.Content" xml:space="preserve"><value>Luminous</value></data>
-  <data name="FoliaOption_cadenza.Content" xml:space="preserve"><value>Mindscape</value></data>
+  <data name="FoliaOption_classic.Content" xml:space="preserve"><value>流光</value></data>
+  <data name="FoliaOption_cadenza.Content" xml:space="preserve"><value>心境</value></data>
   <data name="FoliaOption_partita.Content" xml:space="preserve"><value>云阶</value></data>
-  <data name="FoliaOption_fume.Content" xml:space="preserve"><value>Fume</value></data>
-  <data name="FoliaOption_cappella.Content" xml:space="preserve"><value>Cappella</value></data>
-  <data name="FoliaOption_tilt.Content" xml:space="preserve"><value>Tilt</value></data>
-  <data name="FoliaOption_claddagh.Content" xml:space="preserve"><value>Claddagh</value></data>
-  <data name="FoliaOption_monet.Content" xml:space="preserve"><value>Monet</value></data>
+  <data name="FoliaOption_fume.Content" xml:space="preserve"><value>烟岚</value></data>
+  <data name="FoliaOption_cappella.Content" xml:space="preserve"><value>清唱</value></data>
+  <data name="FoliaOption_tilt.Content" xml:space="preserve"><value>倾斜</value></data>
+  <data name="FoliaOption_claddagh.Content" xml:space="preserve"><value>环抱</value></data>
+  <data name="FoliaOption_monet.Content" xml:space="preserve"><value>印象</value></data>
   <data name="FoliaOption_diorama.Content" xml:space="preserve"><value>镜台</value></data>
-  <data name="FoliaOption_pendolo.Content" xml:space="preserve"><value>Pendolo</value></data>
+  <data name="FoliaOption_pendolo.Content" xml:space="preserve"><value>钟摆</value></data>
   <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>商籁</value></data>
   <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>凝彩</value></data>
   <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>绘光</value></data>
@@ -367,4 +367,17 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="ShaderCacheStatusRunning" xml:space="preserve"><value>正在清理并重建着色器缓存…</value></data>
   <data name="ShaderCacheStatusComplete" xml:space="preserve"><value>已重建 {0} 个着色器入口，GPU 效果将自动重新载入。</value></data>
   <data name="ShaderCacheStatusFailed" xml:space="preserve"><value>缓存重建失败：{0}</value></data>
+  <data name="LyricsCacheTitle.Text" xml:space="preserve"><value>歌词缓存</value></data>
+  <data name="LyricsCacheEnabled.Header" xml:space="preserve"><value>缓存网络歌词</value></data>
+  <data name="LyricsCacheEnabled.Description" xml:space="preserve"><value>按歌曲名称、艺术家和专辑保存成功获取的歌词。OriginalSound 的歌词和设置仅只读访问。</value></data>
+  <data name="LyricsCacheToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>缓存网络歌词</value></data>
+  <data name="LyricsCacheFolder.Header" xml:space="preserve"><value>缓存目录</value></data>
+  <data name="LyricsCacheFolder.Description" xml:space="preserve"><value>留空使用 Spectrum 的应用数据目录；更改目录会保留原位置的缓存。</value></data>
+  <data name="LyricsCacheFolderInput.PlaceholderText" xml:space="preserve"><value>默认应用数据目录</value></data>
+  <data name="LyricsCacheFolderInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>歌词缓存目录（绝对路径）</value></data>
+  <data name="LyricsCacheFolderInvalid" xml:space="preserve"><value>请输入有效的绝对目录路径，此路径目前无法用于缓存。</value></data>
+  <data name="FoliaFontPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>歌词字体</value></data>
+  <data name="LyricsCacheBrowse.Content" xml:space="preserve"><value>浏览…</value></data>
+  <data name="LyricsCachePickerFailed" xml:space="preserve"><value>无法选择歌词缓存目录</value></data>
+  <data name="LyricsCachePickerClose" xml:space="preserve"><value>关闭</value></data>
 </root>

@@ -2,6 +2,20 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-18 切歌等待、封面更新与印象歌词
+
+- `FoliaPlaybackService`、`FoliaScenePreparation`：封面与歌词独立解析，同曲后到的封面不再被去重丢弃，切换效果复用已有封面；封面更新不取消相同文本的字形准备。
+- `FoliaTextAtlas`、`FoliaGpuEffect`：字形生成使用最多四个后台工作单元，仅倾斜模式准备斜体；完整歌词准备期间保留已就绪的歌曲信息，避免长时间只有背景。
+- `FoliaMonet`：印象模式改为宽窗封面/信息与歌词分栏、紧凑窗顶部封面；删除 MONET 标牌和装饰竖线，按字素拆分超长歌词并显示翻译。参考播放器 FlowWave 保留速度的临界阻尼滚动，真逐字歌词使用轻字浮、长音节缩放与辉光，逐行歌词整句高亮。
+- `SettingViewModel.Folia`、`FontChoice`、`SettingWindow`、双语资源：系统字体改为带字体预览的下拉列表；缓存目录增加文件夹选择按钮；补齐全部歌词与动态背景选项的中文显示，持久化标识不变。
+
+## 2026-10-18 OriginalSound 只读歌词与独立网络缓存
+
+- `MediaInfoService`、`Services/Lyrics`：根据 SMTC 来源 ID 识别 OriginalSound，以标题、艺术家和专辑匹配歌词，遵循播放器的文件/数据库优先级和本地格式顺序，兼容新旧歌词表、翻译开关与歌曲偏移；重复候选不猜测。
+- `ReadOnlyLyricsDatabase`：使用禁止可写打开、删除和 WAL 共享内存访问的 SQLite VFS；不调用播放器服务、不迁移或写回数据库和配置，锁定/不兼容时回退，WAL 数据库不接入。
+- `FoliaPlaybackService`、`FoliaSong`：支持 KRC/QRC/LRC/TTML，按 QQ 逐字、网易云逐行、QQ 逐行顺序回退；请求合并、取消、无结果短期去重、服务熔断与手动重试保持独立。
+- 设置模型、`DataJsonService`、`SettingViewModel.Lyrics`、`SettingWindow`、双语资源：关于页可开关网络歌词缓存及配置目录，以标题/艺术家/专辑标识独立 JSON 缓存，只保存成功的网络结果，默认开启且不修改播放器目录。
+
 ## 2026-10-17 切歌峰值与资源释放
 
 - `FoliaPixelBuffer`、`FoliaTextAtlas`、`FoliaScenePreparation`：大图集像素改为显式租约持有的原生缓冲，构造失败、取消、替换和退出均释放；大块像素回收移出渲染提交帧。

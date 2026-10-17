@@ -6,6 +6,7 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinExSpectrumTest.View"
+    xmlns:model="using:WinExSpectrumTest.Model"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="using:CommunityToolkit.WinUI"
     xmlns:vm="using:WinExSpectrumTest.ViewModel"
@@ -481,7 +482,14 @@
                             <NumberBox Width="130" Minimum="50" Maximum="200" SmallChange="5" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontFamily" Margin="10,0,10,0">
-                            <TextBox MinWidth="230" Text="{x:Bind ViewModel.FoliaFontFamily, Mode=TwoWay}" />
+                            <ComboBox x:Uid="FoliaFontPicker" Width="280" AutomationProperties.AutomationId="FoliaFontPicker"
+                                      ItemsSource="{x:Bind ViewModel.FoliaFonts}" SelectedItem="{x:Bind ViewModel.SelectedFoliaFont, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="model:FontChoice">
+                                        <TextBlock Text="{x:Bind DisplayName}" FontFamily="{x:Bind Family}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontWeight" Margin="10,0,10,0">
                             <NumberBox Width="130" Minimum="100" Maximum="900" SmallChange="100" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
@@ -546,6 +554,18 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <TextBlock x:Uid="LyricsCacheTitle" Margin="10,20,10,10" FontSize="16" />
+                        <controls:SettingsCard x:Uid="LyricsCacheEnabled" Margin="10,0,10,0">
+                            <ToggleSwitch x:Uid="LyricsCacheToggle" IsOn="{x:Bind ViewModel.LyricsCacheEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="LyricsCacheFolder" Margin="10,4,10,0" IsEnabled="{x:Bind ViewModel.LyricsCacheEnabled, Mode=OneWay}">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" MaxWidth="430">
+                                <TextBox x:Uid="LyricsCacheFolderInput" MinWidth="180" Text="{x:Bind ViewModel.LyricsCacheFolder, Mode=TwoWay}" />
+                                <Button Grid.Column="1" x:Uid="LyricsCacheBrowse" AutomationProperties.AutomationId="LyricsCacheBrowse"
+                                        Click="OnBrowseLyricsCacheClick" VerticalAlignment="Center" />
+                            </Grid>
+                        </controls:SettingsCard>
+                        <TextBlock Text="{x:Bind ViewModel.LyricsCacheLocation, Mode=OneWay}" Margin="10,8,10,0" TextWrapping="Wrap" IsTextSelectionEnabled="True" FontSize="12" />
                         <TextBlock x:Uid="GraphicsAttribution" Margin="10,16,10,0" TextWrapping="Wrap" FontSize="12" />
                     </StackPanel>
                 </ScrollView>

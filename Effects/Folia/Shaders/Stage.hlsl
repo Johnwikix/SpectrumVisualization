@@ -179,7 +179,8 @@ float4 SpritePS(SpriteOutput input):SV_Target {
             float ink=dot(Palette[4].rgb,float3(.2126,.7152,.0722)),paper=dot(Palette[5].rgb,float3(.2126,.7152,.0722));
             color=lerp(Palette[4].rgb,Palette[5].rgb,step(abs(lum-ink)+.015,abs(lum-paper)));
         }
-        float opacity=alpha*(kind==25?1:step(uv.x,v.effect.x));
+        float reveal=v.effect.y>0 ? 1-smoothstep(v.effect.x-v.effect.y,v.effect.x+v.effect.y,uv.x) : step(uv.x,v.effect.x);
+        float opacity=alpha*(kind==25?1:reveal);
         if(kind==0&&v.shape.w>.5) {
             float railY=(input.pixel.y*Screen.w-v.shape.y)/max(v.shape.z-v.shape.y,.001);
             float mask=saturate(railY/.11)*saturate((1-railY)/.12);

@@ -30,6 +30,7 @@ internal sealed class FoliaModePlan
     internal FoliaTilt Tilt { get; } = new();
     internal FoliaPendolo Pendolo { get; } = new();
     internal FoliaTempera Tempera { get; } = new();
+    internal FoliaMonet Monet { get; } = new();
 
     internal FoliaModePlan(FoliaTextAtlas atlas, in FoliaSceneRequest request, CancellationToken token)
     {
@@ -45,6 +46,7 @@ internal sealed class FoliaModePlan
                 case "tilt": Tilt.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "monet": Monet.Prepare(atlas, request, token); break;
             }
         token.ThrowIfCancellationRequested();
         GlowWords.Prepare(atlas);
@@ -69,6 +71,7 @@ internal sealed class FoliaScenePreparation : IDisposable
 {
     private readonly object _gate = new();
     private FoliaSceneRequest? _pending;
+    private FoliaSceneRequest? _working;
     private FoliaPreparedScene? _ready;
     private readonly Queue<FoliaPixelBuffer> _retiredPixels = new();
     private CancellationTokenSource? _cancellation;
@@ -89,7 +92,12 @@ internal sealed class FoliaScenePreparation : IDisposable
         {
             if (_stopped) return;
             _pending = request;
-            _cancellation?.Cancel();
+            // Late album art must not cancel/restart expensive glyph preparation for the same text.
+            if (_working is not { } working || !FoliaSceneRequest.SameText(working.Song, request.Song)
+                || working.Family != request.Family || working.Weight != request.Weight || working.Mode != request.Mode
+                || working.Width != request.Width || working.Height != request.Height || working.Scale != request.Scale
+                || working.Background != request.Background)
+                _cancellation?.Cancel();
             Interlocked.Exchange(ref _ready, null)?.Dispose();
             StartWorker();
         }
@@ -132,6 +140,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                         return;
                     }
                     request = next;
+                    _working = request;
                     _pending = null;
                     cancellation = _cancellation = new CancellationTokenSource();
                 }
@@ -147,9 +156,9 @@ internal sealed class FoliaScenePreparation : IDisposable
                 // Coalesce metadata / thumbnail bursts and slider drags before expensive work.
                 await Task.Delay(40, token).ConfigureAwait(false);
                 if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
-                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song))
+                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song) || request.Mode == "tilt" && !_atlas.HasItalics)
                 {
-                    var atlas = new FoliaTextAtlas(request.Song, request.Family, request.Weight, token);
+                    var atlas = new FoliaTextAtlas(request.Song, request.Family, request.Weight, token, request.Mode == "tilt");
                     if (token.IsCancellationRequested)
                     {
                         atlas.Dispose();
@@ -161,7 +170,8 @@ internal sealed class FoliaScenePreparation : IDisposable
                     _plan = null;
                 }
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
-                    || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale)
+                    || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
+                    || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
                     var plan = new FoliaModePlan(_atlas, request, token);
                     token.ThrowIfCancellationRequested();
@@ -193,6 +203,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 lock (_gate)
                 {
                     _cancellation = null;
+                    _working = null;
                     cancellation.Dispose();
                 }
             }

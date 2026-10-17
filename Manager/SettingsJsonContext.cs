@@ -9,6 +9,8 @@ using WinExSpectrumTest.Model;
 namespace WinExSpectrumTest.Manager
 {
     [JsonSerializable(typeof(SaveSetting))]
+    [JsonSerializable(typeof(Services.Lyrics.OriginalSoundPreferences))]
+    [JsonSerializable(typeof(Services.Lyrics.LyricsCacheEntry))]
     internal partial class SettingsJsonContext : JsonSerializerContext
     {
     }

@@ -51,7 +51,7 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
             }
             if (words.Count == 0)
                 words.Add(new(line.Text, start, end));
-            string sub = line.SubLine?.Text ?? "";
+            string sub = (line as IFullLineInfo)?.ChineseTranslation ?? line.SubLine?.Text ?? "";
             if (translations != null)
                 foreach (var translated in translations)
                     if (translated.StartTime is int ts && Math.Abs(ts - milliseconds) <= 100)
@@ -67,12 +67,31 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
 
     private static LyricsData? ParseRaw(string lyrics)
     {
-        // The vendored TypeHelper.GetLyricsTypes is an unimplemented stub. QQ returns
-        // decrypted QRC or LRC; explicitly try syllable timing before line timing.
-        var qrc = Lyricify.Lyrics.Parsers.QrcParser.Parse(lyrics);
-        if (qrc.Lines?.Exists(static line => line is SyllableLineInfo { Syllables.Count: > 0 }) == true)
-            return qrc;
-        return Lyricify.Lyrics.Parsers.LrcParser.Parse(lyrics);
+        if (string.IsNullOrWhiteSpace(lyrics) || lyrics.Length > Services.Lyrics.LyricsTextFile.MaxBytes) return null;
+        try
+        {
+            // TypeHelper.GetLyricsTypes is a stub in the vendored library. Detect the four player formats explicitly.
+            if (lyrics.AsSpan().TrimStart().StartsWith("<", StringComparison.Ordinal))
+            {
+                string unwrapped = Services.Lyrics.LyricsTextFile.UnwrapQrc(lyrics);
+                if (unwrapped == lyrics) return Lyricify.Lyrics.Parsers.TtmlParser.Parse(lyrics);
+                lyrics = unwrapped;
+            }
+            foreach (var line in lyrics.AsSpan().EnumerateLines())
+            {
+                int end = line.IndexOf(']');
+                if (end > 0 && line[..end].Contains(',') && line[(end + 1)..].TrimStart().StartsWith("<", StringComparison.Ordinal))
+                    return Lyricify.Lyrics.Parsers.KrcParser.Parse(lyrics);
+            }
+            var qrc = Lyricify.Lyrics.Parsers.QrcParser.Parse(lyrics);
+            if (qrc.Lines?.Exists(static line => line is SyllableLineInfo { Syllables.Count: > 0 }) == true) return qrc;
+            return Lyricify.Lyrics.Parsers.LrcParser.Parse(lyrics);
+        }
+        catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException or IndexOutOfRangeException
+            or System.Xml.XmlException or System.Text.Json.JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException)
+        {
+            return null;
+        }
     }
 
     internal static FoliaSong Preview()

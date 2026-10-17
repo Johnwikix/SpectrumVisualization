@@ -328,8 +328,8 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaFontFamily.Description" xml:space="preserve"><value>Use an installed font. Missing glyphs use system font fallback.</value></data>
   <data name="FoliaFontWeight.Header" xml:space="preserve"><value>Font weight</value></data>
   <data name="FoliaFontWeight.Description" xml:space="preserve"><value>100 is thin; 900 is black.</value></data>
-  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>QQ Music lyrics</value></data>
-  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>Match the current title, artist and duration. Supports word-synced QRC, line-synced LRC and translations. Position follows the system media session.</value></data>
+  <data name="FoliaLyricsSource.Header" xml:space="preserve"><value>Song lyrics</value></data>
+  <data name="FoliaLyricsSource.Description" xml:space="preserve"><value>Read OriginalSound lyrics using its source priority, then Spectrum's cache and online providers. Match by title, artist and album. Position follows the system media session.</value></data>
   <data name="FoliaRetry.Content" xml:space="preserve"><value>Match again</value></data>
   <data name="FoliaStatuswaiting" xml:space="preserve"><value>Waiting for a song. Enable system media information in your player.</value></data>
   <data name="FoliaStatusloading" xml:space="preserve"><value>Finding matching lyrics…</value></data>
@@ -367,4 +367,17 @@ Submit rate is not the display frame rate</value></data>
   <data name="ShaderCacheStatusRunning" xml:space="preserve"><value>Clearing and rebuilding shader caches…</value></data>
   <data name="ShaderCacheStatusComplete" xml:space="preserve"><value>Rebuilt {0} shader entry points. GPU effects will reload automatically.</value></data>
   <data name="ShaderCacheStatusFailed" xml:space="preserve"><value>Cache rebuild failed: {0}</value></data>
+  <data name="LyricsCacheTitle.Text" xml:space="preserve"><value>Lyrics cache</value></data>
+  <data name="LyricsCacheEnabled.Header" xml:space="preserve"><value>Cache online lyrics</value></data>
+  <data name="LyricsCacheEnabled.Description" xml:space="preserve"><value>Store successful lookups by title, artist and album. OriginalSound lyrics and settings are read only.</value></data>
+  <data name="LyricsCacheToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Cache online lyrics</value></data>
+  <data name="LyricsCacheFolder.Header" xml:space="preserve"><value>Cache folder</value></data>
+  <data name="LyricsCacheFolder.Description" xml:space="preserve"><value>Leave empty to use Spectrum's app data. Changing the folder keeps existing files in place.</value></data>
+  <data name="LyricsCacheFolderInput.PlaceholderText" xml:space="preserve"><value>Default app data folder</value></data>
+  <data name="LyricsCacheFolderInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Lyrics cache folder (absolute path)</value></data>
+  <data name="LyricsCacheFolderInvalid" xml:space="preserve"><value>Enter a valid absolute folder path. Caching is unavailable for this path.</value></data>
+  <data name="FoliaFontPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Lyric font</value></data>
+  <data name="LyricsCacheBrowse.Content" xml:space="preserve"><value>Browse…</value></data>
+  <data name="LyricsCachePickerFailed" xml:space="preserve"><value>Could not choose the lyrics cache folder</value></data>
+  <data name="LyricsCachePickerClose" xml:space="preserve"><value>Close</value></data>
 </root>

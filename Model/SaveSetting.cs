@@ -3,6 +3,8 @@ namespace WinExSpectrumTest.Model
 {
     public class SaveSetting
     {
+        public bool LyricsCacheEnabled { get; set; } = true;
+        public string LyricsCacheFolder { get; set; } = "";
         public string FoliaLyricMode { get; set; } = "classic";
         public bool FoliaCoverBackground { get; set; }
         public string FoliaBackground { get; set; } = "common";
