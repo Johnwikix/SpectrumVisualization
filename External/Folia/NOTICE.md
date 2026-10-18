@@ -1,7 +1,8 @@
 # Folia renderer provenance
 
-The Folia effect ports visual algorithms from chthollyphile/folia-major, licensed
-under GNU AGPL version 3 (see LICENSE). Reference checkout:
+The Folia effect ports visual algorithms from chthollyphile/folia-major
+(https://github.com/chthollyphile/folia-major), licensed under GNU AGPL
+version 3 (see LICENSE). Reference checkout:
 `G:/SoftwareProject/web/folia-major`, version 0.7.20.
 
 Paper shader sources in PaperShaders are from @paper-design/shaders, distributed

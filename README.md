@@ -9,14 +9,14 @@
 
   <p>
     基于 WinUI 3 / Win2D / D3D12 / ComputeSharp 的轻量级音频频谱可视化工具<br>
-    WASAPI 环回 · 双效果页 · HDR10 · 抗锯齿 / 时域重建 · 壁纸模式
+    WASAPI 环回 · 三大效果 · HDR10 · 抗锯齿 / 时域重建 · GPU 歌词 · 壁纸模式
   </p>
 
   <p>
     <a href="https://github.com/Johnwikix/SpectrumVisualization"><img src="https://img.shields.io/badge/GitHub-Johnwikix%2FSpectrumVisualization-181717?logo=github" alt="GitHub"></a>
     <img src="https://img.shields.io/badge/C%23-WinUI_3-purple?logo=dotnet" alt="C# / WinUI 3">
     <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet" alt=".NET 10">
-    <a href="LICENSE.txt"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License"></a>
+    <a href="LICENSE.txt"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0 License"></a>
     <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?logo=windows" alt="Windows 10/11">
   </p>
 
@@ -39,14 +39,22 @@
 
 ## 核心特性
 
-### 双渲染管线，效果页互补
+### 三套渲染效果，共用一条画质管线
 - **极光之环（Aurora Ring，默认）：** 基于 Win2D 的 SDR 内嵌小组件。封面主色 + 4 色调色板为频谱条着色，节拍触发涟漪圆环并让封面随低音做"呼吸"缩放，自动读取 SMTC 封面与标题。
 - **音域回响（Sonic Topography）：** 基于 D3D12 + ComputeSharp 的独立渲染线程。FP16 线性场景，可输出 SDR 或 HDR10；地形高度场随 15 维音频特征实时起伏，节拍与流星在场景里留下涟漪与粒子。
+- **辞曲新境（Folia）：** 基于 D3D12 的 GPU 歌词舞台。13 种歌词模式（流光 / 心境 / 云阶 / 烟岚 / 清唱 / 倾斜 / 环抱 / 印象 / 镜台 / 钟摆 / 商籁 / 凝彩 / 绘光）、5 种动态背景（封面流光 / 流动渐变 / 印象 / 封面滤镜 / 星空）与 5 种封面滤镜（抖色 / 长虹玻璃 / 纸张肌理 / 半调网点 / 镜头畸变）；歌词不是 XAML 覆盖层，而是和背景一起进入 HDR、抗锯齿、时域重建与 RGB10 输出。
+
+### 歌词匹配与 GPU 字形
+- 通过 SMTC 按歌名 / 艺术家 / 专辑 / 时长匹配歌词：先按 OriginalSound 播放器设置的来源优先级**只读**读取其歌词库（禁止可写打开，不调用播放器服务、不写回数据库与配置），再回退 Spectrum 网络缓存与在线来源；在线按 QQ 逐字、网易云逐行、QQ 逐行依次匹配，本地与缓存歌词支持 KRC / QRC / LRC / TTML，支持译文与时间偏移，无匹配时显示歌曲信息。
+- 网络歌词缓存默认开启，只保存成功结果，按标题 / 艺术家 / 专辑独立 JSON 存储，缓存目录可在"关于"页指定；OriginalSound 的歌词目录不被修改。
+- 字形由 D3D12 计算着色器生成半精度 MTSDF，并做边缘纠错与高斯阴影；按字体 / 字重 / 斜体 / 字素分页缓存、跨歌曲增量复用。设备不支持或轮廓过于复杂时保留后台 CPU 生成，CPU 回退只上传缺失图块。
+- 切歌在后台准备场景：准备期间继续绘制上一首及其独立播放时钟，歌词与动画连续推进；就绪后整组切换，快速切歌丢弃过时结果。选装字体带预览，歌词大小 50–200%、字重 100–900。
 
 ### 抗锯齿与时域重建
 - **关闭 / FXAA 3.11 / SMAA 1x HIGH** 三档空间 AA，主机壳无任何 DLL 依赖。
 - **XeSS / FSR 3.1 / DLSS + DLAA** 时域重建，DLSS J / K / L / M 模型可独立选择；SDK 头与 DLL 固定 SHA-256，初始化失败自动回退 FXAA 但保留用户选择。
 - **公共输出流水线** 统一处理 SDR / HDR10 亮度映射、PQ / sRGB 编码与抖动；切换 HDR 与 AA 不重写用户设置。
+- **着色器生命周期** 由正式构建预编译全部内置 HLSL，字节码按完整源码 / 入口 / 目标 / 编译选项失效；驱动管线缓存按显卡、驱动与系统标识重建，设置页"着色器管理"可一键清理并重建，重建完成后由渲染工作线程在安全边界重新加载。
 
 ### HDR10 输出与硬件探测
 - 白点 80–500 nit、峰值 80–4000 nit，按窗口所在显示器自动探测；非 HDR 显示器静默回退 SDR。
@@ -68,6 +76,7 @@
 ### 本地化与设置
 - 中 / 英双语 resw，提交前静态检查键集合一致；首启语言按 `Windows.System.UserProfile.GlobalizationPreferences` 自动切换。
 - 三层设置：`AppSettings`（运行时 + `Changed` 事件）、`SaveSetting`（持久化 DTO，属性名即 JSON 字段名）、`SettingManager` + 源生成 `SettingsJsonContext`；新增设置项至少同步 4 处，默认值在 `AppSettings` 与 `SaveSetting` 各写一份并保持一致。
+- 设置页分为通用 / 极光之环 / 音域回响 / 辞曲新境 / 关于：HDR、刷新率、渲染比例、抗锯齿 / DLSS 预设与着色器管理归通用页；辞曲新境页提供歌词模式、动态背景、封面滤镜、封面流光叠加、字体 / 字号 / 字重、歌词来源状态与手动重试。
 
 ### NativeAOT 与裁剪
 - Release 启用 `PublishAot=true` / `PublishTrimmed=true` / `SelfContained=true` / `BuiltInComInteropSupport=true` / `PublishReadyToRun=true`，仅 x64。
@@ -145,7 +154,7 @@ dotnet publish WinExSpectrumTest.csproj -c Release -r win-x64 -p:Platform=x64 `
     -p:AppxPackageSigningEnabled=false
 ```
 
-输出：`bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/publish/Spectrum.exe`。`ReconstructionAssets.targets` 会构建原生桥并把 XeSS / FSR / DLSS 的 release DLL 与许可复制到发布目录。
+输出：`bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/publish/Spectrum.exe`。`ReconstructionAssets.targets` 会构建原生桥并把 XeSS / FSR / DLSS 的 release DLL 与许可复制到发布目录；`ShaderAssets.targets` 预编译全部内置 HLSL 到 `ShaderCache/`，`FoliaTextAssets.targets` 构建并携带原生字形辅助库（msdfgen）。
 
 - 复用已构建桥：`-p:SkipReconstructionNativeBuild=true`
 - 只构建空间 AA 版本：`-p:EnableVendorReconstruction=false`（先用干净输出目录）
@@ -172,7 +181,7 @@ doc/verification/
 ├─ AudioProbe.csproj            # NativeAOT WASAPI 采样率回退与采集节奏验证
 ├─ AuroraProbe/                 # 极光之环频谱镜像 / 接缝差验证
 ├─ AuroraRenderProbe/           # 极光之环封面 / 文字过渡实绘制
-├─ HdrProbe/                    # HDR / SR / FXAA / SMAA / 时域重建离屏回归
+├─ HdrProbe/                    # HDR / SR / 空间与时域 AA / Folia 歌词离屏回归
 ├─ WallpaperOcclusionProbe/     # 全屏 / 最大化遮挡几何回归
 └─ desktop.ps1, ui-test.ps1,
    wallpaper-*.ps1              # 桌面 / 状态 / 壁纸 / 托盘回归脚本
@@ -184,14 +193,19 @@ doc/verification/
 
 ## 许可与致谢
 
-本项目采用 **[MIT 许可证](LICENSE.txt)**。
+本项目采用 **[GNU AGPL-3.0 许可证](LICENSE.txt)**。辞曲新境（Folia）的歌词模式、动态背景与布局算法移植自 [folia-major](https://github.com/chthollyphile/folia-major)（GNU AGPL-3.0），因此整个项目以 AGPL-3.0 发布：分发或通过网络提供修改版时，必须按该许可证提供对应的完整源码。
 
 ### 引用与灵感
 
 | 项目 | 用途 |
 | --- | --- |
 | [BetterLyrics](https://github.com/jayfunc/BetterLyrics) | 早期的 SMTC 文本与封面读取灵感 |
-| [music_player](https://) | 自定义标题栏、锁定态穿透、桌面歌词自适应文字色、`AnimatedTextBlock` 文字切换动画、桌面壁纸宿主 |
+| [OriginalSound（music_player）](https://github.com/Johnwikix/original-sound-hq-player) | 自定义标题栏、锁定态穿透、桌面歌词自适应文字色、`AnimatedTextBlock` 文字切换动画、桌面壁纸宿主；辞曲新境按其来源优先级只读匹配歌词库 |
+| [folia-major](https://github.com/chthollyphile/folia-major) | 辞曲新境的歌词模式、动态背景与布局算法（GNU AGPL-3.0） |
+| [Paper Shaders](https://github.com/paper-design/shaders) | Paper 动态背景 GLSL 来源（随 folia-major 分发，Apache-2.0） |
+| [Lyricify-Lyrics-Helper](https://github.com/WXRIW/Lyricify-Lyrics-Helper) | 歌词解析、逐字时间与 QQ / 网易云搜索（Apache-2.0） |
+| [msdfgen](https://github.com/Chlumsky/msdfgen) | 字形 MTSDF 距离场生成（MIT） |
+| [Jint](https://github.com/sebastienros/jint) / [Acornima](https://github.com/adams85/acornima) / [Earcut](https://github.com/mapbox/earcut) | 原版布局脚本执行与多边形三角化（BSD / ISC） |
 | [ComputeSharp](https://github.com/Sergio0694/ComputeSharp) | D3D12 计算着色器集成 |
 | [Intel XeSS](https://github.com/intel/xess) | 时域重建（J / K / L / M preset） |
 | [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) | FSR 3.1 |
@@ -199,13 +213,13 @@ doc/verification/
 | [SMAA 1x](https://github.com/iryoku/smaa) | 空间抗锯齿 |
 | [FXAA 3.11](https://download.nvidia.com/developer/tools/SDK/10.5/FXAA_WhitePaper.pdf) | 亮度映射后处理边缘 |
 
-`External/` 下的厂商 SDK 与第三方着色器保留各自原始许可证；`Licenses/` 目录存放随发布产物分发的许可文本。`External/Upscalers/README.md` 列出 XeSS / FSR / DLSS 的固定上游 commit 与 SHA-256；发布者须按各 SDK 许可完成商标 / 署名 / 终端许可 / 商业发布通知等要求，仓库本身不代为提交这些申请。
+`External/` 下的厂商 SDK 与第三方资源保留各自原始许可证；`Licenses/` 目录存放随发布产物分发的许可文本，来源与许可说明同步维护在 [`External/Folia/NOTICE.md`](External/Folia/NOTICE.md)。`External/Upscalers/README.md` 列出 XeSS / FSR / DLSS 的固定上游 commit 与 SHA-256；发布者须按各 SDK 许可完成商标 / 署名 / 终端许可 / 商业发布通知等要求，仓库本身不代为提交这些申请。
 
 ---
 
 <div align="center">
 
-<sub>本项目以 MIT 许可证开源。所有第三方资源归各自所有者所有。</sub>
+<sub>本项目以 GNU AGPL-3.0 许可证开源。所有第三方资源归各自所有者所有。</sub>
 <br>
 <sub>实机显示 / 交互测试由用户自行完成；构建与离屏验证见 `doc/verification/`。</sub>
 

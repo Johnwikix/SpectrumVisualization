@@ -2,6 +2,11 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-18 许可证切换为 AGPL-3.0 与 README 同步
+
+- `LICENSE.txt`：由 MIT 替换为 GNU AGPL-3.0（辞曲新境移植自 chthollyphile/folia-major，同许可证）；此后分发或通过网络提供修改版须按 AGPL-3.0 提供对应完整源码。
+- `README.md`、`README.en.md`：许可证标识改为 AGPL-3.0；特性说明同步辞曲新境（13 种歌词模式 / 5 种动态背景 / 5 种封面滤镜）、歌词来源与 GPU 字形、着色器管理；致谢表新增 folia-major、Paper Shaders、Lyricify-Lyrics-Helper、msdfgen、Jint / Acornima / Earcut，并把 music_player 更正为 OriginalSound（original-sound-hq-player）仓库链接。
+
 ## 2026-10-18 全屏边缘缝隙修复
 
 - `MainWindow.xaml.cs`：进入全屏时清零可视化容器外边距并关闭标题栏扩展，退出时恢复原布局，消除四周留白与顶部保留区。
