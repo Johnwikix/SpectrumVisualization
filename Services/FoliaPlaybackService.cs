@@ -124,7 +124,7 @@ internal sealed class FoliaPlaybackService
             _request = cancellation;
             long version = ++_version;
             // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
-            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with { Title = title, Artist = artist });
+            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with { Title = title, Artist = artist, LyricsPending = title.Length != 0 });
             _songKey = key;
             _thumbnail = null;
             _coverRequest?.Cancel();
@@ -226,7 +226,7 @@ internal sealed class FoliaPlaybackService
             lock (_gate)
             {
                 if (!_active || _stopped || version != _version) return;
-                State.Publish(State.Song with { Lines = lines });
+                State.Publish(State.Song with { Lines = lines, LyricsPending = false });
                 _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
             }
             Changed?.Invoke();
@@ -253,7 +253,7 @@ internal sealed class FoliaPlaybackService
         lock (_gate)
         {
             if (_stopped || !_active || version != _version) return;
-            if (song != null) State.Publish(song);
+            State.Publish((song ?? State.Song) with { LyricsPending = false });
             _status = status;
         }
         Changed?.Invoke();

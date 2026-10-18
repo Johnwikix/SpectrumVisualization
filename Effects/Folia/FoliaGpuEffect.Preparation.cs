@@ -8,13 +8,17 @@ internal sealed unsafe partial class FoliaGpuEffect
     private readonly FoliaScenePreparation _preparation = new();
     private FoliaSceneUpload? _upload, _activeScene;
     private FoliaSceneRequest _requested, _activeRequest;
-    private bool _hasRequest, _hasScene, _lyricsVisible, _metadataVisible;
+    private bool _hasRequest, _hasScene, _lyricsVisible;
     private static readonly byte[] EmptyCover = [14, 17, 24, 255];
 
     private FoliaSceneRequest DesiredScene()
     {
         float dpi = _size.PixelsPerDip;
-        return new(playback.Song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
+        var song = playback.Song;
+        // Keep the committed scene while the next track only has provisional metadata.
+        // A terminal no-lyrics/error snapshot still replaces it with the new song's metadata.
+        if (song.LyricsPending && _hasScene && _lyricsVisible && _song!.Title.Length != 0) song = _song!;
+        return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
             AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
             _size.OutputHeight / dpi, AppSettings.FoliaFontScale);
     }
@@ -81,8 +85,9 @@ internal sealed unsafe partial class FoliaGpuEffect
             _activeScene = upload;
             _upload = null;
         }
-        _lyricsVisible = _hasScene && FoliaSceneRequest.SameText(_song!, request.Song);
-        _metadataVisible = _hasScene && _song!.Title == request.Song.Title && _song.Artist == request.Song.Artist;
+        // The committed atlas, layouts and textures remain one coherent foreground until
+        // the replacement upload is complete. Only an explicit empty session hides it.
+        _lyricsVisible = _hasScene && playback.Song.Title.Length != 0;
         return textChanged;
     }
 }

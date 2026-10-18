@@ -27,23 +27,25 @@ internal sealed class FoliaMonet
         _wide = width >= 1040 && height >= 520;
         _hasCover = request.Song.CoverWidth > 0;
         _infoLeft = margin;
-        _infoWidth = _wide ? Math.Clamp(width * .27f, 240, 380) : width - margin * 2;
+        _infoWidth = (_wide ? width * .5f : width) - margin * 2;
         _font = Math.Clamp(width * (_wide ? .027f : .038f), 24, _wide ? 52 : 38) * request.Scale;
         _font = Math.Min(_font, Math.Max(20, height * .085f));
         _translationFont = Math.Clamp(_font * .48f, 14, 23);
         _titleFont = Math.Clamp(width * .026f, 23, 34);
         _artistFont = Math.Clamp(_titleFont * .56f, 14, 19);
-        _coverSize = _hasCover ? _wide ? Math.Min(_infoWidth, height * .43f) : Math.Clamp(height * .105f, 56, 88) : 0;
+        _coverSize = _hasCover && !_wide ? Math.Clamp(height * .105f, 56, 88) : 0;
         float headerLeft = _wide || !_hasCover ? _infoLeft : _infoLeft + _coverSize + 20;
         float headerWidth = _wide ? _infoWidth : width - margin - headerLeft;
         _title = Arrange(atlas.MonetTitle, _titleFont, headerWidth, out float titleHeight, maximumRows: 2);
         _artistFont = Math.Min(_artistFont, headerWidth / Math.Max(1, atlas.ArtistWidth));
+        if (_hasCover && _wide)
+            _coverSize = Math.Min(_infoWidth, Math.Max(0, height - margin * 2 - titleHeight - 40 - _artistFont * 1.4f));
         float infoHeight = _wide ? _coverSize + (_hasCover ? 28 : 0) + titleHeight + 12 + _artistFont * 1.4f
             : Math.Max(_coverSize, titleHeight + 8 + _artistFont * 1.4f);
         _infoTop = _wide ? Math.Max(margin, (height - infoHeight) * .5f) : margin;
         _titleTop = _infoTop + (_wide && _hasCover ? _coverSize + 28 : 0);
         _artistTop = _titleTop + titleHeight + (_wide ? 12 : 8);
-        _left = _wide ? margin + _infoWidth + Math.Clamp(width * .055f, 40, 104) : margin;
+        _left = _wide ? width * .5f + margin : margin;
         _width = Math.Max(80, width - margin - _left);
         _top = _wide ? margin : _infoTop + infoHeight + Math.Clamp(height * .045f, 24, 40);
         _bottom = Math.Max(_top + _font * 1.8f, height - margin);
@@ -98,7 +100,7 @@ internal sealed class FoliaMonet
         Vector3 color = song.Palette[1];
         if (_hasCover)
         {
-            float coverLeft = _wide ? _infoLeft : _infoLeft - _coverSize - 20;
+            float coverLeft = _wide ? _infoLeft + (_infoWidth - _coverSize) * .5f : _infoLeft - _coverSize - 20;
             painter.Shape(10, coverLeft, _infoTop, _coverSize, _coverSize, Vector3.One, 1, radius: _wide ? 16 : 10, uv: new(0, 0, 1, 1));
         }
         foreach (var glyph in _title)

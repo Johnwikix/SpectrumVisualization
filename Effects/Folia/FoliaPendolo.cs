@@ -53,7 +53,7 @@ internal sealed class FoliaPendolo
         _height = height;
         _scale = scale;
         _heights = new float[atlas.Lines.Length];
-        float maxWidth = AvailableWidth(width, height) / 1.25f;
+        float maxWidth = AvailableWidth(width) / 1.25f;
         float font = MathF.Round(28 * scale), lineHeight = MathF.Round(font * 1.2f);
         for (int i = 0; i < _heights.Length; i++)
         {
@@ -98,8 +98,9 @@ internal sealed class FoliaPendolo
     internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, Vector3 primary, Vector3 secondary)
     {
         float baseRadius = Math.Min(p.Width, p.Height) * .42f, ringRadius = baseRadius / .42f * .48f;
+        float cx = p.Width * .5f - ringRadius;
         float cy = p.Height * .5f, gradient = baseRadius * 1.65f;
-        p.Shape(15, -gradient, cy - gradient, gradient * 2, gradient * 2, new(14 / 255f, 17 / 255f, 24 / 255f), 1);
+        p.Shape(15, cx - gradient, cy - gradient, gradient * 2, gradient * 2, new(14 / 255f, 17 / 255f, 24 / 255f), 1);
         if (atlas.Lines.Length == 0)
             return;
         Span<float> angles = stackalloc float[17];
@@ -120,9 +121,9 @@ internal sealed class FoliaPendolo
             alpha *= Math.Clamp((110 - Math.Abs((angle + wheel) * 180 / MathF.PI)) / 28, 0, 1);
             var line = atlas.Lines[i];
             float rotation = (angle + wheel) * .35f;
-            Vector2 origin = new(ringRadius * MathF.Cos(angle + wheel), cy + ringRadius * MathF.Sin(angle + wheel));
+            Vector2 origin = new(cx + ringRadius * MathF.Cos(angle + wheel), cy + ringRadius * MathF.Sin(angle + wheel));
             float font = MathF.Round((i == index ? 28 : 22) * _scale);
-            float maxWidth = AvailableWidth(p.Width, p.Height) / scale;
+            float maxWidth = AvailableWidth(p.Width) / scale;
             float rowHeight = MathF.Round(font * 1.2f), height = Rows(line.Glyphs, font, maxWidth) * rowHeight;
             float subtitleHeight = line.Translation.Length > 0 ? Rows(line.Translation, 18, maxWidth) * 23 + 6 : 0;
             DrawRows(ref p, line.Glyphs, origin, -(height + subtitleHeight) * scale * .5f, font, rowHeight, maxWidth, scale, rotation, primary, alpha * (i == index ? 1 : .75f), i == index, time);
@@ -134,6 +135,7 @@ internal sealed class FoliaPendolo
     internal void WriteTransforms(Span<Vector4> transforms)
     {
         float cy = _height * .5f;
+        float cx = _width * .5f - Math.Min(_width, _height) * .48f;
         float escapement = _tick * AngleStep;
         var motion = new Vector4(escapement, _phase, MathF.Sin(_phase) * (.15f + _bass * .7f), _secondAngle);
         for (int i = 0; i < _parts.Length; i++)
@@ -145,14 +147,17 @@ internal sealed class FoliaPendolo
                 float angle = part.Orbit.Y + escapement * part.Orbit.Z;
                 origin = new(MathF.Cos(angle) * part.Orbit.X, cy + MathF.Sin(angle) * part.Orbit.X);
             }
+            // The source mesh is compiled around x=0. Translate fixed and orbiting parts
+            // together so its lyric ring meets the middle of the current DIP viewport.
+            origin.X += cx;
             float rotation = part.Base + Vector4.Dot(motion, part.Coefficients);
             transforms[i] = new(origin, MathF.Cos(rotation), MathF.Sin(rotation));
         }
         transforms[32] = new(_width, _height, 0, 0);
     }
 
-    private static float AvailableWidth(float width, float height)
-        => Math.Max(140, Math.Min(width * .46f, width - Math.Min(width, height) * .42f - 48));
+    private static float AvailableWidth(float width)
+        => Math.Max(64, width * .5f - Math.Clamp(width * .04f, 16, 48));
     private static int Rows(ReadOnlySpan<FoliaPreparedGlyph> glyphs, float font, float width)
     {
         int rows = 1;

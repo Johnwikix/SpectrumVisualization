@@ -49,9 +49,11 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
     private bool _lastCoverBackground;
     private double _lastPosition;
     public bool ResetHistoryRequested => _upload is { Complete: true }
-        || _lyricsVisible != (_hasScene && FoliaSceneRequest.SameText(_song!, playback.Song))
+        || _lyricsVisible != (_hasScene && playback.Song.Title.Length != 0)
         || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
-        || Math.Abs(playback.Clock.Now - _lastPosition) > .5;
+        || FollowsPlaybackClock(playback.Song) && Math.Abs(playback.Clock.Now - _lastPosition) > .5;
+
+    private bool FollowsPlaybackClock(FoliaSong song) => _hasScene && FoliaSceneRequest.SameText(_song!, song);
     private Vector4* _data;
     private FoliaInstance* _mapped;
     private FoliaInstance[] _prepared = null!;
@@ -211,7 +213,8 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         string backgroundMode = _hasScene ? _activeRequest.Background : "common";
         float fontScale = _hasScene ? _activeRequest.Scale : 1;
         var clock = playback.Clock;
-        double position = clock.Now;
+        bool followsClock = FollowsPlaybackClock(playback.Song);
+        double position = followsClock ? clock.Now : _lastPosition;
         bool modeChanged = _lastMode != mode;
         bool backgroundChanged = _lastBackground != backgroundMode;
         _lastMode = mode;
@@ -227,7 +230,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
             _animation = 0;
         }
         _backgroundTime += delta;
-        if (clock.Playing)
+        if (clock.Playing && followsClock)
             _animation += delta;
         int lineIndex = FoliaLyricLayout.FindLine(_atlas!.Lines, position);
         if (modeChanged || songChanged || _lineIndex != lineIndex)
@@ -307,8 +310,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _glowWords.FrameDelta = (float)elapsedSeconds;
         _monet.FrameDelta = (float)elapsedSeconds;
         _glowWords.Begin(lineIndex, (int)_data[2].Y, position);
-        _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet)
-            : _metadataVisible ? FoliaLyricLayout.WriteMetadata(instances[_backgroundCount..], _atlas, song, layoutWidth, layoutHeight, fontScale) : 0;
+        _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet) : 0;
         _data[26] = new(_tempera.PostSeed, 0, 0, 0);
         _stageGraphicsCount = (int)_data[2].Y == 11 ? _tempera.GraphicsCount : (int)_data[2].Y == 9 && _atlas.Lines.Length > 0 ? 1 : 0;
         _data[8] = new(FoliaTempera.Ink, 1);
@@ -486,7 +488,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _upload?.Dispose();
         _activeScene?.Dispose();
         _upload = _activeScene = null;
-        _hasScene = _hasRequest = _lyricsVisible = _metadataVisible = false;
+        _hasScene = _hasRequest = _lyricsVisible = false;
         _atlas = null;
         _song = null;
         _modeAtlasSource = null;

@@ -13,6 +13,9 @@ internal sealed record FoliaLine(string Text, string Translation, double Start, 
 /// <summary>Immutable CPU data; published atomically. GPU resources remain owned by the render thread.</summary>
 internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines, byte[] CoverRgba, int CoverWidth, int CoverHeight, Vector3[] Palette)
 {
+    // A metadata-only snapshot is provisional until lookup succeeds, finds nothing, or fails.
+    internal bool LyricsPending { get; init; }
+
     internal static FoliaSong Empty
     {
         get;
