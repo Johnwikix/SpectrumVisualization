@@ -312,8 +312,8 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="WallpaperButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>切换壁纸模式（主显示器）；可通过托盘恢复窗口</value></data>
   <data name="RenderDebugAa" xml:space="preserve"><value>抗锯齿 / 重建 GPU</value></data>
   <data name="RenderDebugAaOutput" xml:space="preserve"><value>抗锯齿＋输出 GPU</value></data>
-  <data name="FoliaEffectName" xml:space="preserve"><value>辞曲新境 · Folia</value></data>
-  <data name="FoliaEffectOption.Content" xml:space="preserve"><value>辞曲新境 · Folia</value></data>
+  <data name="FoliaEffectName" xml:space="preserve"><value>辞曲新境</value></data>
+  <data name="FoliaEffectOption.Content" xml:space="preserve"><value>辞曲新境</value></data>
   <data name="SettingsSectionFolia.Text" xml:space="preserve"><value>辞曲新境</value></data>
   <data name="FoliaIntroduction.Text" xml:space="preserve"><value>以原生 GPU 着色器绘制动态背景与歌词。通用设置中的 HDR、抗锯齿、DLSS 预设与渲染比例在此效果中同样生效。</value></data>
   <data name="FoliaLyricsMode.Header" xml:space="preserve"><value>歌词模式</value></data>

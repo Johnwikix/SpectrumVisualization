@@ -21,6 +21,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     internal FoliaGpuEffect(FoliaPlaybackState playback, bool forceCpuGlyphs = false)
     {
         this.playback = playback;
+        _displayClock = playback.Clock;
         _forceCpuGlyphs = forceCpuGlyphs;
         _glyphStore = new();
         _preparation = new(_glyphStore);
@@ -60,10 +61,11 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private string _lastMode = "", _lastBackground = "", _lastImageEffect = "";
     private bool _lastCoverBackground;
     private double _lastPosition;
+    private FoliaClock _displayClock;
     public bool ResetHistoryRequested => _upload is { Complete: true }
         || _lyricsVisible != (_hasScene && playback.Song.Title.Length != 0)
         || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
-        || FollowsPlaybackClock(playback.Song) && Math.Abs(playback.Clock.Now - _lastPosition) > .5;
+        || _hasScene && Math.Abs((FollowsPlaybackClock(playback.Song) ? playback.Clock : _displayClock).Now - _lastPosition) > .5;
 
     private bool FollowsPlaybackClock(FoliaSong song) => _hasScene && FoliaSceneRequest.SameText(_song!, song);
     private Vector4* _data;
@@ -225,9 +227,12 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         string mode = _lyricsVisible && _atlas!.Lines.Length > 0 ? _activeRequest.Mode : "classic";
         string backgroundMode = _hasScene ? _activeRequest.Background : "common";
         float fontScale = _hasScene ? _activeRequest.Scale : 1;
-        var clock = playback.Clock;
-        bool followsClock = FollowsPlaybackClock(playback.Song);
-        double position = followsClock ? clock.Now : _lastPosition;
+        // The visible scene keeps its own immutable clock while the next track
+        // prepares. Its Now still advances; commit switches scene and clock together.
+        if (FollowsPlaybackClock(playback.Song) || !_lyricsVisible)
+            _displayClock = playback.Clock;
+        var clock = _displayClock;
+        double position = clock.Now;
         bool modeChanged = _lastMode != mode;
         bool backgroundChanged = _lastBackground != backgroundMode;
         _lastMode = mode;
@@ -243,7 +248,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             _animation = 0;
         }
         _backgroundTime += delta;
-        if (clock.Playing && followsClock)
+        if (clock.Playing)
             _animation += delta;
         int lineIndex = FoliaLyricLayout.FindLine(_atlas!.Lines, position);
         if (modeChanged || songChanged || _lineIndex != lineIndex)
