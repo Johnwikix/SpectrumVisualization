@@ -112,7 +112,7 @@ TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
      o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5; return o;
 }
 
-struct Instance { float4 rect,uv,color,transform,shape,effect; };
+struct Instance { float4 rect,uv,color,transform,shape,effect,glyphData; };
 StructuredBuffer<Instance> Instances:register(t5);
 Instance ReadInstance(uint id) {
     Instance v=Instances[id];
@@ -161,7 +161,7 @@ float4 SpritePS(SpriteOutput input):SV_Target {
         // Clamp to this glyph's texel centers: linear filtering must never mix differently colored MSDF channels from a neighbor.
         float2 halfTexel=.5/TextureSize.xy;
         float2 glyphUV=clamp(atlasUV,v.uv.xy+halfTexel,v.uv.xy+v.uv.zw-halfTexel);
-        float4 distances=AtlasTexture.SampleLevel(LinearClamp,glyphUV,0);
+        float4 distances=AtlasTexture.SampleLevel(LinearClamp,float3(glyphUV,v.glyphData.x),0);
         float range=GlyphPixelRange(atlasUV);
         float signedDistance=(Median3(distances.rgb)-.5)*range;
         float trueDistance=(distances.a-.5)*range;
@@ -170,7 +170,7 @@ float4 SpritePS(SpriteOutput input):SV_Target {
         if(blur>.01) coverage=saturate(.5+trueDistance/max(1,blur*2.5));
         if(v.effect.z>0) coverage=max(saturate(v.effect.z*Screen.x/Screen.z+.5-abs(trueDistance)),coverage*.14);
         float glowStrength=kind==25?v.effect.w:v.transform.w;
-        float halo=glowStrength>0 ? ModeAtlasTexture.SampleLevel(LinearClamp,glyphUV,0).r : 0;
+        float halo=glowStrength>0 ? GlyphShadowTexture.SampleLevel(LinearClamp,float3(glyphUV,v.glyphData.x),0) : 0;
         float2 backdropUV=input.pixel+Jitter.xy/Screen.xy;
         if(kind==0&&v.effect.w>0) { float3 base=BackdropTexture.SampleLevel(LinearClamp,backdropUV,0).rgb;color=abs(base-v.color.rgb); }
         if(kind==0&&v.effect.w>1.5){

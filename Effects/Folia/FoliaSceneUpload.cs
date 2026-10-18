@@ -99,18 +99,22 @@ internal sealed class FoliaSceneUpload : IDisposable
     internal FoliaImageUpload? Cover { get; }
     internal FoliaImageUpload? ModeAtlas { get; }
     private int _stage;
+    private readonly FoliaGpuGlyphAtlas? _resident;
+    private FoliaGpuGlyphAtlas.FoliaGlyphBatch? _glyphBatch;
     internal bool Complete => _stage == 3;
 
-    internal FoliaSceneUpload(FoliaPreparedScene scene, FoliaTextAtlas activeAtlas, FoliaSong activeSong, object? modeSource)
+    internal FoliaSceneUpload(FoliaPreparedScene scene, FoliaTextAtlas activeAtlas, FoliaSong activeSong, object? modeSource,
+        FoliaGpuGlyphAtlas? resident = null)
     {
         Scene = scene;
         var atlas = scene.Atlas!;
-        if (!ReferenceEquals(atlas, activeAtlas)) Glyphs = new(0, atlas.Width, atlas.Height, Format.R16G16B16A16_Float);
+        _resident = resident;
+        if (!atlas.IsShared && !ReferenceEquals(atlas, activeAtlas)) Glyphs = new(0, atlas.Width, atlas.Height, Format.R16G16B16A16_Float);
         if (!ReferenceEquals(scene.Request.Song.CoverRgba, activeSong.CoverRgba))
             Cover = new(1, Math.Max(1, scene.Request.Song.CoverWidth), Math.Max(1, scene.Request.Song.CoverHeight), Format.R8G8B8A8_UNorm);
         bool emoji = scene.Request.Mode == "cappella" && atlas.Lines.Length > 0;
         ModeAtlasSource = emoji ? FoliaAssets.Emojis : atlas;
-        if (!ReferenceEquals(modeSource, ModeAtlasSource))
+        if (!ReferenceEquals(modeSource, ModeAtlasSource) && (emoji || !atlas.IsShared))
             ModeAtlas = emoji ? new(5, FoliaAssets.Emojis.Width, FoliaAssets.Emojis.Height, Format.B8G8R8A8_UNorm)
                 : new(5, atlas.Width, atlas.Height, Format.R8_UNorm);
     }
@@ -120,7 +124,20 @@ internal sealed class FoliaSceneUpload : IDisposable
         switch (_stage)
         {
             case 0:
-                if (Glyphs == null || Glyphs.Advance(device, Scene.Atlas!.Pixels)) _stage++;
+                if (Scene.Atlas!.IsShared)
+                {
+                    if (_glyphBatch is { Submitted: true })
+                    {
+                        _glyphBatch.CompleteAfterFence();
+                        _glyphBatch.Dispose();
+                        _glyphBatch = null;
+                    }
+                    if (_glyphBatch == null) _glyphBatch = _resident!.Prepare(Scene.Atlas.SharedGlyphs);
+                    bool complete = true;
+                    foreach (var glyph in Scene.Atlas.SharedGlyphs) if (!glyph.Resident) { complete = false; break; }
+                    if (complete) _stage++;
+                }
+                else if (Glyphs == null || Glyphs.Advance(device, Scene.Atlas.Pixels)) _stage++;
                 break;
             case 1:
                 var song = Scene.Request.Song;
@@ -135,6 +152,7 @@ internal sealed class FoliaSceneUpload : IDisposable
 
     internal void Record(ID3D12GraphicsCommandList commands)
     {
+        _glyphBatch?.Record(commands);
         Glyphs?.Record(commands);
         Cover?.Record(commands);
         ModeAtlas?.Record(commands);
@@ -143,6 +161,10 @@ internal sealed class FoliaSceneUpload : IDisposable
     public void Dispose()
     {
         Glyphs?.Dispose();
+        // All upload disposal is at the host's preceding-frame fence (or final drain).
+        // Completed work from an obsolete song is still reusable by later songs.
+        if (_glyphBatch is { Submitted: true }) _glyphBatch.CompleteAfterFence();
+        _glyphBatch?.Dispose();
         Cover?.Dispose();
         ModeAtlas?.Dispose();
         Scene.Dispose();

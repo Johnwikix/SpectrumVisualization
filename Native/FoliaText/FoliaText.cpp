@@ -4,8 +4,10 @@
 #include <wrl.h>
 #include <Microsoft.Graphics.Canvas.native.h>
 #include "msdfgen.h"
+#include "core/ShapeDistanceFinder.h"
 #include <new>
 #include <vector>
+#include <memory>
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
 
@@ -87,6 +89,8 @@ extern "C" __declspec(dllexport) HRESULT __cdecl FoliaOutlineSignature(IUnknown*
     } catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
       catch (...) { return E_FAIL; }
 }
+
+#include "FoliaGlyphOutline.h"
 
 extern "C" __declspec(dllexport) HRESULT __cdecl FoliaGenerateMtsdf(
     IUnknown* object, int width, int height, float translateX, float translateY, float range, float* pixels) noexcept {

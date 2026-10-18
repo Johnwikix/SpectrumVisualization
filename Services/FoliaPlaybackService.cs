@@ -266,7 +266,10 @@ internal sealed class FoliaPlaybackService
         {
             using var stream = await reference.OpenReadAsync().AsTask(token).ConfigureAwait(false);
             var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(token).ConfigureAwait(false);
-            double scale = Math.Min(1, 512d / Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+            // Foreground album art needs the source detail at high DPI. Limit large
+            // images without reducing every cover to a background-sized thumbnail.
+            const int maximumCoverDimension = 2048;
+            double scale = Math.Min(1, (double)maximumCoverDimension / Math.Max(decoder.PixelWidth, decoder.PixelHeight));
             uint width = Math.Max(1, (uint)(decoder.PixelWidth * scale));
             uint height = Math.Max(1, (uint)(decoder.PixelHeight * scale));
             var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Ignore,

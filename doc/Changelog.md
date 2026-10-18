@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-18 印象模式封面比例与清晰度
+
+- `FoliaMonet`：宽窗口的封面、标题和艺术家整体宽度缩至左半区的一半，并在左半区居中；歌词继续使用右半区，紧凑布局保持原有上下结构。
+- `FoliaPlaybackService`：封面解码最长边上限由 512 提高到 2048 像素，小图不放大，避免高清 SMTC 封面先缩小再在高 DPI 下被放大。
+
+## 2026-10-18 GPU 字形生成与跨歌曲增量图集
+
+- `FoliaGlyphOutline`、`GlyphGenerator`、`GlyphCorrection`：后台提取原始贝塞尔轮廓与着色信息，D3D12 计算距离场、边缘纠错和高斯阴影；设备不支持、初始化失败或复杂轮廓时保留后台 CPU 生成。
+- `FoliaGlyphStore`、`FoliaGpuGlyphAtlas`：按字体、字重、斜体和字素复用分页图集，只生成缺失字形并上传其轮廓；CPU 回退仅上传缺失图块。扩容由 GPU 保留已有页，LRU 仅淘汰未引用字形，超过同时驻留上限时使用独立 CPU 图集。
+- `FoliaScenePreparation`、`FoliaSceneUpload`、`FoliaGpuEffect`：准备和显示中的场景固定引用字形，提交完成后才交接场景与回收资源；取消中的已完成字形仍可复用。图集在效果实例生命周期内保留，不增加逐帧 I/O。
+- `ShaderCatalog`、`GpuPipelineCache`：正式预编译新增计算入口，计算管线缓存随源码、资源契约及驱动标识失效。
+
 ## 2026-10-18 切歌场景交接与左右布局
 
 - `FoliaPlaybackService`、`FoliaSong`、`FoliaGpuEffect`：区分歌词查询中与查询结束；新曲文字和纹理准备完成前保留上一完整场景及其歌词位置，完成后整组替换，避免背景空档和歌曲信息闪现；无歌词、失败和空会话仍可正常结束等待。

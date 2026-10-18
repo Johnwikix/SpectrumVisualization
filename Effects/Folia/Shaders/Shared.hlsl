@@ -1,5 +1,5 @@
 // D3D12 binding / color-space adaptation for the Folia and Paper shader ports.
-Texture2D<float4> AtlasTexture : register(t0);
+Texture2DArray<float4> AtlasTexture : register(t0);
 Texture2D<float4> CoverTexture : register(t1);
 Texture2D<float4> NoiseTexture : register(t2);
 Texture2D<float4> BackdropTexture : register(t3);
@@ -7,6 +7,7 @@ Texture2D<float4> LayerTexture : register(t4);
 // Cappella emoji tiles, or the matching glyph Gaussian coverage atlas in other modes.
 Texture2D<float4> ModeAtlasTexture : register(t6);
 Texture2D<float4> PreviousStageTexture : register(t8);
+Texture2DArray<float> GlyphShadowTexture : register(t9);
 SamplerState LinearClamp : register(s0);
 SamplerState LinearWrap : register(s1);
 cbuffer Frame : register(b0) {

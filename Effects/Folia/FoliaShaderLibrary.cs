@@ -8,6 +8,12 @@ internal static class FoliaShaderLibrary
 {
     internal static string Load(string name)
     {
+        if (name == "GlyphGenerator") return Read(name) + "\n" + Read("GlyphCorrection");
+        return Read(name);
+    }
+
+    private static string Read(string name)
+    {
         using var stream = typeof(FoliaShaderLibrary).Assembly.GetManifestResourceStream("Spectrum.Folia." + name + ".hlsl")
             ?? throw new InvalidOperationException("Missing Folia shader: " + name);
         using var reader = new StreamReader(stream);

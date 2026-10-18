@@ -69,6 +69,9 @@ internal sealed class FoliaPreparedScene(FoliaSceneRequest request, FoliaTextAtl
 /// <summary>One cancellable CPU worker with a single latest request. Active render state is never mutated here.</summary>
 internal sealed class FoliaScenePreparation : IDisposable
 {
+    internal FoliaGlyphStore Store { get; }
+    private readonly bool _ownsStore;
+    internal FoliaScenePreparation(FoliaGlyphStore? store = null) { Store = store ?? new(); _ownsStore = store == null; }
     private readonly object _gate = new();
     private FoliaSceneRequest? _pending;
     private FoliaSceneRequest? _working;
@@ -158,7 +161,14 @@ internal sealed class FoliaScenePreparation : IDisposable
                 if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
                     || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song) || request.Mode == "tilt" && !_atlas.HasItalics)
                 {
-                    var atlas = new FoliaTextAtlas(request.Song, request.Family, request.Weight, token, request.Mode == "tilt");
+                    FoliaTextAtlas atlas;
+                    try { atlas = new(request.Song, request.Family, request.Weight, token, request.Mode == "tilt", Store); }
+                    catch (Exception error) when (IsCapacityFailure(error))
+                    {
+                        // An unusually large live pair cannot evict the visible scene. Use the
+                        // private CPU atlas for this scene, then resume incremental caching later.
+                        atlas = new(request.Song, request.Family, request.Weight, token, request.Mode == "tilt");
+                    }
                     if (token.IsCancellationRequested)
                     {
                         atlas.Dispose();
@@ -169,6 +179,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                     _atlasRequest = request;
                     _plan = null;
                 }
+                if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
@@ -231,5 +242,14 @@ internal sealed class FoliaScenePreparation : IDisposable
         _colors = [];
         _atlasRequest = _planRequest = default;
         _work = null;
+        if (_ownsStore) Store.Dispose();
+    }
+
+    private static bool IsCapacityFailure(Exception error)
+    {
+        if (error is FoliaAtlasCapacityException) return true;
+        if (error is not AggregateException aggregate) return false;
+        foreach (var inner in aggregate.InnerExceptions) if (!IsCapacityFailure(inner)) return false;
+        return aggregate.InnerExceptions.Count > 0;
     }
 }

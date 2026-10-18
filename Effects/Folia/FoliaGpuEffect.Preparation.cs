@@ -5,7 +5,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 internal sealed unsafe partial class FoliaGpuEffect
 {
-    private readonly FoliaScenePreparation _preparation = new();
+    private readonly FoliaScenePreparation _preparation;
     private FoliaSceneUpload? _upload, _activeScene;
     private FoliaSceneRequest _requested, _activeRequest;
     private bool _hasRequest, _hasScene, _lyricsVisible;
@@ -25,6 +25,7 @@ internal sealed unsafe partial class FoliaGpuEffect
 
     private bool UpdatePreparedScene()
     {
+        _glyphAtlas.FinishFrame();
         var request = DesiredScene();
         if (!_hasRequest || !_requested.Matches(request))
         {
@@ -45,11 +46,27 @@ internal sealed unsafe partial class FoliaGpuEffect
             }
             else
             {
-                try { _upload = new(ready, _atlas!, _song!, _modeAtlasSource); }
+                try { _upload = new(ready, _atlas!, _song!, _modeAtlasSource, _glyphAtlas); }
                 catch { ready.Dispose(); throw; }
             }
         }
-        if (_upload is { Complete: false }) _upload.Advance(_device, EmptyCover);
+        if (_upload is { Complete: false })
+            try { _upload.Advance(_device, EmptyCover); }
+            catch (Exception error) when (_glyphStore.GpuEnabled || error is FoliaCpuGlyphsRequiredException)
+            {
+                // Allocation / generator setup failure is recoverable. The observed CPU
+                // worker generates the missing tiles; the render thread never runs msdfgen.
+                if (error is not FoliaCpuGlyphsRequiredException) App.WriteCrashLog("Folia glyph upload; using CPU fallback", error.Message, error);
+                _glyphStore.SetGpuEnabled(false);
+                _upload.Dispose();
+                _upload = null;
+                _hasRequest = false;
+            }
+        if (_glyphVersion != _glyphAtlas.Version)
+        {
+            _glyphVersion = _glyphAtlas.Version;
+            Descriptors();
+        }
         // The host selects temporal reset before PrepareFrame. If completion races that check,
         // leave the result for the next frame, so the SDK and effect reset on the same frame.
         if (_upload is { Complete: true } upload && (!_temporal || _frame.Reset))

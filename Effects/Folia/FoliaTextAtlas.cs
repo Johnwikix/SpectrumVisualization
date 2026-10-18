@@ -12,19 +12,22 @@ using Windows.UI.Text;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
-internal readonly record struct FoliaGlyph(float U, float V, float Uw, float Vh, float Width, float Height, float Advance, float BearingX, float BearingY, float CanvasCenterY = 0, float LineHeight = 1.32f);
+internal readonly record struct FoliaGlyph(float U, float V, float Uw, float Vh, float Width, float Height, float Advance, float BearingX, float BearingY, float CanvasCenterY = 0, float LineHeight = 1.32f, int Page = 0);
 internal readonly record struct FoliaPreparedGlyph(FoliaGlyph Glyph, float Offset, double Start, double End, int Word, int Index);
 internal sealed record FoliaPreparedLine(FoliaLine Source, FoliaPreparedGlyph[] Glyphs, float Width, FoliaPreparedGlyph[] Translation, float TranslationWidth)
 {
     internal FoliaGlyph[] TiltItalic { get; init; } = [];
 }
 
-/// <summary>DirectWrite Bezier outlines become MTSDF once per song / font change; frame shaders reconstruct sharp coverage at the actual scale.</summary>
+/// <summary>Scene layouts reference reusable glyph tiles. A private CPU atlas remains available for capacity fallback.</summary>
 internal sealed class FoliaTextAtlas : IDisposable
 {
     private FoliaPixelBuffer? _distancePixels, _shadowPixels;
     private int _owners = 1;
     private int _initialOwnerReleased;
+    private readonly FoliaGlyphStore? _store;
+    internal FoliaCachedGlyph[] SharedGlyphs { get; private set; } = [];
+    internal bool IsShared => _store != null;
     internal static FoliaTextAtlas Placeholder { get; } = new();
 
     private FoliaTextAtlas()
@@ -68,6 +71,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         ReleaseDistancePixels();
         _shadowPixels?.Dispose();
         _shadowPixels = null;
+        _store?.Release(SharedGlyphs);
     }
     internal FoliaPreparedGlyph[] MonetTitle { get; }
     internal float MonetTitleWidth { get; }
@@ -116,8 +120,10 @@ internal sealed class FoliaTextAtlas : IDisposable
     }
 
     internal bool HasItalics { get; }
-    internal FoliaTextAtlas(FoliaSong song, string family, int weight, CancellationToken token = default, bool includeItalics = false)
+    internal FoliaTextAtlas(FoliaSong song, string family, int weight, CancellationToken token = default, bool includeItalics = false,
+        FoliaGlyphStore? store = null)
     {
+        _store = store;
         try
         {
             Seed = song.Title.StartsWith("Folia ·", StringComparison.Ordinal) ? "spectrum-reference" : song.Title + "\n" + song.Artist;
@@ -159,89 +165,127 @@ internal sealed class FoliaTextAtlas : IDisposable
             if (includeItalics)
                 foreach (string text in characters)
                     requests.Add((text, weight, true));
-            // A shelf atlas preserves actual glyph bounds, including combining marks and italic overhang.
-            var entries = new List<(string Text, int Weight, bool Italic, int X, int Y, int Width, int Height, float Advance, float XBearing, float YBearing)>();
-            Width = requests.Count > 256 ? 2048 : 1024;
-            int x = 0, y = 0, row = 0;
-            foreach (var request in requests)
-            {
-                token.ThrowIfCancellationRequested();
-                string character = request.Text;
-                format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
-                format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
-                using var layout = new CanvasTextLayout(device, character, format, 2048, 256);
-                var bounds = layout.DrawBounds;
-                int w = Math.Max(1, (int)Math.Ceiling(bounds.Width) + Padding * 2);
-                int h = Math.Max(1, (int)Math.Ceiling(bounds.Height) + Padding * 2);
-                if (w > Width)
-                    continue;
-                if (x + w > Width)
-                {
-                    x = 0;
-                    y += row;
-                    row = 0;
-                }
-                entries.Add((character, request.Weight, request.Italic, x, y, w, h, (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width,
-                    (float)bounds.X, (float)bounds.Y));
-                x += w;
-                row = Math.Max(row, h);
-            }
-            Height = 64;
-            while (Height < y + row)
-                Height *= 2;
-            if (Height > 16384)
-                throw new InvalidOperationException("The lyric glyph atlas exceeds the D3D12 texture limit.");
             var glyphs = new Dictionary<string, FoliaGlyph>(characters.Count, StringComparer.Ordinal);
             var titleGlyphs = weight == 600 ? glyphs : new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal);
             var italicGlyphs = new Dictionary<string, FoliaGlyph>(characters.Count, StringComparer.Ordinal);
             var timestampGlyphs = weight == 500 ? glyphs : new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal);
-            _distancePixels = new(checked(Width * Height * 8));
-            var atlasPixels = MemoryMarshal.Cast<byte, Half>(Pixels);
-            int maximumPixels = 0;
-            foreach (var entry in entries)
-                maximumPixels = Math.Max(maximumPixels, entry.Width * entry.Height * 4);
-            var kernel = FoliaGlyphShadow.Kernel(Em * .09f);
-            _shadowPixels = new(checked(Width * Height));
-            var tiles = new byte[entries.Count][];
-            var metrics = new FoliaGlyph[entries.Count];
-            // Outline conversion is CPU work. Bound concurrency and give each worker its own mutable format/scratch.
-            // Only this cold preparation path uses Parallel; atlas packing and dictionaries remain single-owner.
-            Parallel.For(0, entries.Count, new ParallelOptions
+            if (store != null)
             {
-                CancellationToken = token, MaxDegreeOfParallelism = Math.Min(4, Math.Max(1, Environment.ProcessorCount / 2))
-            }, () => new GlyphWorker(family, maximumPixels), (i, _, worker) =>
-            {
-                var entry = entries[i];
-                worker.Format.FontWeight = new FontWeight { Weight = (ushort)entry.Weight };
-                worker.Format.FontStyle = entry.Italic ? FontStyle.Italic : FontStyle.Normal;
-                using var layout = new CanvasTextLayout(device, entry.Text, worker.Format, 2048, 256);
-                using var outline = CanvasGeometry.CreateText(layout);
-                tiles[i] = FoliaGlyphCache.Get(outline, entry.Width, entry.Height, Padding - entry.XBearing, Padding - entry.YBearing,
-                    worker.Field, worker.Coverage, worker.Horizontal, kernel);
-                metrics[i] = new((float)entry.X / Width, (float)entry.Y / Height,
-                    (float)entry.Width / Width, (float)entry.Height / Height,
-                    entry.Width / Em, entry.Height / Em, entry.Advance / Em,
-                    (entry.XBearing - Padding) / Em, (entry.YBearing - Padding) / Em,
-                    FoliaDistanceField.CanvasMiddleCenter(layout, Em), (float)layout.LayoutBounds.Height / Em);
-                return worker;
-            }, static worker => worker.Dispose());
-            for (int i = 0; i < entries.Count; i++)
-            {
-                token.ThrowIfCancellationRequested();
-                var entry = entries[i];
-                byte[] tile = tiles[i];
-                int tilePixels = entry.Width * entry.Height;
-                var tileDistances = MemoryMarshal.Cast<byte, Half>(tile.AsSpan(0, tilePixels * 8));
-                var tileShadow = tile.AsSpan(tilePixels * 8);
-                for (int rowIndex = 0; rowIndex < entry.Height; rowIndex++)
+                Width = Height = FoliaGlyphStore.PageSize;
+                SharedGlyphs = new FoliaCachedGlyph[requests.Count];
+                Parallel.For(0, requests.Count, new ParallelOptions { CancellationToken = token, MaxDegreeOfParallelism = 4 },
+                    () => new GlyphWorker(family, 0), (i, _, worker) =>
+                    {
+                        var request = requests[i];
+                        var key = new FoliaGlyphKey(family, request.Weight, request.Italic, request.Text);
+                        SharedGlyphs[i] = store.Acquire(key, () =>
+                        {
+                            worker.Format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
+                            worker.Format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
+                            using var layout = new CanvasTextLayout(device, request.Text, worker.Format, 2048, 256);
+                            var bounds = layout.DrawBounds;
+                            using var geometry = CanvasGeometry.CreateText(layout);
+                            float center = FoliaDistanceField.CanvasMiddleCenter(layout, Em);
+                            return new FoliaGlyphSource(new FoliaGlyphOutline(geometry),
+                                Math.Max(1, (int)Math.Ceiling(bounds.Width) + Padding * 2),
+                                Math.Max(1, (int)Math.Ceiling(bounds.Height) + Padding * 2),
+                                Padding - (float)bounds.X, Padding - (float)bounds.Y,
+                                (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width,
+                                (float)bounds.X - Padding, (float)bounds.Y - Padding,
+                                center, (float)layout.LayoutBounds.Height / Em);
+                        });
+                        return worker;
+                    }, static worker => worker.Dispose());
+                for (int i = 0; i < requests.Count; i++)
                 {
-                    tileDistances.Slice(rowIndex * entry.Width * 4, entry.Width * 4)
-                        .CopyTo(atlasPixels.Slice(((entry.Y + rowIndex) * Width + entry.X) * 4, entry.Width * 4));
-                    tileShadow.Slice(rowIndex * entry.Width, entry.Width)
-                        .CopyTo(ShadowPixels.Slice((entry.Y + rowIndex) * Width + entry.X, entry.Width));
+                    var request = requests[i];
+                    var destination = request.Italic ? italicGlyphs : request.Weight == weight ? glyphs : request.Weight == 600 ? titleGlyphs : timestampGlyphs;
+                    destination[request.Text] = SharedGlyphs[i].Glyph;
                 }
-                var destinationGlyphs = entry.Italic ? italicGlyphs : entry.Weight == weight ? glyphs : entry.Weight == 600 ? titleGlyphs : timestampGlyphs;
-                destinationGlyphs[entry.Text] = metrics[i];
+                store.PrepareCpuTiles(SharedGlyphs, token);
+            }
+            else
+            {
+                // A shelf atlas preserves actual glyph bounds, including combining marks and italic overhang.
+                var entries = new List<(string Text, int Weight, bool Italic, int X, int Y, int Width, int Height, float Advance, float XBearing, float YBearing)>();
+                Width = requests.Count > 256 ? 2048 : 1024;
+                int x = 0, y = 0, row = 0;
+                foreach (var request in requests)
+                {
+                    token.ThrowIfCancellationRequested();
+                    string character = request.Text;
+                    format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
+                    format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
+                    using var layout = new CanvasTextLayout(device, character, format, 2048, 256);
+                    var bounds = layout.DrawBounds;
+                    int w = Math.Max(1, (int)Math.Ceiling(bounds.Width) + Padding * 2);
+                    int h = Math.Max(1, (int)Math.Ceiling(bounds.Height) + Padding * 2);
+                    if (w > Width)
+                        continue;
+                    if (x + w > Width)
+                    {
+                        x = 0;
+                        y += row;
+                        row = 0;
+                    }
+                    entries.Add((character, request.Weight, request.Italic, x, y, w, h, (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width,
+                        (float)bounds.X, (float)bounds.Y));
+                    x += w;
+                    row = Math.Max(row, h);
+                }
+                Height = 64;
+                while (Height < y + row)
+                    Height *= 2;
+                if (Height > 16384)
+                    throw new InvalidOperationException("The lyric glyph atlas exceeds the D3D12 texture limit.");
+                _distancePixels = new(checked(Width * Height * 8));
+                var atlasPixels = MemoryMarshal.Cast<byte, Half>(Pixels);
+                int maximumPixels = 0;
+                foreach (var entry in entries)
+                    maximumPixels = Math.Max(maximumPixels, entry.Width * entry.Height * 4);
+                var kernel = FoliaGlyphShadow.Kernel(Em * .09f);
+                _shadowPixels = new(checked(Width * Height));
+                var tiles = new byte[entries.Count][];
+                var metrics = new FoliaGlyph[entries.Count];
+                // Outline conversion is CPU work. Bound concurrency and give each worker its own mutable format/scratch.
+                // Only this cold preparation path uses Parallel; atlas packing and dictionaries remain single-owner.
+                Parallel.For(0, entries.Count, new ParallelOptions
+                {
+                    CancellationToken = token, MaxDegreeOfParallelism = Math.Min(4, Math.Max(1, Environment.ProcessorCount / 2))
+                }, () => new GlyphWorker(family, maximumPixels), (i, _, worker) =>
+                {
+                    var entry = entries[i];
+                    worker.Format.FontWeight = new FontWeight { Weight = (ushort)entry.Weight };
+                    worker.Format.FontStyle = entry.Italic ? FontStyle.Italic : FontStyle.Normal;
+                    using var layout = new CanvasTextLayout(device, entry.Text, worker.Format, 2048, 256);
+                    using var outline = CanvasGeometry.CreateText(layout);
+                    tiles[i] = FoliaGlyphCache.Get(outline, entry.Width, entry.Height, Padding - entry.XBearing, Padding - entry.YBearing,
+                        worker.Field, worker.Coverage, worker.Horizontal, kernel);
+                    metrics[i] = new((float)entry.X / Width, (float)entry.Y / Height,
+                        (float)entry.Width / Width, (float)entry.Height / Height,
+                        entry.Width / Em, entry.Height / Em, entry.Advance / Em,
+                        (entry.XBearing - Padding) / Em, (entry.YBearing - Padding) / Em,
+                        FoliaDistanceField.CanvasMiddleCenter(layout, Em), (float)layout.LayoutBounds.Height / Em);
+                    return worker;
+                }, static worker => worker.Dispose());
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var entry = entries[i];
+                    byte[] tile = tiles[i];
+                    int tilePixels = entry.Width * entry.Height;
+                    var tileDistances = MemoryMarshal.Cast<byte, Half>(tile.AsSpan(0, tilePixels * 8));
+                    var tileShadow = tile.AsSpan(tilePixels * 8);
+                    for (int rowIndex = 0; rowIndex < entry.Height; rowIndex++)
+                    {
+                        tileDistances.Slice(rowIndex * entry.Width * 4, entry.Width * 4)
+                            .CopyTo(atlasPixels.Slice(((entry.Y + rowIndex) * Width + entry.X) * 4, entry.Width * 4));
+                        tileShadow.Slice(rowIndex * entry.Width, entry.Width)
+                            .CopyTo(ShadowPixels.Slice((entry.Y + rowIndex) * Width + entry.X, entry.Width));
+                    }
+                    var destinationGlyphs = entry.Italic ? italicGlyphs : entry.Weight == weight ? glyphs : entry.Weight == 600 ? titleGlyphs : timestampGlyphs;
+                    destinationGlyphs[entry.Text] = metrics[i];
+                }
             }
             CharacterGlyphs = glyphs;
             Lines = new FoliaPreparedLine[song.Lines.Length];

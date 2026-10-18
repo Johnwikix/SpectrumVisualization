@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
-/// <summary>Six float4s match the shader StructuredBuffer element exactly.</summary>
+/// <summary>Seven float4s match the shader StructuredBuffer element exactly.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct FoliaInstance
 {
@@ -13,4 +13,5 @@ internal struct FoliaInstance
     internal Vector4 Transform;
     internal Vector4 Shape;
     internal Vector4 Effect;
+    internal Vector4 GlyphData;
 }

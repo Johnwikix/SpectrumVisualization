@@ -92,6 +92,45 @@ internal static class GpuPipelineCache
         }
     }
 
+    internal static unsafe ID3D12PipelineState Create(ID3D12Device device, ComputePipelineStateDescription description, string layout)
+    {
+        lock (Gate)
+        {
+            var driver = DriverIdentity(device);
+            string material = "compute-pso-v1\n" + driver.Key + "\n" + layout + "\n"
+                + Convert.ToHexString(SHA256.HashData(description.ComputeShader.Span));
+            string key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(material)));
+            var identity = (device.NativePointer, key);
+            if (Pipelines.TryGetValue(identity, out var existing)) { MemoryHits++; return existing.QueryInterface<ID3D12PipelineState>(); }
+            string directory = RenderCacheFile.DirectoryFor("PipelineCache");
+            byte[]? cached = driver.Persistent ? RenderCacheFile.Read(directory, key, 64 * 1024 * 1024) : null;
+            ID3D12PipelineState? pipeline = null;
+            if (cached != null)
+                fixed (byte* pointer = cached)
+                {
+                    description.CachedPSO = new CachedPipelineState { CachedBlob = (nint)pointer, CachedBlobSizeInBytes = (nuint)cached.Length };
+                    try { pipeline = device.CreateComputePipelineState(description); DiskHits++; }
+                    catch (SharpGenException) { }
+                    finally { description.CachedPSO = default; }
+                }
+            if (pipeline == null)
+            {
+                pipeline = device.CreateComputePipelineState(description);
+                Created++;
+                try
+                {
+                    using var blob = pipeline.CachedBlob;
+                    byte[] bytes = new byte[checked((int)(ulong)blob.BufferSize)];
+                    Marshal.Copy(blob.BufferPointer, bytes, 0, bytes.Length);
+                    if (driver.Persistent) RenderCacheFile.Write(directory, key, bytes);
+                }
+                catch (SharpGenException) { }
+            }
+            Pipelines.Add(identity, pipeline.QueryInterface<ID3D12PipelineState>());
+            return pipeline;
+        }
+    }
+
     /// <summary>Releases cache-owned references. Live effects retain separate COM references;
     /// the last device lease also calls this after every owning renderer has drained.</summary>
     internal static void ReleaseDeviceCache()

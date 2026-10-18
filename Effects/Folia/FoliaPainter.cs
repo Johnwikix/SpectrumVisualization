@@ -113,6 +113,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Color = new(color, Math.Clamp(alpha, 0, 1)),
             Transform = new(rotation, shear, blur, glow),
             Shape = new(0, 0, 0, 0),
+            GlyphData = new(glyph.Page, 0, 0, 0),
             Effect = new(reveal >= 1 ? 1 : Math.Clamp((glyph.Advance * reveal - glyph.BearingX) / glyph.Width, 0, 1), reveal >= 1 ? 0 : revealSoftness, outline ? outlineWidth : 0, difference)
         };
     }
@@ -130,6 +131,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Uv = new(glyph.U, glyph.V, glyph.Uw, glyph.Vh),
             Color = new(color, Math.Clamp(alpha, 0, 1)),
             Shape = new(25, depths.X, depths.Y, depths.Z),
+            GlyphData = new(glyph.Page, 0, 0, 0),
             Effect = new(depths.W, 0, 0, glow)
         };
     }

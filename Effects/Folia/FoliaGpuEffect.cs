@@ -11,8 +11,20 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 /// <summary>Single-slot native stage. The host completes the preceding frame before PrepareFrame.
 /// GPU resources and mapped memory are owned exclusively by its render worker.</summary>
-internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback) : IGpuVisualizerEffect, ITemporalGpuEffect
+internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITemporalGpuEffect
 {
+    private readonly FoliaPlaybackState playback;
+    private readonly bool _forceCpuGlyphs;
+    private readonly FoliaGlyphStore _glyphStore;
+    private FoliaGpuGlyphAtlas _glyphAtlas = null!;
+    private int _glyphVersion;
+    internal FoliaGpuEffect(FoliaPlaybackState playback, bool forceCpuGlyphs = false)
+    {
+        this.playback = playback;
+        _forceCpuGlyphs = forceCpuGlyphs;
+        _glyphStore = new();
+        _preparation = new(_glyphStore);
+    }
     internal const string EffectId = "folia";
     private const int Capacity = 32768;
     private ID3D12Device _device = null!;
@@ -88,6 +100,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
     {
         _device = services.Device;
         _analyzer = services.Analyzer;
+        _glyphAtlas = new(_device, _glyphStore, _forceCpuGlyphs);
         _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
         _rtvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
         _srv = _device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 32, DescriptorHeapFlags.ShaderVisible));
@@ -106,7 +119,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _prepared = new FoliaInstance[Capacity];
         _root = _device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new RootParameter1(RootParameterType.ConstantBufferView,new RootDescriptor1(0,0),ShaderVisibility.All),
-             new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,5,0,0,0,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,6,0,6,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,8,0,7,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel),
+             new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,5,0,0,0,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,6,0,6,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,8,0,7,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,9,0,5,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel),
              new RootParameter1(RootParameterType.ConstantBufferView,new RootDescriptor1(1,0),ShaderVisibility.All),
              new RootParameter1(new RootConstants(2,0,1),ShaderVisibility.Vertex),
              new RootParameter1(RootParameterType.ShaderResourceView,new RootDescriptor1(5,0),ShaderVisibility.All),
@@ -152,7 +165,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
             BlendState = screen ? new BlendDescription(Blend.One, Blend.InverseSourceColor, Blend.One, Blend.InverseSourceAlpha) : sprites ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = temporal, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Always, StencilEnable = false }
-        }, $"Folia/root-v2/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
+        }, $"Folia/root-v3-glyph-array/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
     }
 
     public void ConfigureTemporal(bool enabled)
@@ -320,6 +333,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
 
     public void RecordScene(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target)
     {
+        _glyphAtlas.RecordGrowth(commands);
         _upload?.Record(commands);
         UploadImages(commands);
         commands.SetDescriptorHeaps(_srv);
@@ -488,6 +502,8 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _upload?.Dispose();
         _activeScene?.Dispose();
         _upload = _activeScene = null;
+        _glyphAtlas?.Dispose();
+        _glyphStore.Dispose();
         _hasScene = _hasRequest = _lyricsVisible = false;
         _atlas = null;
         _song = null;

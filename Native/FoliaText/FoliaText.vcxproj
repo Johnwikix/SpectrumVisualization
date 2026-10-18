@@ -7,5 +7,6 @@
   <PropertyGroup><OutDir>$(MSBuildThisFileDirectory)bin\</OutDir><IntDir>$(MSBuildThisFileDirectory)obj\</IntDir><TargetName>Spectrum.FoliaText</TargetName></PropertyGroup>
   <ItemDefinitionGroup><ClCompile><WarningLevel>Level3</WarningLevel><Optimization>MaxSpeed</Optimization><RuntimeLibrary>MultiThreaded</RuntimeLibrary><LanguageStandard>stdcpp17</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\..\External\Folia\msdfgen;$(Win2DIncludePath)\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions>MSDFGEN_PUBLIC=;MSDFGEN_USE_CPP11;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><AdditionalDependencies>windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies><GenerateDebugInformation>false</GenerateDebugInformation></Link></ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="FoliaText.cpp" /><ClCompile Include="..\..\External\Folia\msdfgen\core\*.cpp" /></ItemGroup>
+  <ItemGroup><ClInclude Include="FoliaGlyphOutline.h" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

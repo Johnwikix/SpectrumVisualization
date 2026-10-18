@@ -34,6 +34,20 @@ internal static class FoliaGlyphCache
         // Dimensions, translation, MTSDF range, half encoding and shadow recipe are part of the versioned identity.
         Span<byte> identity = stackalloc byte[60];
         FoliaDistanceField.Signature(outline, identity);
+        return GetTile(identity, null, outline, width, height, x, y, field, coverage, horizontal, kernel);
+    }
+
+    internal static byte[] Get(FoliaGlyphOutline outline, int width, int height, float x, float y,
+        Span<float> field, Span<float> coverage, Span<float> horizontal, float[] kernel)
+    {
+        Span<byte> identity = stackalloc byte[60];
+        outline.Signature.CopyTo(identity);
+        return GetTile(identity, outline, null, width, height, x, y, field, coverage, horizontal, kernel);
+    }
+
+    private static byte[] GetTile(Span<byte> identity, FoliaGlyphOutline? native, CanvasGeometry? geometry,
+        int width, int height, float x, float y, Span<float> field, Span<float> coverage, Span<float> horizontal, float[] kernel)
+    {
         BinaryPrimitives.WriteInt32LittleEndian(identity[32..], 1);
         BinaryPrimitives.WriteInt32LittleEndian(identity[36..], width);
         BinaryPrimitives.WriteInt32LittleEndian(identity[40..], height);
@@ -48,7 +62,8 @@ internal static class FoliaGlyphCache
         if (data == null || data.Length != length)
         {
             data = new byte[length];
-            FoliaDistanceField.Render(outline, width, height, x, y, field);
+            if (native != null) native.RenderCpu(width, height, x, y, field);
+            else FoliaDistanceField.Render(geometry!, width, height, x, y, field);
             var distances = MemoryMarshal.Cast<byte, Half>(data.AsSpan(0, count * 8));
             for (int i = 0; i < distances.Length; i++) distances[i] = (Half)field[i];
             FoliaGlyphShadow.Write(field, width, height, kernel, coverage, horizontal, data.AsSpan(count * 8), width, 0, 0);

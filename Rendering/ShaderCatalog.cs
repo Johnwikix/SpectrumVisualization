@@ -25,5 +25,7 @@ internal static class ShaderCatalog
             Pair(FoliaShaderLibrary.Background(name), "Fullscreen", "PS");
         Pair(FoliaShaderLibrary.Background("Sora"), "VS", "PS");
         Pair(FoliaShaderLibrary.Load("Bloom"), "VS", "Down", "Up", "Combine");
+        foreach (string entry in new[] { "GenerateMtsdf", "CorrectMtsdf", "ShadowHorizontal", "ShadowVertical" })
+            compile(FoliaShaderLibrary.Load("GlyphGenerator"), entry, "cs_5_0");
     }
 }

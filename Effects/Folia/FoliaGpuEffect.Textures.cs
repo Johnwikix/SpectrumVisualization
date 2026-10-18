@@ -60,9 +60,11 @@ internal sealed unsafe partial class FoliaGpuEffect
             for (int slot = 0; slot < 5; slot++)
             {
                 // Do not bind a private render target as an SRV during its own pass.
-                var texture = slot == 3 ? ((table == 2 || table == 3) ? _textures[3] : _textures[1]) : slot == 4 ? ((table == 1 || table == 3) ? _textures[4] : _textures[1]) : _textures[slot];
-                _device.CreateShaderResourceView(texture!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + slot) * _srvStride);
+                var texture = slot == 0 && _atlas!.IsShared ? _glyphAtlas.Distance : slot == 3 ? ((table == 2 || table == 3) ? _textures[3] : _textures[1]) : slot == 4 ? ((table == 1 || table == 3) ? _textures[4] : _textures[1]) : _textures[slot];
+                _device.CreateShaderResourceView(texture!, slot == 0 ? FoliaGpuGlyphAtlas.Srv(texture!) : null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + slot) * _srvStride);
             }
+            var shadow = _atlas!.IsShared ? _glyphAtlas.Shadow! : _textures[5]!;
+            _device.CreateShaderResourceView(shadow, FoliaGpuGlyphAtlas.Srv(shadow), _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + 5) * _srvStride);
             _device.CreateShaderResourceView(_textures[5] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + 6) * _srvStride);
             _device.CreateShaderResourceView(_textures[6] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 8 + 7) * _srvStride);
         }

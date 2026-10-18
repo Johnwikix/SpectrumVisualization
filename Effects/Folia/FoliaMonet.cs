@@ -26,8 +26,9 @@ internal sealed class FoliaMonet
         float margin = Math.Clamp(width * .045f, 24, 72);
         _wide = width >= 1040 && height >= 520;
         _hasCover = request.Song.CoverWidth > 0;
-        _infoLeft = margin;
-        _infoWidth = (_wide ? width * .5f : width) - margin * 2;
+        // The information group uses half of the left column, centered within it.
+        _infoWidth = _wide ? width * .25f : width - margin * 2;
+        _infoLeft = _wide ? (width * .5f - _infoWidth) * .5f : margin;
         _font = Math.Clamp(width * (_wide ? .027f : .038f), 24, _wide ? 52 : 38) * request.Scale;
         _font = Math.Min(_font, Math.Max(20, height * .085f));
         _translationFont = Math.Clamp(_font * .48f, 14, 23);
