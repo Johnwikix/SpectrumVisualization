@@ -20,6 +20,8 @@ namespace WinExSpectrumTest
         private IntPtr _hwnd;
         private ThemeStyleHelper themeStyleHelper;
         private bool IsFullScreen = false;
+        private bool _restoreFullScreenTitleBarExtension;
+        private Thickness _restoreFullScreenVisualizerMargin;
         // WindowEx 基类构造中 WindowManager 已订阅 AppWindow 事件，此引用必定非 null：
         // 缓存后全程只用字段。
         private readonly AppWindow _appWindow;
@@ -398,17 +400,30 @@ namespace WinExSpectrumTest
         private void FullScreen_Click(object sender, RoutedEventArgs e)
         {
             if (_wallpaperHost != null || _changingWallpaper) return;
-            if (IsFullScreen)
+            SetFullScreen(!IsFullScreen);
+        }
+
+        private void SetFullScreen(bool enabled)
+        {
+            if (enabled == IsFullScreen) return;
+            if (enabled)
             {
-                _appWindow.SetPresenter(AppWindowPresenterKind.Default);
-                FullScreenIcon.Glyph = "\uE740";
+                _restoreFullScreenTitleBarExtension = ExtendsContentIntoTitleBar;
+                _restoreFullScreenVisualizerMargin = VisualizerHost.Margin;
+                // Match wallpaper mode: remove both the XAML island's title-bar
+                // inset and the widget's margin before filling the screen.
+                ExtendsContentIntoTitleBar = false;
+                VisualizerHost.Margin = new Thickness(0);
+                _appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
             }
             else
             {
-                _appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
-                FullScreenIcon.Glyph = "\uE73F";
+                _appWindow.SetPresenter(AppWindowPresenterKind.Default);
+                ExtendsContentIntoTitleBar = _restoreFullScreenTitleBarExtension;
+                VisualizerHost.Margin = _restoreFullScreenVisualizerMargin;
             }
-            IsFullScreen = !IsFullScreen;
+            IsFullScreen = enabled;
+            FullScreenIcon.Glyph = enabled ? "\uE73F" : "\uE740";
         }
     }
 }

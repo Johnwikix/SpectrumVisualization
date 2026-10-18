@@ -31,15 +31,12 @@ public sealed partial class MainWindow
             {
                 _restoreLocked = AppSettings.IsLocked;
                 _restoreFullScreen = IsFullScreen;
+                if (_restoreLocked) ExitLock();
+                SetFullScreen(false);
+                // Save widget layout only after fullscreen has restored it;
+                // otherwise its zero margin would survive the later round trip.
                 _restoreExtendsContentIntoTitleBar = ExtendsContentIntoTitleBar;
                 _restoreVisualizerMargin = VisualizerHost.Margin;
-                if (_restoreLocked) ExitLock();
-                if (IsFullScreen)
-                {
-                    _appWindow.SetPresenter(AppWindowPresenterKind.Default);
-                    IsFullScreen = false;
-                    FullScreenIcon.Glyph = "\uE740";
-                }
 
                 if (_appWindow.Presenter is OverlappedPresenter presenter)
                 {
@@ -118,9 +115,7 @@ public sealed partial class MainWindow
         }
         if (_restoreFullScreen)
         {
-            _appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
-            IsFullScreen = true;
-            FullScreenIcon.Glyph = "\uE73F";
+            SetFullScreen(true);
         }
         AppTitleBar.Visibility = Visibility.Visible;
         AppTitleBar.IsHitTestVisible = true;
