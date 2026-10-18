@@ -1,4 +1,3 @@
-using Microsoft.UI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -14,14 +13,15 @@ using WinUIEx;
 
 namespace WinExSpectrumTest
 {
-    // SetIsShownInSwitchers / ToggleWindowStyle 等 WinUIEx 扩展方法对原生 Window 仍可用。
-    public sealed partial class MainWindow : Window
+    // 基类与 music_player 一致使用 WinUIEx.WindowEx：基类构造阶段即完成 AppWindow
+    // 初始化；SetIsShownInSwitchers / ToggleWindowStyle 等 WinUIEx 扩展方法同样可用。
+    public sealed partial class MainWindow : WindowEx
     {
         private IntPtr _hwnd;
         private ThemeStyleHelper themeStyleHelper;
         private bool IsFullScreen = false;
-        // 原生 Window 的 AppWindow 属性在首次布局/激活完成前会返回 null（WindowEx
-        // 基类会强制早初始化）。构造函数里已可取到：缓存引用，全程只用字段。
+        // WindowEx 基类构造中 WindowManager 已订阅 AppWindow 事件，此引用必定非 null：
+        // 缓存后全程只用字段。
         private readonly AppWindow _appWindow;
         private bool _dragRegionRegistered;
 
@@ -42,11 +42,12 @@ namespace WinExSpectrumTest
         {
             ViewModel = App.Services.GetRequiredService<ViewModel.SettingViewModel>();
             InitializeComponent();
-            ExtendsContentIntoTitleBar = true;
-            // 构造函数里 AppWindow 已可取到（万一为 null 用 WindowId 兜底）；缓存后
-            // 全程只用字段——原生 Window 的 AppWindow 属性在首次布局期间会返回 null。
+            AppWindow.TitleBar.PreferredTheme = TitleBarTheme.UseDefaultAppMode;
+            AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
+            // 窗口句柄与 AppWindow 引用只取一次，全程只用字段。
             _hwnd = WindowNative.GetWindowHandle(this);
-            _appWindow = AppWindow ?? Microsoft.UI.Windowing.AppWindow.GetFromWindowId(new WindowId((ulong)_hwnd));
+            _appWindow = AppWindow;
             _appWindow.Resize(new SizeInt32(1024, 1024));
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets/icon.ico");
             if (File.Exists(iconPath))
