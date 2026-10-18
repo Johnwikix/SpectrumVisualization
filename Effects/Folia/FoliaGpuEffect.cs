@@ -486,7 +486,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _upload?.Dispose();
         _activeScene?.Dispose();
         _upload = _activeScene = null;
-        _hasScene = _hasRequest = _lyricsVisible = false;
+        _hasScene = _hasRequest = _lyricsVisible = _metadataVisible = false;
         _atlas = null;
         _song = null;
         _modeAtlasSource = null;
@@ -502,6 +502,7 @@ internal sealed unsafe partial class FoliaGpuEffect(FoliaPlaybackState playback)
         _tilt = null!;
         _pendolo = null!;
         _tempera = null!;
+        _monet = null!;
         _latent.SetPalette(FoliaSong.Empty, []);
         foreach (var p in _backgrounds)
             GpuGraphics.DisposeResource(p);

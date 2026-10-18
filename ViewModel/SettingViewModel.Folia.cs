@@ -20,7 +20,9 @@ public partial class SettingViewModel
             try
             {
                 var names = CanvasTextFormat.GetSystemFontFamilies();
-                var displayNames = CanvasTextFormat.GetSystemFontFamilies([CultureInfo.CurrentUICulture.Name]);
+                // Pass a real array: the compiler's IReadOnlyList collection-literal helper has no NativeAOT CCW.
+                string[] cultures = [CultureInfo.CurrentUICulture.Name];
+                var displayNames = CanvasTextFormat.GetSystemFontFamilies(cultures);
                 var choices = new FontChoice[names.Length];
                 for (int i = 0; i < names.Length; i++) choices[i] = new(names[i], i < displayNames.Length ? displayNames[i] : names[i]);
                 Array.Sort(choices, static (a, b) => StringComparer.CurrentCultureIgnoreCase.Compare(a.DisplayName, b.DisplayName));

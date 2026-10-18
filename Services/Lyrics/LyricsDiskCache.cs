@@ -14,14 +14,26 @@ namespace WinExSpectrumTest.Services.Lyrics;
 internal static class LyricsDiskCache
 {
     private static readonly SemaphoreSlim IoGate = new(1, 1);
+    private static readonly Lazy<string> DefaultFolder = new(ResolveDefaultFolder);
     internal static string Folder
     {
         get
         {
             string configured = AppSettings.LyricsCacheFolder;
-            if (string.IsNullOrWhiteSpace(configured)) return Path.Combine(ApplicationData.Current.LocalFolder.Path, "LyricsCache");
+            if (string.IsNullOrWhiteSpace(configured)) return DefaultFolder.Value;
             if (!Path.IsPathFullyQualified(configured)) throw new ArgumentException("The lyrics cache folder must be an absolute path.");
             return Path.GetFullPath(configured);
+        }
+    }
+
+    private static string ResolveDefaultFolder()
+    {
+        if (FoliaPlaybackService.PreviewEnabled) return Path.Combine(AppContext.BaseDirectory, "LyricsCache");
+        try { return Path.Combine(ApplicationData.Current.LocalFolder.Path, "LyricsCache"); }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            // Unpackaged builds have no package ApplicationData. Resolving a UI label must never break x:Bind.
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Spectrum", "LyricsCache");
         }
     }
 

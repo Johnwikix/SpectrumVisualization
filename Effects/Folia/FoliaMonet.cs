@@ -128,7 +128,7 @@ internal sealed class FoliaMonet
             if (y + line.Height < _top - _font || y > _bottom + _font) continue;
             int distance = Math.Abs(i - index);
             bool active = i == index;
-            float opacity = active ? 1 : Math.Max(.16f, (i < index ? .44f : .56f) - Math.Max(0, distance - 1) * .14f);
+            float opacity = active ? 1 : Math.Max(.16f, (i < index ? .38f : .46f) - Math.Max(0, distance - 1) * .12f);
             float blur = active ? 0 : Math.Min(1.1f, Math.Max(0, distance - 1) * .45f);
             foreach (var item in line.Text)
             {
@@ -150,7 +150,7 @@ internal sealed class FoliaMonet
                 float size = _font * growth;
                 x -= glyph.Glyph.Advance * (size - _font) * .5f;
                 top += rise - (size - _font) * .5f;
-                float baseAlpha = active ? .34f : opacity;
+                float baseAlpha = active ? .54f : opacity;
                 painter.Glyph(glyph.Glyph, x, top, size, color, baseAlpha, blur: blur);
                 if (active && progress > 0)
                     painter.Glyph(glyph.Glyph, x, top, size, color, .98f, reveal: progress, glow: glow, revealSoftness: .06f);
