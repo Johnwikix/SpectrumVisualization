@@ -207,9 +207,7 @@ This project is open-source under the **[GNU AGPL-3.0 License](LICENSE.txt)**. T
 | [msdfgen](https://github.com/Chlumsky/msdfgen) | Glyph MTSDF distance-field generation (MIT) |
 | [Jint](https://github.com/sebastienros/jint) / [Acornima](https://github.com/adams85/acornima) / [Earcut](https://github.com/mapbox/earcut) | Original layout-script execution and polygon triangulation (BSD / ISC) |
 | [ComputeSharp](https://github.com/Sergio0694/ComputeSharp) | D3D12 compute shader integration |
-| [Intel XeSS](https://github.com/intel/xess) | Temporal reconstruction (J / K / L / M presets) |
-| [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) | FSR 3.1 |
-| [NVIDIA NGX DLSS](https://github.com/NVIDIA/DLSS) | DLSS / DLAA |
+| [Intel XeSS](https://github.com/intel/xess) / [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) / [NVIDIA NGX DLSS](https://github.com/NVIDIA/DLSS) | Temporal reconstruction: XeSS, FSR 3.1, DLSS / DLAA, with DLSS J / K / L / M presets |
 | [SMAA 1x](https://github.com/iryoku/smaa) | Spatial anti-aliasing |
 | [FXAA 3.11](https://download.nvidia.com/developer/tools/SDK/10.5/FXAA_WhitePaper.pdf) | Brightness-mapped edge cleanup |
 

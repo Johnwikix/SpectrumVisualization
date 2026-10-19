@@ -207,9 +207,7 @@ doc/verification/
 | [msdfgen](https://github.com/Chlumsky/msdfgen) | 字形 MTSDF 距离场生成（MIT） |
 | [Jint](https://github.com/sebastienros/jint) / [Acornima](https://github.com/adams85/acornima) / [Earcut](https://github.com/mapbox/earcut) | 原版布局脚本执行与多边形三角化（BSD / ISC） |
 | [ComputeSharp](https://github.com/Sergio0694/ComputeSharp) | D3D12 计算着色器集成 |
-| [Intel XeSS](https://github.com/intel/xess) | 时域重建（J / K / L / M preset） |
-| [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) | FSR 3.1 |
-| [NVIDIA NGX DLSS](https://github.com/NVIDIA/DLSS) | DLSS / DLAA |
+| [Intel XeSS](https://github.com/intel/xess) / [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) / [NVIDIA NGX DLSS](https://github.com/NVIDIA/DLSS) | 时域重建：XeSS、FSR 3.1、DLSS / DLAA，DLSS 可选 J / K / L / M preset |
 | [SMAA 1x](https://github.com/iryoku/smaa) | 空间抗锯齿 |
 | [FXAA 3.11](https://download.nvidia.com/developer/tools/SDK/10.5/FXAA_WhitePaper.pdf) | 亮度映射后处理边缘 |
 
