@@ -8,7 +8,7 @@
 #define u_worldWidth 0.0
 #define u_worldHeight 0.0
 #define u_fit 2.0
-#define u_scale 1.106972356
+#define u_scale NomandPaper.w
 #define u_rotation 0.0
 #define u_offsetX 0.0
 #define u_offsetY 0.0
@@ -30,9 +30,9 @@
 #define u_originalColors false
 #define u_inverted false
 #define u_colorSteps 4.0
-#define u_contrast .32
-#define u_roughness .42
-#define u_fiber .3
+#define u_contrast NomandPaper.x
+#define u_roughness NomandPaper.y
+#define u_fiber NomandPaper.z
 #define u_fiberSize .2
 #define u_crumples .35
 #define u_crumpleSize .35
@@ -334,4 +334,4 @@ float4 Paper(float2 inputUV, float4 coordinate) {
 return fragColor;
 }
 
-float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,.35);return float4(max(c.rgb,0),1);}
+float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,SceneTuning.y);return float4(max(c.rgb,0),1);}

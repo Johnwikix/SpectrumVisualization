@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Numerics;
 
@@ -27,6 +28,9 @@ internal sealed partial class FoliaLumiere
         float[] Motes, Path[] Paths, float[][] Nodes);
     internal int GraphicsCount { get; private set; }
     internal int TextCount { get; private set; }
+    internal int DarkCount { get; private set; }
+    internal bool HasScene => _shots.Length > 0;
+    private Vector3 _background;
     private Shot[] _shots = [];
     private Shot _shot = null!;
     private Profile _profile = null!;
@@ -36,6 +40,13 @@ internal sealed partial class FoliaLumiere
 
     internal void Update(Span<Vector4> data, FoliaSong song, double time, float width, float height, float bass)
     {
+        _background = song.Palette[0];
+        if (_shots.Length == 0)
+        {
+            data.Clear();
+            GraphicsCount = TextCount = DarkCount = 0;
+            return;
+        }
         int shotIndex = 0;
         for (int i = 1; i < _shots.Length; i++)
             if (_shots[i].Start <= time)
@@ -44,16 +55,17 @@ internal sealed partial class FoliaLumiere
         _profile = _shot.Profile;
         _local = (float)(time - _shot.Start);
         _camera = ResolveCamera(time);
+        bass *= AppSettings.FoliaLumiereAudio;
         float aspect = _width / _height;
         float openingTime = (float)(time - _span.X) - _opening * .45f;
-        _sceneIntensity = (_hasOpening ? FoliaPainter.Ease((openingTime + .4f) / 1.6f) : 1) * (1 + BurstBoost(time));
+        _sceneIntensity = (_hasOpening ? FoliaPainter.Ease((openingTime + .4f) / 1.6f) : 1) * (AppSettings.FoliaLumiereLight * (1 + BurstBoost(time)));
         Vector3 champagne = new(1, .86f, .62f);
-        _light = Vector3.Lerp(Vector3.Lerp(champagne, song.Palette[3], .18f), Glow(song.Palette[3], champagne), .3f);
+        _light = Vector3.Lerp(Vector3.Lerp(champagne, song.Palette[3], .18f), Glow(song.Palette[3], champagne), AppSettings.FoliaLumiereThemeMix);
         _light /= Math.Max(.001f, Math.Max(_light.X, Math.Max(_light.Y, _light.Z)));
         Vector3 warm = Vector3.Lerp(_light, Vector3.One, .2f);
-        _lit = Vector3.Lerp(warm, Vector3.Lerp(Glow(song.Palette[1], warm), Vector3.One, .2f), .3f);
+        _lit = Vector3.Lerp(warm, Vector3.Lerp(Glow(song.Palette[1], warm), Vector3.One, .2f), AppSettings.FoliaLumiereThemeMix);
         _unlit = Vector3.Lerp(Vector3.Lerp(_light, new(.62f, .68f, .8f), .55f),
-            Vector3.Lerp(Glow(song.Palette[2], _lit), new(.62f, .68f, .8f), .35f), .3f);
+            Vector3.Lerp(Glow(song.Palette[2], _lit), new(.62f, .68f, .8f), .35f), AppSettings.FoliaLumiereThemeMix);
         data.Clear();
         // Original handoff keeps the six strongest beams across both rigs.
         Span<ResolvedLight> candidates = stackalloc ResolvedLight[12];
@@ -87,7 +99,9 @@ internal sealed partial class FoliaLumiere
         data[..36].CopyTo(_resolved);
         data[36] = new(width, height, (float)time, count);
         data[37] = Vector4.Lerp(previous.FogA, _profile.FogA, handoff);
+        data[37].X *= AppSettings.FoliaLumiereFog;
         data[38] = Vector4.Lerp(previous.FogB, _profile.FogB, handoff);
+        data[38].Z *= AppSettings.FoliaLumiereFog;
         data[39] = new(_light, 0);
         float glarePhase = Math.Clamp(_local / 1.6f, 0, 1);
         float glareBlend = shotIndex == 0 ? 1 : glarePhase < .5f ? 4 * glarePhase * glarePhase * glarePhase : 1 - MathF.Pow(-2 * glarePhase + 2, 3) * .5f;
@@ -97,6 +111,8 @@ internal sealed partial class FoliaLumiere
         data[41] = new(previous.GlareStreak + (_profile.GlareStreak - previous.GlareStreak) * glareBlend, 0, 0, 0);
         data[42] = new(_light, 0);
         data[43] = Vector4.Zero;
+        if (AppSettings.FoliaLumiereTextOnly)
+            for (int i = 12; i < 18; i++) data[i].X = 0;
         Profile pattern = handoff < .5f ? previous : _profile;
         float patternFade = handoff < .5f ? 1 - 2 * handoff : 2 * handoff - 1;
         data[44] = pattern.Caustic;
@@ -118,8 +134,18 @@ internal sealed partial class FoliaLumiere
     {
         int firstInstance = painter.Count;
         float h = painter.Height, w = painter.Width;
-        WriteEchoes(ref painter, atlas, time);
-        WriteStars(ref painter, time);
+        Vector3 background = _background;
+        float brightness = Vector3.Dot(background, new(.2126f, .7152f, .0722f));
+        float dark = brightness > .18f ? Math.Max(.94f, AppSettings.FoliaLumiereDarkField) : AppSettings.FoliaLumiereDarkField;
+        painter.Shape(1, 0, 0, w, h, background * .06f, dark);
+        DarkCount = painter.Count - firstInstance;
+        if (!AppSettings.FoliaLumiereTextOnly && AppSettings.FoliaLumiereEcho > 0)
+        {
+            int firstEcho = painter.Count;
+            WriteEchoes(ref painter, atlas, time);
+            painter.FadeFrom(firstEcho, AppSettings.FoliaLumiereEcho);
+        }
+        if (!AppSettings.FoliaLumiereTextOnly) WriteStars(ref painter, time);
         foreach (var shot in _shots)
         {
             float begin = ReferenceEquals(shot, _shots[0]) && _hasOpening ? _span.X + _opening * .45f - .6f : (float)shot.Start - .6f;
@@ -130,7 +156,7 @@ internal sealed partial class FoliaLumiere
             float progress = (float)(time - begin) / 3.6f;
             foreach (var path in shot.Profile.Paths)
             {
-                if (painter.Remaining < 2300 || path.Points.Length < 2)
+                if (!AppSettings.FoliaLumiereLineArt || AppSettings.FoliaLumiereTextOnly || painter.Remaining < 2300 || path.Points.Length < 2)
                     break;
                 float draw = Math.Clamp((progress - path.Style.Z) / Math.Max(.001f, path.Style.W), 0, 1);
                 float amount = (1 - MathF.Pow(1 - draw, 3)) * path.Lengths[^1];
@@ -155,7 +181,7 @@ internal sealed partial class FoliaLumiere
             }
             foreach (float[] node in shot.Profile.Nodes)
             {
-                if (painter.Remaining < 1800 || progress < node[3])
+                if (!AppSettings.FoliaLumiereLineArt || AppSettings.FoliaLumiereTextOnly || painter.Remaining < 1800 || progress < node[3])
                     continue;
                 float appear = Math.Clamp((progress - node[3]) / .08f, 0, 1);
                 float lit = Illumination(node[0], node[1]);
@@ -170,9 +196,10 @@ internal sealed partial class FoliaLumiere
         int textFirst = painter.Count;
         WriteWindow(ref painter, atlas, time);
         TextCount = painter.Count - textFirst;
-        WriteMotes(ref painter, _front, time, true);
-        painter.TransformFrom(firstInstance, new(w * .5f, h * .5f), new(_camera.X * w, _camera.Y * h), _camera.Z, _camera.W);
+        if (AppSettings.FoliaLumiereFrontBokeh) WriteMotes(ref painter, _front, time, true);
+        painter.TransformFrom(firstInstance + DarkCount, new(w * .5f, h * .5f), new(_camera.X * w, _camera.Y * h), _camera.Z, _camera.W);
         // The frame is a screen-space overlay, outside the scene camera.
+        if (!AppSettings.FoliaLumiereFrame) return;
         for (int corner = 0; corner < 4; corner++)
         {
             float padX = Math.Max(30, w * .065f), padY = Math.Max(30, h * .085f);

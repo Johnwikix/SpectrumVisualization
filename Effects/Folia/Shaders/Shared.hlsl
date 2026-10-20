@@ -27,6 +27,14 @@ cbuffer Frame : register(b0) {
     float4 PreviousJitter;
     float4 RealtimeMotion;
     float4 SonnetOptions;
+    float4 TemperaTuning;
+    float4 SceneTuning;
+    float4 NomandDither;
+    float4 NomandGlass;
+    float4 NomandPaper;
+    float4 NomandDots;
+    float4 NomandLens;
+    float4 BackgroundTuning;
 };
 void Fullscreen(uint id : SV_VertexID, out float4 p : SV_Position, out float2 uv : TEXCOORD0) {
     float2 xy = float2((id << 1) & 2, id & 2);

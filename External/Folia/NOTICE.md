@@ -15,6 +15,13 @@ preparation; only immutable native plans reach the render loop. Circle start
 angles are deterministic. Spectrum uses a native vector flower fallback because
 its cover-derived themes do not supply Folia theme SVG icon lists.
 
+The same bundle now includes the original segment-fixed artwork and deterministic
+open-frame specifications. The four open-frame growth recipes, short-line render
+hints, text-based chorus fallback, and Tempera paragraph transition formulas are
+adapted to preallocated native frame state. Classic's cold adapter reuses the
+vendored parser-preserving semantic/sticky layout helpers. Lumiere prepares its
+maximum mote population once; live tuning selects the required prefix.
+
 The optional realtime motion effects use Spectrum's existing live band transients.
 They do not run Beat This! or htdemucs, infer bar positions, or claim isolated drums.
 

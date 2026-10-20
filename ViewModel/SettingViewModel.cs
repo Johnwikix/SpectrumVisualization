@@ -656,7 +656,11 @@ namespace WinExSpectrumTest.ViewModel
             }
             if (name.StartsWith("Folia", StringComparison.Ordinal))
             {
-                NotifyFoliaSettings();
+                OnPropertyChanged(name);
+                if (name == nameof(AppSettings.FoliaBackground))
+                    OnPropertyChanged(nameof(IsFoliaImageBackground));
+                if (name == nameof(AppSettings.FoliaFontFamily))
+                    OnPropertyChanged(nameof(SelectedFoliaFont));
                 _hdrSaveTimer.Stop();
                 _hdrSaveTimer.Start();
                 return;

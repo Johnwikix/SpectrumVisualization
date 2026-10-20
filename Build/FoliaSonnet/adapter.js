@@ -72,6 +72,13 @@ class NativeGraphics extends NativeNode {
         this.rectangle = [x, y, w, h];
         return this.moveTo(x, y).lineTo(x + w, y).lineTo(x + w, y + h).lineTo(x, y + h).lineTo(x, y);
     }
+    clear() { this.commands = []; this.paths = []; this.path = null; return this; }
+    poly(points) {
+        if (!points.length) return this;
+        this.moveTo(points[0], points[1]);
+        for (let i = 2; i < points.length; i += 2) this.lineTo(points[i], points[i + 1]);
+        return this.lineTo(points[0], points[1]);
+    }
     record(fill, options) {
         if (this.paths.length) this.commands.push({ fill, options, paths: this.paths, rectangle: this.rectangle });
         this.paths = []; this.path = null; this.rectangle = null;
@@ -174,7 +181,27 @@ function geometry(kind, width, height, seed) {
 function compile(json) {
     const input = JSON.parse(json);
     const shots = JSON.parse(FoliaNativeSource.compile(json));
-    for (const shot of shots) shot.graphics = geometry(shot.kind, input.width, input.height, shot.seed);
+    for (const shot of shots) {
+        shot.graphics = geometry(shot.kind, input.width, input.height, shot.seed);
+        for (const text of shot.texts) {
+            const segment = text.segment, placement = text.placement;
+            const spec = require('sonnetFrameDecor').resolveSonnetFrameDecorSpec(segment);
+            const dimensions = require('sonnetFrameDecor').resolveSonnetFrameLocalDimensions(placement);
+            const seed = segment.text.split('').reduce((a, b) => a + b.charCodeAt(0), 0) + text.segmentIndex * 13;
+            const chorus = text.isChorus || seed % 100 < 35;
+            const commands = [];
+            if (!spec.applied && text.role !== 'decoration' && segment.isWordLike && seed % 100 < (chorus ? 26 : 15)) {
+                const node = require('sonnetTextFixedGeo').buildSonnetTextFixedGeo(pixi, { seed, isChorusEffect: chorus,
+                    fontSize: text.font, layoutWidth: input.width, theme: { primaryColor: 1, secondaryColor: 2, accentColor: 3 } });
+                recordNode(node, 4, commands);
+            }
+            text.decor = { commands, variant: spec.applied && text.role !== 'decoration' ? spec.variant : -1,
+                x: placement.x, y: placement.y, width: dimensions.width, height: dimensions.height,
+                enterX: placement.enterX, enterY: placement.enterY };
+            delete text.segment;
+            delete text.placement;
+        }
+    }
     return JSON.stringify(shots);
 }
 return { compile, geometry, transition: (...args) => require('sonnetTransitions').resolveSonnetTransitionEffectFrame(...args) };

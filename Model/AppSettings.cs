@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace WinExSpectrumTest.Model
 {
-    public class AppSettings
+    public partial class AppSettings
     {
         public static event Action<string>? Changed;
 

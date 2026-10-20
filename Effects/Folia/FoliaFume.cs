@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Threading;
 using System.Collections.Generic;
@@ -53,7 +54,8 @@ internal sealed partial class FoliaFume
         float phase = Math.Clamp((float)time * 20, 0, _camera.Length - 1);
         int first = Math.Min((int)phase, _camera.Length - 2);
         Vector3 camera = Vector3.Lerp(_camera[first], _camera[first + 1], phase - first);
-        WriteBackground(ref p, camera, time, secondary, accent);
+        if (Model.AppSettings.FoliaFumeGeometry)
+            WriteBackground(ref p, camera, time, secondary, accent);
         foreach (var block in _blocks)
         {
             Vector2 origin = new(p.Width * .5f + (block.Position.X - camera.X) * camera.Z, p.Height * .5f + (block.Position.Y - camera.Y) * camera.Z);
@@ -99,7 +101,7 @@ internal sealed partial class FoliaFume
                     Vector2 xy = origin + (row.Position + new Vector2(row.Offsets[gi - row.First], 0)) * camera.Z;
                     float baseline = xy.Y + block.LineHeight * camera.Z * .52f;
                     float glow = waiting ? 0 : (time <= trailStart ? .84f * enter : .1f + .16f * (1 - trail));
-                    p.GlyphCentered(glyph.Glyph, xy.X + glyph.Glyph.Advance * font * .5f, baseline, font, color, opacity, glow: glow);
+                    p.GlyphCentered(glyph.Glyph, xy.X + glyph.Glyph.Advance * font * .5f, baseline, font, color, opacity, glow: glow * AppSettings.FoliaFumeGlow);
                     float lead = Math.Clamp((float)Math.Min(durationGlyph * .86, (line.Source.End - line.Source.Start) * .16), .055f, block.Hero ? .2f : .16f);
                     double activation = trailStart - lead, finish = trailStart + lead * .42;
                     if (time > activation && time < finish)

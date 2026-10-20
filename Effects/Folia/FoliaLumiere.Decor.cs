@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -63,22 +64,28 @@ internal sealed partial class FoliaLumiere
     }
     private void WriteMotes(ref FoliaPainter p, MoteField? field, double time, bool bokeh)
     {
-        if (field == null)
+        if (field == null || AppSettings.FoliaLumiereTextOnly || AppSettings.FoliaLumiereMotes <= 0)
             return;
         float t = (float)time, aspect = p.Width / p.Height, omega = MathF.Tau / Math.Max(field.Period, .1f);
-        foreach (var mote in field.Items)
+        int count = Math.Min(field.Items.Length, (int)(field.Items.Length * .5f * AppSettings.FoliaLumiereMotes));
+        for (int mi = 0; mi < count; mi++)
         {
-            float speed = .45f + mote[2] * .9f, swirl = field.Swirl * (.5f + mote[2]);
-            float x = Wrap(mote[0] + field.DriftX * speed * t + swirl * MathF.Sin(t * omega * mote[6] + mote[4]), -.08f, aspect + .08f);
-            float y = Wrap(mote[1] + field.DriftY * speed * t + swirl * MathF.Cos(t * omega * mote[7] + mote[5]), -.08f, 1.08f);
-            float lit = Illumination(x, y) * field.Gain;
-            float twinkle = 1 - field.Twinkle + field.Twinkle * (.5f + .5f * MathF.Sin(t * mote[9] * MathF.Tau + mote[8]));
-            float alpha = Math.Min(1, (lit + field.Ambient) * twinkle);
-            if (alpha <= .004f)
-                continue;
-            float size = mote[3] * p.Height;
-            p.Shape(bokeh ? 19 : 17, x * p.Height - size * .5f, y * p.Height - size * .5f, size, size, _light, alpha);
+            var mote = field.Items[mi];
+            WriteMote(ref p, field, mote, bokeh, t, aspect, omega);
         }
+    }
+    private void WriteMote(ref FoliaPainter p, MoteField field, float[] mote, bool bokeh, float t, float aspect, float omega)
+    {
+        float speed = .45f + mote[2] * .9f, swirl = field.Swirl * (.5f + mote[2]);
+        float x = Wrap(mote[0] + field.DriftX * speed * t + swirl * MathF.Sin(t * omega * mote[6] + mote[4]), -.08f, aspect + .08f);
+        float y = Wrap(mote[1] + field.DriftY * speed * t + swirl * MathF.Cos(t * omega * mote[7] + mote[5]), -.08f, 1.08f);
+        float lit = Illumination(x, y) * field.Gain;
+        float twinkle = 1 - field.Twinkle + field.Twinkle * (.5f + .5f * MathF.Sin(t * mote[9] * MathF.Tau + mote[8]));
+        float alpha = Math.Min(1, (lit + field.Ambient) * twinkle);
+        if (alpha <= .004f)
+            return;
+        float size = mote[3] * p.Height;
+        p.Shape(bokeh ? 19 : 17, x * p.Height - size * .5f, y * p.Height - size * .5f, size, size, _light, alpha);
     }
     private static float Wrap(float value, float low, float high) => low + ((value - low) % (high - low) + high - low) % (high - low);
     private void WriteStars(ref FoliaPainter p, double time)

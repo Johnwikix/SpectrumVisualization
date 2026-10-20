@@ -12,6 +12,24 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
     internal int Count;
     internal int Remaining => _instances.Length - Count;
 
+    internal void Append(ReadOnlySpan<FoliaInstance> source)
+    {
+        int length = Math.Min(source.Length, Remaining);
+        source[..length].CopyTo(_instances[Count..]);
+        Count += length;
+    }
+
+    internal void FadeFrom(int first, float alpha, float blur = 0)
+    {
+        for (int i = first; i < Count; i++)
+        {
+            ref var instance = ref _instances[i];
+            instance.Color.W = Math.Clamp(instance.Color.W * alpha, 0, 1);
+            if (instance.Shape.X == 0)
+                instance.Transform.Z += blur;
+        }
+    }
+
     internal void TransformFrom(int first, Vector2 pivot, Vector2 position, float scale, float rotation)
     {
         float cos = MathF.Cos(rotation), sin = MathF.Sin(rotation);
@@ -119,7 +137,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
     }
 
     internal void GlyphQuad(in FoliaGlyph glyph, Vector2 topLeft, Vector2 topRight, Vector2 bottomRight, Vector2 bottomLeft,
-        Vector4 depths, Vector3 color, float alpha, float glow = 0)
+        Vector4 depths, Vector3 color, float alpha, float glow = 0, bool additive = false)
     {
         if (alpha <= .001f || Count >= _instances.Length)
             return;
@@ -131,7 +149,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Uv = new(glyph.U, glyph.V, glyph.Uw, glyph.Vh),
             Color = new(color, Math.Clamp(alpha, 0, 1)),
             Shape = new(25, depths.X, depths.Y, depths.Z),
-            GlyphData = new(glyph.Page, 0, 0, 0),
+            GlyphData = new(glyph.Page, additive ? 1 : 0, 0, 0),
             Effect = new(depths.W, 0, 0, glow)
         };
     }

@@ -5,7 +5,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 internal static partial class FoliaLyricLayout
 {
-    private static void Claddagh(ref FoliaPainter p, FoliaPreparedLine[] lines, int index, double time, float animation, float scale, Vector3 primary, Vector3 accent)
+    private static void Claddagh(ref FoliaPainter p, FoliaPreparedLine[] lines, int index, double time, float animation, float scale, Vector3 primary, Vector3 accent, float energy)
     {
         // CladdaghRingLine: project the narrow ellipse, then rotate its major axis -45 degrees.
         float radius = Math.Min(p.Width * .44f, 560), font = 72 * scale;
@@ -47,6 +47,8 @@ internal static partial class FoliaLyricLayout
                 float cosine = MathF.Cos(theta), sine = MathF.Sin(theta), depth = (cosine + 1) * .5f;
                 float rawX = sine * radius * (.35f + .65f * MathF.Pow(depth, 1.2f));
                 float rawY = cosine * radius * .09f;
+                if (line.Source.IsChorus)
+                    rawY += (glyph.Index % 2 == 0 ? 1 : -1) * font * (.06f + energy * .12f);
                 float x = (rawX + rawY) * diagonal, y = (rawY - rawX) * diagonal;
                 float tangent = MathF.Atan2((-cosine - sine * .09f) * diagonal, (cosine - sine * .09f) * diagonal);
                 while (tangent > MathF.PI * .5f)

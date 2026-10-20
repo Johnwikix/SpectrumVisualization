@@ -8,7 +8,7 @@
 #define u_worldWidth 0.0
 #define u_worldHeight 0.0
 #define u_fit 2.0
-#define u_scale 1.184270014
+#define u_scale NomandLens.w
 #define u_rotation 0.0
 #define u_offsetX 0.0
 #define u_offsetY 0.0
@@ -30,12 +30,12 @@
 #define u_originalColors false
 #define u_inverted false
 #define u_colorSteps 4.0
-#define u_spread .45
+#define u_spread NomandLens.x
 #define u_bias 0.0
 #define u_angle 0.0
 #define u_perspective .4
 #define u_count 20.0
-#define u_dispersion .65
+#define u_dispersion NomandLens.z
 #define u_dispersionShift 0.0
 #define u_dispersionColor 0.0
 #define u_focusCenter .55
@@ -43,7 +43,7 @@
 #define u_noise 0.0
 #define u_noiseFrequency 1.0
 #define u_noiseOffset 0.0
-#define u_lensBulge .3
+#define u_lensBulge NomandLens.y
 #define u_lensCircle .1
 #define u_imageX 0.0
 #define u_imageY 0.0
@@ -327,4 +327,4 @@ float4 Paper(float2 inputUV, float4 coordinate) {
 return fragColor;
 }
 
-float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,.35);return float4(max(c.rgb,0),1);}
+float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,SceneTuning.y);return float4(max(c.rgb,0),1);}

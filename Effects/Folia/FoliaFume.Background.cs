@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -57,7 +58,7 @@ internal sealed partial class FoliaFume
             if (position.X + size < 0 || position.Y + size < 0 || position.X - size > p.Width || position.Y - size > p.Height)
                 continue;
             float rotation = shape.Rotation + (float)time * shape.Speed, cos = MathF.Cos(rotation), sin = MathF.Sin(rotation);
-            float alpha = shape.Alpha * (shape.AudioBand >= 0 ? .85f + .7f * audio : 1);
+            float alpha = AppSettings.FoliaFumeGeometryOpacity * 2 * shape.Alpha * (shape.AudioBand >= 0 ? .85f + .7f * audio : 1);
             var points = shape.Kind == "spark" ? Spark : shape.Kind == "cross" ? Cross : Square;
             int segments = shape.Kind == "ring" ? 96 : points.Length;
             for (int segment = 0; segment < segments; segment++)

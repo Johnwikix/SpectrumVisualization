@@ -48,6 +48,22 @@ internal sealed class FoliaSonnetGraphics
 
     private static float F(JsonElement value, string name) => value.GetProperty(name).GetSingle();
 
+    internal void WriteFixed(ref FoliaPainter painter, in Matrix3x2 matrix, float alpha, Vector3 primary, Vector3 secondary, Vector3 accent)
+    {
+        float scale = MathF.Sqrt(MathF.Abs(matrix.GetDeterminant()));
+        foreach (var command in _commands)
+        {
+            Vector3 color = command.Color == 1 ? primary : command.Color == 2 ? secondary : command.Color == 3 ? accent : primary;
+            foreach (ref readonly var segment in command.Segments.AsSpan())
+            {
+                Vector2 a = Vector2.Transform(segment.A, matrix), b = Vector2.Transform(segment.B, matrix);
+                painter.Line(a.X, a.Y, b.X, b.Y, color, command.Alpha * alpha, Math.Max(.35f, command.Width * scale));
+            }
+            foreach (ref readonly var triangle in command.Triangles.AsSpan())
+                painter.Triangle(Vector2.Transform(triangle.A, matrix), Vector2.Transform(triangle.B, matrix), Vector2.Transform(triangle.C, matrix), color, command.Alpha * alpha);
+        }
+    }
+
     internal void Write(ref FoliaPainter painter, double time, double start, double end, double lastCue,
         Vector2 focus, Vector2 anchor, Vector2 cameraOffset, float cameraScale, float cameraRotation, float frameScale,
         Vector3 primary, Vector3 secondary, in FoliaMotionFrame motion, float iconResponse)

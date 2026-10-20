@@ -73,9 +73,12 @@ internal sealed class FoliaPartita
                 bool passed = time > chunk.Words[^1].Finish;
                 Vector3 guide = passed ? Vector3.One : accent;
                 float alpha = passed ? .22f : 1;
+                float reveal = FoliaMotion.Bezier(0, 0, .58f, 1, (float)(time - chunk.Words[0].Start + line.Source.Timing.Lookahead) / .4f);
+                alpha *= reveal;
                 float x = row % 2 == 0 ? left - 8 : left + width + 8;
-                p.Line(x, y + lineHeight + 6.4f - 16, x, y + lineHeight + 6.4f + 16, guide, alpha);
-                p.Line(left - 16, y + lineHeight + 6.4f + 8, left + width + 20, y + lineHeight + 6.4f + 8, guide, alpha);
+                float bottom = y + lineHeight + 6.4f + 16;
+                p.Line(x, bottom - 32 * reveal, x, bottom, guide, alpha);
+                p.Line(left - 16, y + lineHeight + 6.4f + 8, left - 16 + (width + 36) * reveal, y + lineHeight + 6.4f + 8, guide, alpha);
             }
             float xCursor = left + 8;
             for (int wi = 0; wi < chunk.Words.Length; wi++)
@@ -90,6 +93,7 @@ internal sealed class FoliaPartita
                     (FoliaPainter.Random(seed, 8) - .5f) * 20 * MathF.PI / 180);
                 float cos = MathF.Cos(pose.Rotation), sin = MathF.Sin(pose.Rotation), size = font * pose.Scale;
                 float centerX = xCursor + span * .5f + pose.Offset.X, centerY = y + 3.2f + lineHeight * .5f + pose.Offset.Y;
+                FoliaGlowWords.Ripple(ref p, line.Source.IsChorus, word.Start, word.Finish, time, new(centerX, centerY), font * pose.Scale, accent, line.Source.Timing);
                 for (int gi = word.First; gi < word.End; gi++)
                 {
                     ref readonly var glyph = ref line.Glyphs[gi];
@@ -98,7 +102,7 @@ internal sealed class FoliaPartita
                     float cx = centerX + localX * cos - localY * sin, cy = centerY + localX * sin + localY * cos;
                     p.Glyph(glyph.Glyph, cx - (glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * size,
                         cy - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * size, size, Vector3.Lerp(primary, accent, pose.ColorMix), pose.Alpha,
-                        pose.Rotation, pose.Blur, pose.Glow);
+                        pose.Rotation, pose.Blur, FoliaGlowWords.CharGlow(glyph, time, word.Finish));
                 }
                 xCursor += span + 12.8f;
             }

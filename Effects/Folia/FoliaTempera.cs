@@ -3,17 +3,19 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
+using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
 /// <summary>Original shot, composition and typography plans compiled at song/font/viewport boundaries.</summary>
-internal sealed class FoliaTempera
+internal sealed partial class FoliaTempera
 {
     private readonly record struct Primitive(int Kind, Vector3 Color, float Alpha, float Width, Vector2 A, Vector2 B, Vector2 C);
     private sealed record Node(Vector2 Center, float Rotation, float Alpha, Vector2 Enter, float Delay, float Span, bool Drift, bool Grow, float Phase, Primitive[] Primitives);
     private readonly record struct Glyph(FoliaGlyph Shape, Vector2 Position, float Font, float Rotation, double Start, double End, double Settle, double Release,
         Vector2 Enter, float EnterRotation, float EnterScale, string Style, Vector2 Tracking);
-    private sealed record Shot(double Start, double End, double LyricEnd, float Flow, Vector4 Camera, Vector4 CameraEnd, Node[] Nodes, Glyph[] Glyphs, float PostSeed);
+    private sealed record Shot(double Start, double End, double LyricEnd, float Flow, Vector4 Camera, Vector4 CameraEnd, Node[] Nodes, Glyph[] Glyphs, float PostSeed,
+        int Paragraph, double ParagraphStart, Transition? Enter, Transition? Exit);
     internal static readonly Vector3 Ink = new(184 / 255f, 214 / 255f, 204 / 255f), Paper = new(14 / 255f, 17 / 255f, 24 / 255f);
     private long _atlasIdentity;
     private float _width, _height, _scale;
@@ -58,7 +60,8 @@ internal sealed class FoliaTempera
                 glyphs.Add(new(shape, new(F(g, "x"), F(g, "y")), F(g, "fontSize"), F(g, "rotation"), F(g, "startTime"), F(g, "endTime"), F(g, "settleTime"), F(g, "releaseTime"),
                     new(F(g, "enterX"), F(g, "enterY")), F(g, "enterRotation"), F(g, "enterScale", 1), g.GetProperty("enterStyle").GetString()!, new(F(g, "trackingX"), F(g, "trackingY"))));
             }
-            shots.Add(new(F(item, "startTime"), F(item, "endTime"), F(item, "lyricEndTime"), F(item, "flowAngle"), Camera(item.GetProperty("camera")), Camera(item.GetProperty("cameraEnd")), nodes.ToArray(), glyphs.ToArray(), F(item, "postSeed")));
+            shots.Add(new(F(item, "startTime"), F(item, "endTime"), F(item, "lyricEndTime"), F(item, "flowAngle"), Camera(item.GetProperty("camera")), Camera(item.GetProperty("cameraEnd")), nodes.ToArray(), glyphs.ToArray(), F(item, "postSeed"),
+                item.GetProperty("paragraph").GetInt32(), item.GetProperty("paragraphStart").GetDouble(), ReadTransition(item.GetProperty("transitionIn")), ReadTransition(item.GetProperty("transitionOut"))));
         }
         _shots = shots.ToArray();
         _atlasIdentity = atlas.Identity;
@@ -79,13 +82,17 @@ internal sealed class FoliaTempera
             current++;
         PostSeed = _shots[current].PostSeed;
         // Both compositions coexist during a push hand-off; retain their individual absolute-time poses.
-        for (int i = Math.Max(0, current - 1); i <= current; i++)
-            DrawGraphics(ref p, _shots[i], time);
+        bool incoming = AppSettings.FoliaTemperaTransitions && current + 1 < _shots.Length && _shots[current + 1].Paragraph != _shots[current].Paragraph
+            && _shots[current].Exit is { Kind: not "block-wipe" } transition && time >= transition.Start;
+        int last = incoming ? current + 1 : current;
+        for (int i = Math.Max(0, current - 1); i <= last; i++)
+            if (AppSettings.FoliaTemperaBlocks) DrawGraphics(ref p, _shots[i], time);
         GraphicsCount = p.Count;
-        for (int i = Math.Max(0, current - 1); i <= current; i++)
+        for (int i = Math.Max(0, current - 1); i <= last; i++)
             DrawGlyphs(ref p, _shots[i], time);
+        WriteWipe(ref p, _shots[current], time);
     }
-    private readonly record struct Pose(Matrix3x2 Matrix, float Alpha, float Duration, float Carry, Vector2 Flow);
+    private readonly record struct Pose(Matrix3x2 Matrix, float Alpha, float Duration, float Carry, Vector2 Flow, float Blur);
     private static Pose ResolvePose(Shot shot, double time, float width, float height)
     {
         float duration = Math.Max(.001f, (float)(shot.End - shot.Start)), progress = (float)(time - shot.Start) / duration;
@@ -96,7 +103,10 @@ internal sealed class FoliaTempera
         Vector2 flow = new(MathF.Cos(shot.Flow), MathF.Sin(shot.Flow));
         Vector2 center = new(width * .5f, height * .5f), translation = center + new Vector2(camera.X * width, camera.Y * height) + flow * travel;
         var matrix = Matrix3x2.CreateTranslation(-center) * Matrix3x2.CreateScale(camera.Z * (1 - exit * .08f)) * Matrix3x2.CreateRotation(camera.W) * Matrix3x2.CreateTranslation(translation);
-        return new(matrix, 1 - exit, duration, span * .09f, flow);
+        var transition = ResolveTransition(shot, time);
+        var boundary = Matrix3x2.CreateTranslation(-center) * Matrix3x2.CreateScale(transition.Scale)
+            * Matrix3x2.CreateTranslation(center + transition.Offset * span);
+        return new(matrix * boundary, (1 - exit) * transition.Alpha, duration, span * .09f, flow, transition.Blur);
     }
     private static void DrawGraphics(ref FoliaPainter p, Shot shot, double time)
     {
@@ -181,8 +191,9 @@ internal sealed class FoliaTempera
             Vector2 point = Vector2.Transform(g.Position + offset + g.Tracking * (release * .055f), pose.Matrix);
             float font = g.Font * uniform * cameraScale, angle = g.Rotation + rotation + cameraRotation;
             // Print misregistration shares the inversion pass, so it cannot contaminate its own backdrop.
-            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, Ink, alpha * .34f, angle, difference: 2);
-            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, Ink, alpha, angle, difference: 2);
+            if (AppSettings.FoliaTemperaDecor)
+                p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, Ink, alpha * .34f, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
+            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, Ink, alpha, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
             float echoAlpha = echo * (1 - FoliaMotion.Enter(reveal)) * .5f;
             if (echoAlpha > .004f)
                 for (int layer = 0; layer < 2; layer++)

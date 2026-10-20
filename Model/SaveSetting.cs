@@ -1,7 +1,7 @@
 
 namespace WinExSpectrumTest.Model
 {
-    public class SaveSetting
+    public partial class SaveSetting
     {
         public bool LyricsCacheEnabled { get; set; } = true;
         public string LyricsCacheFolder { get; set; } = "";

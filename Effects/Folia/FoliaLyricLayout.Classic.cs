@@ -52,7 +52,6 @@ internal static partial class FoliaLyricLayout
         float rowHeight = font * 1.22f;
         float top = (p.Height - (row + 1) * rowHeight) * .5f;
         float left = (p.Width - available) * .5f;
-        float presence = Presence(line.Source, time);
         int firstInstance = p.Count;
         foreach (ref readonly var glyph in line.Glyphs.AsSpan())
         {
@@ -72,13 +71,15 @@ internal static partial class FoliaLyricLayout
             Vector4 box = boxes[wordIndex];
             float centerX = left + box.X + box.Z * .5f + pose.Offset.X;
             float centerY = top + box.Y * rowHeight + rowHeight * .5f + pose.Offset.Y;
+            if (glyph.Offset == offsets[wordIndex])
+                FoliaGlowWords.Ripple(ref p, line.Source.IsChorus, word.Start, word.End, time, new(centerX, centerY), font * pose.Scale, accent, line.Source.Timing);
             float localX = ((glyph.Offset - offsets[wordIndex] + glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * font - box.Z * .5f) * sizeScale;
             float localY = ((glyph.Glyph.BearingY + glyph.Glyph.Height * .5f + (1.22f - glyph.Glyph.LineHeight) * .5f) * font - rowHeight * .5f) * sizeScale;
             float c = MathF.Cos(rotation), s = MathF.Sin(rotation), size = font * sizeScale;
             float x = centerX + localX * c - localY * s - (glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * size;
             float y = centerY + localX * s + localY * c - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * size;
-            p.Glyph(glyph.Glyph, x, y, size, Vector3.Lerp(primary, accent, pose.ColorMix), pose.Alpha * presence,
-                rotation, pose.Blur, pose.Glow);
+            p.Glyph(glyph.Glyph, x, y, size, Vector3.Lerp(primary, accent, pose.ColorMix), pose.Alpha,
+                rotation, pose.Blur, FoliaGlowWords.CharGlow(glyph, time, word.End));
 
         }
         FoliaGlowWords.Breathe(ref p, firstInstance, animation);

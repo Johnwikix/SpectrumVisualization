@@ -27,12 +27,12 @@
 #define u_pxSize 2.5
 #define u_shape 2.0
 #define u_type 1.0
-#define u_originalColors false
-#define u_inverted true
+#define u_originalColors (BackgroundTuning.x>.5)
+#define u_inverted (BackgroundTuning.y>.5)
 #define u_colorSteps 4.0
-#define u_radius 1.25
-#define u_contrast .4
-#define u_size .5
+#define u_radius NomandDots.y
+#define u_contrast NomandDots.z
+#define u_size NomandDots.x
 #define u_grainSize .5
 #define u_grid 1.0
 
@@ -352,4 +352,4 @@ float4 Paper(float2 inputUV, float4 coordinate) {
 return fragColor;
 }
 
-float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,.35);return float4(max(c.rgb,0),1);}
+float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,SceneTuning.y);return float4(max(c.rgb,0),1);}

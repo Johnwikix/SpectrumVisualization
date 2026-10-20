@@ -5,6 +5,7 @@ using System.IO;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -18,6 +19,8 @@ internal sealed partial class FoliaDiorama
     private long _atlasIdentity;
     private Line[] _lines = [];
     private Surface[] _surfaces = [];
+    private float[][] _soul = [], _light = [];
+    private double _textTime = double.NaN;
     private Vector3 _camera, _aim;
     internal float FrameDelta;
     private double _seedPhase;
@@ -85,6 +88,13 @@ internal sealed partial class FoliaDiorama
         }
         _lines = lines.ToArray();
         _surfaces = surfaces.ToArray();
+        _soul = new float[atlas.Lines.Length][];
+        _light = new float[atlas.Lines.Length][];
+        for (int i = 0; i < atlas.Lines.Length; i++)
+        {
+            _soul[i] = new float[atlas.Lines[i].Glyphs.Length];
+            _light[i] = new float[atlas.Lines[i].Glyphs.Length];
+        }
         _atlasIdentity = atlas.Identity;
         _seedPhase = SeedHash(atlas.Seed) * .017;
         ResetMotion();
@@ -95,6 +105,13 @@ internal sealed partial class FoliaDiorama
     {
         if (_lines.Length == 0)
             return;
+        if (double.IsNaN(_textTime) || Math.Abs(time - _textTime) > .5)
+            for (int i = 0; i < _soul.Length; i++)
+            {
+                _soul[i].AsSpan().Clear();
+                _light[i].AsSpan().Clear();
+            }
+        _textTime = time;
         var line = _lines[index];
         var active = atlas.Lines[index];
         float progress = Math.Clamp((float)((time - active.Source.Start) / Math.Max(.001, active.Source.End - active.Source.Start)), 0, 1);
@@ -135,15 +152,25 @@ internal sealed partial class FoliaDiorama
                         break;
                     Vector3 local = new(point.X, point.Y * cluster.Stretch, point.Z);
                     // One coherent low-frequency field preserves welded surfaces at every density.
-                    float wave = MathF.Sin(point.X * 2.2f + point.Z * 1.4f + (float)time * 1.2f) * MathF.Sin(point.Y * 2.6f - (float)time * .7f) * Energy * .25f;
-                    if (_motion.Active)
-                        wave += RippleDisplacement(point, time);
+                    Vector3 unit = point / Math.Max(surface.Radius, .0001f);
+                    float phase = cluster.Position.X * 1.7f + cluster.Position.Z * .63f;
+                    float audio = RippleDisplacement(unit, phase, time);
+                    float detail = _motion.Treble * FoliaPainter.Ease((Math.Abs(audio) - .06f) / (.45f - .06f));
+                    audio += MathF.Sin(unit.X * 5.6f + (float)time * 3.1f) * MathF.Sin(unit.Y * 5.6f - (float)time * 2.6f) * MathF.Sin(unit.Z * 5.6f + (float)time * 2.2f) * detail * .3f;
+                    float idle = .11f * MathF.Sin(unit.X * 1.7f + (float)time * .5f) * MathF.Cos(unit.Z * 1.4f - (float)time * .37f) + .06f * MathF.Sin(unit.Y * 2.1f - (float)time * .66f);
+                    float wave = Math.Clamp(audio + idle, -1.6f, 1.6f) * .34f;
                     Vector3 normal = Vector3.Normalize(point + new Vector3(.0001f));
-                    Vector3 world = cluster.Position + (local + normal * wave * surface.Radius) * cluster.Scale * pulse;
+                    Vector3 displaced = local + normal * wave * surface.Radius;
+                    displaced.Z += MathF.Sin((float)time * .6f + phase) * .12f * Energy * surface.Radius;
+                    Vector3 world = cluster.Position + displaced * cluster.Scale * pulse;
                     if (!Project(world, _camera, rightView, upView, forward, focal, p.Width, p.Height, out Vector2 xy, out float z))
                         continue;
-                    float size = Math.Clamp((.018f + Energy * .025f) * focal / z, 1.4f, 26);
-                    p.Shape(6, xy.X - size * .5f, xy.Y - size * .5f, size, size, color, life * (cluster.Far ? .5f : .72f));
+                    float reaction = Math.Clamp(Math.Abs(Math.Clamp(audio, -1.6f, 1.6f) * .34f) / .29f, 0, 1);
+                    float size = Math.Clamp((.052f + (reaction * reaction * reaction + detail * .35f) * .3f) * focal / z, 1.4f, 26) * AppSettings.FoliaDioramaParticleScale;
+                    Vector3 tint = Vector3.Lerp(color, accent, reaction);
+                    p.Shape(6, xy.X - size * .5f, xy.Y - size * .5f, size, size, tint, life * (cluster.Far ? .5f : .72f));
+                    if (AppSettings.FoliaDioramaParticleGlow > 0 && reaction > .01f)
+                        p.Shape(15, xy.X - size * 1.6f, xy.Y - size * 1.6f, size * 3.2f, size * 3.2f, tint, life * reaction * AppSettings.FoliaDioramaParticleGlow * .22f);
                 }
             }
         }
@@ -188,13 +215,39 @@ internal sealed partial class FoliaDiorama
                 float life = FoliaPainter.Ease((52 - distance) / 16) * FoliaPainter.Ease((distance - .9f) / 1.1f);
                 float fog = FoliaPainter.Ease((z - 12) / 18);
                 bool activeGlyph = li == index && time >= glyph.Start && time < glyph.End;
+                bool sung = time >= glyph.End;
+                ref float soul = ref _soul[li][glyph.Index];
+                ref float light = ref _light[li][glyph.Index];
+                float dt = Math.Clamp(FrameDelta, 0, .1f);
+                soul += ((activeGlyph ? 1 : 0) - soul) * (1 - MathF.Exp(-(activeGlyph ? 12 : 2.2f) * dt));
+                light += ((activeGlyph ? 1 : 0) - light) * (1 - MathF.Exp(-(activeGlyph ? 14 : 3.6f) * dt));
                 float reveal = time >= glyph.Start ? 1 : .5f;
-                Vector3 color = activeGlyph ? accent : li > index ? secondary : primary;
+                float mix = AppSettings.FoliaDioramaGradient ? GradientEnergy(time, glyph.Start, glyph.End) : light * 1.15f;
+                Vector3 color = Vector3.Lerp(li > index ? secondary : primary, accent, Math.Clamp(mix, 0, 1));
                 color = Vector3.Lerp(color, FoliaSong.Empty.Palette[0], fog);
                 p.GlyphQuad(glyph.Glyph, a, b, d, e, new(za, zb, zd, ze), color,
-                    opacity * life * (li == index ? reveal : 1), activeGlyph ? .4f : 0);
+                    opacity * life * (li == index ? reveal : 1), AppSettings.FoliaDioramaGlow ? light * .9f * AppSettings.FoliaDioramaGlowStrength : 0);
+                if (AppSettings.FoliaDioramaSoul && soul > .015f)
+                {
+                    float flight = sung ? FoliaPainter.Ease((float)(time - glyph.End) / .5f) : 0;
+                    float on = (1 - flight) * (AppSettings.FoliaDioramaSoulActive ? AppSettings.FoliaDioramaSoulStrength : 0);
+                    float flown = flight * AppSettings.FoliaDioramaSoulStrength;
+                    float swell = 1 + .1f * on + .3f * flown;
+                    Vector3 lift = textUp * (font * (.06f * on + .5f * flown));
+                    if (Project(world + (topLeft - world) * swell + lift, _camera, rightView, upView, forward, focal, p.Width, p.Height, out var sa, out float sza)
+                        && Project(world + (topRight - world) * swell + lift, _camera, rightView, upView, forward, focal, p.Width, p.Height, out var sb, out float szb)
+                        && Project(world + (bottomRight - world) * swell + lift, _camera, rightView, upView, forward, focal, p.Width, p.Height, out var sd, out float szd)
+                        && Project(world + (bottomLeft - world) * swell + lift, _camera, rightView, upView, forward, focal, p.Width, p.Height, out var se, out float sze))
+                        p.GlyphQuad(glyph.Glyph, sa, sb, sd, se, new(sza, szb, szd, sze), color, Math.Min(1, .6f * life * soul * (on + flown)), additive: true);
+                }
             }
         }
+    }
+
+    private static float GradientEnergy(double time, double start, double end)
+    {
+        float progress = Math.Clamp((float)((time - start) / Math.Max(.001, end - start)), 0, 1);
+        return time < end ? FoliaPainter.Ease(progress) : MathF.Exp(-(float)(time - end) * 2.2f);
     }
 
     private static bool IsSingingWord(FoliaLine line, double glyphStart, double time)

@@ -12,7 +12,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 /// The render loop reads immutable native arrays; it never invokes the interpreter.</summary>
 internal sealed partial class FoliaSonnet
 {
-    private sealed record TextRun(float Font, float Rotation, string Role, NativeGlyph[] Glyphs);
+    private sealed record TextRun(float Font, float Rotation, string Role, NativeGlyph[] Glyphs, FoliaSonnetTextDecor Decor);
     private readonly record struct NativeGlyph(FoliaGlyph Glyph, Vector2 Base, Vector2 Enter, float EntryRotation, double Start, double Settle);
     private readonly record struct CameraFrame(Vector2 Focus, Vector2 Offset, float Scale, float Rotation);
     private sealed record Shot(string Kind, double Start, double End, Vector4 Camera, int Ordinal, TextRun[] Text, CameraFrame[] Frames,
@@ -68,7 +68,7 @@ internal sealed partial class FoliaSonnet
                         glyphs.Add(new(atlas.Lines[li].Glyphs[gi].Glyph, new(F(g, "baseX"), F(g, "baseY")), new(F(g, "enterX"), F(g, "enterY")),
                             F(g, "entryRotation"), g.GetProperty("startTime").GetDouble(), g.GetProperty("settleTime").GetDouble()));
                     }
-                    texts.Add(new(F(text, "font"), F(text, "rotation"), text.GetProperty("role").GetString()!, glyphs.ToArray()));
+                    texts.Add(new(F(text, "font"), F(text, "rotation"), text.GetProperty("role").GetString()!, glyphs.ToArray(), new(text.GetProperty("decor"))));
                 }
                 var frames = new List<CameraFrame>();
                 foreach (var f in item.GetProperty("frames").EnumerateArray())
@@ -140,6 +140,13 @@ internal sealed partial class FoliaSonnet
         shot.Graphics.Write(ref p, time, shot.Start, shot.End, lastCue, focus, anchor,
             new(offset.X * p.Width, offset.Y * p.Height), cameraScale, angle, frameScale, primary, secondary, Motion, iconResponse);
         WriteGuides(ref p, shot, time, focus, anchor, cameraScale, angle, secondary);
+        if (AppSettings.FoliaSonnetFixedGeometry)
+        {
+            var cameraMatrix = Matrix3x2.CreateTranslation(-focus) * Matrix3x2.CreateScale(cameraScale) * Matrix3x2.CreateRotation(angle) * Matrix3x2.CreateTranslation(anchor);
+            foreach (var text in shot.Text)
+                if (text.Glyphs.Length > 0)
+                    text.Decor.Write(ref p, time, text.Glyphs[0].Start, text.Glyphs[0].Settle, shot.Start, shot.End, text.Font, text.Rotation, cameraMatrix, primary, secondary, accent);
+        }
         GraphicsCount = p.Count - firstGraphics;
         int firstInstance = p.Count;
         for (int layer = 0; layer < 2; layer++)

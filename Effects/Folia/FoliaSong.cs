@@ -8,7 +8,12 @@ using Lyricify.Lyrics.Models;
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaWord(string Text, double Start, double End);
-internal sealed record FoliaLine(string Text, string Translation, double Start, double End, FoliaWord[] Words, bool WordSynced);
+/// <summary>Contains immutable lyric timing and text-derived chorus metadata.</summary>
+internal sealed record FoliaLine(string Text, string Translation, double Start, double End, FoliaWord[] Words, bool WordSynced)
+{
+    internal bool IsChorus { get; init; }
+    internal FoliaLineTiming Timing => FoliaLineTiming.From(this);
+}
 
 /// <summary>Immutable CPU data; published atomically. GPU resources remain owned by the render thread.</summary>
 internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines, byte[] CoverRgba, int CoverWidth, int CoverHeight, Vector3[] Palette)
@@ -65,6 +70,21 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
             result.Add(new(line.Text, sub, start, Math.Max(start + .01, end), words.ToArray(), synced));
         }
         result.Sort(static (a, b) => a.Start.CompareTo(b.Start));
+        // Folia's text fallback marks only the most repeated trimmed lines; no audio model is required.
+        var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
+        int maximum = 1;
+        foreach (var item in result)
+        {
+            string text = item.Text.Trim();
+            if (text.Length < 2 || text == "......") continue;
+            frequencies.TryGetValue(text, out int count);
+            frequencies[text] = ++count;
+            maximum = Math.Max(maximum, count);
+        }
+        if (maximum > 1)
+            for (int i = 0; i < result.Count; i++)
+                if (frequencies.TryGetValue(result[i].Text.Trim(), out int count) && count == maximum)
+                    result[i] = result[i] with { IsChorus = true };
         return result.ToArray();
     }
 

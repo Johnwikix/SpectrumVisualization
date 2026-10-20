@@ -48,6 +48,7 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 
 - 保持 MVVM：设置状态和命令放在 ViewModel（写 `AppSettings`），视图负责布局和交互转发。
 - SettingsCard 中并列的开关与数值输入优先同一行、垂直居中；不要给横向使用的 ToggleSwitch 添加 Header，导致卡片增高或标题重叠。
+- 单个效果或模式的专属子项统一收入对应的 `SettingsExpander`，默认折叠，不在主设置页平铺；组内标题省略重复的效果名称。后续新增子项沿用此约定。
 - 主窗口有小组件/壁纸两态（`MainWindow.Wallpaper.cs` partial）：涉及窗口属性、DPI、焦点时，注意壁纸模式不抢焦点、不置顶、副屏不受影响的约束。
 
 ## 功能变更记录（doc/Changelog.md）

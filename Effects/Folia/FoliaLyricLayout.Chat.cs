@@ -5,9 +5,10 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 internal static partial class FoliaLyricLayout
 {
-    private static void Cappella(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float scale, Vector3 themeBackground, Vector3 primary, Vector3 secondary, Vector3 accent)
+    private static void Cappella(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float scale, Vector3 themeBackground, Vector3 primary, Vector3 secondary, Vector3 accent, FoliaChatMotion motion)
     {
         var lines = atlas.Lines;
+        motion.Begin(time);
         float baseFont = Math.Clamp(18 * scale, 15, 26);
         float panel = Math.Min(Math.Max(p.Width - 32, 1), 896);
         float maxText = Math.Max(96, MathF.Floor(panel * (p.Width >= 640 ? .68f : .78f) - 56));
@@ -70,8 +71,11 @@ internal static partial class FoliaLyricLayout
             used += estimated;
         }
         float y = p.Width >= 1024 ? 80 : p.Width >= 640 ? 64 : 48;
-        for (int i = selected; i <= index; i++)
+        for (int i = first; i < selected; i++)
+            y -= rawHeights[i - first] + 12;
+        for (int i = first; i <= index; i++)
         {
+            int firstInstance = p.Count;
             Vector4 metric = metrics[i - first];
             float overflow = i == index ? MathF.Ceiling(Math.Max(fullHeights[i - first], 40) * .12f) : 0;
             float paintY = y + overflow + rawHeights[i - first] - metric.Y;
@@ -118,6 +122,7 @@ internal static partial class FoliaLyricLayout
                 float labelX = right ? x - 8 * groupScale - labelWidth : x + metric.X + 8 * groupScale;
                 p.Text(atlas.ChatTimestamps[i], labelX, paintY + metric.Y - 4 * groupScale - size * 1.25f, size, secondary, .62f * alpha);
             }
+            motion.Apply(ref p, firstInstance, i, new(edge, paintY, panel, metric.Y), i >= selected);
             y += rawHeights[i - first] + overflow + 12;
         }
     }

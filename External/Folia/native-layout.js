@@ -10279,7 +10279,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const moteData = (spec, key) => {
 			if (!spec) return null;
 			const rng = createRng(key), items = [];
-			for (let i = 0; i < spec.count; i++) {
+			for (let i = 0; i < spec.count * 2; i++) {
 				const depth = rng(), bx = rng() * (aspect + .16) - .08, by = rng() * 1.16 - .08;
 				items.push([
 					bx,
@@ -21921,7 +21921,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				width,
 				height,
 				seed,
-				showDecor: true,
+				showDecor: input.temperaDecor !== false,
 				bleed: Math.max(width, height) * .17,
 				flowAngle: shot.flowAngle,
 				gradient: null,
@@ -22005,6 +22005,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				nodes: graphics,
 				glyphs,
 				postSeed: hashVisualizerSeed(input.seed + ":" + paragraph.id) % 1e4 / 1e4
+				,paragraph: program.paragraphs.indexOf(paragraph), paragraphStart: paragraph.startTime,
+				transitionOut: paragraph.transitionOut,
+				transitionIn: program.paragraphs[program.paragraphs.indexOf(paragraph) - 1]?.transitionOut ?? null
 			});
 		}
 		return JSON.stringify(shots);
@@ -22078,6 +22081,10 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				return {
 					role: p.role,
 					font,
+					segment: s,
+					placement: p,
+					segmentIndex: pi,
+					isChorus: paragraph.kind === "chorus",
 					rotation: p.rotation,
 					vertical: p.vertical,
 					glyphs: glyphs.map((g, i) => ({
@@ -22150,6 +22157,14 @@ exports.compile = compile;
 // Reuses the already-vendored Earcut implementation at the native geometry preparation boundary.
 exports.triangulateSonnet = earcut;
 exports.compileCadenza = compileCadenza;
+// Native Classic adapter: keep original semantic/sticky display planning on the cold path.
+exports.compileClassic = function(json) {
+    const input = JSON.parse(json);
+    globalThis.nativeWidths = input.widths;
+    globalThis.nativeLines = input.lines;
+    return JSON.stringify(input.lines.map(line => buildDisplayWordsFromLayoutUnits(
+        buildPostLyricLayoutUnits(line, { semantic: true, sticky: true }))));
+};
 exports.compileDiorama = compileDiorama;
 exports.compileFume = compileFume;
 exports.compileLumiere = compileLumiere;

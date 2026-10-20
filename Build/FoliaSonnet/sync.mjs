@@ -27,6 +27,11 @@ function add(id) {
         code = 'export const isBeatFxReady = () => false;';
     } else if (id === 'sonnetAnimatedGraphics') {
         code = 'export const AnimatedGraphics = NativeGraphics;';
+    } else if (id === 'sonnetGlyphLayout') {
+        // Frame decoration only needs the pure duration helper; typography is compiled by native-layout.js.
+        const original = fs.readFileSync(path.join(root, 'sonnet/sonnetGlyphLayout.ts'), 'utf8');
+        const first = original.indexOf('export const resolveSonnetGlyphMotionDuration');
+        code = stripTypeScriptTypes(original.slice(first, original.indexOf('\n};', first) + 3), { mode: 'strip' });
     } else {
         const file = id === 'visualizerSeedHash' ? path.join(root, id + '.ts') : path.join(root, 'sonnet', id + '.ts');
         code = stripTypeScriptTypes(fs.readFileSync(file, 'utf8'), { mode: 'strip' });
@@ -52,10 +57,10 @@ function add(id) {
         return `${kind} ${name}`;
     });
     if (/^\s*(?:import|export)\s/m.test(code)) throw new Error('Unsupported module syntax in ' + id);
-    modules.set(id, code + '\n' + exports.map(name => `exports.${name} = ${name};`).join('\n'));
+    modules.set(id, code.replace(/[ \t]+$/gm, '') + '\n' + exports.map(name => `exports.${name} = ${name};`).join('\n'));
 }
 // The viewport overlay is native; imported transition math remains available for reference checks.
-for (const id of ['sonnetShotMg', 'sonnetTransitions']) add(id);
+for (const id of ['sonnetShotMg', 'sonnetTransitions', 'sonnetTextFixedGeo', 'sonnetFrameDecor']) add(id);
 const adapter = fs.readFileSync(path.join(here, 'adapter.js'), 'utf8');
 const table = [...modules].map(([id, code]) => `${JSON.stringify(id)}: function(exports, require) {\n${code}\n}`).join(',\n');
 const output = `// Generated from Folia ${version}, upstream ${revision}. AGPL-3.0; see External/Folia/NOTICE.md.\n`

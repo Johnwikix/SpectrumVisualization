@@ -18,6 +18,7 @@ internal sealed class FoliaPendolo
     private float _secondElapsed, _secondAngle, _secondVelocity;
     private int _secondStep, _index = -1;
     private double _position = double.NaN;
+    private int _activeIndex = -1;
     private const float AngleStep = 100 * MathF.PI / 180 / 8;
     internal FoliaMotionFrame Motion;
     internal int GraphicsCount { get; private set; }
@@ -66,12 +67,14 @@ internal sealed class FoliaPendolo
         _index = -1;
     }
 
-    internal void Update(double elapsed, double position, int index, float bass, bool playing)
+    internal void Update(double elapsed, double position, int index, float bass, bool playing, int preceding, int lineCount)
     {
         float dt = (float)Math.Clamp(elapsed, 0, .1);
-        if (_index < 0 || Math.Abs(position - _position) > .5)
+        _activeIndex = index;
+        float anchor = index >= 0 ? index : preceding < 0 ? -1 : preceding == lineCount - 1 ? lineCount : preceding + .5f;
+        if (double.IsNaN(_position) || Math.Abs(position - _position) > .5)
         {
-            _tick = index;
+            _tick = anchor;
             _velocity = 0;
         }
         _index = index;
@@ -81,7 +84,7 @@ internal sealed class FoliaPendolo
         float step = dt / steps;
         for (int i = 0; i < steps; i++)
         {
-            _velocity += ((index - _tick) * 360 - _velocity * 20) / .8f * step;
+            _velocity += ((anchor - _tick) * 360 - _velocity * 20) / .8f * step;
             _tick += _velocity * step;
         }
         _bass += (Math.Clamp(bass, 0, 1) - _bass) * .12f;
@@ -125,17 +128,17 @@ internal sealed class FoliaPendolo
             float angle = angles[i - first];
             if (Math.Abs(angle) >= MathF.PI * .5f)
                 continue;
-            float distance = Math.Abs(i - index), scale = i == index ? 1.25f : Math.Max(.7f, 1 - distance * .08f);
+            float distance = Math.Abs(i - index), scale = i == _activeIndex ? 1.25f : Math.Max(.7f, 1 - distance * .08f);
             float alpha = Math.Max(.12f, MathF.Pow(MathF.Cos(angle * .75f), 2.5f) * (1 - distance * .18f));
             alpha *= Math.Clamp((110 - Math.Abs((angle + wheel) * 180 / MathF.PI)) / 28, 0, 1);
             var line = atlas.Lines[i];
             float rotation = (angle + wheel) * .35f;
             Vector2 origin = new(cx + ringRadius * MathF.Cos(angle + wheel), cy + ringRadius * MathF.Sin(angle + wheel));
-            float font = MathF.Round((i == index ? 28 : 22) * _scale);
+            float font = MathF.Round((i == _activeIndex ? 28 : 22) * _scale);
             float maxWidth = AvailableWidth(p.Width) / scale;
             float rowHeight = MathF.Round(font * 1.2f), height = Rows(line.Glyphs, font, maxWidth) * rowHeight;
             float subtitleHeight = line.Translation.Length > 0 ? Rows(line.Translation, 18, maxWidth) * 23 + 6 : 0;
-            DrawRows(ref p, line.Glyphs, origin, -(height + subtitleHeight) * scale * .5f, font, rowHeight, maxWidth, scale, rotation, primary, alpha * (i == index ? 1 : .75f), i == index, time);
+            DrawRows(ref p, line.Glyphs, origin, -(height + subtitleHeight) * scale * .5f, font, rowHeight, maxWidth, scale, rotation, primary, alpha * (i == _activeIndex ? 1 : .75f), i == _activeIndex, time);
             if (subtitleHeight > 0)
                 DrawRows(ref p, line.Translation, origin, (height - subtitleHeight) * scale * .5f + 6 * scale, 18, 23, maxWidth, scale, rotation, secondary, alpha * (i == index ? 1 : .6f), false, time);
         }

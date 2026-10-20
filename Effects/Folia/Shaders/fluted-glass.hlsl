@@ -20,7 +20,7 @@
 #define u_colorShadow Palette[2]
 #define u_image CoverTexture
 #define u_noiseTexture NoiseTexture
-#define u_distortion .5
+#define u_distortion NomandGlass.y
 #define u_swirl .1
 #define u_grainMixer 0.0
 #define u_grainOverlay .01
@@ -30,14 +30,14 @@
 #define u_originalColors false
 #define u_inverted false
 #define u_colorSteps 4.0
-#define u_size .5
+#define u_size NomandGlass.x
 #define u_shadows .25
 #define u_angle 0.0
 #define u_stretch 0.0
 #define u_highlights .1
 #define u_distortionShape 1.0
 #define u_shift 0.0
-#define u_blur .08
+#define u_blur NomandGlass.z
 #define u_edges .25
 #define u_marginLeft 0.0
 #define u_marginRight 0.0
@@ -393,4 +393,4 @@ float4 Paper(float2 inputUV, float4 coordinate) {
 return fragColor;
 }
 
-float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,.35);return float4(max(c.rgb,0),1);}
+float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target { float4 c=Paper(uv,p);c.rgb=lerp(c.rgb,Palette[0].rgb,SceneTuning.y);return float4(max(c.rgb,0),1);}

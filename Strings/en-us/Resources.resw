@@ -389,7 +389,82 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>Film and lens post processing</value></data>
   <data name="FoliaRealtimeMotion.Header" xml:space="preserve"><value>Realtime motion</value></data>
   <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>Lens punch and tear strength</value></data>
-  <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>Diorama: ripple and word hop strength</value></data>
-  <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>Pendolo: drumhead motion and light strength</value></data>
+  <data name="FoliaDioramaSettings.Header" xml:space="preserve"><value>Diorama settings</value></data>
+  <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>Ripple and word hop strength</value></data>
+  <data name="FoliaPendoloSettings.Header" xml:space="preserve"><value>Pendolo settings</value></data>
+  <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>Drumhead motion and light strength</value></data>
   <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>Drives Sonnet, Diorama and Pendolo from live loopback spectrum transients, without whole-track analysis. Strength 0 disables an effect; 1 is normal.</value></data>
+  <data name="FoliaFumeSettings.Header" xml:space="preserve"><value>Fume settings</value></data>
+  <data name="FoliaFumeGeometry.Header" xml:space="preserve"><value>Geometric background</value></data>
+  <data name="FoliaFumeGeometryOpacity.Header" xml:space="preserve"><value>Geometry opacity</value></data>
+  <data name="FoliaFumeGlow.Header" xml:space="preserve"><value>Glow intensity</value></data>
+  <data name="FoliaDioramaSoul.Header" xml:space="preserve"><value>Soul drift</value></data>
+  <data name="FoliaDioramaSoulActive.Header" xml:space="preserve"><value>Drift while singing</value></data>
+  <data name="FoliaDioramaSoulStrength.Header" xml:space="preserve"><value>Soul strength</value></data>
+  <data name="FoliaDioramaGlow.Header" xml:space="preserve"><value>Singing glow</value></data>
+  <data name="FoliaDioramaGlowStrength.Header" xml:space="preserve"><value>Glow strength</value></data>
+  <data name="FoliaDioramaGradient.Header" xml:space="preserve"><value>Progressive lyric color</value></data>
+  <data name="FoliaDioramaParticleScale.Header" xml:space="preserve"><value>Particle size</value></data>
+  <data name="FoliaDioramaParticleGlow.Header" xml:space="preserve"><value>Particle glow</value></data>
+  <data name="FoliaTemperaSettings.Header" xml:space="preserve"><value>Tempera settings</value></data>
+  <data name="FoliaTemperaTransitions.Header" xml:space="preserve"><value>Scene transitions</value></data>
+  <data name="FoliaTemperaBlocks.Header" xml:space="preserve"><value>Composition blocks</value></data>
+  <data name="FoliaTemperaDecor.Header" xml:space="preserve"><value>Decorations</value></data>
+  <data name="FoliaTemperaInversion.Header" xml:space="preserve"><value>Text inversion</value></data>
+  <data name="FoliaTemperaPostProcess.Header" xml:space="preserve"><value>Post processing</value></data>
+  <data name="FoliaTemperaGrain.Header" xml:space="preserve"><value>Grain</value></data>
+  <data name="FoliaTemperaContrast.Header" xml:space="preserve"><value>Contrast</value></data>
+  <data name="FoliaTemperaRgbShift.Header" xml:space="preserve"><value>RGB shift</value></data>
+  <data name="FoliaTemperaVignette.Header" xml:space="preserve"><value>Vignette</value></data>
+  <data name="FoliaTemperaLens.Header" xml:space="preserve"><value>Lens curvature</value></data>
+  <data name="FoliaLumiereSettings.Header" xml:space="preserve"><value>Lumiere settings</value></data>
+  <data name="FoliaLumiereLight.Header" xml:space="preserve"><value>Light intensity</value></data>
+  <data name="FoliaLumiereAudio.Header" xml:space="preserve"><value>Audio response</value></data>
+  <data name="FoliaLumiereFog.Header" xml:space="preserve"><value>Fog density</value></data>
+  <data name="FoliaLumiereDarkField.Header" xml:space="preserve"><value>Dark field</value></data>
+  <data name="FoliaLumiereBloom.Header" xml:space="preserve"><value>Graphics bloom</value></data>
+  <data name="FoliaLumiereTextBloom.Header" xml:space="preserve"><value>Text bloom</value></data>
+  <data name="FoliaLumiereUnlitOpacity.Header" xml:space="preserve"><value>Unlit text opacity</value></data>
+  <data name="FoliaLumiereMotes.Header" xml:space="preserve"><value>Mote amount</value></data>
+  <data name="FoliaLumiereEcho.Header" xml:space="preserve"><value>Background lyric echoes</value></data>
+  <data name="FoliaLumiereDecay.Header" xml:space="preserve"><value>Trail decay</value></data>
+  <data name="FoliaLumiereLineArt.Header" xml:space="preserve"><value>Line art</value></data>
+  <data name="FoliaLumiereFrontBokeh.Header" xml:space="preserve"><value>Foreground bokeh</value></data>
+  <data name="FoliaLumiereTrails.Header" xml:space="preserve"><value>Text trails</value></data>
+  <data name="FoliaLumiereFrame.Header" xml:space="preserve"><value>Overlay frame</value></data>
+  <data name="FoliaLumiereTextOnly.Header" xml:space="preserve"><value>Text only</value></data>
+  <data name="FoliaLumiereThemeMix.Header" xml:space="preserve"><value>Theme color mix</value></data>
+  <data name="FoliaLatentSettings.Header" xml:space="preserve"><value>Latent background settings</value></data>
+  <data name="FoliaLatentMesh.Header" xml:space="preserve"><value>Mesh gradient layer</value></data>
+  <data name="FoliaLatentDither.Header" xml:space="preserve"><value>Dithering layer</value></data>
+  <data name="FoliaLatentBeat.Header" xml:space="preserve"><value>Enhanced beat response</value></data>
+  <data name="FoliaLatentMeshSpeed.Header" xml:space="preserve"><value>Mesh base speed</value></data>
+  <data name="FoliaLatentMeshAudioSpeed.Header" xml:space="preserve"><value>Mesh audio speed</value></data>
+  <data name="FoliaLatentDitherSpeed.Header" xml:space="preserve"><value>Dithering base speed</value></data>
+  <data name="FoliaLatentDitherAudioSpeed.Header" xml:space="preserve"><value>Dithering audio speed</value></data>
+  <data name="FoliaLatentSize.Header" xml:space="preserve"><value>Dithering size</value></data>
+  <data name="FoliaLatentOpacity.Header" xml:space="preserve"><value>Dithering opacity</value></data>
+  <data name="FoliaLatentDistortion.Header" xml:space="preserve"><value>Mesh distortion</value></data>
+  <data name="FoliaLatentSwirl.Header" xml:space="preserve"><value>Mesh swirl</value></data>
+  <data name="FoliaNomandSettings.Header" xml:space="preserve"><value>Image background settings</value></data>
+  <data name="FoliaNomandSize.Header" xml:space="preserve"><value>Dithering size</value></data>
+  <data name="FoliaNomandSteps.Header" xml:space="preserve"><value>Color steps</value></data>
+  <data name="FoliaNomandOriginal.Header" xml:space="preserve"><value>Original colors</value></data>
+  <data name="FoliaNomandInverted.Header" xml:space="preserve"><value>Inverted</value></data>
+  <data name="FoliaNomandGlassSize.Header" xml:space="preserve"><value>Fluted glass size</value></data>
+  <data name="FoliaNomandGlassDistortion.Header" xml:space="preserve"><value>Fluted glass distortion</value></data>
+  <data name="FoliaNomandGlassBlur.Header" xml:space="preserve"><value>Fluted glass blur</value></data>
+  <data name="FoliaNomandPaperContrast.Header" xml:space="preserve"><value>Paper contrast</value></data>
+  <data name="FoliaNomandPaperRoughness.Header" xml:space="preserve"><value>Paper roughness</value></data>
+  <data name="FoliaNomandPaperFiber.Header" xml:space="preserve"><value>Paper fiber</value></data>
+  <data name="FoliaNomandDotSize.Header" xml:space="preserve"><value>Halftone size</value></data>
+  <data name="FoliaNomandDotRadius.Header" xml:space="preserve"><value>Halftone radius</value></data>
+  <data name="FoliaNomandDotContrast.Header" xml:space="preserve"><value>Halftone contrast</value></data>
+  <data name="FoliaNomandDotOriginal.Header" xml:space="preserve"><value>Halftone original colors</value></data>
+  <data name="FoliaNomandDotInverted.Header" xml:space="preserve"><value>Halftone inverted</value></data>
+  <data name="FoliaNomandLensSpread.Header" xml:space="preserve"><value>Lens spread</value></data>
+  <data name="FoliaNomandLensBulge.Header" xml:space="preserve"><value>Lens bulge</value></data>
+  <data name="FoliaNomandLensDispersion.Header" xml:space="preserve"><value>Lens dispersion</value></data>
+  <data name="FoliaNomandOverlay.Header" xml:space="preserve"><value>Background overlay</value></data>
+  <data name="FoliaNomandOverlayOpacity.Header" xml:space="preserve"><value>Overlay opacity</value></data>
 </root>

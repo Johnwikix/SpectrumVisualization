@@ -7,11 +7,12 @@ using System.Threading.Tasks;
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaSceneRequest(FoliaSong Song, string Family, int Weight,
-    string Mode, string Background, float Width, float Height, float Scale)
+    string Mode, string Background, float Width, float Height, float Scale, bool TemperaDecor = true)
 {
     internal bool Matches(in FoliaSceneRequest other) => ReferenceEquals(Song, other.Song)
         && Family == other.Family && Weight == other.Weight && Mode == other.Mode && Background == other.Background
-        && Width == other.Width && Height == other.Height && Scale == other.Scale;
+        && Width == other.Width && Height == other.Height && Scale == other.Scale
+        && (Mode != "tempera" || TemperaDecor == other.TemperaDecor);
 
     internal static bool SameText(FoliaSong a, FoliaSong b) => a.Title == b.Title && a.Artist == b.Artist
         && ReferenceEquals(a.Lines, b.Lines);
@@ -49,7 +50,7 @@ internal sealed class FoliaModePlan
                 case "monet": Monet.Prepare(atlas, request, token); break;
             }
         token.ThrowIfCancellationRequested();
-        GlowWords.Prepare(atlas);
+        GlowWords.Prepare(atlas, request.Mode is "classic" or "partita" or "tilt", request.Mode == "classic", token);
         if (request.Mode == "cappella") _ = FoliaAssets.Emojis;
     }
 }
@@ -182,6 +183,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
+                    || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
                     var plan = new FoliaModePlan(_atlas, request, token);

@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Numerics;
 
@@ -13,7 +14,12 @@ internal sealed partial class FoliaLumiere
         for (int line = _window.Low; line <= _window.High; line++)
         {
             _window.BeginLine(line);
-            _window.WriteTrails(ref p, _lit);
+            if (AppSettings.FoliaLumiereTrails && AppSettings.FoliaLumiereDecay > 0)
+            {
+                int firstTrail = p.Count;
+                _window.WriteTrails(ref p, _lit);
+                p.FadeFrom(firstTrail, AppSettings.FoliaLumiereDecay);
+            }
             _window.WriteSpot(ref p, _lit);
         }
         for (int layer = 0; layer < 3; layer++)
@@ -34,7 +40,7 @@ internal sealed partial class FoliaLumiere
                 float flash = age <= 0 ? 0 : age < .15f ? FoliaPainter.Ease(age / .15f) : MathF.Exp(-(age - .15f) / .45f);
                 float illumination = Illumination(x / p.Height, y / p.Height);
                 float heat = Math.Clamp(illumination * 1.3f + flash * .2f, 0, 1);
-                float revealed = Math.Min(1, .22f + illumination * .45f + flying * .4f);
+                float revealed = Math.Min(1, AppSettings.FoliaLumiereUnlitOpacity + illumination * .45f + flying * .4f);
                 float opacity = alpha * (revealed * (1 - lit) + lit * Math.Min(1, .55f + .4f * heat + .3f * flying));
                 Vector3 hot = Vector3.Lerp(_lit, Vector3.One, Math.Clamp(.08f * illumination + .1f * flash + .25f * flying, 0, 1));
                 Vector3 cold = Vector3.Lerp(_unlit, _lit, illumination * .35f);

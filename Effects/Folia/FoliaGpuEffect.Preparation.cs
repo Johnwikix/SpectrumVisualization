@@ -20,7 +20,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         if (song.LyricsPending && _hasScene && _lyricsVisible && _song!.Title.Length != 0) song = _song!;
         return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
             AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
-            _size.OutputHeight / dpi, AppSettings.FoliaFontScale);
+            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor);
     }
 
     private bool UpdatePreparedScene()

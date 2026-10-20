@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using System.Threading;
 using System.IO;
@@ -88,13 +89,13 @@ internal sealed class FoliaLatent
         _mid = Smooth(_mid, Math.Max(mid, vocal), .13f, ticks);
         _onset = Math.Max(_onset * MathF.Pow(.84f, ticks), Math.Clamp((energy - _previousEnergy) * 7, 0, 1));
         _previousEnergy = energy;
-        float beat = Math.Clamp(energy * .42f + _onset * .85f, 0, 1);
+        float beat = AppSettings.FoliaLatentBeat ? Math.Clamp(energy * .42f + _onset * .85f, 0, 1) : energy;
         _beat = Smooth(_beat, beat, beat > _beat ? .42f : .14f, ticks);
-        _meshTime += dt * (paused ? .036f : Math.Clamp(.3f + (2 - .3f) * _beat, 0, 2));
-        _ditherTime += dt * (paused ? .012f : Math.Clamp(.1f + (1.2f - .1f) * _beat, 0, 2));
-        frame = new((float)_meshTime, (float)_ditherTime, Math.Max(.5f, 2.5f - _bass * 2.5f * .34f), Math.Min(1, .55f + _bass * .25f));
+        _meshTime += dt * (paused ? .036f : Math.Clamp(AppSettings.FoliaLatentMeshSpeed + (AppSettings.FoliaLatentMeshAudioSpeed - AppSettings.FoliaLatentMeshSpeed) * _beat, 0, 2));
+        _ditherTime += dt * (paused ? .012f : Math.Clamp(AppSettings.FoliaLatentDitherSpeed + (AppSettings.FoliaLatentDitherAudioSpeed - AppSettings.FoliaLatentDitherSpeed) * _beat, 0, 2));
+        frame = new((float)_meshTime, (float)_ditherTime, Math.Max(.5f, AppSettings.FoliaLatentSize * (1 - _bass * .34f)), Math.Min(1, AppSettings.FoliaLatentOpacity + _bass * .25f));
         style = new(1.025f + _power * .018f, 1.015f + _bass * .025f, 1.04f + _mid * .34f, .94f + _power * .16f);
-        distortion = new(.8f + _power * .62f, .1f + _mid * .38f, 0, 0);
+        distortion = new(AppSettings.FoliaLatentDistortion + _power * .62f, AppSettings.FoliaLatentSwirl + _mid * .38f, 0, 0);
         // colors initially holds the theme fallback supplied by the effect.
         Vector4 primary = _colors.Length > 0 ? new(_colors[0], 1) : colors[0];
         Vector4 secondary = _colors.Length > 1 ? new(_colors[1], 1) : colors[1];

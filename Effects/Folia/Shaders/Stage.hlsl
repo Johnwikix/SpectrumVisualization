@@ -72,7 +72,8 @@ float4 LatentCompositePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float3 mesh=LayerTexture.SampleLevel(LinearClamp,(uv-.5)/LatentStyle.x+.5,0).rgb;
     float lum=dot(mesh,float3(.213,.715,.072));mesh=(lum+(mesh-lum)*LatentStyle.z)*LatentStyle.w;
     float4 dither=BackdropTexture.SampleLevel(LinearClamp,(uv-.5)/LatentStyle.y+.5,0);
-    float3 color=lerp(mesh,SoftLight(mesh,dither.rgb),LatentFrame.w*dither.a);
+    float3 color=BackgroundTuning.z>.5 ? mesh : Palette[0].rgb;
+    if(BackgroundTuning.w>.5) color=BackgroundTuning.z>.5 ? lerp(mesh,SoftLight(mesh,dither.rgb),LatentFrame.w*dither.a) : lerp(Palette[0].rgb,dither.rgb,LatentFrame.w*dither.a);
     return float4(max(lerp(color,Palette[0].rgb,.35),0),1);
 }
 
@@ -187,7 +188,7 @@ float4 SpritePS(SpriteOutput input):SV_Target {
             opacity*=mask;
         }
         float glow=halo*.8*glowStrength*(1-coverage);
-        return float4(color*(coverage+glow)*opacity,saturate(coverage+glow)*opacity);
+        return float4(color*(coverage+glow)*opacity,v.glyphData.y>.5?0:saturate(coverage+glow)*opacity);
     } else if(kind==2||kind==20||kind==21) {
         float angle=atan2(local.y,local.x),r=min(v.rect.z,v.rect.w)*.5;
         float radius=r;

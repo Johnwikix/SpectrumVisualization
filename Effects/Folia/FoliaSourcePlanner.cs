@@ -48,6 +48,7 @@ internal static class FoliaSourcePlanner
             w.WriteNumber("fontScale", fontScale);
             w.WriteString("fontFamily", family);
             w.WriteNumber("fontWeight", weight);
+            w.WriteBoolean("temperaDecor", Model.AppSettings.FoliaTemperaDecor);
             w.WriteString("seed", atlas.Seed);
             w.WriteStartObject("widths");
             foreach (var pair in atlas.CharacterGlyphs)
@@ -61,6 +62,7 @@ internal static class FoliaSourcePlanner
                 w.WriteString("fullText", line.Source.Text);
                 w.WriteNumber("startTime", line.Source.Start);
                 w.WriteNumber("endTime", line.Source.End);
+                w.WriteBoolean("isChorus", line.Source.IsChorus);
                 w.WriteStartArray("words");
                 foreach (var word in line.Source.Words)
                 {

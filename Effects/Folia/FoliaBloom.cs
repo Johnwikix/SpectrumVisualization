@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Model;
 using System;
 using Vortice.Mathematics;
 using Vortice.Direct3D;
@@ -113,7 +114,8 @@ internal sealed unsafe class FoliaBloom : IDisposable
         commands.SetGraphicsRootSignature(_root);
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         float threshold = text ? .12f : .42f, knee = text ? .2f : .3f, spread = text ? .95f : .9f;
-        int count = text ? 5 : 6;
+        float multiplier = text ? AppSettings.FoliaLumiereTextBloom : AppSettings.FoliaLumiereBloom;
+        int count = multiplier <= 0 ? 0 : text ? 5 : 6;
         while (count > 1 && Math.Min(_width >> count, _height >> count) < 2)
             count--;
         int source = 0;
@@ -134,7 +136,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
             source = 7 + i;
         }
         Bind(commands, 0, source);
-        Constants(commands, 0, threshold, knee, 0, spread, text ? 1.15f : 1.5f, text ? 1 : .25f);
+        Constants(commands, 0, threshold, knee, 0, spread, text ? 1.15f * AppSettings.FoliaLumiereTextBloom : 1.5f * AppSettings.FoliaLumiereBloom, text ? 1 : .25f);
         commands.SetPipelineState(_combine);
         commands.ResourceBarrierTransition(output, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         commands.OMSetRenderTargets(target);
