@@ -319,9 +319,8 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaLyricsMode.Header" xml:space="preserve"><value>Lyric mode</value></data>
   <data name="FoliaLyricsMode.Description" xml:space="preserve"><value>Choose lyric typography, motion and lighting.</value></data>
   <data name="FoliaBackgroundMode.Header" xml:space="preserve"><value>Animated background</value></data>
-  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>Choose cover flow, gradients, image filters or stars.</value></data>
+  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>Choose Common, Latent, Monet, Nomand or Sora.</value></data>
   <data name="FoliaImageMode.Header" xml:space="preserve"><value>Cover filter</value></data>
-  <data name="FoliaImageMode.Description" xml:space="preserve"><value>Used by the Nomand background.</value></data>
   <data name="FoliaFontScale.Header" xml:space="preserve"><value>Lyric size</value></data>
   <data name="FoliaFontScale.Description" xml:space="preserve"><value>Percentage of the original layout (50–200%).</value></data>
   <data name="FoliaFontFamily.Header" xml:space="preserve"><value>Lyric font</value></data>
@@ -349,7 +348,7 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>Sonnet</value></data>
   <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>Tempera</value></data>
   <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>Lumiere</value></data>
-  <data name="FoliaOption_common.Content" xml:space="preserve"><value>Fluid</value></data>
+  <data name="FoliaOption_common.Content" xml:space="preserve"><value>Common</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>Latent</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>Nomand</value></data>
   <data name="FoliaOption_sora.Content" xml:space="preserve"><value>Sora</value></data>
@@ -380,15 +379,16 @@ Submit rate is not the display frame rate</value></data>
   <data name="LyricsCacheBrowse.Content" xml:space="preserve"><value>Browse…</value></data>
   <data name="LyricsCachePickerFailed" xml:space="preserve"><value>Could not choose the lyrics cache folder</value></data>
   <data name="LyricsCachePickerClose" xml:space="preserve"><value>Close</value></data>
-  <data name="FoliaSonnetBackgroundMg.Header" xml:space="preserve"><value>Sonnet: geometry and HUD</value></data>
-  <data name="FoliaSonnetFixedGeometry.Header" xml:space="preserve"><value>Sonnet: fixed geometry</value></data>
-  <data name="FoliaSonnetDecorations.Header" xml:space="preserve"><value>Sonnet: floating decorations</value></data>
-  <data name="FoliaSonnetGuides.Header" xml:space="preserve"><value>Sonnet: text guides</value></data>
-  <data name="FoliaSonnetFrame.Header" xml:space="preserve"><value>Sonnet: viewport frame</value></data>
-  <data name="FoliaSonnetTransitions.Header" xml:space="preserve"><value>Sonnet: shot and paragraph transitions</value></data>
-  <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>Sonnet: film and lens post processing</value></data>
+  <data name="FoliaSonnetSettings.Header" xml:space="preserve"><value>Sonnet settings</value></data>
+  <data name="FoliaSonnetBackgroundMg.Header" xml:space="preserve"><value>Geometry and HUD</value></data>
+  <data name="FoliaSonnetFixedGeometry.Header" xml:space="preserve"><value>Fixed geometry</value></data>
+  <data name="FoliaSonnetDecorations.Header" xml:space="preserve"><value>Floating decorations</value></data>
+  <data name="FoliaSonnetGuides.Header" xml:space="preserve"><value>Text guides</value></data>
+  <data name="FoliaSonnetFrame.Header" xml:space="preserve"><value>Viewport frame</value></data>
+  <data name="FoliaSonnetTransitions.Header" xml:space="preserve"><value>Shot and paragraph transitions</value></data>
+  <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>Film and lens post processing</value></data>
   <data name="FoliaRealtimeMotion.Header" xml:space="preserve"><value>Realtime motion</value></data>
-  <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>Sonnet: lens punch and tear strength</value></data>
+  <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>Lens punch and tear strength</value></data>
   <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>Diorama: ripple and word hop strength</value></data>
   <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>Pendolo: drumhead motion and light strength</value></data>
   <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>Drives Sonnet, Diorama and Pendolo from live loopback spectrum transients, without whole-track analysis. Strength 0 disables an effect; 1 is normal.</value></data>

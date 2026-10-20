@@ -319,9 +319,8 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaLyricsMode.Header" xml:space="preserve"><value>歌词模式</value></data>
   <data name="FoliaLyricsMode.Description" xml:space="preserve"><value>切换歌词的排版、运动与光效。</value></data>
   <data name="FoliaBackgroundMode.Header" xml:space="preserve"><value>动态背景</value></data>
-  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>选择封面流光、渐变、封面滤镜或星空。</value></data>
+  <data name="FoliaBackgroundMode.Description" xml:space="preserve"><value>选择通用、流动渐变、印象、封面滤镜或星空背景。</value></data>
   <data name="FoliaImageMode.Header" xml:space="preserve"><value>封面滤镜</value></data>
-  <data name="FoliaImageMode.Description" xml:space="preserve"><value>用于 Nomand 背景。</value></data>
   <data name="FoliaFontScale.Header" xml:space="preserve"><value>歌词大小</value></data>
   <data name="FoliaFontScale.Description" xml:space="preserve"><value>相对于原始布局的百分比（50–200%）。</value></data>
   <data name="FoliaFontFamily.Header" xml:space="preserve"><value>歌词字体</value></data>
@@ -349,7 +348,7 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>商籁</value></data>
   <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>凝彩</value></data>
   <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>绘光</value></data>
-  <data name="FoliaOption_common.Content" xml:space="preserve"><value>封面流光</value></data>
+  <data name="FoliaOption_common.Content" xml:space="preserve"><value>通用</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>流动渐变</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>封面滤镜</value></data>
   <data name="FoliaOption_sora.Content" xml:space="preserve"><value>星空</value></data>
@@ -380,15 +379,16 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="LyricsCacheBrowse.Content" xml:space="preserve"><value>浏览…</value></data>
   <data name="LyricsCachePickerFailed" xml:space="preserve"><value>无法选择歌词缓存目录</value></data>
   <data name="LyricsCachePickerClose" xml:space="preserve"><value>关闭</value></data>
-  <data name="FoliaSonnetBackgroundMg.Header" xml:space="preserve"><value>商籁：背景几何与 HUD</value></data>
-  <data name="FoliaSonnetFixedGeometry.Header" xml:space="preserve"><value>商籁：固定几何</value></data>
-  <data name="FoliaSonnetDecorations.Header" xml:space="preserve"><value>商籁：漂浮装饰</value></data>
-  <data name="FoliaSonnetGuides.Header" xml:space="preserve"><value>商籁：文字引导线</value></data>
-  <data name="FoliaSonnetFrame.Header" xml:space="preserve"><value>商籁：窗口画框</value></data>
-  <data name="FoliaSonnetTransitions.Header" xml:space="preserve"><value>商籁：镜头与段落转场</value></data>
-  <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>商籁：胶片与镜头后处理</value></data>
+  <data name="FoliaSonnetSettings.Header" xml:space="preserve"><value>商籁设置</value></data>
+  <data name="FoliaSonnetBackgroundMg.Header" xml:space="preserve"><value>背景几何与 HUD</value></data>
+  <data name="FoliaSonnetFixedGeometry.Header" xml:space="preserve"><value>固定几何</value></data>
+  <data name="FoliaSonnetDecorations.Header" xml:space="preserve"><value>漂浮装饰</value></data>
+  <data name="FoliaSonnetGuides.Header" xml:space="preserve"><value>文字引导线</value></data>
+  <data name="FoliaSonnetFrame.Header" xml:space="preserve"><value>窗口画框</value></data>
+  <data name="FoliaSonnetTransitions.Header" xml:space="preserve"><value>镜头与段落转场</value></data>
+  <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>胶片与镜头后处理</value></data>
   <data name="FoliaRealtimeMotion.Header" xml:space="preserve"><value>实时动感</value></data>
-  <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>商籁：推镜裂光强度</value></data>
+  <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>推镜裂光强度</value></data>
   <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>镜台：涟漪与词语跳动强度</value></data>
   <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>时计：鼓面震动与亮起强度</value></data>
   <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>使用环回频谱的瞬态响应驱动商籁、镜台和时计；不进行整曲分析。各效果强度 0 为关闭，1 为标准强度。</value></data>

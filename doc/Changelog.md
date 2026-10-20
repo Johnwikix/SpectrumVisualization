@@ -2,6 +2,11 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-20 辞曲新境设置分组与背景命名
+
+- `SettingWindow.xaml`：商籁的七个开关和推镜裂光强度收进默认折叠的“商籁设置”分组。
+- `Strings/zh-CN`、`Strings/en-us`：`common` 背景显示名改为“通用 / Common”，移除封面滤镜卡片的 Nomand 描述，分组内标题去除重复模式前缀；持久化值保持不变。
+
 ## 2026-10-20 商籁几何、转场与实时动感
 
 - `FoliaSonnet`、`FoliaSonnetGraphics`、`External/Folia/sonnet-graphics.js`：接入原版 100 种主几何、8 种 HUD、8 种固定几何和 6 种漂浮装饰布局，保留逐笔展开、固定层反向旋转、装饰视差与入场；后台准备原生路径，逐帧复用。
