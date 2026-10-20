@@ -54,7 +54,7 @@ requirements. No frame generation is included.
 
 ## Distribution
 
-Each vendored SDK retains its own license. The application's MIT license does not
+Each vendored SDK retains its own license. The application's AGPL-3.0 license does not
 relicense vendor binaries. Copies of the SDK licenses and third-party notices are
 placed in `Licenses/`. The About view identifies the graphics components.
 
