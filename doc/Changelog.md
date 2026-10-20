@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-20 倾斜与商籁首次进入提速
+
+- `FoliaTilt`、`FoliaTextAtlas`、`FoliaScenePreparation`：先按正常字体度量规划倾斜片段，仅准备实际绘制的斜体字形；窗口、缩放、字体及歌词变化时重新检查并补齐，沿用既有字形租约和 GPU 批次预算。
+- `FoliaSonnetCameraSamples`、`FoliaSourcePlanner`、原版布局适配：商籁镜头数值采样改为直接 C# 回调，保留每镜头 241 个样本、五点焦点平滑、原插值及呼吸轨迹。
+- 验证：NativeAOT 离屏同曲 960×540 的首次进入延迟，倾斜约 433→156 ms、商籁约 530→125 ms；126 组镜头向量输出逐字一致，斜体度量、尺寸／缩放切换及取消释放回归通过，实机响应由用户验收。
+
+## 2026-10-20 辞曲新境切换与切歌延迟
+
+- `FoliaScenePreparation`、`FoliaSceneUpload`：取消场景固定 40 ms 等待，资源已就绪的步骤直接完成；封面、模式纹理与字形并行上传，仍在既有帧屏障后交接和释放。
+- `FoliaCadenzaSearch`、`FoliaSourcePlanner`、原版布局适配：心境碰撞搜索改为直接 C# 数值回调；商籁仅计算选中镜头并去除中间 JSON 往返，布局结果缓存上限由 8 MiB 调整为 16 MiB，避免时计网格挤出其他模式。
+- `FoliaPlaybackService`、`MediaInfoService`、`FoliaGpuEffect.Preparation`：刷新媒体时钟后立即查询歌词，取消固定 120 ms 等待，先发布歌词再写缓存；新歌标题和封面可在歌词查询结束前显示，重复候选不重启上传。
+
 ## 2026-10-20 辞曲新境效果行为对齐
 
 - `FoliaLineTiming`、`FoliaLineHandoff`、歌词布局：区分当前演唱行与场景锚点，补齐短句提示、整行进出场、下一句预告和时计间奏／尾奏锚点。

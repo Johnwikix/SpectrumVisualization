@@ -29,14 +29,12 @@ internal sealed unsafe class FoliaImageUpload(int slot, int width, int height, F
         {
             Texture = device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
                 ResourceDescription.Texture2D(Format, (uint)Width, (uint)Height, 1, 1), ResourceStates.CopyDest);
-            return false;
         }
         if (Upload == null)
         {
             Upload = device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
                 ResourceDescription.Buffer(Pitch * (ulong)StagingRows), ResourceStates.GenericRead);
             _mapped = Upload.Map<byte>(0);
-            return false;
         }
         if (_row < Height)
         {
@@ -98,10 +96,10 @@ internal sealed class FoliaSceneUpload : IDisposable
     internal FoliaImageUpload? Glyphs { get; }
     internal FoliaImageUpload? Cover { get; }
     internal FoliaImageUpload? ModeAtlas { get; }
-    private int _stage;
+    private bool _complete;
     private readonly FoliaGpuGlyphAtlas? _resident;
     private FoliaGpuGlyphAtlas.FoliaGlyphBatch? _glyphBatch;
-    internal bool Complete => _stage == 3;
+    internal bool Complete => _complete;
 
     internal FoliaSceneUpload(FoliaPreparedScene scene, FoliaTextAtlas activeAtlas, FoliaSong activeSong, object? modeSource,
         FoliaGpuGlyphAtlas? resident = null)
@@ -121,33 +119,30 @@ internal sealed class FoliaSceneUpload : IDisposable
 
     internal void Advance(ID3D12Device device, ReadOnlySpan<byte> emptyCover)
     {
-        switch (_stage)
+        if (_complete) return;
+        bool glyphsReady;
+        if (Scene.Atlas!.IsShared)
         {
-            case 0:
-                if (Scene.Atlas!.IsShared)
-                {
-                    if (_glyphBatch is { Submitted: true })
-                    {
-                        _glyphBatch.CompleteAfterFence();
-                        _glyphBatch.Dispose();
-                        _glyphBatch = null;
-                    }
-                    if (_glyphBatch == null) _glyphBatch = _resident!.Prepare(Scene.Atlas.SharedGlyphs);
-                    bool complete = true;
-                    foreach (var glyph in Scene.Atlas.SharedGlyphs) if (!glyph.Resident) { complete = false; break; }
-                    if (complete) _stage++;
-                }
-                else if (Glyphs == null || Glyphs.Advance(device, Scene.Atlas.Pixels)) _stage++;
-                break;
-            case 1:
-                var song = Scene.Request.Song;
-                if (Cover == null || Cover.Advance(device, song.CoverRgba.Length == 0 ? emptyCover : song.CoverRgba)) _stage++;
-                break;
-            case 2:
-                var pixels = ModeAtlasSource is FoliaAssets.EmojiAtlas emojis ? emojis.Pixels.AsSpan() : Scene.Atlas!.ShadowPixels;
-                if (ModeAtlas == null || ModeAtlas.Advance(device, pixels)) _stage++;
-                break;
+            if (_glyphBatch is { Submitted: true })
+            {
+                _glyphBatch.CompleteAfterFence();
+                _glyphBatch.Dispose();
+                _glyphBatch = null;
+            }
+            glyphsReady = true;
+            foreach (var glyph in Scene.Atlas.SharedGlyphs)
+                if (!glyph.Resident) { glyphsReady = false; break; }
+            if (!glyphsReady && _glyphBatch == null) _glyphBatch = _resident!.Prepare(Scene.Atlas.SharedGlyphs);
         }
+        else glyphsReady = Glyphs == null || Glyphs.Advance(device, Scene.Atlas.Pixels);
+
+        // Independent images can upload alongside glyph batches. Missing images and
+        // resident glyphs consume no frames; actual copies still cross the host fence.
+        var song = Scene.Request.Song;
+        bool coverReady = Cover == null || Cover.Advance(device, song.CoverRgba.Length == 0 ? emptyCover : song.CoverRgba);
+        bool modeReady = ModeAtlas == null || ModeAtlas.Advance(device,
+            ModeAtlasSource is FoliaAssets.EmojiAtlas emojis ? emojis.Pixels.AsSpan() : Scene.Atlas.ShadowPixels);
+        _complete = glyphsReady && coverReady && modeReady;
     }
 
     internal void Record(ID3D12GraphicsCommandList commands)

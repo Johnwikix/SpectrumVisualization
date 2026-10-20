@@ -192,10 +192,11 @@ internal sealed class FoliaPlaybackService
     private async Task ResolveAsync(LyricsTrack track, string sourceId, bool retry, long version, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
+        bool published = false;
         try
         {
-            await Task.Delay(120, token).ConfigureAwait(false);
-            // Session metadata can arrive before its timeline; take the duration after coalescing those updates.
+            // Read the latest available duration without delaying already-complete metadata.
+            // Metadata bursts cancel by version; no fixed coalescing interval is needed.
             track = track with { Duration = _media.Duration.TotalSeconds };
             var player = await _playerLyrics.ReadAsync(track, sourceId, token).ConfigureAwait(false);
             var content = player.Content ?? ((!retry || !player.AllowOnline) && player.AllowCache
@@ -206,7 +207,6 @@ internal sealed class FoliaPlaybackService
                 var online = await _onlineLyrics.SearchAsync(track, retry, token).ConfigureAwait(false);
                 content = online.Content;
                 status = online.Status;
-                if (content is not null) await LyricsDiskCache.WriteAsync(track, content, token).ConfigureAwait(false);
             }
             token.ThrowIfCancellationRequested();
             var lines = content is null ? [] : FoliaSong.Parse(content.Original, content.Translation, track.Duration);
@@ -228,18 +228,23 @@ internal sealed class FoliaPlaybackService
                 if (!_active || _stopped || version != _version) return;
                 State.Publish(State.Song with { Lines = lines, LyricsPending = false });
                 _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
+                published = true;
             }
             Changed?.Invoke();
+            // Persistence must not hold up publication or scene preparation. This operation
+            // remains observed by StopAsync and is cancelled when the track is superseded.
+            if (content is not null && player.Content is null && status == LyricsSearchStatus.Found)
+                await LyricsDiskCache.WriteAsync(track, content, token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             // A deadline is recoverable; an obsolete track never changes the new song's state.
-            Publish(version, null, "failed");
+            if (!published) Publish(version, null, "failed");
         }
         catch (Exception ex)
         {
             App.WriteCrashLog("Folia lyrics", ex.Message, ex);
-            Publish(version, null, "failed");
+            if (!published) Publish(version, null, "failed");
         }
         finally
         {

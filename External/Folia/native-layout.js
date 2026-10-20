@@ -1292,6 +1292,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			centerY: -heroPlan.height * .46,
 			width: heroPlan.width * heroPlan.scale
 		} : null;
+		const nativeSearch = typeof nativeCadenzaSearch === "function" ? nativeCadenzaSearch : null;
+		if (nativeSearch) nativeSearch(lineHeight);
 		placementPlans.forEach((plan) => {
 			const { fragment, lineIndex, fragmentIndex, emphasis, width, height, scale, collisionWidth, collisionHeight, padding } = plan;
 			const wordSeed = seed + fragment.wordIndex * 17 + lineIndex * 31 + fragmentIndex * 13;
@@ -1340,7 +1342,14 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				score: Number.POSITIVE_INFINITY
 			};
 			const baseAngle = heroMetrics && emphasis <= 1 ? Math.atan2(preferredY, preferredX + width / 2) : 0;
-			for (let radius = 0; radius <= maxRadius && !found; radius += step) {
+			if (nativeSearch) {
+				const position = nativeSearch(preferredX, preferredY, collisionWidth, collisionHeight, padding,
+					step, maxRadius, emphasis, baseAngle, horizontalMin, horizontalMax, verticalMin, verticalMax);
+				chosenX = position[0];
+				chosenY = position[1];
+				found = true;
+			}
+			for (let radius = 0; !nativeSearch && radius <= maxRadius && !found; radius += step) {
 				const sampleCount = radius === 0 ? 1 : emphasis > 1 ? 8 : Math.max(12, Math.round(Math.PI * 2 * radius / Math.max(step * 1.1, 10)));
 				for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
 					const angle = baseAngle + sampleIndex / sampleCount * Math.PI * 2;
@@ -20758,50 +20767,52 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const resolveShotMotionFrame = (kind, progress) => {
 		const linear = clamp01$1(progress);
 		const eased = resolveShotPathProgress(kind, linear);
-		return {
-			"editorial-column": {
+		// Only construct the selected frame; the object lookup evaluated all seven
+		// variants for every camera sample during whole-song preparation.
+		switch (kind) {
+			case "editorial-column": return {
 				x: -.055 + eased * .095,
 				y: .025 - eased * .04,
 				scale: .98 + eased * .07,
 				rotation: -.006 + eased * .01
-			},
-			"type-impact": {
+			};
+			case "type-impact": return {
 				x: -.035 + eased * .07,
 				y: .018 - eased * .028,
 				scale: 1 + (1 - easeSonnetExpoOut(Math.min(linear / .18, 1))) * .22 + eased * .08,
 				rotation: -.01 + eased * .016
-			},
-			"fragment-collage": {
+			};
+			case "fragment-collage": return {
 				x: -.045 + eased * .085,
 				y: .028 - Math.sin(eased * Math.PI) * .055,
 				scale: .97 + eased * .09,
 				rotation: -.014 + eased * .028
-			},
-			"tracking-ribbon": {
+			};
+			case "tracking-ribbon": return {
 				x: -.16 + eased * .28,
 				y: .05 - eased * .085,
 				scale: .98 + eased * .07,
 				rotation: .008 - eased * .014
-			},
-			"mask-reveal": {
+			};
+			case "mask-reveal": return {
 				x: .035 - eased * .065,
 				y: .1 - eased * .135,
 				scale: .96 + eased * .12,
 				rotation: -.006 + eased * .009
-			},
-			"poster-blocks": {
+			};
+			case "poster-blocks": return {
 				x: -.012 + eased * .024,
 				y: .008 - eased * .016,
 				scale: .99 + eased * .025,
 				rotation: -.0015 + eased * .003
-			},
-			"quiet-tableau": {
+			};
+			case "quiet-tableau": return {
 				x: -.022 + eased * .04,
 				y: .014 - eased * .025,
 				scale: 1 + eased * .028,
 				rotation: -.002 + eased * .003
-			}
-		}[kind];
+			};
+		}
 	};
 	const SONNET_CAMERA_BREATH_MAX_OFFSET = .006;
 	const SONNET_CAMERA_BREATH_MAX_SCALE = .002;
@@ -22043,13 +22054,14 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			surfaces
 		});
 	}
-	function compile(json) {
+	function compile(json, raw = false) {
 		const input = JSON.parse(json);
 		globalThis.nativeWidths = input.widths;
 		const program = compileSonnetProgram(input.lines, input.seed);
 		const shots = [];
+		const programLines = program.paragraphs.flatMap((p) => p.lines);
 		for (const paragraph of program.paragraphs) for (const shot of paragraph.shots) {
-			const groups = shot.lineIndices.map((i) => program.paragraphs.flatMap((p) => p.lines).find((l) => l.sourceIndex === i)).map((l) => l.segments.filter((s) => s.text.trim().length));
+			const groups = shot.lineIndices.map((i) => programLines.find((l) => l.sourceIndex === i)).map((l) => l.segments.filter((s) => s.text.trim().length));
 			const segments = groups.flat();
 			if (!segments.length) continue;
 			const count = Math.max(1, segments.filter((s) => s.isWordLike).length);
@@ -22112,13 +22124,15 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 					y
 				};
 			};
-			const frames = [];
 			const duration = Math.max(.001, shot.endTime - shot.startTime);
 			const done = Math.max(...tracked.map((t) => t.glyphs.at(-1)?.startTime ?? shot.endTime));
-			for (let i = 0; i <= 240; i++) {
+			const breathPhase = hashVisualizerSeed(shot.id) % 1024 / 1024 * Math.PI * 2;
+			const nativeCamera = typeof nativeSonnetCamera === "function" ? nativeSonnetCamera : null;
+			const frames = nativeCamera ? nativeCamera(shot.kind, shot.startTime, shot.endTime, breathPhase, tracked) : [];
+			for (let i = 0; !nativeCamera && i <= 240; i++) {
 				const progress = i / 240, time = shot.startTime + duration * progress, frame = resolveShotMotionFrame(shot.kind, progress);
 				const focus = resolveSonnetSmoothedCameraFocus(time, shot.startTime, shot.endTime, focusAt);
-				const breathWeight = resolveSonnetBreathWeight(time, done), breath = resolveSonnetCameraBreath(time, hashVisualizerSeed(shot.id) % 1024 / 1024 * Math.PI * 2);
+				const breathWeight = resolveSonnetBreathWeight(time, done), breath = resolveSonnetCameraBreath(time, breathPhase);
 				frame.x += breath.x * breathWeight;
 				frame.y += breath.y * breathWeight;
 				frame.scale += breath.scale * breathWeight;
@@ -22149,7 +22163,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				transitionSeed: hashVisualizerSeed(`${program.seed}:${paragraph.id}:transition-frame`)
 			});
 		}
-		return JSON.stringify(shots);
+		return raw ? shots : JSON.stringify(shots);
 	}
 
 //#endregion

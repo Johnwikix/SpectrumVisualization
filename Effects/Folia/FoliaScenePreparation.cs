@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,7 +83,8 @@ internal sealed class FoliaScenePreparation : IDisposable
     private Task? _work;
     private bool _running, _stopped;
     private FoliaTextAtlas? _atlas;
-    private FoliaSceneRequest _atlasRequest, _planRequest;
+    private FoliaSceneRequest _atlasRequest, _planRequest, _italicRequest;
+    private bool _hasItalicRequest;
     private FoliaModePlan? _plan;
     private byte[]? _cover;
     private Vector3[] _colors = [];
@@ -124,10 +126,10 @@ internal sealed class FoliaScenePreparation : IDisposable
     {
         if (_running) return;
         _running = true;
-        _work = Task.Run(RunAsync);
+        _work = Task.Run(RunWorker);
     }
 
-    private async Task RunAsync()
+    private void RunWorker()
     {
         while (true)
         {
@@ -157,29 +159,13 @@ internal sealed class FoliaScenePreparation : IDisposable
             var token = cancellation!.Token;
             try
             {
-                // Coalesce metadata / thumbnail bursts and slider drags before expensive work.
-                await Task.Delay(40, token).ConfigureAwait(false);
+                // Requests already coalesce into _pending, and obsolete work is cancellable.
+                // An isolated mode/background change must not pay a debounce interval.
+                token.ThrowIfCancellationRequested();
                 if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
-                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song) || request.Mode == "tilt" && !_atlas.HasItalics)
-                {
-                    FoliaTextAtlas atlas;
-                    try { atlas = new(request.Song, request.Family, request.Weight, token, request.Mode == "tilt", Store); }
-                    catch (Exception error) when (IsCapacityFailure(error))
-                    {
-                        // An unusually large live pair cannot evict the visible scene. Use the
-                        // private CPU atlas for this scene, then resume incremental caching later.
-                        atlas = new(request.Song, request.Family, request.Weight, token, request.Mode == "tilt");
-                    }
-                    if (token.IsCancellationRequested)
-                    {
-                        atlas.Dispose();
-                        token.ThrowIfCancellationRequested();
-                    }
-                    _atlas?.Dispose();
-                    _atlas = atlas;
-                    _atlasRequest = request;
-                    _plan = null;
-                }
+                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song))
+                    ReplaceAtlas(CreateAtlas(request, token), request);
+                if (request.Mode == "tilt") PrepareTiltGlyphs(request, token);
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
@@ -223,6 +209,52 @@ internal sealed class FoliaScenePreparation : IDisposable
         }
     }
 
+    private FoliaTextAtlas CreateAtlas(in FoliaSceneRequest request, CancellationToken token, IReadOnlySet<string>? italics = null)
+    {
+        FoliaTextAtlas atlas;
+        try { atlas = new(request.Song, request.Family, request.Weight, token, italics != null, Store, italics); }
+        catch (Exception error) when (IsCapacityFailure(error))
+        {
+            // A large live pair cannot evict the visible scene. Keep the private CPU
+            // capacity fallback, with the same selected italic glyphs as the shared atlas.
+            atlas = new(request.Song, request.Family, request.Weight, token, italics != null, italicCharacters: italics);
+        }
+        if (token.IsCancellationRequested)
+        {
+            atlas.Dispose();
+            token.ThrowIfCancellationRequested();
+        }
+        return atlas;
+    }
+
+    [MemberNotNull(nameof(_atlas))]
+    private void ReplaceAtlas(FoliaTextAtlas atlas, in FoliaSceneRequest request)
+    {
+        var previous = _atlas;
+        _atlas = atlas;
+        _atlasRequest = request;
+        _plan = null;
+        _hasItalicRequest = false;
+        previous?.Dispose();
+    }
+
+    private void PrepareTiltGlyphs(in FoliaSceneRequest request, CancellationToken token)
+    {
+        if (_hasItalicRequest && FoliaSceneRequest.SameText(_italicRequest.Song, request.Song)
+            && _italicRequest.Family == request.Family && _italicRequest.Weight == request.Weight
+            && _italicRequest.Width == request.Width && _italicRequest.Height == request.Height && _italicRequest.Scale == request.Scale)
+            return;
+        // Tilt's segmentation uses normal metrics. Plan it before requesting italic
+        // outlines, so titles, translations and upright segments never delay the switch.
+        var tilt = new FoliaTilt();
+        tilt.Prepare(_atlas!, request.Width, request.Height, request.Scale, request.Family, request.Weight, token);
+        var required = tilt.RequiredItalicCharacters(_atlas!);
+        token.ThrowIfCancellationRequested();
+        if (!_atlas!.HasItalicGlyphs(required)) ReplaceAtlas(CreateAtlas(request, token, required), request);
+        _italicRequest = request;
+        _hasItalicRequest = true;
+    }
+
     public void Dispose()
     {
         Task? work;
@@ -242,7 +274,8 @@ internal sealed class FoliaScenePreparation : IDisposable
         _plan = null;
         _cover = null;
         _colors = [];
-        _atlasRequest = _planRequest = default;
+        _atlasRequest = _planRequest = _italicRequest = default;
+        _hasItalicRequest = false;
         _work = null;
         if (_ownsStore) Store.Dispose();
     }

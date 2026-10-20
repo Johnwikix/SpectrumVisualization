@@ -15,9 +15,8 @@ internal sealed unsafe partial class FoliaGpuEffect
     {
         float dpi = _size.PixelsPerDip;
         var song = playback.Song;
-        // Keep the committed scene while the next track only has provisional metadata.
-        // A terminal no-lyrics/error snapshot still replaces it with the new song's metadata.
-        if (song.LyricsPending && _hasScene && _lyricsVisible && _song!.Title.Length != 0) song = _song!;
+        // Metadata and decoded cover can become visible before a slow lyric lookup finishes.
+        // Each published snapshot still commits its atlas, layout and images together.
         return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
             AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
             _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor);
@@ -44,8 +43,10 @@ internal sealed unsafe partial class FoliaGpuEffect
                 if (ready.Error != null) App.WriteCrashLog("Folia scene preparation", ready.Error.Message, ready.Error);
                 ready.Dispose();
             }
+            else if (_upload != null && _upload.Scene.Request.Matches(ready.Request)) ready.Dispose();
             else
             {
+                _upload?.Dispose();
                 try { _upload = new(ready, _atlas!, _song!, _modeAtlasSource, _glyphAtlas); }
                 catch { ready.Dispose(); throw; }
             }

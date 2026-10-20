@@ -13,6 +13,29 @@ internal sealed class FoliaTilt
     private long _atlasIdentity;
     private float _width, _height, _scale;
     private Layout[] _layouts = [];
+    internal HashSet<string> RequiredItalicCharacters(FoliaTextAtlas atlas)
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        for (int li = 0; li < _layouts.Length; li++)
+        {
+            // Match the atlas's per-word grapheme indexing, including combining sequences
+            // split by a parser word boundary. Only glyphs a tilted segment draws are needed.
+            var texts = new List<string>(atlas.Lines[li].Glyphs.Length);
+            foreach (var word in atlas.Lines[li].Source.Words)
+            {
+                var elements = StringInfo.GetTextElementEnumerator(word.Text);
+                while (elements.MoveNext())
+                {
+                    string text = elements.GetTextElement();
+                    if (atlas.CharacterGlyphs.ContainsKey(text)) texts.Add(text);
+                }
+            }
+            foreach (var segment in _layouts[li].Segments)
+                if (segment.Tilt)
+                    for (int i = segment.First; i < segment.End; i++) required.Add(texts[i]);
+        }
+        return required;
+    }
     internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
         if (atlas.Identity == _atlasIdentity && _width == width && _height == height && _scale == scale)

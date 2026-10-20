@@ -26,6 +26,7 @@ internal sealed class FoliaTextAtlas : IDisposable
     private int _owners = 1;
     private int _initialOwnerReleased;
     private readonly FoliaGlyphStore? _store;
+    private IReadOnlyDictionary<string, FoliaGlyph> _italicGlyphs = new Dictionary<string, FoliaGlyph>();
     internal FoliaCachedGlyph[] SharedGlyphs { get; private set; } = [];
     internal bool IsShared => _store != null;
     internal static FoliaTextAtlas Placeholder { get; } = new();
@@ -119,9 +120,14 @@ internal sealed class FoliaTextAtlas : IDisposable
         get;
     }
 
-    internal bool HasItalics { get; }
+    internal bool HasItalicGlyphs(IReadOnlySet<string> characters)
+    {
+        foreach (string character in characters)
+            if (!_italicGlyphs.ContainsKey(character)) return false;
+        return true;
+    }
     internal FoliaTextAtlas(FoliaSong song, string family, int weight, CancellationToken token = default, bool includeItalics = false,
-        FoliaGlyphStore? store = null)
+        FoliaGlyphStore? store = null, IReadOnlySet<string>? italicCharacters = null)
     {
         _store = store;
         try
@@ -130,7 +136,6 @@ internal sealed class FoliaTextAtlas : IDisposable
             var characters = new SortedSet<string>(StringComparer.Ordinal);
             AddCharacters(characters, song.Title);
             AddCharacters(characters, song.Artist);
-            HasItalics = includeItalics;
             AddCharacters(characters, "0123456789:");
             foreach (var line in song.Lines)
             {
@@ -164,7 +169,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                     requests.Add((digit.ToString(), 500, false));
             if (includeItalics)
                 foreach (string text in characters)
-                    requests.Add((text, weight, true));
+                    if (italicCharacters == null || italicCharacters.Contains(text)) requests.Add((text, weight, true));
             var glyphs = new Dictionary<string, FoliaGlyph>(characters.Count, StringComparer.Ordinal);
             var titleGlyphs = weight == 600 ? glyphs : new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal);
             var italicGlyphs = new Dictionary<string, FoliaGlyph>(characters.Count, StringComparer.Ordinal);
@@ -288,6 +293,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                 }
             }
             CharacterGlyphs = glyphs;
+            _italicGlyphs = italicGlyphs;
             Lines = new FoliaPreparedLine[song.Lines.Length];
             for (int i = 0; i < Lines.Length; i++)
             {

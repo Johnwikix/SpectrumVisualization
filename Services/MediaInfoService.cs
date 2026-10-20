@@ -291,6 +291,9 @@ namespace WinExSpectrumTest.Services
                 {
                     return;
                 }
+                // Refresh the session clock before notifying lyric consumers, so they need
+                // no fixed delay to wait for this service's previous-track duration to update.
+                RefreshPlaybackAndTimeline();
                 lock (_snapshotGate)
                 {
                     if (_stopping || !ReferenceEquals(session, _session) || version != Volatile.Read(ref _mediaRequestVersion)) return;

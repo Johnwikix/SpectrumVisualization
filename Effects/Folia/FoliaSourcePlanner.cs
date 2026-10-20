@@ -22,7 +22,9 @@ internal static class FoliaSourcePlanner
         using var reader = new StreamReader(stream);
         return Engine.PrepareScript(reader.ReadToEnd());
     });
-    private const int ResultLimit = 8 * 1024 * 1024, EntryLimit = 16;
+    // A normal Pendolo mesh alone uses about 6 MiB of UTF-16 JSON. Keep a complete
+    // song's mode tour resident without letting that mesh evict every small layout.
+    private const int ResultLimit = 16 * 1024 * 1024, EntryLimit = 16;
     private static readonly object CacheGate = new();
     private static readonly Dictionary<(string Function, string Input), string> Results = new();
     private static readonly Queue<(string Function, string Input)> ResultOrder = new();
@@ -155,6 +157,8 @@ internal static class FoliaSourcePlanner
     {
         // Keep the captured options delegate out of the cache-hit path.
         var engine = new Engine(options => options.CancellationToken(token));
+        if (function == "compileCadenza") FoliaCadenzaSearch.Install(engine, token);
+        if (function == "compileSonnet") FoliaSonnetCameraSamples.Install(engine, token);
         engine.Execute(Source.Value);
         if (function == "compileSonnet")
             engine.Execute(SonnetSource.Value);
