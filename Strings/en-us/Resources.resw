@@ -380,4 +380,16 @@ Submit rate is not the display frame rate</value></data>
   <data name="LyricsCacheBrowse.Content" xml:space="preserve"><value>Browse…</value></data>
   <data name="LyricsCachePickerFailed" xml:space="preserve"><value>Could not choose the lyrics cache folder</value></data>
   <data name="LyricsCachePickerClose" xml:space="preserve"><value>Close</value></data>
+  <data name="FoliaSonnetBackgroundMg.Header" xml:space="preserve"><value>Sonnet: geometry and HUD</value></data>
+  <data name="FoliaSonnetFixedGeometry.Header" xml:space="preserve"><value>Sonnet: fixed geometry</value></data>
+  <data name="FoliaSonnetDecorations.Header" xml:space="preserve"><value>Sonnet: floating decorations</value></data>
+  <data name="FoliaSonnetGuides.Header" xml:space="preserve"><value>Sonnet: text guides</value></data>
+  <data name="FoliaSonnetFrame.Header" xml:space="preserve"><value>Sonnet: viewport frame</value></data>
+  <data name="FoliaSonnetTransitions.Header" xml:space="preserve"><value>Sonnet: shot and paragraph transitions</value></data>
+  <data name="FoliaSonnetPostProcess.Header" xml:space="preserve"><value>Sonnet: film and lens post processing</value></data>
+  <data name="FoliaRealtimeMotion.Header" xml:space="preserve"><value>Realtime motion</value></data>
+  <data name="FoliaSonnetMotionStrength.Header" xml:space="preserve"><value>Sonnet: lens punch and tear strength</value></data>
+  <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>Diorama: ripple and word hop strength</value></data>
+  <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>Pendolo: drumhead motion and light strength</value></data>
+  <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>Drives Sonnet, Diorama and Pendolo from live loopback spectrum transients, without whole-track analysis. Strength 0 disables an effect; 1 is normal.</value></data>
 </root>

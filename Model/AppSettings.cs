@@ -29,6 +29,40 @@ namespace WinExSpectrumTest.Model
         private static int _foliaFontWeight = 300;
         public static int FoliaFontWeight { get => _foliaFontWeight; set => Set(ref _foliaFontWeight, Math.Clamp(value, 100, 900)); }
 
+        private static bool _FoliaSonnetBackgroundMg = true;
+        /// <summary>Gets or sets whether sonnet: geometry and hud is enabled.</summary>
+        public static bool FoliaSonnetBackgroundMg { get => _FoliaSonnetBackgroundMg; set => Set(ref _FoliaSonnetBackgroundMg, value); }
+        private static bool _FoliaSonnetFixedGeometry = true;
+        /// <summary>Gets or sets whether sonnet: fixed geometry is enabled.</summary>
+        public static bool FoliaSonnetFixedGeometry { get => _FoliaSonnetFixedGeometry; set => Set(ref _FoliaSonnetFixedGeometry, value); }
+        private static bool _FoliaSonnetDecorations = true;
+        /// <summary>Gets or sets whether sonnet: floating decorations is enabled.</summary>
+        public static bool FoliaSonnetDecorations { get => _FoliaSonnetDecorations; set => Set(ref _FoliaSonnetDecorations, value); }
+        private static bool _FoliaSonnetGuides = true;
+        /// <summary>Gets or sets whether sonnet: text guides is enabled.</summary>
+        public static bool FoliaSonnetGuides { get => _FoliaSonnetGuides; set => Set(ref _FoliaSonnetGuides, value); }
+        private static bool _FoliaSonnetFrame = true;
+        /// <summary>Gets or sets whether sonnet: viewport frame is enabled.</summary>
+        public static bool FoliaSonnetFrame { get => _FoliaSonnetFrame; set => Set(ref _FoliaSonnetFrame, value); }
+        private static bool _FoliaSonnetTransitions = true;
+        /// <summary>Gets or sets whether sonnet: shot and paragraph transitions is enabled.</summary>
+        public static bool FoliaSonnetTransitions { get => _FoliaSonnetTransitions; set => Set(ref _FoliaSonnetTransitions, value); }
+        private static bool _FoliaSonnetPostProcess = false;
+        /// <summary>Gets or sets whether sonnet: film and lens post processing is enabled.</summary>
+        public static bool FoliaSonnetPostProcess { get => _FoliaSonnetPostProcess; set => Set(ref _FoliaSonnetPostProcess, value); }
+        private static bool _FoliaRealtimeMotion = false;
+        /// <summary>Gets or sets whether realtime motion is enabled.</summary>
+        public static bool FoliaRealtimeMotion { get => _FoliaRealtimeMotion; set => Set(ref _FoliaRealtimeMotion, value); }
+        private static float _FoliaSonnetMotionStrength = 1;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public static float FoliaSonnetMotionStrength { get => _FoliaSonnetMotionStrength; set => Set(ref _FoliaSonnetMotionStrength, float.IsFinite(value) ? Math.Clamp(value, 0, 2) : 1); }
+        private static float _FoliaDioramaMotionStrength = 1;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public static float FoliaDioramaMotionStrength { get => _FoliaDioramaMotionStrength; set => Set(ref _FoliaDioramaMotionStrength, float.IsFinite(value) ? Math.Clamp(value, 0, 2) : 1); }
+        private static float _FoliaPendoloMotionStrength = 1;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public static float FoliaPendoloMotionStrength { get => _FoliaPendoloMotionStrength; set => Set(ref _FoliaPendoloMotionStrength, float.IsFinite(value) ? Math.Clamp(value, 0, 2) : 1); }
+
         private static void Set<T>(ref T storage, T value, [CallerMemberName] string name = "")
         {
             if (EqualityComparer<T>.Default.Equals(storage, value)) return;

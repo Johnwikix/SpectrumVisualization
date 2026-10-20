@@ -5,6 +5,29 @@ namespace WinExSpectrumTest.Model
     {
         public bool LyricsCacheEnabled { get; set; } = true;
         public string LyricsCacheFolder { get; set; } = "";
+        /// <summary>Gets or sets whether sonnet: geometry and hud is enabled.</summary>
+        public bool FoliaSonnetBackgroundMg { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: fixed geometry is enabled.</summary>
+        public bool FoliaSonnetFixedGeometry { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: floating decorations is enabled.</summary>
+        public bool FoliaSonnetDecorations { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: text guides is enabled.</summary>
+        public bool FoliaSonnetGuides { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: viewport frame is enabled.</summary>
+        public bool FoliaSonnetFrame { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: shot and paragraph transitions is enabled.</summary>
+        public bool FoliaSonnetTransitions { get; set; } = true;
+        /// <summary>Gets or sets whether sonnet: film and lens post processing is enabled.</summary>
+        public bool FoliaSonnetPostProcess { get; set; } = false;
+        /// <summary>Gets or sets whether realtime motion is enabled.</summary>
+        public bool FoliaRealtimeMotion { get; set; } = false;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public float FoliaSonnetMotionStrength { get; set; } = 1;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public float FoliaDioramaMotionStrength { get; set; } = 1;
+        /// <summary>Gets or sets the live response strength, from zero to two.</summary>
+        public float FoliaPendoloMotionStrength { get; set; } = 1;
+
         public string FoliaLyricMode { get; set; } = "classic";
         public bool FoliaCoverBackground { get; set; }
         public string FoliaBackground { get; set; } = "common";

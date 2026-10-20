@@ -82,6 +82,73 @@ public partial class SettingViewModel
         get => AppSettings.FoliaFontWeight;
         set { if (double.IsFinite(value)) AppSettings.FoliaFontWeight = (int)Math.Clamp(value, 100, 900); }
     }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetBackgroundMg
+    {
+        get => AppSettings.FoliaSonnetBackgroundMg;
+        set => AppSettings.FoliaSonnetBackgroundMg = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetFixedGeometry
+    {
+        get => AppSettings.FoliaSonnetFixedGeometry;
+        set => AppSettings.FoliaSonnetFixedGeometry = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetDecorations
+    {
+        get => AppSettings.FoliaSonnetDecorations;
+        set => AppSettings.FoliaSonnetDecorations = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetGuides
+    {
+        get => AppSettings.FoliaSonnetGuides;
+        set => AppSettings.FoliaSonnetGuides = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetFrame
+    {
+        get => AppSettings.FoliaSonnetFrame;
+        set => AppSettings.FoliaSonnetFrame = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetTransitions
+    {
+        get => AppSettings.FoliaSonnetTransitions;
+        set => AppSettings.FoliaSonnetTransitions = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaSonnetPostProcess
+    {
+        get => AppSettings.FoliaSonnetPostProcess;
+        set => AppSettings.FoliaSonnetPostProcess = value;
+    }
+    /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaRealtimeMotion
+    {
+        get => AppSettings.FoliaRealtimeMotion;
+        set => AppSettings.FoliaRealtimeMotion = value;
+    }
+    /// <summary>Gets or sets the response strength shown by the settings control.</summary>
+    public double FoliaSonnetMotionStrength
+    {
+        get => AppSettings.FoliaSonnetMotionStrength;
+        set => AppSettings.FoliaSonnetMotionStrength = (float)value;
+    }
+    /// <summary>Gets or sets the response strength shown by the settings control.</summary>
+    public double FoliaDioramaMotionStrength
+    {
+        get => AppSettings.FoliaDioramaMotionStrength;
+        set => AppSettings.FoliaDioramaMotionStrength = (float)value;
+    }
+    /// <summary>Gets or sets the response strength shown by the settings control.</summary>
+    public double FoliaPendoloMotionStrength
+    {
+        get => AppSettings.FoliaPendoloMotionStrength;
+        set => AppSettings.FoliaPendoloMotionStrength = (float)value;
+    }
+
     public string FoliaLyricsStatus => new ResourceLoader().GetString("FoliaStatus" + App.FoliaPlayback.Status);
 
     private bool CanRetryFoliaLyrics => App.FoliaPlayback.IsActive && !Services.FoliaPlaybackService.PreviewEnabled && App.FoliaPlayback.Status != "loading";
@@ -102,6 +169,17 @@ public partial class SettingViewModel
 
     private void NotifyFoliaSettings()
     {
+        OnPropertyChanged(nameof(FoliaSonnetBackgroundMg));
+        OnPropertyChanged(nameof(FoliaSonnetFixedGeometry));
+        OnPropertyChanged(nameof(FoliaSonnetDecorations));
+        OnPropertyChanged(nameof(FoliaSonnetGuides));
+        OnPropertyChanged(nameof(FoliaSonnetFrame));
+        OnPropertyChanged(nameof(FoliaSonnetTransitions));
+        OnPropertyChanged(nameof(FoliaSonnetPostProcess));
+        OnPropertyChanged(nameof(FoliaRealtimeMotion));
+        OnPropertyChanged(nameof(FoliaSonnetMotionStrength));
+        OnPropertyChanged(nameof(FoliaDioramaMotionStrength));
+        OnPropertyChanged(nameof(FoliaPendoloMotionStrength));
         OnPropertyChanged(nameof(FoliaLyricMode));
         OnPropertyChanged(nameof(FoliaCoverBackground));
         OnPropertyChanged(nameof(FoliaBackground));

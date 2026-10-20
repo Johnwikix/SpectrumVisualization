@@ -128,7 +128,7 @@ internal sealed partial class FoliaDiorama
                 if (life < .001f)
                     continue;
                 Vector3 color = cluster.Color == 0 ? primary : accent;
-                float pulse = 1 + Energy * .1f;
+                float pulse = _motion.Active ? Math.Min(1.8f, 1 + _motion.Onset * .2f + _motion.Low * .28f) : 1 + Energy * .1f;
                 foreach (ref readonly var point in surface.Points.AsSpan())
                 {
                     if (p.Remaining < 1000)
@@ -136,6 +136,8 @@ internal sealed partial class FoliaDiorama
                     Vector3 local = new(point.X, point.Y * cluster.Stretch, point.Z);
                     // One coherent low-frequency field preserves welded surfaces at every density.
                     float wave = MathF.Sin(point.X * 2.2f + point.Z * 1.4f + (float)time * 1.2f) * MathF.Sin(point.Y * 2.6f - (float)time * .7f) * Energy * .25f;
+                    if (_motion.Active)
+                        wave += RippleDisplacement(point, time);
                     Vector3 normal = Vector3.Normalize(point + new Vector3(.0001f));
                     Vector3 world = cluster.Position + (local + normal * wave * surface.Radius) * cluster.Scale * pulse;
                     if (!Project(world, _camera, rightView, upView, forward, focal, p.Width, p.Height, out Vector2 xy, out float z))
@@ -166,6 +168,8 @@ internal sealed partial class FoliaDiorama
             foreach (ref readonly var glyph in text.Glyphs.AsSpan())
             {
                 Vector3 world = current.Position + textRight * ((glyph.Offset + glyph.Glyph.Advance * .5f - text.Width * .5f) * font);
+                if (_motion.Active && li == index && IsSingingWord(text.Source, glyph.Start, time))
+                    world += textUp * (font * Math.Min(.8f, _motion.Onset * .25f + _motion.Low * .4f));
                 if (!Project(world, _camera, rightView, upView, forward, focal, p.Width, p.Height, out Vector2 xy, out float z))
                     continue;
                 // Canvas middle baseline and full glyph overhang remain in the original 3D plane.
@@ -191,6 +195,14 @@ internal sealed partial class FoliaDiorama
                     opacity * life * (li == index ? reveal : 1), activeGlyph ? .4f : 0);
             }
         }
+    }
+
+    private static bool IsSingingWord(FoliaLine line, double glyphStart, double time)
+    {
+        foreach (var word in line.Words)
+            if (time >= word.Start && time < word.End && glyphStart >= word.Start && glyphStart < word.End)
+                return true;
+        return false;
     }
     private static bool Project(Vector3 world, Vector3 camera, Vector3 right, Vector3 up, Vector3 forward, float focal, float width, float height, out Vector2 point, out float z)
     {

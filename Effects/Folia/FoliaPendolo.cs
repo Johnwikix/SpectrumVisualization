@@ -19,6 +19,8 @@ internal sealed class FoliaPendolo
     private int _secondStep, _index = -1;
     private double _position = double.NaN;
     private const float AngleStep = 100 * MathF.PI / 180 / 8;
+    internal FoliaMotionFrame Motion;
+    internal int GraphicsCount { get; private set; }
 
     internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
     {
@@ -97,10 +99,17 @@ internal sealed class FoliaPendolo
 
     internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, Vector3 primary, Vector3 secondary)
     {
+        int firstGraphic = p.Count;
         float baseRadius = Math.Min(p.Width, p.Height) * .42f, ringRadius = baseRadius / .42f * .48f;
         float cx = p.Width * .5f - ringRadius;
         float cy = p.Height * .5f, gradient = baseRadius * 1.65f;
         p.Shape(15, cx - gradient, cy - gradient, gradient * 2, gradient * 2, new(14 / 255f, 17 / 255f, 24 / 255f), 1);
+        if (Motion.Active)
+        {
+            float radius = baseRadius * (1 + Motion.Onset * .04f);
+            p.Shape(15, cx - radius, cy - radius, radius * 2, radius * 2, secondary, Math.Min(.35f, Motion.Onset * .18f + Motion.Low * .22f));
+        }
+        GraphicsCount = p.Count - firstGraphic;
         if (atlas.Lines.Length == 0)
             return;
         Span<float> angles = stackalloc float[17];
@@ -136,6 +145,9 @@ internal sealed class FoliaPendolo
     {
         float cy = _height * .5f;
         float cx = _width * .5f - Math.Min(_width, _height) * .48f;
+        // The live drumhead response moves the mechanism without changing its gear timing.
+        cx += MathF.Sin(_phase * 19) * Motion.Onset * 2.5f;
+        cy += MathF.Cos(_phase * 23) * Motion.Low * 3;
         float escapement = _tick * AngleStep;
         var motion = new Vector4(escapement, _phase, MathF.Sin(_phase) * (.15f + _bass * .7f), _secondAngle);
         for (int i = 0; i < _parts.Length; i++)

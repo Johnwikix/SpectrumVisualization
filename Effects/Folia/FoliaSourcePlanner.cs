@@ -16,6 +16,12 @@ internal static class FoliaSourcePlanner
     // Jint's prepared scripts are immutable and shareable; each plan still uses an isolated
     // engine, so song data and planner globals cannot leak into a later song.
     private static readonly Lazy<Prepared<Acornima.Ast.Script>> Source = new(() => Engine.PrepareScript(LoadSource()));
+    private static readonly Lazy<Prepared<Acornima.Ast.Script>> SonnetSource = new(() =>
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Spectrum.Folia.sonnet-graphics.js")!;
+        using var reader = new StreamReader(stream);
+        return Engine.PrepareScript(reader.ReadToEnd());
+    });
     private const int ResultLimit = 8 * 1024 * 1024, EntryLimit = 16;
     private static readonly object CacheGate = new();
     private static readonly Dictionary<(string Function, string Input), string> Results = new();
@@ -148,8 +154,10 @@ internal static class FoliaSourcePlanner
         // Keep the captured options delegate out of the cache-hit path.
         var engine = new Engine(options => options.CancellationToken(token));
         engine.Execute(Source.Value);
+        if (function == "compileSonnet")
+            engine.Execute(SonnetSource.Value);
         engine.SetValue("nativeInput", json);
-        return engine.Evaluate("FoliaNativeSource." + function + "(nativeInput)").AsString();
+        return engine.Evaluate((function == "compileSonnet" ? "FoliaSonnetGraphics.compile" : "FoliaNativeSource." + function) + "(nativeInput)").AsString();
     }
     private static string LoadSource()
     {

@@ -22131,7 +22131,15 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				end: shot.endTime,
 				camera: shot.camera,
 				texts,
-				frames
+				frames,
+				seed: hashVisualizerSeed(`${program.seed}:${paragraph.id}`) + paragraph.shots.indexOf(shot) * 97,
+				ordinal: paragraph.shots.indexOf(shot),
+				cues: shot.cues.map(c => c.at),
+				paragraph: program.paragraphs.indexOf(paragraph),
+				paragraphStart: paragraph.startTime,
+				transitionOut: paragraph.transitionOut,
+				transitionIn: program.paragraphs[program.paragraphs.indexOf(paragraph) - 1]?.transitionOut ?? null,
+				transitionSeed: hashVisualizerSeed(`${program.seed}:${paragraph.id}:transition-frame`)
 			});
 		}
 		return JSON.stringify(shots);
@@ -22139,6 +22147,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 exports.compile = compile;
+// Reuses the already-vendored Earcut implementation at the native geometry preparation boundary.
+exports.triangulateSonnet = earcut;
 exports.compileCadenza = compileCadenza;
 exports.compileDiorama = compileDiorama;
 exports.compileFume = compileFume;

@@ -2,6 +2,13 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-20 商籁几何、转场与实时动感
+
+- `FoliaSonnet`、`FoliaSonnetGraphics`、`External/Folia/sonnet-graphics.js`：接入原版 100 种主几何、8 种 HUD、8 种固定几何和 6 种漂浮装饰布局，保留逐笔展开、固定层反向旋转、装饰视差与入场；后台准备原生路径，逐帧复用。
+- `FoliaGpuEffect.Sonnet`、`Sonnet.hlsl`：商籁使用独立透明场景进行镜头与段落转场，窗口画框与底部译文独立叠加；新增文字引导线和可选胶片／镜头后处理。
+- `FoliaRealtimeMotion`、`FoliaDiorama`、`FoliaPendolo`：使用现有频谱瞬态驱动商籁推镜裂光、镜台涟漪与当前词跳动、时计震动与亮起；暂停、跳转和场景切换清空瞬态状态，不引入整曲模型分析。
+- `AppSettings`、`SaveSetting`、`DataJsonService`、`SettingViewModel.Folia`、设置页与双语资源：增加商籁分层／转场开关、后处理开关、实时动感总开关和三个模式的独立强度；实时动感和后处理默认关闭，缺失字段沿用该默认值。
+
 ## 2026-10-18 全屏边缘缝隙修复
 
 - `MainWindow.xaml.cs`：进入全屏时清零可视化容器外边距并关闭标题栏扩展，退出时恢复原布局，消除四周留白与顶部保留区。

@@ -260,6 +260,11 @@ ClockOutput ClockworkVS(uint id:SV_VertexID) {
     ClockVertex v=ClockVertices[id];
     float4 t=ClockParts[(uint)(v.part+.5)];
     float2 xy=float2(v.position.x*t.z-v.position.y*t.w,v.position.x*t.w+v.position.y*t.z)+t.xy;
-    ClockOutput o;o.position=float4(xy/ClockViewport.xy*float2(2,-2)+float2(-1,1)+Jitter.xy/Screen.xy*float2(2,-2),0,1);o.color=v.color;return o;
+    ClockOutput o;o.position=float4(xy/ClockViewport.xy*float2(2,-2)+float2(-1,1)+Jitter.xy/Screen.xy*float2(2,-2),0,1);
+    o.color=v.color;
+    // Jewel faces and dial strokes share the existing mesh; light them from live transients.
+    float jewel=saturate(max(v.color.r,max(v.color.g,v.color.b))*2);
+    o.color.rgb*=1+(RealtimeMotion.x*.8+RealtimeMotion.y*1.4)*jewel;
+    return o;
 }
 float4 ClockworkPS(ClockOutput input):SV_Target { return float4(input.color.rgb*input.color.a,input.color.a); }

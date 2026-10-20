@@ -27,6 +27,17 @@ namespace WinExSpectrumTest.Service
         {
             AppSettings.LyricsCacheEnabled = settings.LyricsCacheEnabled;
             AppSettings.LyricsCacheFolder = settings.LyricsCacheFolder;
+            AppSettings.FoliaSonnetBackgroundMg = settings.FoliaSonnetBackgroundMg;
+            AppSettings.FoliaSonnetFixedGeometry = settings.FoliaSonnetFixedGeometry;
+            AppSettings.FoliaSonnetDecorations = settings.FoliaSonnetDecorations;
+            AppSettings.FoliaSonnetGuides = settings.FoliaSonnetGuides;
+            AppSettings.FoliaSonnetFrame = settings.FoliaSonnetFrame;
+            AppSettings.FoliaSonnetTransitions = settings.FoliaSonnetTransitions;
+            AppSettings.FoliaSonnetPostProcess = settings.FoliaSonnetPostProcess;
+            AppSettings.FoliaRealtimeMotion = settings.FoliaRealtimeMotion;
+            AppSettings.FoliaSonnetMotionStrength = settings.FoliaSonnetMotionStrength;
+            AppSettings.FoliaDioramaMotionStrength = settings.FoliaDioramaMotionStrength;
+            AppSettings.FoliaPendoloMotionStrength = settings.FoliaPendoloMotionStrength;
             AppSettings.FoliaLyricMode = settings.FoliaLyricMode;
             AppSettings.FoliaCoverBackground = settings.FoliaCoverBackground;
             AppSettings.FoliaBackground = settings.FoliaBackground;
@@ -85,6 +96,17 @@ namespace WinExSpectrumTest.Service
             {
                 LyricsCacheEnabled = AppSettings.LyricsCacheEnabled,
                 LyricsCacheFolder = AppSettings.LyricsCacheFolder,
+                FoliaSonnetBackgroundMg = AppSettings.FoliaSonnetBackgroundMg,
+                FoliaSonnetFixedGeometry = AppSettings.FoliaSonnetFixedGeometry,
+                FoliaSonnetDecorations = AppSettings.FoliaSonnetDecorations,
+                FoliaSonnetGuides = AppSettings.FoliaSonnetGuides,
+                FoliaSonnetFrame = AppSettings.FoliaSonnetFrame,
+                FoliaSonnetTransitions = AppSettings.FoliaSonnetTransitions,
+                FoliaSonnetPostProcess = AppSettings.FoliaSonnetPostProcess,
+                FoliaRealtimeMotion = AppSettings.FoliaRealtimeMotion,
+                FoliaSonnetMotionStrength = AppSettings.FoliaSonnetMotionStrength,
+                FoliaDioramaMotionStrength = AppSettings.FoliaDioramaMotionStrength,
+                FoliaPendoloMotionStrength = AppSettings.FoliaPendoloMotionStrength,
                 FoliaLyricMode = AppSettings.FoliaLyricMode,
                 FoliaCoverBackground = AppSettings.FoliaCoverBackground,
                 FoliaBackground = AppSettings.FoliaBackground,

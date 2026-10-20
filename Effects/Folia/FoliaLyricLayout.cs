@@ -48,7 +48,7 @@ internal static partial class FoliaLyricLayout
                 pendolo.Write(ref painter, atlas, index, time, primary, secondary);
                 break;
             case 10:
-                sonnet.Write(ref painter, time, primary, accent);
+                sonnet.Write(ref painter, time, primary, secondary, accent);
                 break;
             case 11:
                 tempera.Write(ref painter, atlas, index, time, fontScale);
@@ -60,8 +60,11 @@ internal static partial class FoliaLyricLayout
                 Classic(ref painter, atlas.Lines[index], time, animationTime, fontScale, primary, accent, glowWords);
                 break;
         }
+        int firstSubtitle = painter.Count;
         if (mode is not (3 or 4 or 7 or 9))
             Subtitle(ref painter, atlas.Lines[index], primary, secondary);
+        if (mode == 10)
+            sonnet.SubtitleCount = painter.Count - firstSubtitle;
         return painter.Count;
     }
 

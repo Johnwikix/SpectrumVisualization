@@ -17,6 +17,8 @@
   <ItemGroup>
     <PackageReference Include="Jint" Version="4.17.0" />
     <EmbeddedResource Include="External\Folia\native-layout.js" LogicalName="Spectrum.Folia.native-layout.js" />
+    <EmbeddedResource Include="External\Folia\sonnet-graphics.js" LogicalName="Spectrum.Folia.sonnet-graphics.js" />
+    <Compile Remove=".tools\**\*.cs" />
     <Compile Remove="doc\verification\**\*.cs;Build\**\*.cs" />
     <Compile Remove="External\Lyricify.Lyrics.Helper\**\*.cs" />
     <Page Remove="doc\verification\**\*.xaml" />

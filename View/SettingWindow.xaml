@@ -478,6 +478,39 @@
                         <controls:SettingsCard x:Uid="FoliaCoverBackground" Margin="10,0,10,0">
                             <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" VerticalAlignment="Center" />
                         </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetBackgroundMg" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetBackgroundMg, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetFixedGeometry" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetFixedGeometry, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetDecorations" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetDecorations, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetGuides" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetGuides, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetFrame" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetFrame, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetTransitions" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetTransitions, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetPostProcess" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetPostProcess, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaRealtimeMotion" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaRealtimeMotion, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaSonnetMotionStrength" Margin="10,0,10,0">
+                            <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaDioramaMotionStrength" Margin="10,0,10,0">
+                            <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaPendoloMotionStrength" Margin="10,0,10,0">
+                            <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontScale" Margin="10,0,10,0">
                             <NumberBox Width="130" Minimum="50" Maximum="200" SmallChange="5" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
                         </controls:SettingsCard>

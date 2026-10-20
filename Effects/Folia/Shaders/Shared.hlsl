@@ -25,6 +25,8 @@ cbuffer Frame : register(b0) {
     float4 LatentDistortion;
     float4 PostProcess;
     float4 PreviousJitter;
+    float4 RealtimeMotion;
+    float4 SonnetOptions;
 };
 void Fullscreen(uint id : SV_VertexID, out float4 p : SV_Position, out float2 uv : TEXCOORD0) {
     float2 xy = float2((id << 1) & 2, id & 2);

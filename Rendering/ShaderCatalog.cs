@@ -21,7 +21,7 @@ internal static class ShaderCatalog
         Pair(FoliaShaderLibrary.Background("Stage"), "Fullscreen", "PS", "CopyPS", "TemporalPS", "VignettePS", "LatentCompositePS");
         Pair(FoliaShaderLibrary.Background("Stage"), "SpriteVS", "SpritePS");
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
-        foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print" })
+        foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print", "Sonnet" })
             Pair(FoliaShaderLibrary.Background(name), "Fullscreen", "PS");
         Pair(FoliaShaderLibrary.Background("Sora"), "VS", "PS");
         Pair(FoliaShaderLibrary.Load("Bloom"), "VS", "Down", "Up", "Combine");

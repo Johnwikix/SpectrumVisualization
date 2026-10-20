@@ -24,7 +24,7 @@ internal static class FoliaShaderLibrary
     {
         string shared = Load("Shared"), source = Load(name);
         // Latent's two source canvases stay unjittered; their final scaled composite samples once.
-        if (name is "Stage" or "Sora" or "Print" or "mesh-gradient" or "dithering") return shared + "\n" + source;
+        if (name is "Stage" or "Sora" or "Print" or "Sonnet" or "mesh-gradient" or "dithering") return shared + "\n" + source;
         // Backgrounds evaluate at the same subpixel location as geometry. Post effects must
         // preserve those samples, rather than shifting an already rasterized picture again.
         return shared + "\n#define PS UnjitteredPS\n" + source

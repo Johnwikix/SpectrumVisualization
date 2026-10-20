@@ -58,6 +58,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12PipelineState _vignette = null!;
     private ID3D12PipelineState _sora = null!;
     private ID3D12PipelineState _print = null!;
+    private ID3D12PipelineState _sonnetComposite = null!;
+    private readonly FoliaRealtimeMotion _realtimeMotion = new();
     private string _lastMode = "", _lastBackground = "", _lastImageEffect = "";
     private bool _lastCoverBackground;
     private double _lastPosition;
@@ -138,6 +140,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _lightField = Pipeline("Lumiere", "Fullscreen", "PS");
         _vignette = Pipeline("Stage", "Fullscreen", "VignettePS", sprites: true);
         _print = Pipeline("Print", "Fullscreen", "PS");
+        _sonnetComposite = Pipeline("Sonnet", "Fullscreen", "PS", sprites: true);
         _sora = Pipeline("Sora", "VS", "PS", sprites: true);
         _latentComposite = Pipeline("Stage", "Fullscreen", "LatentCompositePS");
         _clockwork = Pipeline("Stage", "ClockworkVS", "ClockworkPS", sprites: true);
@@ -167,7 +170,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             BlendState = screen ? new BlendDescription(Blend.One, Blend.InverseSourceColor, Blend.One, Blend.InverseSourceAlpha) : sprites ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = temporal, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Always, StencilEnable = false }
-        }, $"Folia/root-v3-glyph-array/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
+        }, $"Folia/root-v4-sonnet-motion/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
     }
 
     public void ConfigureTemporal(bool enabled)
@@ -235,12 +238,19 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         double position = clock.Now;
         bool modeChanged = _lastMode != mode;
         bool backgroundChanged = _lastBackground != backgroundMode;
+        bool motionReset = songChanged || modeChanged || Math.Abs(position - _lastPosition) > .5 || elapsedSeconds > .25;
+        var motion = _realtimeMotion.Update(_analyzer.LatestFeatures, elapsedSeconds,
+            AppSettings.FoliaRealtimeMotion && mode is "sonnet" or "diorama" or "pendolo", clock.Playing, motionReset);
+        _sonnet.Motion = mode == "sonnet" ? motion.Scale(AppSettings.FoliaSonnetMotionStrength) : default;
+        _diorama.SetMotion(mode == "diorama" ? motion.Scale(AppSettings.FoliaDioramaMotionStrength) : default, position, motionReset);
+        _pendolo.Motion = mode == "pendolo" ? motion.Scale(AppSettings.FoliaPendoloMotionStrength) : default;
         _lastMode = mode;
         _lastBackground = backgroundMode;
         _lastImageEffect = AppSettings.FoliaImageEffect;
         _lastCoverBackground = AppSettings.FoliaCoverBackground;
         _lastPosition = position;
         float energy = Math.Clamp(_analyzer.LatestFeatures[FeatureIndex.Energy], 0, 1);
+        _sonnet.SetAudio(_analyzer.LatestFeatures, elapsedSeconds, clock.Playing && mode == "sonnet");
         double delta = Math.Clamp(elapsedSeconds, 0, .1);
         if (backgroundChanged)
         {
@@ -329,8 +339,17 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _monet.FrameDelta = (float)elapsedSeconds;
         _glowWords.Begin(lineIndex, (int)_data[2].Y, position);
         _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet) : 0;
-        _data[26] = new(_tempera.PostSeed, 0, 0, 0);
-        _stageGraphicsCount = (int)_data[2].Y == 11 ? _tempera.GraphicsCount : (int)_data[2].Y == 9 && _atlas.Lines.Length > 0 ? 1 : 0;
+        if (mode == "sonnet")
+        {
+            var overlay = new FoliaPainter(instances[(_backgroundCount + _count)..], layoutWidth, layoutHeight);
+            _sonnet.WriteOverlay(ref overlay, song.Palette[1]);
+            _count += overlay.Count;
+        }
+        _data[26] = mode == "sonnet" ? _sonnet.PostProcess : new(_tempera.PostSeed, 0, 0, 0);
+        _data[28] = mode == "pendolo" ? new(_pendolo.Motion.Onset, _pendolo.Motion.Low, 0, 0) : Vector4.Zero;
+        _data[29] = new(AppSettings.FoliaSonnetPostProcess ? 1 : 0, 0, 0, 0);
+        _stageGraphicsCount = mode switch { "tempera" => _tempera.GraphicsCount, "sonnet" => _sonnet.GraphicsCount,
+            "pendolo" when _atlas.Lines.Length > 0 => _pendolo.GraphicsCount, _ => 0 };
         _data[8] = new(FoliaTempera.Ink, 1);
         _data[9] = new(FoliaTempera.Paper, 1);
         instances[..(_backgroundCount + _count)].CopyTo(new Span<FoliaInstance>(_mapped, Capacity));
@@ -383,6 +402,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         }
         if ((int)_data[2].Y == 12)
             RenderLumiere(commands);
+        else if ((int)_data[2].Y == 10)
+            RenderSonnet(commands);
         else
         {
             if (_stageGraphicsCount > 0)
@@ -552,6 +573,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         GpuGraphics.DisposeResource(_vignette);
         GpuGraphics.DisposeResource(_sora);
         GpuGraphics.DisposeResource(_print);
+        GpuGraphics.DisposeResource(_sonnetComposite);
         GpuGraphics.DisposeResource(_latentTarget);
         GpuGraphics.DisposeResource(_latentComposite);
         GpuGraphics.DisposeResource(_clockwork);
