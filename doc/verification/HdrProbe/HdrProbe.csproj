@@ -32,6 +32,8 @@
     <Compile Include="../../../Rendering/SmaaPass.cs;../../../Rendering/TemporalReconstruction.cs" LinkBase="Rendering" />
     <EmbeddedResource Include="../../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
     <Compile Include="../../../Model/AppSettings.cs;../../../Model/SaveSetting.cs;../../../Manager/SettingsJsonContext.cs;../../../Manager/SettingManager.cs" LinkBase="Settings" />
+    <!-- SettingsJsonContext serializes Services.Lyrics preference and cache types; keep the probe self-contained. -->
+    <Compile Include="../../../Services/Lyrics/LyricsContent.cs" LinkBase="Lyrics" />
     <PackageReference Include="ComputeSharp" Version="3.2.0" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.6.2" />
     <PackageReference Include="Vortice.Direct3D12" Version="3.6.2" />

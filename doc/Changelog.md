@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-21 HDR 白点上限与设置控件宽度统一
+
+- `View/SettingWindow.xaml`、`Model/AppSettings.cs`：HDR 白点亮度上限由 500 提高到 1000 nit（滑杆与运行时钳制同步调整，存量配置 ≤500 不受影响）；白点与峰值的联动规则不变。
+- `View/SettingWindow.xaml`：全部设置页的 ComboBox / TextBox / NumberBox 宽度统一为 220（原 160/180/230/280/130 混用），仅影响布局。
+- `doc/verification/HdrProbe/Program.cs`：补 1000 nit 钳制断言；`HdrProbe.csproj` 补入 `Services/Lyrics/LyricsContent.cs`（`SettingsJsonContext` 引用的类型此前缺失，探针独立构建已修复）；`README.md`：白点范围同步为 80–1000 nit。
+
+## 2026-10-21 设置页子标题分区
+
+- `View/SettingWindow.xaml`：辞曲新境页参照关于页样式拆分为"舞台 / 歌词模式专属设置 / 动态背景专属设置 / 歌词字体 / 歌词来源"五个 TextBlock 子标题分区；烟岚、凝彩、绘光、商籁、镜台、时计及实时动感归入歌词模式分区，潜流 / 图像背景归入动态背景分区，绑定与持久化不变。
+- `View/SettingWindow.xaml`：通用页新增"效果 / 画质与渲染 / 音频 / 外观 / 高级"子标题（调试覆盖层与重置归入高级分组），极光之环页新增"旋转与封面 / 频谱 / 文字"，音域回响页新增"主题与地形"。
+- `Strings/zh-CN`、`Strings/en-us`：同步新增 14 个子标题资源键，两份资源已静态核对匹配。
+
 ## 2026-10-20 倾斜与商籁首次进入提速
 
 - `FoliaTilt`、`FoliaTextAtlas`、`FoliaScenePreparation`：先按正常字体度量规划倾斜片段，仅准备实际绘制的斜体字形；窗口、缩放、字体及歌词变化时重新检查并补齐，沿用既有字形租约和 GPU 批次预算。

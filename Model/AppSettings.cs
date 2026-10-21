@@ -138,7 +138,7 @@ namespace WinExSpectrumTest.Model
             get => _hdrWhiteNits;
             set
             {
-                float white = float.IsFinite(value) ? Math.Clamp(value, 80f, 500f) : 200f;
+                float white = float.IsFinite(value) ? Math.Clamp(value, 80f, 1000f) : 200f;
                 // Publish a valid pair even to synchronous Changed subscribers.
                 bool peakChanged = _hdrPeakNits < white;
                 if (peakChanged) _hdrPeakNits = white;

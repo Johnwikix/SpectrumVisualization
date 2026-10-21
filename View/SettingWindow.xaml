@@ -6,8 +6,8 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinExSpectrumTest.View"
-    xmlns:model="using:WinExSpectrumTest.Model"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:model="using:WinExSpectrumTest.Model"
     xmlns:ui="using:CommunityToolkit.WinUI"
     xmlns:vm="using:WinExSpectrumTest.ViewModel"
     xmlns:winex="using:WinUIEx"
@@ -25,7 +25,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock
                     x:Uid="Settings.Text"
-                    Margin="32,28,16,8"
+                    Margin="4,28,16,8"
                     VerticalAlignment="Center"
                     FontSize="28" />
                 <!--  music_player 同款分类选择：SelectorBar + SwitchPresenter  -->
@@ -46,7 +46,10 @@
                         x:Uid="SettingsSectionSonic"
                         FontSize="16"
                         Tag="Sonic" />
-                    <SelectorBarItem x:Uid="SettingsSectionFolia" FontSize="16" Tag="Folia" />
+                    <SelectorBarItem
+                        x:Uid="SettingsSectionFolia"
+                        FontSize="16"
+                        Tag="Folia" />
                     <SelectorBarItem
                         x:Uid="SettingsSectionAbout"
                         FontSize="16"
@@ -70,11 +73,15 @@
                             <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
                             <RepositionThemeTransition IsStaggeringEnabled="False" />
                         </StackPanel.ChildrenTransitions>
+                        <TextBlock
+                            x:Uid="GeneralEffectSection"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
                         <controls:SettingsExpander x:Uid="EffectPage" Margin="10,0,10,0">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="EffectPageSelect">
                                     <ComboBox
-                                        MinWidth="160"
+                                        Width="220"
                                         SelectedValue="{x:Bind ViewModel.VisualEffect, Mode=TwoWay}"
                                         SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="AuroraEffectOption" Tag="aurora-ring" />
@@ -84,43 +91,102 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="HdrSettings" Margin="10,0,10,0" IsExpanded="True">
-                            <ToggleSwitch x:Uid="HdrToggle" AutomationProperties.AutomationId="HdrEnabled"
-                                VerticalAlignment="Center" IsOn="{x:Bind ViewModel.HdrEnabled, Mode=TwoWay}" />
+                        <TextBlock
+                            x:Uid="GeneralQualitySection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsExpander
+                            x:Uid="HdrSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="True">
+                            <ToggleSwitch
+                                x:Uid="HdrToggle"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="HdrEnabled"
+                                IsOn="{x:Bind ViewModel.HdrEnabled, Mode=TwoWay}" />
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="HdrOutputStatus">
-                                    <TextBlock Text="{x:Bind ViewModel.HdrStatusText, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="380" />
+                                    <TextBlock
+                                        MaxWidth="380"
+                                        Text="{x:Bind ViewModel.HdrStatusText, Mode=OneWay}"
+                                        TextWrapping="Wrap" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="HdrWhite" IsEnabled="{x:Bind ViewModel.HdrEnabled, Mode=OneWay}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                        <Slider x:Uid="HdrWhiteSlider" AutomationProperties.AutomationId="HdrWhiteNits" Width="220" Minimum="80" Maximum="500"
-                                            StepFrequency="10" Value="{x:Bind ViewModel.HdrWhiteNits, Mode=TwoWay}" />
-                                        <TextBlock Width="72" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrWhiteLabel, Mode=OneWay}" />
+                                    <StackPanel
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal"
+                                        Spacing="12">
+                                        <Slider
+                                            x:Uid="HdrWhiteSlider"
+                                            Width="220"
+                                            AutomationProperties.AutomationId="HdrWhiteNits"
+                                            Maximum="1000"
+                                            Minimum="80"
+                                            StepFrequency="10"
+                                            Value="{x:Bind ViewModel.HdrWhiteNits, Mode=TwoWay}" />
+                                        <TextBlock
+                                            Width="72"
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind ViewModel.HdrWhiteLabel, Mode=OneWay}" />
                                     </StackPanel>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="HdrPeak" IsEnabled="{x:Bind ViewModel.HdrEnabled, Mode=OneWay}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                        <Slider x:Uid="HdrPeakSlider" AutomationProperties.AutomationId="HdrPeakNits" Width="220" Minimum="80" Maximum="4000"
-                                            StepFrequency="10" Value="{x:Bind ViewModel.HdrPeakNits, Mode=TwoWay}" />
-                                        <TextBlock Width="72" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrPeakLabel, Mode=OneWay}" />
+                                    <StackPanel
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal"
+                                        Spacing="12">
+                                        <Slider
+                                            x:Uid="HdrPeakSlider"
+                                            Width="220"
+                                            AutomationProperties.AutomationId="HdrPeakNits"
+                                            Maximum="4000"
+                                            Minimum="80"
+                                            StepFrequency="10"
+                                            Value="{x:Bind ViewModel.HdrPeakNits, Mode=TwoWay}" />
+                                        <TextBlock
+                                            Width="72"
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind ViewModel.HdrPeakLabel, Mode=OneWay}" />
                                     </StackPanel>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <TextBlock x:Uid="GpuSettingsScope" Margin="10,16,10,8" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock
+                            x:Uid="GpuSettingsScope"
+                            Margin="10,16,10,8"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
                         <controls:SettingsCard x:Uid="GpuAntiAliasing" Margin="10,0,10,0">
-                            <ComboBox x:Uid="GpuAntiAliasingCombo" AutomationProperties.AutomationId="GpuAntiAliasing" MinWidth="160"
+                            <ComboBox
+                                x:Uid="GpuAntiAliasingCombo"
+                                Width="220"
+                                AutomationProperties.AutomationId="GpuAntiAliasing"
                                 SelectedIndex="{x:Bind ViewModel.GpuAntiAliasingIndex, Mode=TwoWay}">
                                 <ComboBoxItem x:Uid="GpuAntiAliasingOff" Tag="off" />
                                 <ComboBoxItem Content="FXAA" Tag="fxaa" />
                                 <ComboBoxItem Content="SMAA 1x" Tag="smaa" />
-                                <ComboBoxItem Content="XeSS" Tag="xess" IsEnabled="{x:Bind ViewModel.GpuXeSSAvailable, Mode=OneWay}" />
-                                <ComboBoxItem Content="FSR 3.1" Tag="fsr" IsEnabled="{x:Bind ViewModel.GpuFsrAvailable, Mode=OneWay}" />
-                                <ComboBoxItem Content="DLSS" Tag="dlss" IsEnabled="{x:Bind ViewModel.GpuDlssAvailable, Mode=OneWay}" />
+                                <ComboBoxItem
+                                    Content="XeSS"
+                                    IsEnabled="{x:Bind ViewModel.GpuXeSSAvailable, Mode=OneWay}"
+                                    Tag="xess" />
+                                <ComboBoxItem
+                                    Content="FSR 3.1"
+                                    IsEnabled="{x:Bind ViewModel.GpuFsrAvailable, Mode=OneWay}"
+                                    Tag="fsr" />
+                                <ComboBoxItem
+                                    Content="DLSS"
+                                    IsEnabled="{x:Bind ViewModel.GpuDlssAvailable, Mode=OneWay}"
+                                    Tag="dlss" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="GpuDlssPreset" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.GpuDlssSelected, Mode=OneWay}">
-                            <ComboBox x:Uid="GpuDlssPresetCombo" AutomationProperties.AutomationId="GpuDlssPreset" MinWidth="160"
+                        <controls:SettingsCard
+                            x:Uid="GpuDlssPreset"
+                            Margin="10,0,10,0"
+                            IsEnabled="{x:Bind ViewModel.GpuDlssSelected, Mode=OneWay}">
+                            <ComboBox
+                                x:Uid="GpuDlssPresetCombo"
+                                Width="220"
+                                AutomationProperties.AutomationId="GpuDlssPreset"
                                 SelectedIndex="{x:Bind ViewModel.GpuDlssPresetIndex, Mode=TwoWay}">
                                 <ComboBoxItem Content="J" />
                                 <ComboBoxItem Content="K" />
@@ -129,34 +195,64 @@
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="GpuRenderScale" Margin="10,0,10,0">
-                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                <Slider x:Uid="GpuRenderScaleSlider" AutomationProperties.AutomationId="GpuRenderScale"
-                                    Width="220" Minimum="1" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
+                            <StackPanel
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <Slider
+                                    x:Uid="GpuRenderScaleSlider"
+                                    Width="220"
+                                    AutomationProperties.AutomationId="GpuRenderScale"
+                                    LargeChange="10"
+                                    Maximum="100"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    StepFrequency="1"
                                     Value="{x:Bind ViewModel.GpuRenderScale, Mode=TwoWay}" />
-                                <TextBlock Width="48" VerticalAlignment="Center" Text="{x:Bind ViewModel.GpuRenderScaleLabel, Mode=OneWay}" />
+                                <TextBlock
+                                    Width="48"
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind ViewModel.GpuRenderScaleLabel, Mode=OneWay}" />
                             </StackPanel>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="GpuReconstructionStatus" Margin="10,0,10,0">
-                            <TextBlock Text="{x:Bind ViewModel.GpuReconstructionStatus, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="380" />
+                            <TextBlock
+                                MaxWidth="380"
+                                Text="{x:Bind ViewModel.GpuReconstructionStatus, Mode=OneWay}"
+                                TextWrapping="Wrap" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="RefreshRate" Margin="10,0,10,0">
-                            <ComboBox x:Uid="RefreshRateCombo" AutomationProperties.AutomationId="RefreshRate"
-                                MinWidth="160" ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
+                            <ComboBox
+                                x:Uid="RefreshRateCombo"
+                                Width="220"
+                                AutomationProperties.AutomationId="RefreshRate"
+                                ItemsSource="{x:Bind ViewModel.RefreshRateChoices, Mode=OneWay}"
                                 SelectedIndex="{x:Bind ViewModel.RefreshRateIndex, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="ShaderManagement" Margin="10,0,10,0">
-                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsRebuildingShaders, Mode=OneWay}" />
-                                <Button x:Uid="ShaderCacheRebuildButton" AutomationProperties.AutomationId="RebuildShaderCache"
+                            <StackPanel
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <ProgressRing
+                                    Width="20"
+                                    Height="20"
+                                    IsActive="{x:Bind ViewModel.IsRebuildingShaders, Mode=OneWay}" />
+                                <Button
+                                    x:Uid="ShaderCacheRebuildButton"
+                                    AutomationProperties.AutomationId="RebuildShaderCache"
                                     Command="{x:Bind ViewModel.RebuildShadersCommand}" />
                             </StackPanel>
                         </controls:SettingsCard>
-                        <TextBlock Margin="10,0,10,6" Text="{x:Bind ViewModel.ShaderCacheStatus, Mode=OneWay}" TextWrapping="Wrap"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <controls:SettingsCard x:Uid="ShowDebugOverlay" Margin="10,0,10,0">
-                            <ToggleSwitch x:Uid="ShowDebugOverlaySwitch" VerticalAlignment="Center"
-                                IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />
-                        </controls:SettingsCard>
+                        <TextBlock
+                            Margin="10,0,10,6"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.ShaderCacheStatus, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="GeneralAudioSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="LoopBackSampleRate" Margin="10,0,10,0">
                             <TextBlock Text="{x:Bind ViewModel.SampleRate, Mode=OneWay}" />
                         </controls:SettingsCard>
@@ -169,6 +265,10 @@
                                 TickPlacement="Outside"
                                 Value="{x:Bind ViewModel.BarCount, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <TextBlock
+                            x:Uid="GeneralAppearanceSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsExpander x:Uid="MainWindowMaterial" Margin="10,0,10,0">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard ContentAlignment="Left">
@@ -246,6 +346,16 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <TextBlock
+                            x:Uid="GeneralAdvancedSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsCard x:Uid="ShowDebugOverlay" Margin="10,0,10,0">
+                            <ToggleSwitch
+                                x:Uid="ShowDebugOverlaySwitch"
+                                VerticalAlignment="Center"
+                                IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="ResetSettings" Margin="10,0,10,0">
                             <Button
                                 x:Uid="ResetSettingsButton"
@@ -264,6 +374,10 @@
                             <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
                             <RepositionThemeTransition IsStaggeringEnabled="False" />
                         </StackPanel.ChildrenTransitions>
+                        <TextBlock
+                            x:Uid="AuroraRotationSection"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="RotationSpeed" Margin="10,0,10,0">
                             <Slider
                                 Maximum="100"
@@ -279,6 +393,10 @@
                                 Minimum="0"
                                 Value="{x:Bind ViewModel.CoverOpacity, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <TextBlock
+                            x:Uid="AuroraSpectrumSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="SpectrumBarOpacity" Margin="10,0,10,0">
                             <Slider
                                 Maximum="100"
@@ -313,6 +431,10 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <TextBlock
+                            x:Uid="AuroraTextSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="TextOpacity" Margin="10,0,10,0">
                             <Slider
                                 Maximum="100"
@@ -330,7 +452,7 @@
                             Description="歌曲标题与艺术家切换时使用，保留文字阴影"
                             Header="SMTC 文字切换动画">
                             <ComboBox
-                                MinWidth="160"
+                                Width="220"
                                 AutomationProperties.Name="SMTC 文字切换动画"
                                 SelectedValue="{x:Bind ViewModel.SmtcTextAnimation, Mode=TwoWay}"
                                 SelectedValuePath="Tag">
@@ -357,9 +479,13 @@
                             <EntranceThemeTransition FromVerticalOffset="100" IsStaggeringEnabled="True" />
                             <RepositionThemeTransition IsStaggeringEnabled="False" />
                         </StackPanel.ChildrenTransitions>
+                        <TextBlock
+                            x:Uid="SonicTerrainSection"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="SonicTheme" Margin="10,0,10,0">
                             <ComboBox
-                                MinWidth="160"
+                                Width="220"
                                 SelectedValue="{x:Bind ViewModel.SonicTheme, Mode=TwoWay}"
                                 SelectedValuePath="Tag">
                                 <ComboBoxItem Content="霁紫" Tag="nocturnal" />
@@ -393,7 +519,7 @@
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SonicGridSize" Margin="10,0,10,0">
                             <ComboBox
-                                MinWidth="160"
+                                Width="220"
                                 SelectedValue="{x:Bind ViewModel.SonicGridSize, Mode=TwoWay}"
                                 SelectedValuePath="Tag">
                                 <ComboBoxItem Content="80 × 80" Tag="80" />
@@ -439,9 +565,21 @@
             <controls:Case Value="Folia">
                 <ScrollView>
                     <StackPanel Margin="32,0,32,24" Spacing="4">
-                        <TextBlock x:Uid="FoliaIntroduction" Margin="10,8,10,16" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <controls:SettingsCard x:Uid="FoliaLyricsMode" Margin="10,0,10,0" >
-                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaLyricMode" SelectedValue="{x:Bind ViewModel.FoliaLyricMode, Mode=TwoWay}" SelectedValuePath="Tag">
+                        <TextBlock
+                            x:Uid="FoliaIntroduction"
+                            Margin="10,8,10,16"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="FoliaStageSection"
+                            Margin="10,10,0,10"
+                            FontSize="16" />
+                        <controls:SettingsCard x:Uid="FoliaLyricsMode" Margin="10,0,10,0">
+                            <ComboBox
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaLyricMode"
+                                SelectedValue="{x:Bind ViewModel.FoliaLyricMode, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
                                 <ComboBoxItem x:Uid="FoliaOption_classic" Tag="classic" />
                                 <ComboBoxItem x:Uid="FoliaOption_cadenza" Tag="cadenza" />
                                 <ComboBoxItem x:Uid="FoliaOption_partita" Tag="partita" />
@@ -457,8 +595,12 @@
                                 <ComboBoxItem x:Uid="FoliaOption_lumiere" Tag="lumiere" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0" >
-                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaBackground" SelectedValue="{x:Bind ViewModel.FoliaBackground, Mode=TwoWay}" SelectedValuePath="Tag">
+                        <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0">
+                            <ComboBox
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaBackground"
+                                SelectedValue="{x:Bind ViewModel.FoliaBackground, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
                                 <ComboBoxItem x:Uid="FoliaOption_common" Tag="common" />
                                 <ComboBoxItem x:Uid="FoliaOption_latent" Tag="latent" />
                                 <ComboBoxItem x:Uid="FoliaOption_monet" Tag="monet" />
@@ -466,8 +608,15 @@
                                 <ComboBoxItem x:Uid="FoliaOption_sora" Tag="sora" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="FoliaImageMode" Margin="10,0,10,0" IsEnabled="{x:Bind ViewModel.IsFoliaImageBackground, Mode=OneWay}">
-                            <ComboBox MinWidth="230" AutomationProperties.AutomationId="FoliaImageEffect" SelectedValue="{x:Bind ViewModel.FoliaImageEffect, Mode=TwoWay}" SelectedValuePath="Tag">
+                        <controls:SettingsCard
+                            x:Uid="FoliaImageMode"
+                            Margin="10,0,10,0"
+                            IsEnabled="{x:Bind ViewModel.IsFoliaImageBackground, Mode=OneWay}">
+                            <ComboBox
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaImageEffect"
+                                SelectedValue="{x:Bind ViewModel.FoliaImageEffect, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
                                 <ComboBoxItem x:Uid="FoliaOption_dithering" Tag="dithering" />
                                 <ComboBoxItem x:Uid="FoliaOption_fluted-glass" Tag="fluted-glass" />
                                 <ComboBoxItem x:Uid="FoliaOption_paper-texture" Tag="paper-texture" />
@@ -476,22 +625,44 @@
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaCoverBackground" Margin="10,0,10,0">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <ToggleSwitch VerticalAlignment="Center" IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                        <controls:SettingsExpander x:Uid="FoliaFumeSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <TextBlock
+                            x:Uid="FoliaLyricModeSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsExpander
+                            x:Uid="FoliaFumeSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaFumeGeometry">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaFumeGeometry, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaFumeGeometryOpacity">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaFumeGeometryOpacity, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaFumeGeometryOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaFumeGlow">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaFumeGlow, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaFumeGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaTemperaSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <controls:SettingsExpander
+                            x:Uid="FoliaTemperaSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaTemperaTransitions">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaTemperaTransitions, Mode=TwoWay}" />
@@ -509,53 +680,146 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaTemperaPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaTemperaGrain">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaTemperaGrain, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaTemperaGrain, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaTemperaContrast">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaTemperaContrast, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaTemperaContrast, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaTemperaRgbShift">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaTemperaRgbShift, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaTemperaRgbShift, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaTemperaVignette">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaTemperaVignette, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaTemperaVignette, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaTemperaLens">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaTemperaLens, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaTemperaLens, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaLumiereSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <controls:SettingsExpander
+                            x:Uid="FoliaLumiereSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaLumiereLight">
-                                    <NumberBox Width="130" Minimum="0.3" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereLight, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0.3"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereLight, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereAudio">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereAudio, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereAudio, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereFog">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereFog, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereFog, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereDarkField">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereDarkField, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereDarkField, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereBloom">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereBloom, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereTextBloom">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereTextBloom, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereTextBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereUnlitOpacity">
-                                    <NumberBox Width="130" Minimum=".05" Maximum=".6" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereUnlitOpacity, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum=".6"
+                                        Minimum=".05"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereUnlitOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereMotes">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereMotes, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereMotes, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereEcho">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereEcho, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereEcho, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereDecay">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereDecay, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereDecay, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereLineArt">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLumiereLineArt, Mode=TwoWay}" />
@@ -573,112 +837,20 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLumiereTextOnly, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereThemeMix">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLumiereThemeMix, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLumiereThemeMix, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaLatentSettings" Margin="10,0,10,0" IsExpanded="False">
-                            <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaLatentMesh">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentMesh, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDither">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentDither, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentBeat">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentBeat, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentMeshSpeed">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentMeshSpeed, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentMeshAudioSpeed">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentMeshAudioSpeed, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDitherSpeed">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentDitherSpeed, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDitherAudioSpeed">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentDitherAudioSpeed, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentSize">
-                                    <NumberBox Width="130" Minimum=".5" Maximum="8" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentSize, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentOpacity">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentOpacity, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDistortion">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentDistortion, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentSwirl">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaLatentSwirl, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                            </controls:SettingsExpander.Items>
-                        </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaNomandSettings" Margin="10,0,10,0" IsExpanded="False">
-                            <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaNomandSize">
-                                    <NumberBox Width="130" Minimum="0.5" Maximum="20" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandSize, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandSteps">
-                                    <NumberBox Width="130" Minimum="1" Maximum="7" SmallChange="1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandSteps, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandOriginal">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOriginal, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandInverted">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandInverted, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassSize">
-                                    <NumberBox Width="130" Minimum="0.1" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandGlassSize, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassDistortion">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandGlassDistortion, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassBlur">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandGlassBlur, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperContrast">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandPaperContrast, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperRoughness">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandPaperRoughness, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperFiber">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandPaperFiber, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotSize">
-                                    <NumberBox Width="130" Minimum=".1" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandDotSize, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotRadius">
-                                    <NumberBox Width="130" Minimum=".1" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandDotRadius, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotContrast">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandDotContrast, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotOriginal">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotOriginal, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotInverted">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotInverted, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensSpread">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandLensSpread, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensBulge">
-                                    <NumberBox Width="130" Minimum="-1" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandLensBulge, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensDispersion">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandLensDispersion, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandOverlay">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOverlay, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandOverlayOpacity">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaNomandOverlayOpacity, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                            </controls:SettingsExpander.Items>
-                        </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaSonnetSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <controls:SettingsExpander
+                            x:Uid="FoliaSonnetSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaSonnetBackgroundMg">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetBackgroundMg, Mode=TwoWay}" />
@@ -702,14 +874,20 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaSonnetMotionStrength">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsCard x:Uid="FoliaRealtimeMotion" Margin="10,0,10,0">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaRealtimeMotion, Mode=TwoWay}" />
-                        </controls:SettingsCard>
-                        <controls:SettingsExpander x:Uid="FoliaDioramaSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <controls:SettingsExpander
+                            x:Uid="FoliaDioramaSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaDioramaSoul">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaSoul, Mode=TwoWay}" />
@@ -718,56 +896,377 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaSoulActive, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaSoulStrength">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1.5" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaSoulStrength, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1.5"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaDioramaSoulStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGlow">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGlowStrength">
-                                    <NumberBox Width="130" Minimum="0" Maximum="1.5" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaGlowStrength, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1.5"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaDioramaGlowStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGradient">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGradient, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaParticleScale">
-                                    <NumberBox Width="130" Minimum="0.25" Maximum="3" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaParticleScale, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="3"
+                                        Minimum="0.25"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaDioramaParticleScale, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaParticleGlow">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaParticleGlow, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaDioramaParticleGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
 
                                 <controls:SettingsCard x:Uid="FoliaDioramaMotionStrength">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaPendoloSettings" Margin="10,0,10,0" IsExpanded="False">
+                        <controls:SettingsExpander
+                            x:Uid="FoliaPendoloSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaPendoloMotionStrength">
-                                    <NumberBox Width="130" Minimum="0" Maximum="2" SmallChange="0.1" SpinButtonPlacementMode="Inline" Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
+                        <controls:SettingsCard x:Uid="FoliaRealtimeMotion" Margin="10,0,10,0">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaRealtimeMotion, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <TextBlock
+                            x:Uid="FoliaBackgroundSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsExpander
+                            x:Uid="FoliaLatentSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaLatentMesh">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentMesh, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentDither">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentDither, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentBeat">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentBeat, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentMeshSpeed">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentMeshSpeed, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentMeshAudioSpeed">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentMeshAudioSpeed, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentDitherSpeed">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentDitherSpeed, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentDitherAudioSpeed">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentDitherAudioSpeed, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentSize">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="8"
+                                        Minimum=".5"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentSize, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentOpacity">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentOpacity, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentDistortion">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentDistortion, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaLatentSwirl">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaLatentSwirl, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsExpander
+                            x:Uid="FoliaNomandSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaNomandSize">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="20"
+                                        Minimum="0.5"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandSize, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandSteps">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="7"
+                                        Minimum="1"
+                                        SmallChange="1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandSteps, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandOriginal">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOriginal, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandInverted">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandInverted, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandGlassSize">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0.1"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandGlassSize, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandGlassDistortion">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandGlassDistortion, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandGlassBlur">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandGlassBlur, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandPaperContrast">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandPaperContrast, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandPaperRoughness">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandPaperRoughness, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandPaperFiber">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandPaperFiber, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandDotSize">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum=".1"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandDotSize, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandDotRadius">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="2"
+                                        Minimum=".1"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandDotRadius, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandDotContrast">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandDotContrast, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandDotOriginal">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotOriginal, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandDotInverted">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotInverted, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandLensSpread">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandLensSpread, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandLensBulge">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="-1"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandLensBulge, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandLensDispersion">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandLensDispersion, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandOverlay">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOverlay, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNomandOverlayOpacity">
+                                    <NumberBox
+                                        Width="220"
+                                        Maximum="1"
+                                        Minimum="0"
+                                        SmallChange="0.1"
+                                        SpinButtonPlacementMode="Inline"
+                                        Value="{x:Bind ViewModel.FoliaNomandOverlayOpacity, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <TextBlock
+                            x:Uid="FoliaFontSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="FoliaFontScale" Margin="10,0,10,0">
-                            <NumberBox Width="130" Minimum="50" Maximum="200" SmallChange="5" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
+                            <NumberBox
+                                Width="220"
+                                Maximum="200"
+                                Minimum="50"
+                                SmallChange="5"
+                                SpinButtonPlacementMode="Compact"
+                                Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontFamily" Margin="10,0,10,0">
-                            <ComboBox x:Uid="FoliaFontPicker" Width="280" AutomationProperties.AutomationId="FoliaFontPicker"
-                                      ItemsSource="{x:Bind ViewModel.FoliaFonts}" SelectedItem="{x:Bind ViewModel.SelectedFoliaFont, Mode=TwoWay}">
+                            <ComboBox
+                                x:Uid="FoliaFontPicker"
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaFontPicker"
+                                ItemsSource="{x:Bind ViewModel.FoliaFonts}"
+                                SelectedItem="{x:Bind ViewModel.SelectedFoliaFont, Mode=TwoWay}">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="model:FontChoice">
-                                        <TextBlock Text="{x:Bind DisplayName}" FontFamily="{x:Bind Family}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            FontFamily="{x:Bind Family}"
+                                            Text="{x:Bind DisplayName}"
+                                            TextTrimming="CharacterEllipsis" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontWeight" Margin="10,0,10,0">
-                            <NumberBox Width="130" Minimum="100" Maximum="900" SmallChange="100" SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
+                            <NumberBox
+                                Width="220"
+                                Maximum="900"
+                                Minimum="100"
+                                SmallChange="100"
+                                SpinButtonPlacementMode="Compact"
+                                Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="FoliaLyricsSource" Margin="10,12,10,0">
-                            <StackPanel Spacing="8" MaxWidth="380">
+                        <TextBlock
+                            x:Uid="FoliaSourceSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsCard x:Uid="FoliaLyricsSource" Margin="10,0,10,0">
+                            <StackPanel MaxWidth="380" Spacing="8">
                                 <TextBlock Text="{x:Bind ViewModel.FoliaLyricsStatus, Mode=OneWay}" TextWrapping="Wrap" />
-                                <Button x:Uid="FoliaRetry" Command="{x:Bind ViewModel.RetryFoliaLyricsCommand}" HorizontalAlignment="Right" />
+                                <Button
+                                    x:Uid="FoliaRetry"
+                                    HorizontalAlignment="Right"
+                                    Command="{x:Bind ViewModel.RetryFoliaLyricsCommand}" />
                             </StackPanel>
                         </controls:SettingsCard>
                     </StackPanel>
@@ -824,19 +1323,47 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <TextBlock x:Uid="LyricsCacheTitle" Margin="10,20,10,10" FontSize="16" />
+                        <TextBlock
+                            x:Uid="LyricsCacheTitle"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
                         <controls:SettingsCard x:Uid="LyricsCacheEnabled" Margin="10,0,10,0">
-                            <ToggleSwitch x:Uid="LyricsCacheToggle" IsOn="{x:Bind ViewModel.LyricsCacheEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <ToggleSwitch
+                                x:Uid="LyricsCacheToggle"
+                                VerticalAlignment="Center"
+                                IsOn="{x:Bind ViewModel.LyricsCacheEnabled, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="LyricsCacheFolder" Margin="10,4,10,0" IsEnabled="{x:Bind ViewModel.LyricsCacheEnabled, Mode=OneWay}">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" MaxWidth="430">
-                                <TextBox x:Uid="LyricsCacheFolderInput" MinWidth="180" Text="{x:Bind ViewModel.LyricsCacheFolder, Mode=TwoWay}" />
-                                <Button Grid.Column="1" x:Uid="LyricsCacheBrowse" AutomationProperties.AutomationId="LyricsCacheBrowse"
-                                        Click="OnBrowseLyricsCacheClick" VerticalAlignment="Center" />
+                        <controls:SettingsCard
+                            x:Uid="LyricsCacheFolder"
+                            Margin="10,4,10,0"
+                            IsEnabled="{x:Bind ViewModel.LyricsCacheEnabled, Mode=OneWay}">
+                            <Grid
+                                MaxWidth="430"
+                                ColumnDefinitions="*,Auto"
+                                ColumnSpacing="8">
+                                <TextBox
+                                    x:Uid="LyricsCacheFolderInput"
+                                    Width="220"
+                                    Text="{x:Bind ViewModel.LyricsCacheFolder, Mode=TwoWay}" />
+                                <Button
+                                    x:Uid="LyricsCacheBrowse"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.AutomationId="LyricsCacheBrowse"
+                                    Click="OnBrowseLyricsCacheClick" />
                             </Grid>
                         </controls:SettingsCard>
-                        <TextBlock Text="{x:Bind ViewModel.LyricsCacheLocation, Mode=OneWay}" Margin="10,8,10,0" TextWrapping="Wrap" IsTextSelectionEnabled="True" FontSize="12" />
-                        <TextBlock x:Uid="GraphicsAttribution" Margin="10,16,10,0" TextWrapping="Wrap" FontSize="12" />
+                        <TextBlock
+                            Margin="10,8,10,0"
+                            FontSize="12"
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind ViewModel.LyricsCacheLocation, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="GraphicsAttribution"
+                            Margin="10,16,10,0"
+                            FontSize="12"
+                            TextWrapping="Wrap" />
                     </StackPanel>
                 </ScrollView>
             </controls:Case>

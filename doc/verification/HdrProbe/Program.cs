@@ -110,6 +110,8 @@ try
     Require(AppSettings.HdrWhiteNits == 80, "Peak lowered below white");
     AppSettings.HdrWhiteNits = 500;
     Require(AppSettings.HdrPeakNits == 500, "White raised above peak");
+    AppSettings.HdrWhiteNits = 1200;
+    Require(AppSettings.HdrWhiteNits == 1000 && AppSettings.HdrPeakNits == 1000, "White clamped at 1000");
     AppSettings.HdrWhiteNits = float.NaN;
     AppSettings.HdrPeakNits = float.PositiveInfinity;
     Require(AppSettings.HdrWhiteNits == 200 && AppSettings.HdrPeakNits == 1000, "Nonfinite settings");

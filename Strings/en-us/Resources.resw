@@ -237,6 +237,20 @@
   <data name="SettingsSectionAbout.Text" xml:space="preserve">
     <value>About</value>
   </data>
+  <data name="GeneralEffectSection.Text" xml:space="preserve"><value>Effect</value></data>
+  <data name="GeneralQualitySection.Text" xml:space="preserve"><value>Graphics and rendering</value></data>
+  <data name="GeneralAudioSection.Text" xml:space="preserve"><value>Audio</value></data>
+  <data name="GeneralAppearanceSection.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="GeneralAdvancedSection.Text" xml:space="preserve"><value>Advanced</value></data>
+  <data name="AuroraRotationSection.Text" xml:space="preserve"><value>Rotation and cover</value></data>
+  <data name="AuroraSpectrumSection.Text" xml:space="preserve"><value>Spectrum</value></data>
+  <data name="AuroraTextSection.Text" xml:space="preserve"><value>Text</value></data>
+  <data name="SonicTerrainSection.Text" xml:space="preserve"><value>Theme and terrain</value></data>
+  <data name="FoliaStageSection.Text" xml:space="preserve"><value>Stage</value></data>
+  <data name="FoliaLyricModeSection.Text" xml:space="preserve"><value>Lyric mode settings</value></data>
+  <data name="FoliaBackgroundSection.Text" xml:space="preserve"><value>Background mode settings</value></data>
+  <data name="FoliaFontSection.Text" xml:space="preserve"><value>Lyric font</value></data>
+  <data name="FoliaSourceSection.Text" xml:space="preserve"><value>Lyrics source</value></data>
   <data name="WallpaperMode.Text" xml:space="preserve">
     <value>Wallpaper (primary display)</value>
   </data>

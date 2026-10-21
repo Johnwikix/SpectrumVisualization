@@ -237,6 +237,20 @@
   <data name="SettingsSectionAbout.Text" xml:space="preserve">
     <value>关于</value>
   </data>
+  <data name="GeneralEffectSection.Text" xml:space="preserve"><value>效果</value></data>
+  <data name="GeneralQualitySection.Text" xml:space="preserve"><value>画质与渲染</value></data>
+  <data name="GeneralAudioSection.Text" xml:space="preserve"><value>音频</value></data>
+  <data name="GeneralAppearanceSection.Text" xml:space="preserve"><value>外观</value></data>
+  <data name="GeneralAdvancedSection.Text" xml:space="preserve"><value>高级</value></data>
+  <data name="AuroraRotationSection.Text" xml:space="preserve"><value>旋转与封面</value></data>
+  <data name="AuroraSpectrumSection.Text" xml:space="preserve"><value>频谱</value></data>
+  <data name="AuroraTextSection.Text" xml:space="preserve"><value>文字</value></data>
+  <data name="SonicTerrainSection.Text" xml:space="preserve"><value>主题与地形</value></data>
+  <data name="FoliaStageSection.Text" xml:space="preserve"><value>舞台</value></data>
+  <data name="FoliaLyricModeSection.Text" xml:space="preserve"><value>歌词模式专属设置</value></data>
+  <data name="FoliaBackgroundSection.Text" xml:space="preserve"><value>动态背景专属设置</value></data>
+  <data name="FoliaFontSection.Text" xml:space="preserve"><value>歌词字体</value></data>
+  <data name="FoliaSourceSection.Text" xml:space="preserve"><value>歌词来源</value></data>
   <data name="WallpaperMode.Text" xml:space="preserve">
     <value>壁纸模式（主屏幕）</value>
   </data>
