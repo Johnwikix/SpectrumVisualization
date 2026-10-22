@@ -4,7 +4,7 @@
 
 ## 2026-10-22 托盘"切换效果"改为 MVVM 效果子菜单
 
-- `Control/NotifyIconControl.xaml`：托盘"切换效果"由单击循环改为子菜单，直接列出三个效果（极光之环 / 音域回响单选，辞曲新境再嵌一级子菜单选择 13 种歌词模式）；子菜单通过 `MenuFlyoutExtensions.ItemsSource` 绑定 ViewModel 生成，菜单图标因 `MenuFlyoutSubItem` 不支持 Icon 移除。
+- `Control/NotifyIconControl.xaml`：托盘"切换效果"由单击循环改为子菜单，直接列出三个效果（极光之环 / 音域回响单选，辞曲新境再嵌一级子菜单选择 13 种歌词模式）；子菜单通过 `MenuFlyoutExtensions.ItemsSource` 绑定 ViewModel 生成，保留原有 `E71D` 图标（`MenuFlyoutSubItem.Icon`，Windows App SDK 1.5+ 可用）。
 - `Extensions/MenuFlyoutExtensions.cs`（新）、`Model/MenuModel.cs`（新）：移植 music_player 的 MenuFlyout 绑定扩展；挂在 `MenuFlyout` 上按 Opening 重建，挂在 `MenuFlyoutSubItem` 上按 Loaded（菜单每次展开）重建，重建前执行 `PrepareCommand` 刷新模型，只重建宿主自身 Items，不影响同菜单静态条目；`MenuModel` 增加 GroupName / IsChecked（RadioMenuFlyoutItem）与 AutomationId。
 - `ViewModel/SettingViewModel.TrayMenu.cs`（新）：`TrayEffectMenu` 模型树（效果名走 `EffectRegistry.GetCatalog`，歌词模式名走 `FoliaModeName_*` 资源键），`PrepareTrayEffectMenu` 展开前刷新选中态；`SelectEffect` / `SelectFoliaLyricMode` 命令复用 `VisualEffect`、`FoliaLyricMode` 属性写 `AppSettings` 并持久化，选择歌词模式同时进入辞曲新境。
 - `Control/NotifyIconControl.xaml.cs`：移除效果菜单相关的命令与勾选同步代码，恢复仅处理壁纸 / 解锁状态。

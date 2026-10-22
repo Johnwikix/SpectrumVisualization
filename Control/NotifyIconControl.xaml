@@ -47,7 +47,11 @@
                         x:Name="SwitchEffect"
                         x:Uid="SwitchEffect"
                         extensions:MenuFlyoutExtensions.ItemsSource="{x:Bind ViewModel.TrayEffectMenu, Mode=OneWay}"
-                        extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareTrayEffectMenuCommand}" />
+                        extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareTrayEffectMenuCommand}">
+                        <MenuFlyoutSubItem.Icon>
+                            <FontIcon Glyph="&#xE71D;" />
+                        </MenuFlyoutSubItem.Icon>
+                    </MenuFlyoutSubItem>
                     <MenuFlyoutItem
                         x:Name="Settings"
                         x:Uid="Settings"
