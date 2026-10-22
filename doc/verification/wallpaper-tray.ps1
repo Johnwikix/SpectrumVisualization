@@ -68,4 +68,17 @@ if (!$item) { throw "Tray item not found: $id" }
 # real mouse input; the first click closes the menu after toggling the mode.
 $verb = if ($Action -eq 'Toggle') { 'double-click' } else { 'click' }
 Invoke-Lvt $verb "uia:$($item.properties.RuntimeId)" --hwnd $menu.target.hwnd
+if ($Action -eq 'Cycle') {
+    # Switch Effect is now a submenu: the click above only expands it. Re-dump the
+    # same menu host (submenus are nested popups in that window), invoke one effect
+    # radio item, then dismiss because radio items keep the menu open.
+    Start-Sleep -Milliseconds 250
+    $menu = Invoke-Lvt dump --hwnd ('0x{0:X}' -f $menuHost.Handle) --uia --format json
+    $items = @(Read-Nodes $menu.root | Where-Object type -eq 'MenuItem')
+    $effect = $items | Where-Object { $_.properties.AutomationId -eq 'SwitchEffect_sonic-topography' } | Select-Object -First 1
+    if (!$effect) { throw 'Tray item not found: SwitchEffect_sonic-topography' }
+    Invoke-Lvt click "uia:$($effect.properties.RuntimeId)" --hwnd $menu.target.hwnd
+    Start-Sleep -Milliseconds 150
+    Invoke-Lvt press-key Escape --hwnd ('0x{0:X}' -f $menuHost.Handle)
+}
 Start-Sleep -Milliseconds 300

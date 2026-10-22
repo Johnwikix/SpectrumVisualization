@@ -92,12 +92,6 @@ namespace WinExSpectrumTest.Control
         }
 
         [RelayCommand]
-        public void CycleEffect()
-        {
-            App.MainWindow?.SwitchEffect(1);
-        }
-
-        [RelayCommand]
         public void ExitApplication()
         {
             App.Current_Exit();

@@ -362,6 +362,19 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>商籁</value></data>
   <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>凝彩</value></data>
   <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>绘光</value></data>
+  <data name="FoliaModeName_classic" xml:space="preserve"><value>流光</value></data>
+  <data name="FoliaModeName_cadenza" xml:space="preserve"><value>心境</value></data>
+  <data name="FoliaModeName_partita" xml:space="preserve"><value>云阶</value></data>
+  <data name="FoliaModeName_fume" xml:space="preserve"><value>烟岚</value></data>
+  <data name="FoliaModeName_cappella" xml:space="preserve"><value>清唱</value></data>
+  <data name="FoliaModeName_tilt" xml:space="preserve"><value>倾斜</value></data>
+  <data name="FoliaModeName_claddagh" xml:space="preserve"><value>环抱</value></data>
+  <data name="FoliaModeName_monet" xml:space="preserve"><value>印象</value></data>
+  <data name="FoliaModeName_diorama" xml:space="preserve"><value>镜台</value></data>
+  <data name="FoliaModeName_pendolo" xml:space="preserve"><value>钟摆</value></data>
+  <data name="FoliaModeName_sonnet" xml:space="preserve"><value>商籁</value></data>
+  <data name="FoliaModeName_tempera" xml:space="preserve"><value>凝彩</value></data>
+  <data name="FoliaModeName_lumiere" xml:space="preserve"><value>绘光</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>通用</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>流动渐变</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>封面滤镜</value></data>

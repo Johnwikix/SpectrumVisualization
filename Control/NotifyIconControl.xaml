@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:extensions="using:WinExSpectrumTest.Extensions"
     xmlns:local="using:WinExSpectrumTest.Control"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:tb="using:H.NotifyIcon"
@@ -40,14 +41,13 @@
                             <FontIcon Glyph="&#xE785;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem
+                    <!-- 效果子菜单走 MVVM：模型树由 ViewModel.TrayEffectMenu 提供，
+                         展开时经 PrepareCommand 刷新选中态后重建（见 Extensions/MenuFlyoutExtensions）。 -->
+                    <MenuFlyoutSubItem
                         x:Name="SwitchEffect"
                         x:Uid="SwitchEffect"
-                        Command="{x:Bind CycleEffectCommand}">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon Glyph="&#xE71D;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
+                        extensions:MenuFlyoutExtensions.ItemsSource="{x:Bind ViewModel.TrayEffectMenu, Mode=OneWay}"
+                        extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareTrayEffectMenuCommand}" />
                     <MenuFlyoutItem
                         x:Name="Settings"
                         x:Uid="Settings"

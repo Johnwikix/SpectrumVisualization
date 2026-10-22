@@ -362,6 +362,19 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaOption_sonnet.Content" xml:space="preserve"><value>Sonnet</value></data>
   <data name="FoliaOption_tempera.Content" xml:space="preserve"><value>Tempera</value></data>
   <data name="FoliaOption_lumiere.Content" xml:space="preserve"><value>Lumiere</value></data>
+  <data name="FoliaModeName_classic" xml:space="preserve"><value>Luminous</value></data>
+  <data name="FoliaModeName_cadenza" xml:space="preserve"><value>Mindscape</value></data>
+  <data name="FoliaModeName_partita" xml:space="preserve"><value>Partita</value></data>
+  <data name="FoliaModeName_fume" xml:space="preserve"><value>Fume</value></data>
+  <data name="FoliaModeName_cappella" xml:space="preserve"><value>Cappella</value></data>
+  <data name="FoliaModeName_tilt" xml:space="preserve"><value>Tilt</value></data>
+  <data name="FoliaModeName_claddagh" xml:space="preserve"><value>Claddagh</value></data>
+  <data name="FoliaModeName_monet" xml:space="preserve"><value>Monet</value></data>
+  <data name="FoliaModeName_diorama" xml:space="preserve"><value>Diorama</value></data>
+  <data name="FoliaModeName_pendolo" xml:space="preserve"><value>Pendolo</value></data>
+  <data name="FoliaModeName_sonnet" xml:space="preserve"><value>Sonnet</value></data>
+  <data name="FoliaModeName_tempera" xml:space="preserve"><value>Tempera</value></data>
+  <data name="FoliaModeName_lumiere" xml:space="preserve"><value>Lumiere</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>Common</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>Latent</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>Nomand</value></data>
