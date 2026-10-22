@@ -2,6 +2,12 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-22 MainWindow 标题栏命令化（MVVM）
+
+- `ViewModel/MainViewModel.cs`（新）：标题栏命令（最小化 / 最大化 / 关闭 / 全屏 / 锁定）与图标状态（`MaximizeGlyph` / `FullScreenGlyph`）；全屏命令的 `CanExecute` 挂壁纸模式守卫（监听 `AppSettings.WallpaperEnabled`，UI 线程刷新），命令按项目既有约定经 `App.MainWindow` 回跳，行为与原 Click 守卫一致。
+- `MainWindow.xaml`：五个标题栏按钮由 Click 事件改为命令绑定，最大化 / 全屏图标改为 OneWay 属性绑定（移除 `MaximizeIcon` / `FullScreenIcon` 的命令式赋值）；`LockBtn` / `FullScreenBtn` 名称保留，AutomationId 不变，`wallpaper-regression.ps1` 不受影响。
+- `MainWindow.xaml.cs`：五个 Click 处理器收敛为窗口公共入口（`MinimizeWindow` / `ToggleMaximize` / `ToggleLock` / `ToggleFullScreen`），`UpdateMaximizeGlyph` 与 `SetFullScreen` 改为向 MainViewModel 推送状态；拖动区、锁定光标轮询、壁纸宿主等窗口实现不动。
+
 ## 2026-10-22 托盘"切换效果"改为 MVVM 效果子菜单
 
 - `Control/NotifyIconControl.xaml`：托盘"切换效果"由单击循环改为子菜单，直接列出三个效果（极光之环 / 音域回响单选，辞曲新境再嵌一级子菜单选择 13 种歌词模式）；子菜单通过 `MenuFlyoutExtensions.ItemsSource` 绑定 ViewModel 生成，保留原有 `E71D` 图标（`MenuFlyoutSubItem.Icon`，Windows App SDK 1.5+ 可用）。

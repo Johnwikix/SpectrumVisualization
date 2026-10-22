@@ -40,9 +40,13 @@ namespace WinExSpectrumTest
 
         public ViewModel.SettingViewModel ViewModel { get; }
 
+        /// <summary>标题栏命令与图标状态；实现按项目约定回跳本窗口的公共入口。</summary>
+        public ViewModel.MainViewModel MainViewModel { get; }
+
         public MainWindow()
         {
             ViewModel = App.Services.GetRequiredService<ViewModel.SettingViewModel>();
+            MainViewModel = new ViewModel.MainViewModel();
             InitializeComponent();
             AppWindow.TitleBar.PreferredTheme = TitleBarTheme.UseDefaultAppMode;
             AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
@@ -149,7 +153,9 @@ namespace WinExSpectrumTest
             }
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        // ==== 标题栏命令入口（MainViewModel 经 App.MainWindow 回调，窗口实现在此）====
+
+        public void MinimizeWindow()
         {
             if (_appWindow.Presenter is OverlappedPresenter overlapped)
             {
@@ -157,7 +163,7 @@ namespace WinExSpectrumTest
             }
         }
 
-        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+        public void ToggleMaximize()
         {
             if (_appWindow.Presenter is OverlappedPresenter overlapped)
             {
@@ -173,16 +179,27 @@ namespace WinExSpectrumTest
             UpdateMaximizeGlyph();
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        /// <summary>锁定按钮可切换（DesktopLyrics 同款）：锁定态下悬停放行点击后可直接解锁。</summary>
+        public void ToggleLock()
         {
-            App.Current_Exit();
+            if (AppSettings.IsLocked)
+            {
+                ExitLock();
+            }
+            else
+            {
+                ApplyLock();
+            }
         }
 
-        private void UpdateMaximizeGlyph()
+        public void ToggleFullScreen()
         {
-            bool maximized = _appWindow.Presenter is OverlappedPresenter p && p.State == OverlappedPresenterState.Maximized;
-            MaximizeIcon.Glyph = maximized ? "\uE744" : "\uE71A";
+            if (_wallpaperHost != null || _changingWallpaper) return;
+            SetFullScreen(!IsFullScreen);
         }
+
+        private void UpdateMaximizeGlyph() => MainViewModel.IsMaximized =
+            _appWindow.Presenter is OverlappedPresenter p && p.State == OverlappedPresenterState.Maximized;
 
         /// <summary>整个 AppTitleBar 注册为系统拖动区（物理像素，music_player SetTitleBarArea 同款；
         /// 区域内的 Button 仍可正常点击，拖动只作用于空白处）。TitleBar 未就绪时静默跳过，
@@ -230,19 +247,6 @@ namespace WinExSpectrumTest
             AppSettings.IsLocked = false;
             SetAppStyle();
             AppTitleBar.Opacity = 0;
-        }
-
-        private void LockButton_Click(object sender, RoutedEventArgs e)
-        {
-            // 锁定按钮可切换（DesktopLyrics 同款）：锁定态下悬停放行点击后可直接解锁
-            if (AppSettings.IsLocked)
-            {
-                ExitLock();
-            }
-            else
-            {
-                ApplyLock();
-            }
         }
 
         private void StartIdleTimer()
@@ -397,12 +401,6 @@ namespace WinExSpectrumTest
             MyCanvas.SwitchEffect(direction);
         }
 
-        private void FullScreen_Click(object sender, RoutedEventArgs e)
-        {
-            if (_wallpaperHost != null || _changingWallpaper) return;
-            SetFullScreen(!IsFullScreen);
-        }
-
         private void SetFullScreen(bool enabled)
         {
             if (enabled == IsFullScreen) return;
@@ -423,7 +421,7 @@ namespace WinExSpectrumTest
                 VisualizerHost.Margin = _restoreFullScreenVisualizerMargin;
             }
             IsFullScreen = enabled;
-            FullScreenIcon.Glyph = enabled ? "\uE73F" : "\uE740";
+            MainViewModel.IsFullScreen = enabled;
         }
     }
 }

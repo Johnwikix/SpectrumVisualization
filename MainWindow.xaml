@@ -52,7 +52,7 @@
                     x:Name="LockBtn"
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="LockButton_Click">
+                    Command="{x:Bind MainViewModel.ToggleLockCommand}">
                     <FontIcon FontSize="14" Glyph="&#xE72E;" />
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="L" />
@@ -105,34 +105,32 @@
                     x:Name="FullScreenBtn"
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="FullScreen_Click">
+                    Command="{x:Bind MainViewModel.ToggleFullScreenCommand}">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="F" />
                     </Button.KeyboardAccelerators>
                     <FontIcon
-                        x:Name="FullScreenIcon"
                         FontSize="14"
-                        Glyph="&#xE740;" />
+                        Glyph="{x:Bind MainViewModel.FullScreenGlyph, Mode=OneWay}" />
                 </Button>
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="MinimizeButton_Click">
+                    Command="{x:Bind MainViewModel.MinimizeCommand}">
                     <FontIcon FontSize="14" Glyph="&#xE738;" />
                 </Button>
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="MaximizeButton_Click">
+                    Command="{x:Bind MainViewModel.ToggleMaximizeCommand}">
                     <FontIcon
-                        x:Name="MaximizeIcon"
                         FontSize="14"
-                        Glyph="&#xE71A;" />
+                        Glyph="{x:Bind MainViewModel.MaximizeGlyph, Mode=OneWay}" />
                 </Button>
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Click="CloseButton_Click">
+                    Command="{x:Bind MainViewModel.ExitApplicationCommand}">
                     <FontIcon FontSize="14" Glyph="&#xE711;" />
                 </Button>
             </StackPanel>
