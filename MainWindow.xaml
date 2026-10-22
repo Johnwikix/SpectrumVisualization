@@ -44,8 +44,8 @@
             </Grid.OpacityTransition>
             <StackPanel
                 x:Name="LeftButtons"
-                Margin="4,0,0,0"
-                VerticalAlignment="Center"
+                Margin="0"
+                VerticalAlignment="Top"
                 Orientation="Horizontal"
                 Spacing="2">
                 <Button
@@ -57,19 +57,6 @@
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="L" />
                     </Button.KeyboardAccelerators>
-                </Button>
-                <Button
-                    x:Name="FullScreenBtn"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="FullScreen_Click">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="F" />
-                    </Button.KeyboardAccelerators>
-                    <FontIcon
-                        x:Name="FullScreenIcon"
-                        FontSize="14"
-                        Glyph="&#xE740;" />
                 </Button>
                 <Button
                     AutomationProperties.Name="上一效果"
@@ -103,9 +90,30 @@
             <StackPanel
                 x:Name="RightButtons"
                 HorizontalAlignment="Right"
-                VerticalAlignment="Center"
+                VerticalAlignment="Top"
                 Orientation="Horizontal"
                 Spacing="2">
+                <Button
+                    x:Uid="WallpaperButton"
+                    AutomationProperties.AutomationId="ToggleWallpaperMode"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Command="{x:Bind ViewModel.ToggleWallpaperModeCommand}">
+                    <FontIcon FontSize="14" Glyph="&#xE91B;" />
+                </Button>
+                <Button
+                    x:Name="FullScreenBtn"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="FullScreen_Click">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F" />
+                    </Button.KeyboardAccelerators>
+                    <FontIcon
+                        x:Name="FullScreenIcon"
+                        FontSize="14"
+                        Glyph="&#xE740;" />
+                </Button>
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
@@ -120,14 +128,6 @@
                         x:Name="MaximizeIcon"
                         FontSize="14"
                         Glyph="&#xE71A;" />
-                </Button>
-                <Button
-                    x:Uid="WallpaperButton"
-                    AutomationProperties.AutomationId="ToggleWallpaperMode"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Command="{x:Bind ViewModel.ToggleWallpaperModeCommand}">
-                    <FontIcon FontSize="14" Glyph="&#xE91B;" />
                 </Button>
                 <Button
                     Background="Transparent"
