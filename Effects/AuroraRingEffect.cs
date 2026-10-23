@@ -290,6 +290,7 @@ namespace WinExSpectrumTest.Effects
 
         private async void LoadThumbnail(IRandomAccessStreamReference? thumbnail, int version)
         {
+            if (!IsCurrentThumbnail(version)) return;
             CanvasBitmap? bitmap = null;
             var (primary, palette) = AuroraCoverPalette.Extract([]);
             try
@@ -297,12 +298,23 @@ namespace WinExSpectrumTest.Effects
                 if (thumbnail != null)
                 {
                     using var stream = await thumbnail.OpenReadAsync();
+                    if (!IsCurrentThumbnail(version)) return;
                     bitmap = await CanvasBitmap.LoadAsync(Device, stream);
+                    if (!IsCurrentThumbnail(version))
+                    {
+                        bitmap.Dispose();
+                        return;
+                    }
 
                     // 16x16 CPU 解码：均色作主色，再做 HSV 直方图取 4 色调色板。
                     // 仅在曲目变更时运行，允许少量分配。
                     stream.Seek(0);
                     var decoder = await BitmapDecoder.CreateAsync(stream);
+                    if (!IsCurrentThumbnail(version))
+                    {
+                        bitmap.Dispose();
+                        return;
+                    }
                     var transform = new BitmapTransform
                     {
                         ScaledWidth = 16,
@@ -315,6 +327,11 @@ namespace WinExSpectrumTest.Effects
                         transform,
                         ExifOrientationMode.IgnoreExifOrientation,
                         ColorManagementMode.ColorManageToSRgb);
+                    if (!IsCurrentThumbnail(version))
+                    {
+                        bitmap.Dispose();
+                        return;
+                    }
                     byte[] pixels = pixelData.DetachPixelData();
 
                     (primary, palette) = AuroraCoverPalette.Extract(pixels);
@@ -336,6 +353,11 @@ namespace WinExSpectrumTest.Effects
                 _pendingCover?.Bitmap?.Dispose();
                 _pendingCover = new CoverChange(bitmap, primary, palette);
             }
+        }
+
+        private bool IsCurrentThumbnail(int version)
+        {
+            lock (_mediaGate) return !_disposed && version == _thumbnailVersion;
         }
 
         public void OnResize(float width, float height)

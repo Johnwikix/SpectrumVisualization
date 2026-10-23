@@ -13,6 +13,9 @@ internal static class FoliaCoverPalette
 {
     internal static Vector3[] Extract(byte[] rgba, int width, int height, CancellationToken token = default)
     {
+        // Playback cover extraction can overlap disposal of the render preparation owner.
+        // Keep its cache writes within the same lifetime boundary, even before a renderer exists.
+        using var cacheLease = new FoliaCpuCacheLease();
         token.ThrowIfCancellationRequested();
         if (width <= 0 || height <= 0 || (long)width * height * 4 != rgba.Length)
             return [];

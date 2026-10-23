@@ -2,6 +2,15 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-23 滑块数值常显与效果资源释放
+
+- `SettingWindow.xaml`、`SliderValueTextConverter`：50 个 Folia 滑块左侧常显实时数值，使用编译函数绑定与提示共用的小数格式，保留原范围、步进和双向设置绑定。
+- `CanvasPanel`：跨 Win2D／GPU 宿主切换时，在回调／帧屏障后停止并释放旧宿主、效果及媒体卡片；临时暂停仍保留当前资源。
+- `FoliaPlaybackService`：明确离开歌词效果时丢弃上一首歌词和封面；透明封面仅由最终主题准备合成，移除服务重复保留的整幅像素数组。
+- `FoliaScenePreparation`、`FoliaCoverPalette`、`FoliaCpuCacheLease`：最后一个准备工作者／封面取色任务结束后释放字形、布局及钟摆网格的 CPU 缓存；重叠的新效果仍可复用缓存，避免取消中的旧任务重新填充已清理的缓存。
+- `GpuPanel`、`SonicMediaViewModel`、`AuroraRingEffect`：GPU 停止后可靠释放 COM 桥；媒体卡片取消原生解码并等待实际完成再释放流，丢弃已过期的极光封面，避免旧效果销毁后继续解码和保留图片。
+- 验证：Debug／NativeAOT 发布通过；NativeAOT／Satori 离屏覆盖 36 次切歌、13 种歌词模式、4 次 GPU 效果切换及加载中取消，旧歌曲／图集可回收，渲染器销毁后本进程 GPU 用量归零；GPU 工作者暂停／恢复／异步停止与重建缩放回归通过，宿主／封面状态桩另有 29 项通过。实机界面、切换观感与进程内存曲线由用户验收，未把有界缓存保留表述为持续增长泄漏。
+
 ## 2026-10-23 切歌准备期间保持动态背景
 
 - `FoliaGpuEffect.Transition`、`FoliaGpuEffect.Preparation`：背景快照延后到新场景上传完成后采集，准备与上传期间继续播放旧场景，避免静态快照长时间覆盖动态背景；连续切歌取消旧候选的等待状态，保留 0.45 秒过渡与时域重置屏障。
