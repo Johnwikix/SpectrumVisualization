@@ -12,6 +12,7 @@ internal sealed class FoliaMonet
     private sealed record Line(FoliaPreparedLine Source, Glyph[] Text, Glyph[] Translation, float Height, float Top);
     private Line[] _lines = [];
     private FoliaLyricSpring[] _motion = [];
+    private FoliaMonetFade[] _appearance = [];
     private Glyph[] _title = [];
     private float _left, _top, _width, _bottom, _font, _translationFont, _titleFont, _artistFont;
     private float _infoLeft, _infoTop, _infoWidth, _titleTop, _artistTop, _coverSize;
@@ -24,7 +25,7 @@ internal sealed class FoliaMonet
     {
         float width = request.Width, height = request.Height;
         float margin = Math.Clamp(width * .045f, 24, 72);
-        _wide = width >= 1040 && height >= 520;
+        _wide = UsesWideLayout(width, height);
         _hasCover = request.Song.CoverWidth > 0;
         // The information group uses half of the left column, centered within it.
         _infoWidth = _wide ? width * .25f : width - margin * 2;
@@ -52,6 +53,7 @@ internal sealed class FoliaMonet
         _bottom = Math.Max(_top + _font * 1.8f, height - margin);
         _lines = new Line[atlas.Lines.Length];
         _motion = new FoliaLyricSpring[_lines.Length];
+        _appearance = new FoliaMonetFade[_lines.Length];
         float naturalTop = 0;
         for (int i = 0; i < _lines.Length; i++)
         {
@@ -68,6 +70,8 @@ internal sealed class FoliaMonet
         _index = -1;
         _time = double.NaN;
     }
+
+    internal static bool UsesWideLayout(float width, float height) => height <= width * 1.1f;
 
     private static Glyph[] Arrange(ReadOnlySpan<FoliaPreparedGlyph> glyphs, float font, float width,
         out float height, int maximumRows = int.MaxValue)
@@ -131,8 +135,10 @@ internal sealed class FoliaMonet
             if (y + line.Height < _top - _font || y > _bottom + _font) continue;
             int distance = Math.Abs(i - index);
             bool active = i == index;
-            float opacity = active ? 1 : Math.Max(.16f, (i < index ? .38f : .46f) - Math.Max(0, distance - 1) * .12f);
-            float blur = active ? 0 : Math.Min(1.1f, Math.Max(0, distance - 1) * .45f);
+            float opacity = Math.Max(.16f, (i < index ? .38f : .46f) - Math.Max(0, distance - 1) * .12f);
+            float targetBlur = active ? 0 : Math.Min(1.1f, Math.Max(0, distance - 1) * .45f);
+            var appearance = _appearance[i].Advance(active ? new(.98f, .54f, .70f, 0) : new(opacity, opacity, opacity * .72f, targetBlur), FrameDelta, jump);
+            float blur = appearance.W;
             foreach (var item in line.Text)
             {
                 var glyph = item.Source;
@@ -153,15 +159,43 @@ internal sealed class FoliaMonet
                 float size = _font * growth;
                 x -= glyph.Glyph.Advance * (size - _font) * .5f;
                 top += rise - (size - _font) * .5f;
-                float baseAlpha = active ? .54f : opacity;
+                float baseAlpha = appearance.Y;
                 painter.Glyph(glyph.Glyph, x, top, size, color, baseAlpha, blur: blur);
-                if (active && progress > 0)
-                    painter.Glyph(glyph.Glyph, x, top, size, color, .98f, reveal: progress, glow: glow, revealSoftness: .06f);
+                float overlay = Math.Max(0, (appearance.X - baseAlpha) / Math.Max(.001f, 1 - baseAlpha));
+                if (progress > 0 && overlay > .001f)
+                    painter.Glyph(glyph.Glyph, x, top, size, glyph.ActiveColor ?? color, overlay, blur: blur, reveal: progress, glow: glow, revealSoftness: .06f);
             }
             foreach (var glyph in line.Translation)
-                painter.Glyph(glyph.Source.Glyph, _left + glyph.X, y + glyph.Y, _translationFont, color, active ? .70f : opacity * .72f, blur: blur);
+                painter.Glyph(glyph.Source.Glyph, _left + glyph.X, y + glyph.Y, _translationFont, color, appearance.Z, blur: blur);
         }
         painter.RailMaskFrom(start, _top, _bottom);
+    }
+}
+
+/// <summary>Sine interpolation from the currently displayed value, matching the player's 0.3 s line transitions.</summary>
+internal struct FoliaMonetFade
+{
+    private Vector4 _value, _from, _target;
+    private float _elapsed;
+    private bool _initialized;
+    internal Vector4 Advance(Vector4 target, float seconds, bool jump)
+    {
+        if (!_initialized || jump)
+        {
+            _initialized = true;
+            _value = _from = _target = target;
+            _elapsed = .3f;
+        }
+        else if (target != _target)
+        {
+            _from = _value;
+            _target = target;
+            _elapsed = 0;
+        }
+        _elapsed = Math.Min(.3f, _elapsed + Math.Clamp(seconds, 0, .1f));
+        float amount = MathF.Sin(MathF.PI * .5f * _elapsed / .3f);
+        _value = Vector4.Lerp(_from, _target, amount);
+        return _value;
     }
 }
 

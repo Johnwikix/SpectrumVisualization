@@ -12,7 +12,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 /// <summary>Cold compilation boundary for the embedded original Folia layout algorithms.
 /// Only immutable native plans cross into the allocation-free D3D12 frame loop.</summary>
-internal static class FoliaSourcePlanner
+internal static partial class FoliaSourcePlanner
 {
     private static string Hex(Vector3 color) => $"#{(int)MathF.Round(color.X * 255):x2}{(int)MathF.Round(color.Y * 255):x2}{(int)MathF.Round(color.Z * 255):x2}";
     // Jint's prepared scripts are immutable and shareable; each plan still uses an isolated
@@ -39,6 +39,7 @@ internal static class FoliaSourcePlanner
             Results.Clear();
             ResultOrder.Clear();
             _resultBytes = 0;
+            ClearPendoloResult();
         }
     }
     internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight, Vector3[]? palette = null)
@@ -63,6 +64,18 @@ internal static class FoliaSourcePlanner
             }
             w.WriteBoolean("temperaDecor", Model.AppSettings.FoliaTemperaDecor);
             w.WriteString("seed", atlas.Seed);
+            if (atlas.KeywordRules.Length > 0)
+            {
+                w.WriteStartArray("wordColors");
+                foreach (var rule in atlas.KeywordRules)
+                {
+                    w.WriteStartObject();
+                    w.WriteString("word", rule.Word);
+                    w.WriteString("color", rule.Hex);
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+            }
             w.WriteStartObject("widths");
             foreach (var pair in atlas.CharacterGlyphs)
                 w.WriteNumber(pair.Key, pair.Value.Advance);
@@ -73,6 +86,16 @@ internal static class FoliaSourcePlanner
                 var line = atlas.Lines[li];
                 w.WriteStartObject();
                 w.WriteString("fullText", line.Source.Text);
+                bool hasKeywords = false;
+                foreach (ref readonly var glyph in line.Glyphs.AsSpan()) hasKeywords |= glyph.ActiveColor.HasValue;
+                if (hasKeywords)
+                {
+                    w.WriteStartArray("keywordColors");
+                    foreach (ref readonly var glyph in line.Glyphs.AsSpan())
+                        if (glyph.ActiveColor is { } color) w.WriteStringValue(Hex(color));
+                        else w.WriteNullValue();
+                    w.WriteEndArray();
+                }
                 w.WriteNumber("startTime", line.Source.Start);
                 w.WriteNumber("endTime", line.Source.End);
                 w.WriteBoolean("isChorus", line.Source.IsChorus);

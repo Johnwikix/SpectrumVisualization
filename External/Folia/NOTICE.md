@@ -42,10 +42,21 @@ or viewport changes through Jint 4.17.0 (BSD-2-Clause), using Acornima 1.7.0
 There is no browser or WebView renderer. Lyric content is passed as JSON data;
 CLR reflection interop is not exposed to scripts.
 
-Spectrum derives a readable dark stage theme from the original representative
-cover colors on its media worker. This is a native adaptation, not Folia's random
-or AI theme generator. Pendolo and Tempera accept that theme in the cold planner
-input so their baked artwork and the live lyric colors share one song palette.
+The embedded themes.js preserves Folia's original non-AI cover palette analysis,
+harmonious light/dark theme generator and keyword range matching. Regenerate it
+with `node Build/FoliaThemes/sync.mjs <folia-major checkout> [upstream revision]`.
+Spectrum seeds the original random source per song for repeatable preparation;
+the user can regenerate the pair, select the original midnight/daylight presets,
+or edit independent custom light/dark colors and manual keyword rules. No AI
+theme service or emotion inference is included. Pendolo and Tempera receive the
+selected theme in their cold planner input. Sonnet preserves keyword glow targets,
+and native Diorama keyword adaptation follows dioramaKeywordColor.ts, including
+linear/sRGB conversion and the original displayed-contrast correction.
+
+Pendolo optionally hands its original Float32Array directly to a native cold
+callback, avoiding a large numeric JSON round trip. Its complete JSON path remains
+available for reference comparisons. The reusable clockwork mesh cache is keyed
+only by the viewport and colors the original builder actually reads.
 
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere

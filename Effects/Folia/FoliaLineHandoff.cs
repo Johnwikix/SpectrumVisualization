@@ -4,10 +4,10 @@ using System.Numerics;
 namespace WinExSpectrumTest.Effects.Folia;
 
 /// <summary>Retains the last native line for AnimatePresence-style exits without retaining an atlas owner.</summary>
-internal sealed class FoliaLineHandoff
+internal sealed class FoliaLineHandoff(int capacity = 8192)
 {
-    private readonly FoliaInstance[] _last = new FoliaInstance[8192];
-    private readonly FoliaInstance[] _exit = new FoliaInstance[8192];
+    private readonly FoliaInstance[] _last = new FoliaInstance[capacity];
+    private readonly FoliaInstance[] _exit = new FoliaInstance[capacity];
     private int _lastCount, _exitCount, _line = -1;
     private double _position = double.NaN, _enterTime, _exitTime;
     private FoliaLineTiming _timing, _exitTiming;

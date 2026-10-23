@@ -17,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="Jint" Version="4.17.0" />
     <EmbeddedResource Include="External\Folia\native-layout.js" LogicalName="Spectrum.Folia.native-layout.js" />
+    <EmbeddedResource Include="External\Folia\themes.js" LogicalName="Spectrum.Folia.themes.js" />
     <EmbeddedResource Include="External\Folia\sonnet-graphics.js" LogicalName="Spectrum.Folia.sonnet-graphics.js" />
     <Compile Remove=".tools\**\*.cs" />
     <Compile Remove="doc\verification\**\*.cs;Build\**\*.cs" />

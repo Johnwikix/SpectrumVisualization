@@ -109,7 +109,7 @@ internal sealed class FoliaTilt
                 float x = cx - advance * glyphScale * .5f;
                 float top = cy - shape.LineHeight * size * glyphScale * .5f + dy + (1 - presence) * (segment.Tilt ? 24 : 20);
                 int first = p.Count;
-                p.Glyph(shape, x, top, size * glyphScale, segment.Tilt ? accent : primary, presence * reveal);
+                p.Glyph(shape, x, top, size * glyphScale, glyph.ActiveColor ?? (segment.Tilt ? accent : primary), presence * reveal);
                 if (groupScale < 1)
                     p.TransformFrom(first, new(p.Width * .5f, y + height * .5f), new(p.Width * .5f, y + height * .5f), groupScale, 0);
                 left += advance;

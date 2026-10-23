@@ -72,7 +72,7 @@ internal static partial class FoliaLyricLayout
                 float progress = Progress(glyph, time), colorProgress = Math.Min(1, progress * 15);
                 float rotation = Math.Clamp(tangent * (.4f + .6f * depth), -38 * MathF.PI / 180, 38 * MathF.PI / 180);
                 p.Glyph(glyph.Glyph, p.Width * .5f + x - glyph.Glyph.Advance * size * .5f,
-                    p.Height * .5f + y - size * .6f, size, Vector3.Lerp(primary, accent, colorProgress),
+                    p.Height * .5f + y - size * .6f, size, Vector3.Lerp(primary, glyph.ActiveColor ?? accent, colorProgress),
                     opacity * (.55f + .45f * colorProgress), rotation, blur: 8 * (1 - depth) * (1 - .5f * focus), glow: focus * focus * .45f);
             }
         }

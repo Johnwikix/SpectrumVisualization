@@ -115,7 +115,7 @@ internal sealed class FoliaCadenza
                 float localY = (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * font - plan.Size.Y * .58f * state.Scale;
                 float cx = anchorX + localX * cos - localY * sin, cy = anchorY + localX * sin + localY * cos;
                 p.Glyph(glyph.Glyph, cx - (glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * font,
-                    cy - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * font, font, Vector3.Lerp(primary, accent, state.Mix), state.Alpha,
+                    cy - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * font, font, Vector3.Lerp(primary, glyph.ActiveColor ?? accent, state.Mix), state.Alpha,
                     state.Rotation, state.Blur, state.Glow * glow);
             }
         }

@@ -107,8 +107,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _glyphAtlas = new(_device, _glyphStore, _forceCpuGlyphs);
         _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
         _rtvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
-        _srv = _device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 32, DescriptorHeapFlags.ShaderVisible));
-        _rtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 5));
+        _srv = _device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 36, DescriptorHeapFlags.ShaderVisible));
+        _rtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 6));
         _dsv = _device.CreateDescriptorHeap(new(DescriptorHeapType.DepthStencilView, 1));
         _constants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None, ResourceDescription.Buffer(768), ResourceStates.GenericRead);
         _data = _constants.Map<Vector4>(0);
@@ -123,7 +123,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _prepared = new FoliaInstance[Capacity];
         _root = _device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new RootParameter1(RootParameterType.ConstantBufferView,new RootDescriptor1(0,0),ShaderVisibility.All),
-             new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,5,0,0,0,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,6,0,6,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,8,0,7,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,9,0,5,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel),
+             new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,5,0,0,0,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,6,0,6,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,8,0,7,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,9,0,5,DescriptorRangeFlags.None),new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,10,0,8,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel),
              new RootParameter1(RootParameterType.ConstantBufferView,new RootDescriptor1(1,0),ShaderVisibility.All),
              new RootParameter1(new RootConstants(2,0,1),ShaderVisibility.Vertex),
              new RootParameter1(RootParameterType.ShaderResourceView,new RootDescriptor1(5,0),ShaderVisibility.All),
@@ -139,6 +139,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _screenSprites = Pipeline("Stage", "SpriteVS", "SpritePS", sprites: true, screen: true);
         _lightField = Pipeline("Lumiere", "Fullscreen", "PS");
         _vignette = Pipeline("Stage", "Fullscreen", "VignettePS", sprites: true);
+        _backgroundSnapshot = Pipeline("Stage", "Fullscreen", "BackgroundSnapshotPS");
+        _backgroundBlend = Pipeline("Stage", "Fullscreen", "BackgroundBlendPS", sprites: true);
         _print = Pipeline("Print", "Fullscreen", "PS");
         _sonnetComposite = Pipeline("Sonnet", "Fullscreen", "PS", sprites: true);
         _sora = Pipeline("Sora", "VS", "PS", sprites: true);
@@ -170,7 +172,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             BlendState = screen ? new BlendDescription(Blend.One, Blend.InverseSourceColor, Blend.One, Blend.InverseSourceAlpha) : sprites ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = temporal, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Always, StencilEnable = false }
-    }, $"Folia/root-v6-tuning-soul/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
+    }, $"Folia/root-v8-theme-crossfade-keyword-glow/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
     }
 
     public void ConfigureTemporal(bool enabled)
@@ -183,6 +185,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
 
     public void Resize(in GpuRenderSize size)
     {
+        ResetBackgroundTransition();
         _size = size;
         for (int i = 3; i < 5; i++)
         {
@@ -219,6 +222,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
 
     public void PrepareFrame(double elapsedSeconds, int detail)
     {
+        AdvanceBackgroundTransition(elapsedSeconds);
         for (int i = 0; i < _uploads.Length; i++)
             if (!_pending[i])
             {
@@ -266,6 +270,24 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         else
             _lineAmbient += delta;
         _lineIndex = lineIndex;
+        // PrepareFrame follows the preceding-frame fence. Exclusive mode resources can
+        // be released here instead of retaining the largest visited mode until shutdown.
+        if (mode != "lumiere" && _bloom != null)
+        {
+            _bloom.Dispose();
+            _bloom = null;
+        }
+        if (backgroundMode != "latent" && _latentTarget != null)
+        {
+            GpuGraphics.DisposeResource(_latentTarget);
+            _latentTarget = null;
+        }
+        if (mode != "pendolo" && _clockVertices != null)
+        {
+            GpuGraphics.DisposeResource(_clockVertices);
+            _clockVertices = null;
+            _clockMeshVersion = -1;
+        }
         _data[0] = new(_size.Width, _size.Height, _size.OutputWidth, _size.OutputHeight);
         _data[1] = new(backgroundMode is "monet" or "nomand" ? (float)_backgroundTime : (float)_animation, (float)position, energy, (float)elapsedSeconds);
         _data[2] = new(FoliaSettings.IndexOf(FoliaSettings.BackgroundModes, backgroundMode), FoliaSettings.IndexOf(FoliaSettings.LyricModes, mode), FoliaSettings.IndexOf(FoliaSettings.ImageEffects, AppSettings.FoliaImageEffect), 1);
@@ -405,6 +427,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             commands.DrawInstanced(3, 1, 0, 0);
             commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         }
+        RecordBackgroundTransition(commands);
         if ((int)_data[2].Y == 12)
             RenderLumiere(commands);
         else if ((int)_data[2].Y == 10)
@@ -476,7 +499,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private void Bind(ID3D12GraphicsCommandList commands, int table)
     {
         // Texture SRVs belong to pixel shaders; only the immutable upload instance buffer is shared with VS.
-        commands.SetGraphicsRootDescriptorTable(1, _srv.GetGPUDescriptorHandleForHeapStart() + table * 8 * _srvStride);
+        commands.SetGraphicsRootDescriptorTable(1, _srv.GetGPUDescriptorHandleForHeapStart() + table * 9 * _srvStride);
         commands.SetGraphicsRootShaderResourceView(4, _instances.GPUVirtualAddress);
     }
     private void Background(ID3D12GraphicsCommandList commands, int shader, int texture, int table)
@@ -576,6 +599,9 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         GpuGraphics.DisposeResource(_lightField);
         _bloom?.Dispose();
         GpuGraphics.DisposeResource(_vignette);
+        ResetBackgroundTransition();
+        GpuGraphics.DisposeResource(_backgroundSnapshot);
+        GpuGraphics.DisposeResource(_backgroundBlend);
         GpuGraphics.DisposeResource(_sora);
         GpuGraphics.DisposeResource(_print);
         GpuGraphics.DisposeResource(_sonnetComposite);

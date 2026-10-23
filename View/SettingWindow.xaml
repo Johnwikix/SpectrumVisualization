@@ -595,6 +595,72 @@
                                 <ComboBoxItem x:Uid="FoliaOption_lumiere" Tag="lumiere" />
                             </ComboBox>
                         </controls:SettingsCard>
+                        <controls:SettingsExpander x:Uid="FoliaThemeSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaThemeSource">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeSource, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_cover" Tag="cover" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_preset" Tag="preset" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_custom" Tag="custom" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeVariant">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeVariant, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_dark" Tag="dark" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_light" Tag="light" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeRegenerate" IsEnabled="{x:Bind ViewModel.IsFoliaCoverTheme, Mode=OneWay}">
+                                    <Button x:Uid="FoliaThemeRegenerateButton" Command="{x:Bind ViewModel.RegenerateFoliaThemeCommand}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeBackground" IsEnabled="{x:Bind ViewModel.IsFoliaCustomTheme, Mode=OneWay}">
+                                    <Button Width="220" Content="{x:Bind ViewModel.FoliaThemeBackgroundHex, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <Flyout>
+                                                <ColorPicker x:Uid="FoliaThemeBackgroundPicker" Color="{x:Bind ViewModel.FoliaThemeBackground, Mode=TwoWay}" IsAlphaEnabled="False" IsHexInputVisible="True" />
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemePrimary" IsEnabled="{x:Bind ViewModel.IsFoliaCustomTheme, Mode=OneWay}">
+                                    <Button Width="220" Content="{x:Bind ViewModel.FoliaThemePrimaryHex, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <Flyout>
+                                                <ColorPicker x:Uid="FoliaThemePrimaryPicker" Color="{x:Bind ViewModel.FoliaThemePrimary, Mode=TwoWay}" IsAlphaEnabled="False" IsHexInputVisible="True" />
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeSecondary" IsEnabled="{x:Bind ViewModel.IsFoliaCustomTheme, Mode=OneWay}">
+                                    <Button Width="220" Content="{x:Bind ViewModel.FoliaThemeSecondaryHex, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <Flyout>
+                                                <ColorPicker x:Uid="FoliaThemeSecondaryPicker" Color="{x:Bind ViewModel.FoliaThemeSecondary, Mode=TwoWay}" IsAlphaEnabled="False" IsHexInputVisible="True" />
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeAccent" IsEnabled="{x:Bind ViewModel.IsFoliaCustomTheme, Mode=OneWay}">
+                                    <Button Width="220" Content="{x:Bind ViewModel.FoliaThemeAccentHex, Mode=OneWay}">
+                                        <Button.Flyout>
+                                            <Flyout>
+                                                <ColorPicker x:Uid="FoliaThemeAccentPicker" Color="{x:Bind ViewModel.FoliaThemeAccent, Mode=TwoWay}" IsAlphaEnabled="False" IsHexInputVisible="True" />
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaKeywordColors">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaKeywordColorsEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaWordColors">
+                                    <StackPanel Spacing="8" Width="300">
+                                        <TextBox x:Uid="FoliaWordColorsEditor" Text="{x:Bind ViewModel.FoliaWordColorsDraft, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="240" MaxLength="16384" />
+                                        <Button x:Uid="FoliaWordColorsApply" Command="{x:Bind ViewModel.ApplyFoliaWordColorsCommand}" HorizontalAlignment="Right" />
+                                        <InfoBar IsOpen="{x:Bind ViewModel.HasFoliaKeywordError, Mode=OneWay}" Message="{x:Bind ViewModel.FoliaKeywordError, Mode=OneWay}" Severity="Error" IsClosable="False" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
                         <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0">
                             <ComboBox
                                 Width="220"

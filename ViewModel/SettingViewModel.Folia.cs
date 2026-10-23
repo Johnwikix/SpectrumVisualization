@@ -169,6 +169,7 @@ public partial class SettingViewModel
 
     private void NotifyFoliaSettings()
     {
+        NotifyFoliaThemeSettings();
         NotifyFoliaTuningSettings();
         OnPropertyChanged(nameof(FoliaSonnetBackgroundMg));
         OnPropertyChanged(nameof(FoliaSonnetFixedGeometry));

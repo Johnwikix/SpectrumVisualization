@@ -25,6 +25,9 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
     // Native image shaders consume opaque RGB. Keep straight-alpha pixels for extraction,
     // and composite transparent artwork once on the cold worker before GPU upload.
     internal byte[]? DisplayCoverRgba { get; init; }
+    internal string KeywordSignature { get; init; } = "";
+    internal FoliaKeywordRange[][] KeywordRanges { get; init; } = [];
+    internal bool IsLightTheme { get; init; }
 
     internal static FoliaSong Empty
     {
