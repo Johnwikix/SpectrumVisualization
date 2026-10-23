@@ -13,7 +13,7 @@ internal sealed partial class FoliaTempera
     private readonly record struct Primitive(int Kind, Vector3 Color, float Alpha, float Width, Vector2 A, Vector2 B, Vector2 C);
     private sealed record Node(Vector2 Center, float Rotation, float Alpha, Vector2 Enter, float Delay, float Span, bool Drift, bool Grow, float Phase, Primitive[] Primitives);
     private readonly record struct Glyph(FoliaGlyph Shape, Vector2 Position, float Font, float Rotation, double Start, double End, double Settle, double Release,
-        Vector2 Enter, float EnterRotation, float EnterScale, string Style, Vector2 Tracking);
+        Vector2 Enter, float EnterRotation, float EnterScale, string Style, Vector2 Tracking, Vector3? ActiveColor);
     private sealed record Shot(double Start, double End, double LyricEnd, float Flow, Vector4 Camera, Vector4 CameraEnd, Node[] Nodes, Glyph[] Glyphs, float PostSeed,
         int Paragraph, double ParagraphStart, Transition? Enter, Transition? Exit);
     internal static readonly Vector3 Ink = new(184 / 255f, 214 / 255f, 204 / 255f), Paper = new(14 / 255f, 17 / 255f, 24 / 255f);
@@ -61,7 +61,8 @@ internal sealed partial class FoliaTempera
                 if (!atlas.CharacterGlyphs.TryGetValue(character, out var shape))
                     continue;
                 glyphs.Add(new(shape, new(F(g, "x"), F(g, "y")), F(g, "fontSize"), F(g, "rotation"), F(g, "startTime"), F(g, "endTime"), F(g, "settleTime"), F(g, "releaseTime"),
-                    new(F(g, "enterX"), F(g, "enterY")), F(g, "enterRotation"), F(g, "enterScale", 1), g.GetProperty("enterStyle").GetString()!, new(F(g, "trackingX"), F(g, "trackingY"))));
+                    new(F(g, "enterX"), F(g, "enterY")), F(g, "enterRotation"), F(g, "enterScale", 1), g.GetProperty("enterStyle").GetString()!, new(F(g, "trackingX"), F(g, "trackingY")),
+                    g.TryGetProperty("color", out var keyword) && keyword.ValueKind == JsonValueKind.String ? FoliaThemePlanner.Rgb(keyword.GetString()!) : null));
             }
             shots.Add(new(F(item, "startTime"), F(item, "endTime"), F(item, "lyricEndTime"), F(item, "flowAngle"), Camera(item.GetProperty("camera")), Camera(item.GetProperty("cameraEnd")), nodes.ToArray(), glyphs.ToArray(), F(item, "postSeed"),
                 item.GetProperty("paragraph").GetInt32(), item.GetProperty("paragraphStart").GetDouble(), ReadTransition(item.GetProperty("transitionIn")), ReadTransition(item.GetProperty("transitionOut"))));
@@ -196,16 +197,18 @@ internal sealed partial class FoliaTempera
             float release = FoliaMotion.InOut((float)((time - Math.Max(g.End, g.Settle)) / Math.Max(.001, g.Release - Math.Max(g.End, g.Settle))));
             Vector2 point = Vector2.Transform(g.Position + offset + g.Tracking * (release * .055f), pose.Matrix);
             float font = g.Font * uniform * cameraScale, angle = g.Rotation + rotation + cameraRotation;
+            Vector3 glyphColor = g.ActiveColor ?? InkColor;
+            float inversion = g.ActiveColor is null && AppSettings.FoliaTemperaInversion ? 2 : 0;
             // Print misregistration shares the inversion pass, so it cannot contaminate its own backdrop.
             if (AppSettings.FoliaTemperaDecor)
-                p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, InkColor, alpha * .34f, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
-            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, InkColor, alpha, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
+                p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, glyphColor, alpha * .34f, angle, blur: pose.Blur, difference: inversion);
+            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, glyphColor, alpha, angle, blur: pose.Blur, difference: inversion);
             float echoAlpha = echo * (1 - FoliaMotion.Enter(reveal)) * .5f;
             if (echoAlpha > .004f)
                 for (int layer = 0; layer < 2; layer++)
                 {
                     Vector2 echoPoint = Vector2.Transform(g.Position + offset * (1 + layer * .85f), pose.Matrix);
-                    p.Glyph(g.Shape, echoPoint.X - g.Shape.Advance * font * .5f, echoPoint.Y - font * .6f, font, InkColor, echoAlpha / (layer + 1.4f) * pose.Alpha, angle);
+                    p.Glyph(g.Shape, echoPoint.X - g.Shape.Advance * font * .5f, echoPoint.Y - font * .6f, font, glyphColor, echoAlpha / (layer + 1.4f) * pose.Alpha, angle);
                 }
         }
     }

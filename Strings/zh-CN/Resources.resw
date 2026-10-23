@@ -494,4 +494,32 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaNomandLensDispersion.Header" xml:space="preserve"><value>透镜色散</value></data>
   <data name="FoliaNomandOverlay.Header" xml:space="preserve"><value>背景遮罩</value></data>
   <data name="FoliaNomandOverlayOpacity.Header" xml:space="preserve"><value>遮罩不透明度</value></data>
+  <data name="FoliaThemeSettings.Header" xml:space="preserve"><value>主题与歌词颜色</value></data>
+  <data name="FoliaThemeSettings.Description" xml:space="preserve"><value>选择主题来源，编辑明暗配色和手动关键词专色。</value></data>
+  <data name="FoliaThemeSource.Header" xml:space="preserve"><value>主题来源</value></data>
+  <data name="FoliaThemeVariant.Header" xml:space="preserve"><value>明暗版本</value></data>
+  <data name="FoliaThemeOption_cover.Content" xml:space="preserve"><value>封面配色</value></data>
+  <data name="FoliaThemeOption_preset.Content" xml:space="preserve"><value>原版预设</value></data>
+  <data name="FoliaThemeOption_custom.Content" xml:space="preserve"><value>自定义</value></data>
+  <data name="FoliaThemeOption_dark.Content" xml:space="preserve"><value>深色 / 午夜墨染</value></data>
+  <data name="FoliaThemeOption_light.Content" xml:space="preserve"><value>浅色 / 日光素白</value></data>
+  <data name="FoliaThemeRegenerate.Header" xml:space="preserve"><value>重新生成封面配色</value></data>
+  <data name="FoliaThemeRegenerate.Description" xml:space="preserve"><value>采用原版和谐配色算法；窗口缩放或效果切换不会随机换色。</value></data>
+  <data name="FoliaThemeRegenerateButton.Content" xml:space="preserve"><value>重新生成</value></data>
+  <data name="FoliaThemeBackground.Header" xml:space="preserve"><value>背景色</value></data>
+  <data name="FoliaThemePrimary.Header" xml:space="preserve"><value>歌词主色</value></data>
+  <data name="FoliaThemeSecondary.Header" xml:space="preserve"><value>辅助文字色</value></data>
+  <data name="FoliaThemeAccent.Header" xml:space="preserve"><value>强调色</value></data>
+  <data name="FoliaKeywordColors.Header" xml:space="preserve"><value>关键词专色</value></data>
+  <data name="FoliaWordColors.Header" xml:space="preserve"><value>关键词与颜色</value></data>
+  <data name="FoliaWordColors.Description" xml:space="preserve"><value>每行一条：关键词=#RRGGBB。中文按完整词组匹配，英文忽略大小写并匹配完整单词；应用后保存。</value></data>
+  <data name="FoliaWordColorsEditor.PlaceholderText" xml:space="preserve"><value>星空=#88bbff
+希望=#ffcc66</value></data>
+  <data name="FoliaWordColorsEditor.AutomationProperties.Name" xml:space="preserve"><value>关键词颜色规则</value></data>
+  <data name="FoliaWordColorsApply.Content" xml:space="preserve"><value>应用关键词颜色</value></data>
+  <data name="FoliaKeywordInvalid" xml:space="preserve"><value>第 {0} 行格式无效。请使用“关键词=#RRGGBB”，最多 128 条。</value></data>
+  <data name="FoliaThemeBackgroundPicker.AutomationProperties.Name" xml:space="preserve"><value>背景色取色器</value></data>
+  <data name="FoliaThemePrimaryPicker.AutomationProperties.Name" xml:space="preserve"><value>歌词主色取色器</value></data>
+  <data name="FoliaThemeSecondaryPicker.AutomationProperties.Name" xml:space="preserve"><value>辅助文字色取色器</value></data>
+  <data name="FoliaThemeAccentPicker.AutomationProperties.Name" xml:space="preserve"><value>强调色取色器</value></data>
 </root>

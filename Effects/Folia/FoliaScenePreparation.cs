@@ -4,16 +4,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaSceneRequest(FoliaSong Song, string Family, int Weight,
-    string Mode, string Background, float Width, float Height, float Scale, bool TemperaDecor = true)
+    string Mode, string Background, float Width, float Height, float Scale, bool TemperaDecor = true, FoliaThemeSettings? Theme = null)
 {
     internal bool Matches(in FoliaSceneRequest other) => ReferenceEquals(Song, other.Song)
         && Family == other.Family && Weight == other.Weight && Mode == other.Mode && Background == other.Background
         && Width == other.Width && Height == other.Height && Scale == other.Scale
-        && (Mode != "tempera" || TemperaDecor == other.TemperaDecor);
+        && (Mode != "tempera" || TemperaDecor == other.TemperaDecor)
+        && (Theme ?? FoliaThemeSettings.Default) == (other.Theme ?? FoliaThemeSettings.Default);
 
     internal static bool SameText(FoliaSong a, FoliaSong b) => a.Title == b.Title && a.Artist == b.Artist
         && ReferenceEquals(a.Lines, b.Lines);
@@ -44,7 +46,7 @@ internal sealed class FoliaModePlan
                 case "partita": Partita.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "tempera": Tempera.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
                 case "fume": Fume.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
-                case "diorama": Diorama.Prepare(atlas, token); break;
+                case "diorama": Diorama.Prepare(atlas, token, request.Song.Palette); break;
                 case "tilt": Tilt.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
                 case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
@@ -57,13 +59,14 @@ internal sealed class FoliaModePlan
 }
 
 internal sealed class FoliaPreparedScene(FoliaSceneRequest request, FoliaTextAtlas? atlas,
-    FoliaModePlan? plan, Vector3[] colors, Exception? error = null) : IDisposable
+    FoliaModePlan? plan, Vector3[] colors, Exception? error = null, FoliaSong? renderedSong = null) : IDisposable
 {
     internal FoliaSceneRequest Request { get; } = request;
     internal FoliaTextAtlas? Atlas { get; } = atlas;
     internal FoliaModePlan? Plan { get; } = plan;
     internal Vector3[] Colors { get; } = colors;
     internal Exception? Error { get; } = error;
+    internal FoliaSong Song { get; } = renderedSong ?? request.Song;
     private FoliaTextAtlas? _owner = atlas?.Retain();
     public void Dispose() => Interlocked.Exchange(ref _owner, null)?.ReleaseLease();
 }
@@ -88,6 +91,7 @@ internal sealed class FoliaScenePreparation : IDisposable
     private FoliaModePlan? _plan;
     private byte[]? _cover;
     private Vector3[] _colors = [];
+    private readonly FoliaThemeResolver _themes = new();
 
     internal bool HasReady => Volatile.Read(ref _ready) != null;
     internal FoliaPreparedScene? TakeReady() => Interlocked.Exchange(ref _ready, null);
@@ -102,7 +106,7 @@ internal sealed class FoliaScenePreparation : IDisposable
             if (_working is not { } working || !FoliaSceneRequest.SameText(working.Song, request.Song)
                 || working.Family != request.Family || working.Weight != request.Weight || working.Mode != request.Mode
                 || working.Width != request.Width || working.Height != request.Height || working.Scale != request.Scale
-                || working.Background != request.Background)
+                || working.Background != request.Background || working.Theme != request.Theme)
                 _cancellation?.Cancel();
             Interlocked.Exchange(ref _ready, null)?.Dispose();
             StartWorker();
@@ -157,27 +161,36 @@ internal sealed class FoliaScenePreparation : IDisposable
                 continue;
             }
             var token = cancellation!.Token;
+            var requested = request;
             try
             {
                 // Requests already coalesce into _pending, and obsolete work is cancellable.
                 // An isolated mode/background change must not pay a debounce interval.
                 token.ThrowIfCancellationRequested();
+                var theme = request.Theme ?? FoliaThemeSettings.Default;
+                request = request with { Song = _themes.Resolve(request.Song, theme, token) };
                 if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
-                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song))
+                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song)
+                    || _atlasRequest.Song.KeywordSignature != request.Song.KeywordSignature)
                     ReplaceAtlas(CreateAtlas(request, token), request);
                 if (request.Mode == "tilt") PrepareTiltGlyphs(request, token);
+                _atlasRequest = request;
+                if (_hasItalicRequest) _italicRequest = _italicRequest with { Song = request.Song };
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
-                    || (request.Mode is "tempera" or "pendolo") && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
+                    || (request.Mode is "tempera" or "pendolo" || request.Mode == "diorama" && request.Song.KeywordSignature.Length > 0)
+                        && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
                     var plan = new FoliaModePlan(_atlas, request, token);
                     token.ThrowIfCancellationRequested();
                     _plan = plan;
-                    _planRequest = request;
                 }
+                // These keys describe the retained atlas/plan, but need not retain a
+                // superseded full-resolution cover after metadata-only scene updates.
+                _planRequest = request;
                 if (request.Background == "latent" && !ReferenceEquals(_cover, request.Song.CoverRgba))
                 {
                     var colors = FoliaLatent.Extract(request.Song, token);
@@ -185,7 +198,12 @@ internal sealed class FoliaScenePreparation : IDisposable
                     _colors = colors;
                     _cover = request.Song.CoverRgba;
                 }
-                var result = new FoliaPreparedScene(request, _atlas, _plan, _colors);
+                if (request.Background != "latent")
+                {
+                    _cover = null;
+                    _colors = [];
+                }
+                var result = new FoliaPreparedScene(requested, _atlas, _plan, _colors, renderedSong: request.Song);
                 lock (_gate)
                     if (!_stopped && !token.IsCancellationRequested)
                         Interlocked.Exchange(ref _ready, result)?.Dispose();
@@ -196,7 +214,7 @@ internal sealed class FoliaScenePreparation : IDisposable
             {
                 lock (_gate)
                     if (!_stopped && !token.IsCancellationRequested)
-                        Interlocked.Exchange(ref _ready, new(request, null, null, [], error))?.Dispose();
+                        Interlocked.Exchange(ref _ready, new(requested, null, null, [], error))?.Dispose();
             }
             finally
             {
@@ -236,6 +254,7 @@ internal sealed class FoliaScenePreparation : IDisposable
         _atlasRequest = request;
         _plan = null;
         _hasItalicRequest = false;
+        _italicRequest = default;
         previous?.Dispose();
     }
 
@@ -274,6 +293,7 @@ internal sealed class FoliaScenePreparation : IDisposable
         _atlas = null;
         _plan = null;
         _cover = null;
+        _themes.Clear();
         _colors = [];
         _atlasRequest = _planRequest = _italicRequest = default;
         _hasItalicRequest = false;

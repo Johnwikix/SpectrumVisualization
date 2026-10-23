@@ -25,6 +25,7 @@ namespace WinExSpectrumTest.Service
         /// <summary>把 SaveSetting 快照写入运行时 AppSettings；每项赋值都会发布 Changed 通知。</summary>
         private static void ApplySettings(SaveSetting settings)
         {
+            AppSettings.FoliaTheme = settings.FoliaTheme;
             AppSettings.LyricsCacheEnabled = settings.LyricsCacheEnabled;
             AppSettings.LyricsCacheFolder = settings.LyricsCacheFolder;
             AppSettings.FoliaFumeGeometry = settings.FoliaFumeGeometry;
@@ -162,6 +163,7 @@ namespace WinExSpectrumTest.Service
         {
             return new SaveSetting
             {
+                FoliaTheme = AppSettings.FoliaTheme,
                 LyricsCacheEnabled = AppSettings.LyricsCacheEnabled,
                 LyricsCacheFolder = AppSettings.LyricsCacheFolder,
                 FoliaFumeGeometry = AppSettings.FoliaFumeGeometry,

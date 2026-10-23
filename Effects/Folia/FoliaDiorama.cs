@@ -29,10 +29,12 @@ internal sealed partial class FoliaDiorama
         private get; set;
     }
 
-    internal void Prepare(FoliaTextAtlas atlas, CancellationToken token = default)
+    internal void Prepare(FoliaTextAtlas atlas, CancellationToken token = default, Vector3[]? palette = null)
     {
-        if (atlas.Identity == _atlasIdentity)
+        if (atlas.Identity == _atlasIdentity && ReferenceEquals(_keywordPalette, palette))
             return;
+        PrepareKeywordColors(atlas, palette);
+        if (atlas.Identity == _atlasIdentity) return;
         using var buffer = new MemoryStream();
         using (var w = new Utf8JsonWriter(buffer))
         {
@@ -223,7 +225,9 @@ internal sealed partial class FoliaDiorama
                 light += ((activeGlyph ? 1 : 0) - light) * (1 - MathF.Exp(-(activeGlyph ? 14 : 3.6f) * dt));
                 float reveal = time >= glyph.Start ? 1 : .5f;
                 float mix = AppSettings.FoliaDioramaGradient ? GradientEnergy(time, glyph.Start, glyph.End) : light * 1.15f;
-                Vector3 color = Vector3.Lerp(li > index ? secondary : primary, accent, Math.Clamp(mix, 0, 1));
+                Vector3 keywordTarget = _keywordColors.Length > li && _keywordColors[li].Length > glyph.Index
+                    ? _keywordColors[li][glyph.Index] ?? accent : glyph.ActiveColor ?? accent;
+                Vector3 color = Vector3.Lerp(li > index ? secondary : primary, keywordTarget, Math.Clamp(mix, 0, 1));
                 color = Vector3.Lerp(color, background ?? FoliaSong.Empty.Palette[0], fog);
                 p.GlyphQuad(glyph.Glyph, a, b, d, e, new(za, zb, zd, ze), color,
                     opacity * life * (li == index ? reveal : 1), AppSettings.FoliaDioramaGlow ? light * .9f * AppSettings.FoliaDioramaGlowStrength : 0);

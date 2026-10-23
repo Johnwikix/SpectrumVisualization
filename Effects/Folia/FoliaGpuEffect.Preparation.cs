@@ -19,7 +19,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         // Each published snapshot still commits its atlas, layout and images together.
         return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
             AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
-            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor);
+            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor, AppSettings.FoliaTheme);
     }
 
     private bool UpdatePreparedScene()
@@ -32,6 +32,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _hasRequest = true;
             _upload?.Dispose();
             _upload = null;
+            RequestBackgroundTransition(request);
             _preparation.Request(request);
         }
         bool textChanged = false;
@@ -70,7 +71,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         }
         // The host selects temporal reset before PrepareFrame. If completion races that check,
         // leave the result for the next frame, so the SDK and effect reset on the same frame.
-        if (_upload is { Complete: true } upload && (!_temporal || _frame.Reset))
+        if (_upload is { Complete: true } upload && !_captureBackground && (!_temporal || _frame.Reset))
         {
             var scene = upload.Scene;
             var atlas = scene.Atlas!;
@@ -83,7 +84,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _modeAtlasSource = upload.ModeAtlasSource;
             if (!ReferenceEquals(_pendolo, plan.Pendolo)) _clockMeshVersion = -1;
             _atlas = atlas;
-            _song = request.Song;
+            _song = scene.Song;
             _lumiere = plan.Lumiere;
             _cadenza = plan.Cadenza;
             _glowWords = plan.GlowWords;
@@ -97,6 +98,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _monet = plan.Monet;
             _latent.SetPalette(request.Song, scene.Colors);
             _activeRequest = request;
+            CommitBackgroundTransition();
             _hasScene = true;
             Descriptors();
             _activeScene?.Dispose();

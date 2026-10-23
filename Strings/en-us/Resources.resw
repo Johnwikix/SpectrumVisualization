@@ -494,4 +494,32 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaNomandLensDispersion.Header" xml:space="preserve"><value>Lens dispersion</value></data>
   <data name="FoliaNomandOverlay.Header" xml:space="preserve"><value>Background overlay</value></data>
   <data name="FoliaNomandOverlayOpacity.Header" xml:space="preserve"><value>Overlay opacity</value></data>
+  <data name="FoliaThemeSettings.Header" xml:space="preserve"><value>Theme and lyric colors</value></data>
+  <data name="FoliaThemeSettings.Description" xml:space="preserve"><value>Choose a theme source, edit light/dark colors and assign keyword colors.</value></data>
+  <data name="FoliaThemeSource.Header" xml:space="preserve"><value>Theme source</value></data>
+  <data name="FoliaThemeVariant.Header" xml:space="preserve"><value>Theme variant</value></data>
+  <data name="FoliaThemeOption_cover.Content" xml:space="preserve"><value>Cover colors</value></data>
+  <data name="FoliaThemeOption_preset.Content" xml:space="preserve"><value>Original preset</value></data>
+  <data name="FoliaThemeOption_custom.Content" xml:space="preserve"><value>Custom</value></data>
+  <data name="FoliaThemeOption_dark.Content" xml:space="preserve"><value>Dark / Midnight</value></data>
+  <data name="FoliaThemeOption_light.Content" xml:space="preserve"><value>Light / Daylight</value></data>
+  <data name="FoliaThemeRegenerate.Header" xml:space="preserve"><value>Regenerate cover palette</value></data>
+  <data name="FoliaThemeRegenerate.Description" xml:space="preserve"><value>Uses the original color harmony algorithm; resizing or switching effects keeps the generated palette.</value></data>
+  <data name="FoliaThemeRegenerateButton.Content" xml:space="preserve"><value>Regenerate</value></data>
+  <data name="FoliaThemeBackground.Header" xml:space="preserve"><value>Background</value></data>
+  <data name="FoliaThemePrimary.Header" xml:space="preserve"><value>Primary lyrics</value></data>
+  <data name="FoliaThemeSecondary.Header" xml:space="preserve"><value>Secondary text</value></data>
+  <data name="FoliaThemeAccent.Header" xml:space="preserve"><value>Accent</value></data>
+  <data name="FoliaKeywordColors.Header" xml:space="preserve"><value>Keyword colors</value></data>
+  <data name="FoliaWordColors.Header" xml:space="preserve"><value>Keywords and colors</value></data>
+  <data name="FoliaWordColors.Description" xml:space="preserve"><value>One entry per line: keyword=#RRGGBB. CJK phrases match by position; English matches whole words without case. Apply to save.</value></data>
+  <data name="FoliaWordColorsEditor.PlaceholderText" xml:space="preserve"><value>starlight=#88bbff
+hope=#ffcc66</value></data>
+  <data name="FoliaWordColorsEditor.AutomationProperties.Name" xml:space="preserve"><value>Keyword color rules</value></data>
+  <data name="FoliaWordColorsApply.Content" xml:space="preserve"><value>Apply keyword colors</value></data>
+  <data name="FoliaKeywordInvalid" xml:space="preserve"><value>Invalid entry on line {0}. Use keyword=#RRGGBB, up to 128 entries.</value></data>
+  <data name="FoliaThemeBackgroundPicker.AutomationProperties.Name" xml:space="preserve"><value>Background color picker</value></data>
+  <data name="FoliaThemePrimaryPicker.AutomationProperties.Name" xml:space="preserve"><value>Primary lyrics color picker</value></data>
+  <data name="FoliaThemeSecondaryPicker.AutomationProperties.Name" xml:space="preserve"><value>Secondary text color picker</value></data>
+  <data name="FoliaThemeAccentPicker.AutomationProperties.Name" xml:space="preserve"><value>Accent color picker</value></data>
 </root>

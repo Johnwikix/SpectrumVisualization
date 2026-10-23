@@ -18,7 +18,7 @@ internal static class ShaderCatalog
         Pair(SmaaShaderSource.Load(), "VS", "Edges", "Weights", "Blend");
         Pair(SonicTerrainSource.Code, "TerrainVS", "TerrainPS", "TerrainTemporalPS");
         Pair(SonicTerrainSource.Code, "ParticleVS", "ParticlePS");
-        Pair(FoliaShaderLibrary.Background("Stage"), "Fullscreen", "PS", "CopyPS", "TemporalPS", "VignettePS", "LatentCompositePS");
+        Pair(FoliaShaderLibrary.Background("Stage"), "Fullscreen", "PS", "CopyPS", "TemporalPS", "VignettePS", "LatentCompositePS", "BackgroundSnapshotPS", "BackgroundBlendPS");
         Pair(FoliaShaderLibrary.Background("Stage"), "SpriteVS", "SpritePS");
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
         foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print", "Sonnet" })

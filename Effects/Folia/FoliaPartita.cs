@@ -101,7 +101,7 @@ internal sealed class FoliaPartita
                     float localY = ((glyph.Glyph.BearingY + glyph.Glyph.Height * .5f + (1.22f - glyph.Glyph.LineHeight) * .5f) * font - lineHeight * .5f) * pose.Scale;
                     float cx = centerX + localX * cos - localY * sin, cy = centerY + localX * sin + localY * cos;
                     p.Glyph(glyph.Glyph, cx - (glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * size,
-                        cy - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * size, size, Vector3.Lerp(primary, accent, pose.ColorMix), pose.Alpha,
+                        cy - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * size, size, Vector3.Lerp(primary, glyph.ActiveColor ?? accent, pose.ColorMix), pose.Alpha,
                         pose.Rotation, pose.Blur, FoliaGlowWords.CharGlow(glyph, time, word.Finish));
                 }
                 xCursor += span + 12.8f;

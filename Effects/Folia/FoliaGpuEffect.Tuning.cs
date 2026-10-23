@@ -11,7 +11,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private void WriteTuning()
     {
         _data[30] = new(AppSettings.FoliaTemperaGrain, AppSettings.FoliaTemperaContrast, AppSettings.FoliaTemperaRgbShift, AppSettings.FoliaTemperaVignette);
-        _data[31] = new(AppSettings.FoliaTemperaLens, AppSettings.FoliaNomandOverlay ? AppSettings.FoliaNomandOverlayOpacity : 0, 0, 0);
+        _data[31] = new(AppSettings.FoliaTemperaLens, AppSettings.FoliaNomandOverlay ? AppSettings.FoliaNomandOverlayOpacity : 0, _song?.IsLightTheme == true ? 1 : 0, _backgroundAlpha);
         _data[32] = new(AppSettings.FoliaNomandSize, MathF.Round(AppSettings.FoliaNomandSteps), AppSettings.FoliaNomandOriginal ? 1 : 0, AppSettings.FoliaNomandInverted ? 1 : 0);
         _data[33] = new(AppSettings.FoliaNomandGlassSize, AppSettings.FoliaNomandGlassDistortion, AppSettings.FoliaNomandGlassBlur, 0);
         float normal = 2 * .65f + 1.5f * .35f + .2f * .2f + .75f * AppSettings.FoliaNomandPaperRoughness + .1f * AppSettings.FoliaNomandPaperFiber;

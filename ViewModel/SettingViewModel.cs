@@ -656,6 +656,7 @@ namespace WinExSpectrumTest.ViewModel
             }
             if (name.StartsWith("Folia", StringComparison.Ordinal))
             {
+                if (name == nameof(AppSettings.FoliaTheme)) NotifyFoliaThemeSettings();
                 OnPropertyChanged(name);
                 if (name == nameof(AppSettings.FoliaBackground))
                     OnPropertyChanged(nameof(IsFoliaImageBackground));
@@ -718,6 +719,10 @@ namespace WinExSpectrumTest.ViewModel
 
         private void ReloadSettings()
         {
+            _foliaWordColorsDirty = false;
+            _foliaKeywordError = "";
+            OnPropertyChanged(nameof(FoliaKeywordError));
+            OnPropertyChanged(nameof(HasFoliaKeywordError));
             bool initialized = _isInitialized;
             _isInitialized = false;
             RotationSpeed = AppSettings.RotationSpeed;

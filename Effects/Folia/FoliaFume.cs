@@ -97,7 +97,7 @@ internal sealed partial class FoliaFume
                     float progress = Math.Clamp((float)((time - start) / durationGlyph) + .16f, 0, 1);
                     float enter = 1 - MathF.Pow(1 - progress, 3);
                     float opacity = waiting ? waitingAlpha : time <= trailStart ? waitingAlpha + (activeAlpha - waitingAlpha) * enter : activeAlpha + (passedAlpha - activeAlpha) * trail;
-                    Vector3 color = waiting ? primary : Vector3.Lerp(accent, primary, .18f + trail * .82f);
+                    Vector3 color = waiting ? primary : Vector3.Lerp(glyph.ActiveColor ?? accent, primary, .18f + trail * .82f);
                     Vector2 xy = origin + (row.Position + new Vector2(row.Offsets[gi - row.First], 0)) * camera.Z;
                     float baseline = xy.Y + block.LineHeight * camera.Z * .52f;
                     float glow = waiting ? 0 : (time <= trailStart ? .84f * enter : .1f + .16f * (1 - trail));

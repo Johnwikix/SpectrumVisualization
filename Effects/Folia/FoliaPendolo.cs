@@ -29,8 +29,8 @@ internal sealed class FoliaPendolo
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale && ReferenceEquals(_palette, palette))
             return;
-        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(
-            FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, palette), "compilePendolo", token));
+        var source = FoliaSourcePlanner.CompilePendolo(FoliaSourcePlanner.CreatePendoloInput(width, height, palette), token);
+        using var document = JsonDocument.Parse(source.Parts);
         var root = document.RootElement;
         var parts = root.GetProperty("parts");
         _parts = new Part[parts.GetArrayLength()];
@@ -46,12 +46,9 @@ internal sealed class FoliaPendolo
                 orbiting, part.GetProperty("base").GetSingle(),
                 new(coefficients[0].GetSingle(), coefficients[1].GetSingle(), coefficients[2].GetSingle(), coefficients[3].GetSingle()));
         }
-        var data = root.GetProperty("data");
         if (_parts.Length > 32)
             throw new InvalidOperationException("Pendolo source exceeds its 32-part transform table.");
-        Mesh = new float[data.GetArrayLength()];
-        for (int i = 0; i < Mesh.Length; i++)
-            Mesh[i] = data[i].GetSingle();
+        Mesh = source.Mesh;
         MeshVersion++;
         _atlasIdentity = atlas.Identity;
         _width = width;
@@ -210,7 +207,7 @@ internal sealed class FoliaPendolo
             if (sweep)
             {
                 float progress = Math.Clamp((float)((time - glyph.Start) / Math.Max(.001, glyph.End - glyph.Start)), 0, 1);
-                p.Glyph(glyph.Glyph, position.X, position.Y, font * scale, color, alpha, rotation, reveal: progress);
+                p.Glyph(glyph.Glyph, position.X, position.Y, font * scale, glyph.ActiveColor ?? color, alpha, rotation, reveal: progress);
             }
             x += advance;
         }

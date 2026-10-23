@@ -116,7 +116,7 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
     }
 
     internal void Glyph(in FoliaGlyph glyph, float x, float y, float font, Vector3 color, float alpha,
-        float rotation = 0, float blur = 0, float glow = 0, float shear = 0, float reveal = 1, float difference = 0, bool outline = false, float outlineWidth = 1.05f, float revealSoftness = 0)
+        float rotation = 0, float blur = 0, float glow = 0, float shear = 0, float reveal = 1, float difference = 0, bool outline = false, float outlineWidth = 1.05f, float revealSoftness = 0, Vector3? glowColor = null)
     {
         if (alpha <= .001f || font < .1f || reveal <= 0 || Count >= _instances.Length)
             return;
@@ -131,9 +131,17 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Color = new(color, Math.Clamp(alpha, 0, 1)),
             Transform = new(rotation, shear, blur, glow),
             Shape = new(0, 0, 0, 0),
-            GlyphData = new(glyph.Page, 0, 0, 0),
+            GlyphData = new(glyph.Page, 0, glowColor is { } tint ? PackColor(tint) : 0, 0),
             Effect = new(reveal >= 1 ? 1 : Math.Clamp((glyph.Advance * reveal - glyph.BearingX) / glyph.Width, 0, 1), reveal >= 1 ? 0 : revealSoftness, outline ? outlineWidth : 0, difference)
         };
+    }
+
+    // A float represents every RGB24 integer exactly. Zero means body-colored glow;
+    // adding one preserves an explicit black override without enlarging each instance.
+    private static float PackColor(Vector3 color)
+    {
+        var rgb = Vector3.Clamp(color, Vector3.Zero, Vector3.One) * 255;
+        return 1 + ((int)MathF.Round(rgb.X) << 16 | (int)MathF.Round(rgb.Y) << 8 | (int)MathF.Round(rgb.Z));
     }
 
     internal void GlyphQuad(in FoliaGlyph glyph, Vector2 topLeft, Vector2 topRight, Vector2 bottomRight, Vector2 bottomLeft,

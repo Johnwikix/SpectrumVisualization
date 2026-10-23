@@ -38,7 +38,7 @@ internal sealed partial class FoliaLumiere
         return Math.Min(boost, .45f);
     }
 
-    private void WriteBursts(ref FoliaPainter painter, double time)
+    private void WriteBursts(ref FoliaPainter painter, FoliaTextAtlas atlas, double time)
     {
         int count = 0;
         foreach (ref readonly var burst in _bursts.AsSpan())
@@ -52,7 +52,10 @@ internal sealed partial class FoliaLumiere
             var anchor = _window.Resolve(burst.Glyph);
             float length = anchor.Font * burst.Size;
             float x = anchor.Position.X, y = anchor.Position.Y + anchor.Font * burst.Offset;
-            Vector3 color = Vector3.Lerp(_light, burst.Tint, .85f), core = Vector3.Lerp(color, Vector3.One, .75f);
+            Vector3 color = Vector3.Lerp(_light, burst.Tint, .85f);
+            if (atlas.Lines[burst.Line].Glyphs[burst.Glyph].ActiveColor is { } keyword)
+                color = Vector3.Lerp(color, KeywordLight(_light, keyword, .7f), .8f);
+            Vector3 core = Vector3.Lerp(color, Vector3.One, .75f);
             float envelope = Math.Clamp(age / .03f, 0, 1) * MathF.Exp(-Math.Max(0, age - .03f) / .16f);
             float spread = 1 + 2 * age;
             float vertical = Math.Max(1, length * OutExpo(age / .08f));

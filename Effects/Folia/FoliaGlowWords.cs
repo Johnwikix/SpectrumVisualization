@@ -32,11 +32,17 @@ internal sealed class FoliaGlowWords
     {
         if (_atlasIdentity == atlas.Identity)
             return;
-        int count = 0;
+        int count = 0, maximumGlyphs = 0;
         foreach (var line in atlas.Lines)
+        {
             count = Math.Max(count, line.Source.Words.Length);
+            maximumGlyphs = Math.Max(maximumGlyphs, line.Glyphs.Length);
+        }
         _words = new Motion[count];
-        Handoff = handoff ? new FoliaLineHandoff() : null;
+        // Partita has at most one glyph, one ripple and two guide strokes per
+        // grapheme. Keep the former 8192-instance ceiling, sized to this song.
+        int handoffCapacity = Math.Min(8192, Math.Min(maximumGlyphs, 2048) * 4 + 32);
+        Handoff = handoff ? new FoliaLineHandoff(handoffCapacity) : null;
         _atlasIdentity = atlas.Identity;
         _line = -1;
         Chat = new FoliaChatMotion(atlas.Lines.Length);

@@ -80,12 +80,18 @@ float4 LatentCompositePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 float4 VignettePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     uv-=Jitter.xy/Screen.xy;
     float radius=length((uv-.5)*Screen.xy)/(length(Screen.xy)*.5);
-    return float4(0,0,0,saturate((radius-.4)/.6)*.6);
+    return float4(0,0,0,saturate((radius-.4)/.6)*lerp(.6,.3,SceneTuning.z));
 }
 float Cross2(float2 a,float2 b){return a.x*b.y-a.y*b.x;}
 float InversionLuminance(float2 uv){return dot(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,float3(.2126,.7152,.0722));}
 float4 CopyPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     return float4(ToLinear(max(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,0)),1);
+}
+float4 BackgroundSnapshotPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
+    return BackdropTexture.SampleLevel(LinearClamp,uv,0);
+}
+float4 BackgroundBlendPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
+    return float4(BackgroundHistoryTexture.SampleLevel(LinearClamp,uv,0).rgb*SceneTuning.w,SceneTuning.w);
 }
 struct TemporalOutput { float4 color:SV_Target0;float2 motion:SV_Target1;float reactive:SV_Target2;float depth:SV_Depth; };
 TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
@@ -188,7 +194,13 @@ float4 SpritePS(SpriteOutput input):SV_Target {
             opacity*=mask;
         }
         float glow=halo*.8*glowStrength*(1-coverage);
-        return float4(color*(coverage+glow)*opacity,v.glyphData.y>.5?0:saturate(coverage+glow)*opacity);
+        float3 rgb=color*(coverage+glow);
+        if(v.glyphData.z>0) {
+            uint packed=(uint)v.glyphData.z-1;
+            float3 haloColor=float3((packed>>16)&255,(packed>>8)&255,packed&255)/255.0;
+            rgb=color*coverage+haloColor*glow;
+        }
+        return float4(rgb*opacity,v.glyphData.y>.5?0:saturate(coverage+glow)*opacity);
     } else if(kind==2||kind==20||kind==21) {
         float angle=atan2(local.y,local.x),r=min(v.rect.z,v.rect.w)*.5;
         float radius=r;

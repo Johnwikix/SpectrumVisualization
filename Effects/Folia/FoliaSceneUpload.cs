@@ -108,7 +108,8 @@ internal sealed class FoliaSceneUpload : IDisposable
         var atlas = scene.Atlas!;
         _resident = resident;
         if (!atlas.IsShared && !ReferenceEquals(atlas, activeAtlas)) Glyphs = new(0, atlas.Width, atlas.Height, Format.R16G16B16A16_Float);
-        if (!ReferenceEquals(scene.Request.Song.CoverRgba, activeSong.CoverRgba))
+        if (!ReferenceEquals(scene.Song.CoverRgba, activeSong.CoverRgba)
+            || !ReferenceEquals(scene.Song.DisplayCoverRgba, activeSong.DisplayCoverRgba))
             Cover = new(1, Math.Max(1, scene.Request.Song.CoverWidth), Math.Max(1, scene.Request.Song.CoverHeight), Format.R8G8B8A8_UNorm);
         bool emoji = scene.Request.Mode == "cappella" && atlas.Lines.Length > 0;
         ModeAtlasSource = emoji ? FoliaAssets.Emojis : atlas;
@@ -138,7 +139,7 @@ internal sealed class FoliaSceneUpload : IDisposable
 
         // Independent images can upload alongside glyph batches. Missing images and
         // resident glyphs consume no frames; actual copies still cross the host fence.
-        var song = Scene.Request.Song;
+        var song = Scene.Song;
         bool coverReady = Cover == null || Cover.Advance(device, song.CoverRgba.Length == 0 ? emptyCover : song.DisplayCoverRgba ?? song.CoverRgba);
         bool modeReady = ModeAtlas == null || ModeAtlas.Advance(device,
             ModeAtlasSource is FoliaAssets.EmojiAtlas emojis ? emojis.Pixels.AsSpan() : Scene.Atlas.ShadowPixels);

@@ -78,7 +78,7 @@ internal static partial class FoliaLyricLayout
             float c = MathF.Cos(rotation), s = MathF.Sin(rotation), size = font * sizeScale;
             float x = centerX + localX * c - localY * s - (glyph.Glyph.BearingX + glyph.Glyph.Width * .5f) * size;
             float y = centerY + localX * s + localY * c - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f) * size;
-            p.Glyph(glyph.Glyph, x, y, size, Vector3.Lerp(primary, accent, pose.ColorMix), pose.Alpha,
+            p.Glyph(glyph.Glyph, x, y, size, Vector3.Lerp(primary, glyph.ActiveColor ?? accent, pose.ColorMix), pose.Alpha,
                 rotation, pose.Blur, FoliaGlowWords.CharGlow(glyph, time, word.End));
 
         }

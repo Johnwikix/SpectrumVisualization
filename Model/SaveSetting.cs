@@ -3,6 +3,7 @@ namespace WinExSpectrumTest.Model
 {
     public partial class SaveSetting
     {
+        public FoliaThemeSettings FoliaTheme { get; set; } = FoliaThemeSettings.Default;
         public bool LyricsCacheEnabled { get; set; } = true;
         public string LyricsCacheFolder { get; set; } = "";
         /// <summary>Gets or sets whether sonnet: geometry and hud is enabled.</summary>

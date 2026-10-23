@@ -9,11 +9,12 @@ using Microsoft.Graphics.Canvas.Geometry;
 using System.Runtime.InteropServices;
 using Windows.UI;
 using Windows.UI.Text;
+using System.Numerics;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaGlyph(float U, float V, float Uw, float Vh, float Width, float Height, float Advance, float BearingX, float BearingY, float CanvasCenterY = 0, float LineHeight = 1.32f, int Page = 0);
-internal readonly record struct FoliaPreparedGlyph(FoliaGlyph Glyph, float Offset, double Start, double End, int Word, int Index);
+internal readonly record struct FoliaPreparedGlyph(FoliaGlyph Glyph, float Offset, double Start, double End, int Word, int Index, Vector3? ActiveColor = null);
 internal sealed record FoliaPreparedLine(FoliaLine Source, FoliaPreparedGlyph[] Glyphs, float Width, FoliaPreparedGlyph[] Translation, float TranslationWidth)
 {
     internal FoliaGlyph[] TiltItalic { get; init; } = [];
@@ -75,6 +76,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         _store?.Release(SharedGlyphs);
     }
     internal FoliaPreparedGlyph[] MonetTitle { get; }
+    internal FoliaWordColor[] KeywordRules { get; } = [];
     internal float MonetTitleWidth { get; }
     internal FoliaPreparedGlyph[][] ChatTimestamps { get; }
     internal float[] ChatTimestampWidths { get; }
@@ -133,6 +135,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         try
         {
             Seed = song.Title.StartsWith("Folia ·", StringComparison.Ordinal) ? "spectrum-reference" : song.Title + "\n" + song.Artist;
+            if (song.KeywordSignature.Length > 0 && FoliaThemePlanner.TryParseRules(song.KeywordSignature, out var rules, out _)) KeywordRules = rules;
             var characters = new SortedSet<string>(StringComparer.Ordinal);
             AddCharacters(characters, song.Title);
             AddCharacters(characters, song.Artist);
@@ -302,6 +305,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                 var italics = new List<FoliaGlyph>();
                 float offset = 0;
                 int index = 0;
+                int textOffset = 0;
                 for (int wi = 0; wi < line.Words.Length; wi++)
                 {
                     var word = line.Words[wi];
@@ -317,10 +321,19 @@ internal sealed class FoliaTextAtlas : IDisposable
                         double start = line.WordSynced ? word.Start + (word.End - word.Start) * inWord / Math.Max(1, count) : line.Start;
                         double end = line.WordSynced ? word.Start + (word.End - word.Start) * (inWord + 1) / Math.Max(1, count) : line.End;
                         inWord++;
-                        prepared.Add(new(glyph, offset, start, Math.Max(start + .001, end), wi, index++));
+                        Vector3? activeColor = null;
+                        if (i < song.KeywordRanges.Length)
+                            foreach (var range in song.KeywordRanges[i])
+                                if (textOffset + enumerator.ElementIndex + text.Length > range.Start && textOffset + enumerator.ElementIndex < range.End)
+                                {
+                                    activeColor = range.Color;
+                                    break;
+                                }
+                        prepared.Add(new(glyph, offset, start, Math.Max(start + .001, end), wi, index++, activeColor));
                         italics.Add(italicGlyphs.TryGetValue(text, out var italic) ? italic : glyph);
                         offset += glyph.Advance;
                     }
+                    textOffset += word.Text.Length;
                 }
                 var translation = PrepareText(line.Translation, glyphs, out float translationWidth);
                 Lines[i] = new(line, prepared.ToArray(), offset, translation, translationWidth) { TiltItalic = italics.ToArray() };

@@ -8,6 +8,7 @@ Texture2D<float4> LayerTexture : register(t4);
 Texture2D<float4> ModeAtlasTexture : register(t6);
 Texture2D<float4> PreviousStageTexture : register(t8);
 Texture2DArray<float> GlyphShadowTexture : register(t9);
+Texture2D<float4> BackgroundHistoryTexture : register(t10);
 SamplerState LinearClamp : register(s0);
 SamplerState LinearWrap : register(s1);
 cbuffer Frame : register(b0) {

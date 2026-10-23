@@ -9,7 +9,7 @@ internal sealed partial class FoliaLumiere
     private void WriteWindow(ref FoliaPainter p, FoliaTextAtlas atlas, double time)
     {
         _window.BeginFrame(time);
-        WriteBursts(ref p, time);
+        WriteBursts(ref p, atlas, time);
         // Pixi orders complete layers: tracks / spots / halos, then glyphs, then stars.
         for (int line = _window.Low; line <= _window.High; line++)
         {
@@ -43,6 +43,7 @@ internal sealed partial class FoliaLumiere
                 float revealed = Math.Min(1, AppSettings.FoliaLumiereUnlitOpacity + illumination * .45f + flying * .4f);
                 float opacity = alpha * (revealed * (1 - lit) + lit * Math.Min(1, .55f + .4f * heat + .3f * flying));
                 Vector3 hot = Vector3.Lerp(_lit, Vector3.One, Math.Clamp(.08f * illumination + .1f * flash + .25f * flying, 0, 1));
+                if (glyph.ActiveColor is { } keyword) hot = KeywordLight(hot, keyword, .6f);
                 Vector3 cold = Vector3.Lerp(_unlit, _lit, illumination * .35f);
                 Vector3 color = Vector3.Lerp(cold, hot, lit);
                 if (layer == 1)
@@ -53,16 +54,26 @@ internal sealed partial class FoliaLumiere
                     float starAlpha = _window.StarStrength(pose) * flash * .55f;
                     float size = font * star.W * (.8f + .5f * flash);
                     p.Shape(18, x + font * star.X - size * .5f, y + font * star.Y - size * .5f, size, size,
-                        Vector3.Lerp(_lit, Vector3.One, .5f), starAlpha, rotation: star.Z * (1 + (1 - flash) * .6f));
+                        glyph.ActiveColor is { } starKeyword ? Vector3.Lerp(KeywordLight(_lit, starKeyword, .55f), Vector3.One, .35f) : Vector3.Lerp(_lit, Vector3.One, .5f), starAlpha, rotation: star.Z * (1 + (1 - flash) * .6f));
                 }
                 float halo = alpha * lit * (.03f + .14f * illumination + .08f * flash);
                 if (layer == 0 && halo > .003f)
                 {
                     float size = font * (2.2f + .8f * illumination);
-                    p.Shape(17, x - size * .5f, y - size * .45f, size, size * .9f, _lit, halo);
+                    p.Shape(17, x - size * .5f, y - size * .45f, size, size * .9f,
+                        glyph.ActiveColor is { } haloKeyword ? KeywordLight(_lit, haloKeyword, .75f) : _lit, halo * (glyph.ActiveColor.HasValue ? 1.25f : 1));
                 }
             }
         }
+    }
+    private static Vector3 KeywordLight(Vector3 light, Vector3 keyword, float amount)
+    {
+        float peak = Math.Max(keyword.X, Math.Max(keyword.Y, keyword.Z));
+        Vector3 hue = peak > .0001f ? keyword / peak : Vector3.One;
+        Vector3 mixed = Vector3.Lerp(light, hue, amount);
+        float mixedPeak = Math.Max(mixed.X, Math.Max(mixed.Y, mixed.Z));
+        float target = Math.Max(light.X, Math.Max(light.Y, light.Z));
+        return mixedPeak > .0001f ? mixed * (target / mixedPeak) : light;
     }
     private static float Lerp(float a, float b, float t) => a + (b - a) * t;
 }

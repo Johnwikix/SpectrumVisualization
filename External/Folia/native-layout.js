@@ -21685,10 +21685,13 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				}) - base)
 			};
 		});
-		return JSON.stringify({
-			data: Array.from(scene.data),
-			parts
-		});
+		// Native cold handoff avoids expanding Float32 mesh data into boxed JSON numbers.
+		// Keep the complete JSON path for the original planner reference checks.
+		if (typeof nativePendoloMesh === "function") {
+			nativePendoloMesh(scene.data);
+			return JSON.stringify({parts});
+		}
+		return JSON.stringify({data: Array.from(scene.data), parts});
 	}
 	function compileTilt(json) {
 		const input = JSON.parse(json);
@@ -22009,7 +22012,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				fontFamily: input.fontFamily,
 				fontWeight: input.fontWeight,
 				seed,
-				settleStretch: .5
+				settleStretch: .5,
+				segmentColors: groups.map(row => row.map(segment => segment.graphemes.map(g => input.lines[g.line]?.keywordColors?.[g.index]).find(Boolean) ?? null))
 			});
 			shots.push({
 				...shot,
@@ -22092,6 +22096,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				});
 				return {
 					role: p.role,
+					keywordColor: input.wordColors?.find(w => w.word.toLowerCase() === s.text.toLowerCase())?.color ?? null,
 					font,
 					segment: s,
 					placement: p,
