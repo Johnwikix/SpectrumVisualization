@@ -235,6 +235,9 @@ internal sealed class FoliaPlaybackService
             }
             token.ThrowIfCancellationRequested();
             var lines = content is null ? [] : FoliaSong.Parse(content.Original, content.Translation, track.Duration);
+            // Online providers (including our cache) supply Chinese translations. Player files/database
+            // are user-owned content, so retain their translations regardless of the app language.
+            bool showTranslation = player.ShowTranslation && (player.Content is not null || App.IsChineseLanguage);
             // The player's positive offset delays its lyric clock; shift this immutable snapshot equivalently.
             double offset = player.OffsetMs / 1000d;
             for (int i = 0; i < lines.Length; i++)
@@ -245,8 +248,8 @@ internal sealed class FoliaPlaybackService
                     for (int w = 0; w < line.Words.Length; w++)
                         line.Words[w] = line.Words[w] with { Start = line.Words[w].Start + offset, End = line.Words[w].End + offset };
                 }
-                if (offset != 0 || !player.ShowTranslation)
-                    lines[i] = line with { Start = line.Start + offset, End = line.End + offset, Translation = player.ShowTranslation ? line.Translation : "" };
+                if (offset != 0 || !showTranslation)
+                    lines[i] = line with { Start = line.Start + offset, End = line.End + offset, Translation = showTranslation ? line.Translation : "" };
             }
             lock (_gate)
             {

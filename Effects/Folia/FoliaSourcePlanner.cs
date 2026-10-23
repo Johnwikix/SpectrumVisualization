@@ -192,6 +192,7 @@ internal static partial class FoliaSourcePlanner
         if (function == "compileSonnet") FoliaSonnetCameraSamples.Install(engine, token);
         if (function == "compileDiorama") FoliaDioramaNumericArrays.Install(engine, token);
         if (function == "compileFume") FoliaFumeFontSearch.Install(engine, token);
+        if (function == "compileTempera") FoliaTemperaPrimitives.Install(engine, token);
         engine.Execute(Source.Value);
         if (function == "compileSonnet")
             engine.Execute(SonnetSource.Value);

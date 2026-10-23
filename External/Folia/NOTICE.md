@@ -66,6 +66,10 @@ its positions in place and omits unused normal conversion. Fume’s original fon
 search runs natively without constructing trial layout graphs; its final layout and
 20 Hz camera samples remain unchanged. Large immutable layout JSON cache entries
 are compressed and bounded; no interpreter engines are retained across songs.
+Tempera uses optional native cold callbacks for the original Earcut first pass on
+small polygons without holes, and for child-to-parent double transforms. Larger
+polygons, holes and filtering/repair retain the full original Earcut path. The
+original JavaScript expansion remains available for parity checks.
 
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere

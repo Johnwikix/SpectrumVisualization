@@ -11,15 +11,24 @@ internal sealed unsafe partial class FoliaGpuEffect
     private ID3D12Resource? _backgroundHistory;
     private ID3D12PipelineState _backgroundSnapshot = null!, _backgroundBlend = null!;
     private int _historyWidth, _historyHeight;
-    private bool _captureBackground, _holdBackground;
+    private bool _captureBackground, _holdBackground, _transitionPending;
     private float _backgroundAlpha, _transitionElapsed;
 
     private void RequestBackgroundTransition(in FoliaSceneRequest request)
     {
+        // A superseded candidate must not leave the live scene hidden by its snapshot.
+        _transitionPending = false;
+        _captureBackground = false;
+        if (_holdBackground) CommitBackgroundTransition();
         if (!_hasScene || request.Song.Title.Length == 0) return;
         if (_activeRequest.Song.Title == request.Song.Title && _activeRequest.Song.Artist == request.Song.Artist
             && ReferenceEquals(_activeRequest.Song.CoverRgba, request.Song.CoverRgba)
             && _activeRequest.Background == request.Background && _activeRequest.Theme == request.Theme) return;
+        _transitionPending = true;
+    }
+
+    private void CaptureBackgroundTransition()
+    {
         if (_backgroundHistory == null)
         {
             // A blurred background needs neither a second full scene nor a full-resolution
@@ -34,8 +43,9 @@ internal sealed unsafe partial class FoliaGpuEffect
             _device.CreateRenderTargetView(_backgroundHistory, null, Rtv(5));
             Descriptors();
         }
-        // Capture the currently composed background, including an interrupted blend.
-        // Preparation and uploads continue while this old background remains visible.
+        // Capture only at the completed upload boundary. The outgoing background keeps
+        // animating throughout CPU preparation and staging, including interrupted blends.
+        _transitionPending = false;
         _captureBackground = true;
     }
 
@@ -87,7 +97,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     {
         GpuGraphics.DisposeResource(_backgroundHistory);
         _backgroundHistory = null;
-        _captureBackground = _holdBackground = false;
+        _captureBackground = _holdBackground = _transitionPending = false;
         _backgroundAlpha = _transitionElapsed = 0;
     }
 }
