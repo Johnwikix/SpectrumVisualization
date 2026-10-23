@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:converters="using:WinExSpectrumTest.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinExSpectrumTest.View"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -20,6 +21,15 @@
         <MicaBackdrop />
     </winex:WindowEx.SystemBackdrop>
     <Grid RowDefinitions="Auto,*">
+        <Grid.Resources>
+            <converters:SliderValueTextConverter x:Key="FoliaSliderValueTextConverter" />
+            <Style x:Key="FoliaSliderStyle" TargetType="Slider">
+                <Setter Property="Width" Value="220" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="SnapsTo" Value="StepValues" />
+                <Setter Property="ThumbToolTipValueConverter" Value="{StaticResource FoliaSliderValueTextConverter}" />
+            </Style>
+        </Grid.Resources>
         <Grid Grid.Row="0">
             <StackPanel Orientation="Horizontal">
                 <TextBlock
@@ -656,22 +666,26 @@
                                 <controls:SettingsCard x:Uid="FoliaFumeGeometry">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaFumeGeometry, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaFumeGeometryOpacity">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaFumeGeometryOpacityCard" x:Uid="FoliaFumeGeometryOpacity">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaFumeGeometryOpacityCard}"
                                         Value="{x:Bind ViewModel.FoliaFumeGeometryOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaFumeGlow">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaFumeGlowCard" x:Uid="FoliaFumeGlow">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaFumeGlowCard}"
                                         Value="{x:Bind ViewModel.FoliaFumeGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -696,49 +710,59 @@
                                 <controls:SettingsCard x:Uid="FoliaTemperaPostProcess">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaTemperaPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaTemperaGrain">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaTemperaGrainCard" x:Uid="FoliaTemperaGrain">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaGrainCard}"
                                         Value="{x:Bind ViewModel.FoliaTemperaGrain, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaTemperaContrast">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaTemperaContrastCard" x:Uid="FoliaTemperaContrast">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaContrastCard}"
                                         Value="{x:Bind ViewModel.FoliaTemperaContrast, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaTemperaRgbShift">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaTemperaRgbShiftCard" x:Uid="FoliaTemperaRgbShift">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaRgbShiftCard}"
                                         Value="{x:Bind ViewModel.FoliaTemperaRgbShift, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaTemperaVignette">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaTemperaVignetteCard" x:Uid="FoliaTemperaVignette">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaVignetteCard}"
                                         Value="{x:Bind ViewModel.FoliaTemperaVignette, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaTemperaLens">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaTemperaLensCard" x:Uid="FoliaTemperaLens">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaLensCard}"
                                         Value="{x:Bind ViewModel.FoliaTemperaLens, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -748,94 +772,114 @@
                             Margin="10,0,10,0"
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaLumiereLight">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereLightCard" x:Uid="FoliaLumiereLight">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0.3"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereLightCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereLight, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereAudio">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereAudioCard" x:Uid="FoliaLumiereAudio">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereAudioCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereAudio, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereFog">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereFogCard" x:Uid="FoliaLumiereFog">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereFogCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereFog, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereDarkField">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereDarkFieldCard" x:Uid="FoliaLumiereDarkField">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDarkFieldCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereDarkField, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereBloom">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereBloomCard" x:Uid="FoliaLumiereBloom">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereBloomCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereTextBloom">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereTextBloomCard" x:Uid="FoliaLumiereTextBloom">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereTextBloomCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereTextBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereUnlitOpacity">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereUnlitOpacityCard" x:Uid="FoliaLumiereUnlitOpacity">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum=".6"
                                         Minimum=".05"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereUnlitOpacityCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereUnlitOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereMotes">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereMotesCard" x:Uid="FoliaLumiereMotes">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereMotesCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereMotes, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereEcho">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereEchoCard" x:Uid="FoliaLumiereEcho">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereEchoCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereEcho, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereDecay">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereDecayCard" x:Uid="FoliaLumiereDecay">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDecayCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereDecay, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereLineArt">
@@ -853,13 +897,15 @@
                                 <controls:SettingsCard x:Uid="FoliaLumiereTextOnly">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLumiereTextOnly, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLumiereThemeMix">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLumiereThemeMixCard" x:Uid="FoliaLumiereThemeMix">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereThemeMixCard}"
                                         Value="{x:Bind ViewModel.FoliaLumiereThemeMix, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -890,13 +936,15 @@
                                 <controls:SettingsCard x:Uid="FoliaSonnetPostProcess">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaSonnetMotionStrength">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaSonnetMotionStrengthCard" x:Uid="FoliaSonnetMotionStrength">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaSonnetMotionStrengthCard}"
                                         Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -912,55 +960,65 @@
                                 <controls:SettingsCard x:Uid="FoliaDioramaSoulActive">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaSoulActive, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaDioramaSoulStrength">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaDioramaSoulStrengthCard" x:Uid="FoliaDioramaSoulStrength">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1.5"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaSoulStrengthCard}"
                                         Value="{x:Bind ViewModel.FoliaDioramaSoulStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGlow">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaDioramaGlowStrength">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaDioramaGlowStrengthCard" x:Uid="FoliaDioramaGlowStrength">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1.5"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaGlowStrengthCard}"
                                         Value="{x:Bind ViewModel.FoliaDioramaGlowStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGradient">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGradient, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaDioramaParticleScale">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaDioramaParticleScaleCard" x:Uid="FoliaDioramaParticleScale">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="3"
                                         Minimum="0.25"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleScaleCard}"
                                         Value="{x:Bind ViewModel.FoliaDioramaParticleScale, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaDioramaParticleGlow">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaDioramaParticleGlowCard" x:Uid="FoliaDioramaParticleGlow">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleGlowCard}"
                                         Value="{x:Bind ViewModel.FoliaDioramaParticleGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaDioramaMotionStrength">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaDioramaMotionStrengthCard" x:Uid="FoliaDioramaMotionStrength">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaMotionStrengthCard}"
                                         Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -970,13 +1028,15 @@
                             Margin="10,0,10,0"
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaPendoloMotionStrength">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaPendoloMotionStrengthCard" x:Uid="FoliaPendoloMotionStrength">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaPendoloMotionStrengthCard}"
                                         Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -1002,76 +1062,92 @@
                                 <controls:SettingsCard x:Uid="FoliaLatentBeat">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentBeat, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentMeshSpeed">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentMeshSpeedCard" x:Uid="FoliaLatentMeshSpeed">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshSpeedCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentMeshSpeed, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentMeshAudioSpeed">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentMeshAudioSpeedCard" x:Uid="FoliaLatentMeshAudioSpeed">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshAudioSpeedCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentMeshAudioSpeed, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDitherSpeed">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentDitherSpeedCard" x:Uid="FoliaLatentDitherSpeed">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherSpeedCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentDitherSpeed, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDitherAudioSpeed">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentDitherAudioSpeedCard" x:Uid="FoliaLatentDitherAudioSpeed">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherAudioSpeedCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentDitherAudioSpeed, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentSize">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentSizeCard" x:Uid="FoliaLatentSize">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="8"
                                         Minimum=".5"
                                         SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        LargeChange="1"
+                                        StepFrequency="0.1"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentSizeCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentSize, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentOpacity">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentOpacityCard" x:Uid="FoliaLatentOpacity">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentOpacityCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentDistortion">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentDistortionCard" x:Uid="FoliaLatentDistortion">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDistortionCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentDistortion, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaLatentSwirl">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaLatentSwirlCard" x:Uid="FoliaLatentSwirl">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentSwirlCard}"
                                         Value="{x:Bind ViewModel.FoliaLatentSwirl, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -1081,22 +1157,26 @@
                             Margin="10,0,10,0"
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaNomandSize">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandSizeCard" x:Uid="FoliaNomandSize">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="20"
                                         Minimum="0.5"
                                         SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        LargeChange="1"
+                                        StepFrequency="0.1"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandSizeCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandSize, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandSteps">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandStepsCard" x:Uid="FoliaNomandSteps">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="7"
                                         Minimum="1"
                                         SmallChange="1"
-                                        SpinButtonPlacementMode="Inline"
+                                        LargeChange="1"
+                                        StepFrequency="1"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandStepsCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandSteps, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandOriginal">
@@ -1105,85 +1185,103 @@
                                 <controls:SettingsCard x:Uid="FoliaNomandInverted">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandInverted, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassSize">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandGlassSizeCard" x:Uid="FoliaNomandGlassSize">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0.1"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassSizeCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandGlassSize, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassDistortion">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandGlassDistortionCard" x:Uid="FoliaNomandGlassDistortion">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassDistortionCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandGlassDistortion, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandGlassBlur">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandGlassBlurCard" x:Uid="FoliaNomandGlassBlur">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassBlurCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandGlassBlur, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperContrast">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandPaperContrastCard" x:Uid="FoliaNomandPaperContrast">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperContrastCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandPaperContrast, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperRoughness">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandPaperRoughnessCard" x:Uid="FoliaNomandPaperRoughness">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperRoughnessCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandPaperRoughness, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandPaperFiber">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandPaperFiberCard" x:Uid="FoliaNomandPaperFiber">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperFiberCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandPaperFiber, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotSize">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandDotSizeCard" x:Uid="FoliaNomandDotSize">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum=".1"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotSizeCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandDotSize, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotRadius">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandDotRadiusCard" x:Uid="FoliaNomandDotRadius">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="2"
                                         Minimum=".1"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        StepFrequency="0.05"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotRadiusCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandDotRadius, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandDotContrast">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandDotContrastCard" x:Uid="FoliaNomandDotContrast">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotContrastCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandDotContrast, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandDotOriginal">
@@ -1192,43 +1290,51 @@
                                 <controls:SettingsCard x:Uid="FoliaNomandDotInverted">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotInverted, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensSpread">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandLensSpreadCard" x:Uid="FoliaNomandLensSpread">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensSpreadCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandLensSpread, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensBulge">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandLensBulgeCard" x:Uid="FoliaNomandLensBulge">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="-1"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensBulgeCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandLensBulge, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandLensDispersion">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandLensDispersionCard" x:Uid="FoliaNomandLensDispersion">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensDispersionCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandLensDispersion, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandOverlay">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOverlay, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNomandOverlayOpacity">
-                                    <NumberBox
-                                        Width="220"
+                                <controls:SettingsCard x:Name="FoliaNomandOverlayOpacityCard" x:Uid="FoliaNomandOverlayOpacity">
+                                    <Slider
+                                        Style="{StaticResource FoliaSliderStyle}"
                                         Maximum="1"
                                         Minimum="0"
-                                        SmallChange="0.1"
-                                        SpinButtonPlacementMode="Inline"
+                                        SmallChange="0.01"
+                                        LargeChange="0.1"
+                                        StepFrequency="0.01"
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandOverlayOpacityCard}"
                                         Value="{x:Bind ViewModel.FoliaNomandOverlayOpacity, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
@@ -1237,13 +1343,15 @@
                             x:Uid="FoliaFontSection"
                             Margin="10,20,10,10"
                             FontSize="16" />
-                        <controls:SettingsCard x:Uid="FoliaFontScale" Margin="10,0,10,0">
-                            <NumberBox
-                                Width="220"
+                        <controls:SettingsCard x:Name="FoliaFontScaleCard" x:Uid="FoliaFontScale" Margin="10,0,10,0">
+                            <Slider
+                                Style="{StaticResource FoliaSliderStyle}"
                                 Maximum="200"
                                 Minimum="50"
                                 SmallChange="5"
-                                SpinButtonPlacementMode="Compact"
+                                LargeChange="25"
+                                StepFrequency="5"
+                                AutomationProperties.LabeledBy="{x:Bind FoliaFontScaleCard}"
                                 Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontFamily" Margin="10,0,10,0">
@@ -1263,13 +1371,15 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="FoliaFontWeight" Margin="10,0,10,0">
-                            <NumberBox
-                                Width="220"
+                        <controls:SettingsCard x:Name="FoliaFontWeightCard" x:Uid="FoliaFontWeight" Margin="10,0,10,0">
+                            <Slider
+                                Style="{StaticResource FoliaSliderStyle}"
                                 Maximum="900"
                                 Minimum="100"
                                 SmallChange="100"
-                                SpinButtonPlacementMode="Compact"
+                                LargeChange="100"
+                                StepFrequency="100"
+                                AutomationProperties.LabeledBy="{x:Bind FoliaFontWeightCard}"
                                 Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
                         </controls:SettingsCard>
                         <TextBlock

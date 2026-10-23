@@ -21,6 +21,7 @@ namespace WinExSpectrumTest
     public partial class App : Application
     {
         public static MainWindow MainWindow { get; private set; }
+        internal static bool IsChineseLanguage { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; } = new();
         internal static FoliaPlaybackService FoliaPlayback { get; } = new(MediaInfoService);
         public static IServiceProvider Services { get; private set; }
@@ -50,7 +51,8 @@ namespace WinExSpectrumTest
             var systemLanguages = GlobalizationPreferences.Languages;
             try
             {
-                if (systemLanguages[0].StartsWith("zh"))
+                IsChineseLanguage = systemLanguages.Count > 0 && systemLanguages[0].StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+                if (IsChineseLanguage)
                 {
                     Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "zh";
                 }

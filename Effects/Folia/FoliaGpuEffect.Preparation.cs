@@ -71,6 +71,8 @@ internal sealed unsafe partial class FoliaGpuEffect
         }
         // The host selects temporal reset before PrepareFrame. If completion races that check,
         // leave the result for the next frame, so the SDK and effect reset on the same frame.
+        if (_upload is { Complete: true } && _transitionPending && (!_temporal || _frame.Reset))
+            CaptureBackgroundTransition();
         if (_upload is { Complete: true } upload && !_captureBackground && (!_temporal || _frame.Reset))
         {
             var scene = upload.Scene;

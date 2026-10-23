@@ -21978,6 +21978,10 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 					const rgb = color(event.style.color ?? palette.ink), alpha = event.style.alpha ?? 1;
 					if (event.stroke) for (const path of event.paths) {
 						const n = path.points.length / 2;
+						if (typeof nativeTemperaPrimitives === "function") {
+							nativeTemperaPrimitives(primitives, node, path.points, null, rgb, alpha, event.style.width ?? 1, !!path.closed);
+							continue;
+						}
 						for (let i = 1; i < n + (path.closed ? 1 : 0); i++) primitives.push([
 							1,
 							rgb,
@@ -21996,7 +22000,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 							holes.push(points.length / 2);
 							points.push(...hole.points);
 						}
-						const triangles = earcut(points, holes, 2);
+						const triangles = (typeof nativeTemperaTriangulate === "function" ? nativeTemperaTriangulate(points, holes) : null) ?? earcut(points, holes, 2);
+						if (typeof nativeTemperaPrimitives === "function") {
+							nativeTemperaPrimitives(primitives, node, points, triangles, rgb, alpha, 0, false);
+							continue;
+						}
 						for (let i = 0; i < triangles.length; i += 3) primitives.push([
 							2,
 							rgb,
