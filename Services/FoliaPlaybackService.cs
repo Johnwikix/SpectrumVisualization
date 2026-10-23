@@ -83,6 +83,22 @@ internal sealed class FoliaPlaybackService
         Changed?.Invoke();
     }
 
+    // Pausing rendering retains the current song. Only an explicit effect change drops
+    // its decoded cover and lyrics; cancelled operations are already invalidated by SetActive.
+    internal void ReleaseSong()
+    {
+        lock (_gate)
+        {
+            if (_active) return;
+            _thumbnail = null;
+            _trackKey = _songKey = "";
+            _status = "waiting";
+            State.Publish(FoliaSong.Empty);
+            State.SetClock(0, 0, false);
+        }
+        Changed?.Invoke();
+    }
+
     internal void Retry() => RequestCurrent(true);
     private void OnMediaChanged(string? title, string? artist, IRandomAccessStreamReference? thumbnail) => RequestCurrent(false);
     private void OnPlaybackChanged(bool playing)
@@ -193,14 +209,15 @@ internal sealed class FoliaPlaybackService
                     colors = [];
                 }
                 var palette = FoliaCoverPalette.CreateTheme(colors);
-                var displayCover = FoliaCoverPalette.Composite(cover.Bytes, palette[0], cancellation.Token);
                 lock (_gate)
                 {
                     if (!_active || _stopped || version != _version || coverVersion != _coverVersion || cancellation.IsCancellationRequested) return;
                     var song = State.Song;
                     if (song.CoverWidth == cover.Width && song.CoverHeight == cover.Height && song.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
+                    // Theme preparation owns the only composited copy, using the final selected
+                    // background. Keeping another full-size copy here would retain unused pixels.
                     State.Publish(song with { CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height,
-                        CoverColors = colors, Palette = palette, DisplayCoverRgba = displayCover });
+                        CoverColors = colors, Palette = palette, DisplayCoverRgba = null });
                 }
                 Changed?.Invoke();
             }

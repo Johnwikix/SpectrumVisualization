@@ -74,6 +74,7 @@ internal sealed class FoliaPreparedScene(FoliaSceneRequest request, FoliaTextAtl
 /// <summary>One cancellable CPU worker with a single latest request. Active render state is never mutated here.</summary>
 internal sealed class FoliaScenePreparation : IDisposable
 {
+    private readonly FoliaCpuCacheLease _cacheLease = new();
     internal FoliaGlyphStore Store { get; }
     private readonly bool _ownsStore;
     internal FoliaScenePreparation(FoliaGlyphStore? store = null) { Store = store ?? new(); _ownsStore = store == null; }
@@ -299,6 +300,7 @@ internal sealed class FoliaScenePreparation : IDisposable
         _hasItalicRequest = false;
         _work = null;
         if (_ownsStore) Store.Dispose();
+        _cacheLease.Dispose();
     }
 
     private static bool IsCapacityFailure(Exception error)

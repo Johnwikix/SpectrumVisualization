@@ -97,8 +97,11 @@ public sealed partial class CanvasPanel : UserControl
                 if (_disposed) return;
                 string id = _requestedId;
                 var descriptor = EffectRegistry.Resolve(id);
+                if (_activeId == Effects.Folia.FoliaGpuEffect.EffectId && id != _activeId)
+                    App.FoliaPlayback.ReleaseSong();
                 if (descriptor.Host == EffectHost.Gpu)
                 {
+                    ReleaseAuroraEffect();
                     EnsureGpuHost();
                     SpectrumCanvasControl.Visibility = Visibility.Collapsed;
                     _gpu!.Visibility = Visibility.Visible;
@@ -108,6 +111,12 @@ public sealed partial class CanvasPanel : UserControl
                 }
                 else
                 {
+                    // A hidden host still owns its swap chain, reconstruction context and
+                    // effect resources. Stop it after the frame barrier instead of caching
+                    // an entire inactive renderer alongside the Win2D effect.
+                    await ReleaseGpuHostAsync();
+                    if (_disposed) return;
+                    if (_requestedId != id) continue;
                     if (_aurora == null)
                     {
                         var effect = new AuroraRingEffect();
@@ -124,8 +133,6 @@ public sealed partial class CanvasPanel : UserControl
                         }
                         catch { effect.Dispose(); throw; }
                     }
-                    if (_gpu != null) _gpu.Visibility = Visibility.Collapsed;
-                    if (_card != null) _card.Visibility = Visibility.Collapsed;
                     SpectrumCanvasControl.Visibility = Visibility.Visible;
                     _activeId = id;
                     HdrStatus.Set(HdrOutputMode.Unsupported);
@@ -159,6 +166,51 @@ public sealed partial class CanvasPanel : UserControl
             VerticalAlignment = VerticalAlignment.Top
         };
         RenderHost.Children.Add(_card);
+    }
+
+    // Only called after the Win2D callback barrier. Pausing/minimizing keeps the
+    // active effect; changing hosts releases its native resources and subscriptions.
+    private void ReleaseAuroraEffect()
+    {
+        var effect = _aurora;
+        _aurora = null;
+        if (effect == null) return;
+        _activeId = null;
+        try { effect.Dispose(); }
+        catch (Exception ex) { App.WriteCrashLog("Aurora shutdown", ex.Message, ex); }
+    }
+
+    private async Task ReleaseGpuHostAsync()
+    {
+        var gpu = _gpu;
+        var media = _media;
+        var card = _card;
+        _gpu = null;
+        _media = null;
+        _card = null;
+        if (gpu != null)
+        {
+            // Clear the active identity before awaiting: a rapid return to the same
+            // effect must create a new host after this one has finished stopping.
+            _activeId = null;
+            gpu.OutputChanged -= OnGpuOutputChanged;
+            gpu.Visibility = Visibility.Collapsed;
+            try { await gpu.StopAsync(); }
+            catch (Exception ex) { App.WriteCrashLog("GPU host shutdown", ex.Message, ex); }
+            finally { RemoveHostElement(gpu); }
+        }
+        if (media != null)
+        {
+            try { await media.StopAsync(); }
+            catch (Exception ex) { App.WriteCrashLog("Artwork shutdown", ex.Message, ex); }
+        }
+        if (card != null) RemoveHostElement(card);
+    }
+
+    private void RemoveHostElement(UIElement element)
+    {
+        try { RenderHost.Children.Remove(element); }
+        catch (Exception ex) { App.WriteCrashLog("Render host removal", ex.Message, ex); }
     }
 
     private void OnGpuOutputChanged(HdrOutputMode mode)
@@ -275,23 +327,11 @@ public sealed partial class CanvasPanel : UserControl
         if (_root != null) _root.Changed -= OnRootChanged;
         AppSettings.Changed -= OnSettingsChanged;
         if (_switchTask != null) await _switchTask;
-        if (_gpu != null)
-        {
-            _gpu.OutputChanged -= OnGpuOutputChanged;
-            try { await _gpu.StopAsync(); }
-            catch (Exception ex) { App.WriteCrashLog("Sonic host shutdown", ex.Message, ex); }
-        }
-        if (_media != null)
-        {
-            try { await _media.StopAsync(); }
-            catch (Exception ex) { App.WriteCrashLog("Artwork shutdown", ex.Message, ex); }
-        }
+        await ReleaseGpuHostAsync();
         try { await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { }); }
         catch (TaskCanceledException) { }
         catch (Exception ex) { App.WriteCrashLog("Aurora drain", ex.Message, ex); }
-        try { _aurora?.Dispose(); }
-        catch (Exception ex) { App.WriteCrashLog("Aurora shutdown", ex.Message, ex); }
-        _aurora = null;
+        ReleaseAuroraEffect();
         SpectrumCanvasControl.RemoveFromVisualTree();
         // SpectrumAnalyzer belongs to the application service container, not either renderer.
     }

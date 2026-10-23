@@ -125,10 +125,19 @@ internal sealed partial class GpuPanel : SwapChainPanel
     {
         _stopping = true;
         ReconstructionAvailability.Clear();
-        if (_renderer != null) await _renderer.StopAsync();
-        ReleaseNative(_native);
-        _native = 0;
-        _renderer = null;
+        try
+        {
+            // The renderer completes StopAsync only from its worker's final cleanup.
+            // Await that boundary before releasing the bridge used by pending binds.
+            if (_renderer != null) await _renderer.StopAsync();
+        }
+        finally
+        {
+            var native = _native;
+            _native = 0;
+            _renderer = null;
+            ReleaseNative(native);
+        }
     }
 
     private static unsafe nint GetNative(SwapChainPanel panel)

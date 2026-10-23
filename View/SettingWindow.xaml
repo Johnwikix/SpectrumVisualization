@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <winex:WindowEx
     x:Class="WinExSpectrumTest.View.SettingWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -667,26 +667,44 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaFumeGeometry, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaFumeGeometryOpacityCard" x:Uid="FoliaFumeGeometryOpacity">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaFumeGeometryOpacityCard}"
-                                        Value="{x:Bind ViewModel.FoliaFumeGeometryOpacity, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaFumeGeometryOpacitySlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaFumeGeometryOpacitySlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaFumeGeometryOpacityCard}"
+                                            Value="{x:Bind ViewModel.FoliaFumeGeometryOpacity, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaFumeGlowCard" x:Uid="FoliaFumeGlow">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaFumeGlowCard}"
-                                        Value="{x:Bind ViewModel.FoliaFumeGlow, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaFumeGlowSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaFumeGlowSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaFumeGlowCard}"
+                                            Value="{x:Bind ViewModel.FoliaFumeGlow, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -711,59 +729,104 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaTemperaPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaTemperaGrainCard" x:Uid="FoliaTemperaGrain">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaGrainCard}"
-                                        Value="{x:Bind ViewModel.FoliaTemperaGrain, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaTemperaGrainSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaTemperaGrainSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaTemperaGrainCard}"
+                                            Value="{x:Bind ViewModel.FoliaTemperaGrain, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaTemperaContrastCard" x:Uid="FoliaTemperaContrast">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaContrastCard}"
-                                        Value="{x:Bind ViewModel.FoliaTemperaContrast, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaTemperaContrastSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaTemperaContrastSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaTemperaContrastCard}"
+                                            Value="{x:Bind ViewModel.FoliaTemperaContrast, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaTemperaRgbShiftCard" x:Uid="FoliaTemperaRgbShift">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaRgbShiftCard}"
-                                        Value="{x:Bind ViewModel.FoliaTemperaRgbShift, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaTemperaRgbShiftSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaTemperaRgbShiftSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaTemperaRgbShiftCard}"
+                                            Value="{x:Bind ViewModel.FoliaTemperaRgbShift, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaTemperaVignetteCard" x:Uid="FoliaTemperaVignette">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaVignetteCard}"
-                                        Value="{x:Bind ViewModel.FoliaTemperaVignette, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaTemperaVignetteSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaTemperaVignetteSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaTemperaVignetteCard}"
+                                            Value="{x:Bind ViewModel.FoliaTemperaVignette, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaTemperaLensCard" x:Uid="FoliaTemperaLens">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaTemperaLensCard}"
-                                        Value="{x:Bind ViewModel.FoliaTemperaLens, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaTemperaLensSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaTemperaLensSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaTemperaLensCard}"
+                                            Value="{x:Bind ViewModel.FoliaTemperaLens, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -773,114 +836,204 @@
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Name="FoliaLumiereLightCard" x:Uid="FoliaLumiereLight">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0.3"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereLightCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereLight, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereLightSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereLightSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0.3"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereLightCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereLight, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereAudioCard" x:Uid="FoliaLumiereAudio">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereAudioCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereAudio, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereAudioSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereAudioSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereAudioCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereAudio, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereFogCard" x:Uid="FoliaLumiereFog">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereFogCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereFog, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereFogSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereFogSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereFogCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereFog, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereDarkFieldCard" x:Uid="FoliaLumiereDarkField">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDarkFieldCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereDarkField, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereDarkFieldSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereDarkFieldSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDarkFieldCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereDarkField, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereBloomCard" x:Uid="FoliaLumiereBloom">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereBloomCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereBloom, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereBloomSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereBloomSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereBloomCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereBloom, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereTextBloomCard" x:Uid="FoliaLumiereTextBloom">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereTextBloomCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereTextBloom, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereTextBloomSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereTextBloomSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereTextBloomCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereTextBloom, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereUnlitOpacityCard" x:Uid="FoliaLumiereUnlitOpacity">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum=".6"
-                                        Minimum=".05"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereUnlitOpacityCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereUnlitOpacity, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereUnlitOpacitySlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereUnlitOpacitySlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum=".6"
+                                            Minimum=".05"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereUnlitOpacityCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereUnlitOpacity, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereMotesCard" x:Uid="FoliaLumiereMotes">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereMotesCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereMotes, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereMotesSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereMotesSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereMotesCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereMotes, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereEchoCard" x:Uid="FoliaLumiereEcho">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereEchoCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereEcho, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereEchoSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereEchoSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereEchoCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereEcho, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereDecayCard" x:Uid="FoliaLumiereDecay">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDecayCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereDecay, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereDecaySlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereDecaySlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereDecayCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereDecay, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaLumiereLineArt">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLumiereLineArt, Mode=TwoWay}" />
@@ -898,15 +1051,24 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLumiereTextOnly, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLumiereThemeMixCard" x:Uid="FoliaLumiereThemeMix">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLumiereThemeMixCard}"
-                                        Value="{x:Bind ViewModel.FoliaLumiereThemeMix, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLumiereThemeMixSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLumiereThemeMixSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLumiereThemeMixCard}"
+                                            Value="{x:Bind ViewModel.FoliaLumiereThemeMix, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -937,15 +1099,24 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaSonnetPostProcess, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaSonnetMotionStrengthCard" x:Uid="FoliaSonnetMotionStrength">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaSonnetMotionStrengthCard}"
-                                        Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaSonnetMotionStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaSonnetMotionStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaSonnetMotionStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaSonnetMotionStrength, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -961,65 +1132,110 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaSoulActive, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaDioramaSoulStrengthCard" x:Uid="FoliaDioramaSoulStrength">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1.5"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaSoulStrengthCard}"
-                                        Value="{x:Bind ViewModel.FoliaDioramaSoulStrength, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaDioramaSoulStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaDioramaSoulStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1.5"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaDioramaSoulStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaDioramaSoulStrength, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGlow">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGlow, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaDioramaGlowStrengthCard" x:Uid="FoliaDioramaGlowStrength">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1.5"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaGlowStrengthCard}"
-                                        Value="{x:Bind ViewModel.FoliaDioramaGlowStrength, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaDioramaGlowStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaDioramaGlowStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1.5"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaDioramaGlowStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaDioramaGlowStrength, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaDioramaGradient">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaDioramaGradient, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaDioramaParticleScaleCard" x:Uid="FoliaDioramaParticleScale">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="3"
-                                        Minimum="0.25"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleScaleCard}"
-                                        Value="{x:Bind ViewModel.FoliaDioramaParticleScale, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaDioramaParticleScaleSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaDioramaParticleScaleSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="3"
+                                            Minimum="0.25"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleScaleCard}"
+                                            Value="{x:Bind ViewModel.FoliaDioramaParticleScale, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaDioramaParticleGlowCard" x:Uid="FoliaDioramaParticleGlow">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleGlowCard}"
-                                        Value="{x:Bind ViewModel.FoliaDioramaParticleGlow, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaDioramaParticleGlowSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaDioramaParticleGlowSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaDioramaParticleGlowCard}"
+                                            Value="{x:Bind ViewModel.FoliaDioramaParticleGlow, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaDioramaMotionStrengthCard" x:Uid="FoliaDioramaMotionStrength">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaDioramaMotionStrengthCard}"
-                                        Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaDioramaMotionStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaDioramaMotionStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaDioramaMotionStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaDioramaMotionStrength, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -1029,15 +1245,24 @@
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Name="FoliaPendoloMotionStrengthCard" x:Uid="FoliaPendoloMotionStrength">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaPendoloMotionStrengthCard}"
-                                        Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaPendoloMotionStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaPendoloMotionStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaPendoloMotionStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -1063,92 +1288,164 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaLatentBeat, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentMeshSpeedCard" x:Uid="FoliaLatentMeshSpeed">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshSpeedCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentMeshSpeed, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentMeshSpeedSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentMeshSpeedSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshSpeedCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentMeshSpeed, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentMeshAudioSpeedCard" x:Uid="FoliaLatentMeshAudioSpeed">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshAudioSpeedCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentMeshAudioSpeed, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentMeshAudioSpeedSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentMeshAudioSpeedSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentMeshAudioSpeedCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentMeshAudioSpeed, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentDitherSpeedCard" x:Uid="FoliaLatentDitherSpeed">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherSpeedCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentDitherSpeed, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentDitherSpeedSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentDitherSpeedSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherSpeedCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentDitherSpeed, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentDitherAudioSpeedCard" x:Uid="FoliaLatentDitherAudioSpeed">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherAudioSpeedCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentDitherAudioSpeed, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentDitherAudioSpeedSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentDitherAudioSpeedSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentDitherAudioSpeedCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentDitherAudioSpeed, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentSizeCard" x:Uid="FoliaLatentSize">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="8"
-                                        Minimum=".5"
-                                        SmallChange="0.1"
-                                        LargeChange="1"
-                                        StepFrequency="0.1"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentSizeCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentSize, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentSizeSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentSizeSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="8"
+                                            Minimum=".5"
+                                            SmallChange="0.1"
+                                            LargeChange="1"
+                                            StepFrequency="0.1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentSizeCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentSize, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentOpacityCard" x:Uid="FoliaLatentOpacity">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentOpacityCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentOpacity, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentOpacitySlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentOpacitySlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentOpacityCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentOpacity, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentDistortionCard" x:Uid="FoliaLatentDistortion">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum="0"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentDistortionCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentDistortion, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentDistortionSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentDistortionSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum="0"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentDistortionCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentDistortion, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaLatentSwirlCard" x:Uid="FoliaLatentSwirl">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaLatentSwirlCard}"
-                                        Value="{x:Bind ViewModel.FoliaLatentSwirl, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaLatentSwirlSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaLatentSwirlSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaLatentSwirlCard}"
+                                            Value="{x:Bind ViewModel.FoliaLatentSwirl, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -1158,26 +1455,44 @@
                             IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Name="FoliaNomandSizeCard" x:Uid="FoliaNomandSize">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="20"
-                                        Minimum="0.5"
-                                        SmallChange="0.1"
-                                        LargeChange="1"
-                                        StepFrequency="0.1"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandSizeCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandSize, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandSizeSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandSizeSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="20"
+                                            Minimum="0.5"
+                                            SmallChange="0.1"
+                                            LargeChange="1"
+                                            StepFrequency="0.1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandSizeCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandSize, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandStepsCard" x:Uid="FoliaNomandSteps">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="7"
-                                        Minimum="1"
-                                        SmallChange="1"
-                                        LargeChange="1"
-                                        StepFrequency="1"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandStepsCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandSteps, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandStepsSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandStepsSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="7"
+                                            Minimum="1"
+                                            SmallChange="1"
+                                            LargeChange="1"
+                                            StepFrequency="1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandStepsCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandSteps, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandOriginal">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOriginal, Mode=TwoWay}" />
@@ -1186,103 +1501,184 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandInverted, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandGlassSizeCard" x:Uid="FoliaNomandGlassSize">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0.1"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassSizeCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandGlassSize, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandGlassSizeSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandGlassSizeSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0.1"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassSizeCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandGlassSize, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandGlassDistortionCard" x:Uid="FoliaNomandGlassDistortion">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassDistortionCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandGlassDistortion, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandGlassDistortionSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandGlassDistortionSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassDistortionCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandGlassDistortion, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandGlassBlurCard" x:Uid="FoliaNomandGlassBlur">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassBlurCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandGlassBlur, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandGlassBlurSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandGlassBlurSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandGlassBlurCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandGlassBlur, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandPaperContrastCard" x:Uid="FoliaNomandPaperContrast">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperContrastCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandPaperContrast, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandPaperContrastSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandPaperContrastSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperContrastCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandPaperContrast, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandPaperRoughnessCard" x:Uid="FoliaNomandPaperRoughness">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperRoughnessCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandPaperRoughness, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandPaperRoughnessSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandPaperRoughnessSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperRoughnessCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandPaperRoughness, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandPaperFiberCard" x:Uid="FoliaNomandPaperFiber">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperFiberCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandPaperFiber, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandPaperFiberSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandPaperFiberSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandPaperFiberCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandPaperFiber, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandDotSizeCard" x:Uid="FoliaNomandDotSize">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum=".1"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotSizeCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandDotSize, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandDotSizeSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandDotSizeSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum=".1"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotSizeCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandDotSize, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandDotRadiusCard" x:Uid="FoliaNomandDotRadius">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="2"
-                                        Minimum=".1"
-                                        SmallChange="0.05"
-                                        LargeChange="0.25"
-                                        StepFrequency="0.05"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotRadiusCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandDotRadius, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandDotRadiusSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandDotRadiusSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="2"
+                                            Minimum=".1"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotRadiusCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandDotRadius, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandDotContrastCard" x:Uid="FoliaNomandDotContrast">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotContrastCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandDotContrast, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandDotContrastSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandDotContrastSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandDotContrastCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandDotContrast, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandDotOriginal">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotOriginal, Mode=TwoWay}" />
@@ -1291,51 +1687,87 @@
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandDotInverted, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandLensSpreadCard" x:Uid="FoliaNomandLensSpread">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensSpreadCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandLensSpread, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandLensSpreadSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandLensSpreadSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensSpreadCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandLensSpread, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandLensBulgeCard" x:Uid="FoliaNomandLensBulge">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="-1"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensBulgeCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandLensBulge, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandLensBulgeSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandLensBulgeSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="-1"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensBulgeCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandLensBulge, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandLensDispersionCard" x:Uid="FoliaNomandLensDispersion">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensDispersionCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandLensDispersion, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandLensDispersionSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandLensDispersionSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandLensDispersionCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandLensDispersion, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNomandOverlay">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaNomandOverlay, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaNomandOverlayOpacityCard" x:Uid="FoliaNomandOverlayOpacity">
-                                    <Slider
-                                        Style="{StaticResource FoliaSliderStyle}"
-                                        Maximum="1"
-                                        Minimum="0"
-                                        SmallChange="0.01"
-                                        LargeChange="0.1"
-                                        StepFrequency="0.01"
-                                        AutomationProperties.LabeledBy="{x:Bind FoliaNomandOverlayOpacityCard}"
-                                        Value="{x:Bind ViewModel.FoliaNomandOverlayOpacity, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaNomandOverlayOpacitySlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaNomandOverlayOpacitySlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Maximum="1"
+                                            Minimum="0"
+                                            SmallChange="0.01"
+                                            LargeChange="0.1"
+                                            StepFrequency="0.01"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaNomandOverlayOpacityCard}"
+                                            Value="{x:Bind ViewModel.FoliaNomandOverlayOpacity, Mode=TwoWay}" />
+                                    </Grid>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
@@ -1344,15 +1776,24 @@
                             Margin="10,20,10,10"
                             FontSize="16" />
                         <controls:SettingsCard x:Name="FoliaFontScaleCard" x:Uid="FoliaFontScale" Margin="10,0,10,0">
-                            <Slider
-                                Style="{StaticResource FoliaSliderStyle}"
-                                Maximum="200"
-                                Minimum="50"
-                                SmallChange="5"
-                                LargeChange="25"
-                                StepFrequency="5"
-                                AutomationProperties.LabeledBy="{x:Bind FoliaFontScaleCard}"
-                                Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    TextAlignment="Right"
+                                    Style="{StaticResource BodyTextBlockStyle}"
+                                    Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaFontScaleSlider.Value), Mode=OneWay}" />
+                                <Slider
+                                    x:Name="FoliaFontScaleSlider"
+                                    Grid.Column="1"
+                                    Style="{StaticResource FoliaSliderStyle}"
+                                    Maximum="200"
+                                    Minimum="50"
+                                    SmallChange="5"
+                                    LargeChange="25"
+                                    StepFrequency="5"
+                                    AutomationProperties.LabeledBy="{x:Bind FoliaFontScaleCard}"
+                                    Value="{x:Bind ViewModel.FoliaFontScale, Mode=TwoWay}" />
+                            </Grid>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="FoliaFontFamily" Margin="10,0,10,0">
                             <ComboBox
@@ -1372,15 +1813,24 @@
                             </ComboBox>
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Name="FoliaFontWeightCard" x:Uid="FoliaFontWeight" Margin="10,0,10,0">
-                            <Slider
-                                Style="{StaticResource FoliaSliderStyle}"
-                                Maximum="900"
-                                Minimum="100"
-                                SmallChange="100"
-                                LargeChange="100"
-                                StepFrequency="100"
-                                AutomationProperties.LabeledBy="{x:Bind FoliaFontWeightCard}"
-                                Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    TextAlignment="Right"
+                                    Style="{StaticResource BodyTextBlockStyle}"
+                                    Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaFontWeightSlider.Value), Mode=OneWay}" />
+                                <Slider
+                                    x:Name="FoliaFontWeightSlider"
+                                    Grid.Column="1"
+                                    Style="{StaticResource FoliaSliderStyle}"
+                                    Maximum="900"
+                                    Minimum="100"
+                                    SmallChange="100"
+                                    LargeChange="100"
+                                    StepFrequency="100"
+                                    AutomationProperties.LabeledBy="{x:Bind FoliaFontWeightCard}"
+                                    Value="{x:Bind ViewModel.FoliaFontWeight, Mode=TwoWay}" />
+                            </Grid>
                         </controls:SettingsCard>
                         <TextBlock
                             x:Uid="FoliaSourceSection"

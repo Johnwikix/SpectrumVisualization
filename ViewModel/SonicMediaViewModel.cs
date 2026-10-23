@@ -3,7 +3,9 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
+using Windows.Foundation;
 using Windows.Storage.Streams;
 using WinExSpectrumTest.Services;
 
@@ -24,6 +26,8 @@ public sealed partial class SonicMediaViewModel : ObservableObject
     private int _attemptedCoverVersion = -1;
     private IRandomAccessStreamReference? _thumbnail;
     private Task? _coverTask;
+    private readonly CancellationTokenSource _stop = new();
+    private Task? _stopTask;
     private int _lastSecond = -1;
 
     [ObservableProperty] public partial string Title { get; set; } = "";
@@ -100,6 +104,7 @@ public sealed partial class SonicMediaViewModel : ObservableObject
 
     private async Task LoadCoverAsync()
     {
+        var token = _stop.Token;
         // One decoder at a time. New tracks supersede old results without parallel decode storms.
         while (_active && !_stopped && _thumbnail != null)
         {
@@ -108,16 +113,18 @@ public sealed partial class SonicMediaViewModel : ObservableObject
             var thumbnail = _thumbnail;
             try
             {
-                using var stream = await thumbnail.OpenReadAsync();
+                using var stream = await AwaitCoverAsync(thumbnail.OpenReadAsync(), token);
                 if (!_active || _stopped) return;
+                if (version != _coverVersion) continue;
                 var bitmap = new BitmapImage { DecodePixelWidth = 256 };
-                await bitmap.SetSourceAsync(stream);
+                await AwaitCoverAsync(bitmap.SetSourceAsync(stream), token);
                 if (version == _coverVersion && _active && !_stopped)
                 {
                     Cover = bitmap;
                     return;
                 }
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
                 App.WriteCrashLog("Sonic artwork", ex.Message, ex);
@@ -126,20 +133,52 @@ public sealed partial class SonicMediaViewModel : ObservableObject
         }
     }
 
+    // Cancel the WinRT operation, but still await its completion callback before
+    // disposing the stream. Cancelling only a Task wait can race the decoder.
+    private static async Task<T> AwaitCoverAsync<T>(IAsyncOperation<T> operation, CancellationToken token)
+    {
+        using var registration = token.Register(CancelCoverOperation, operation);
+        return await operation;
+    }
+
+    private static async Task AwaitCoverAsync(IAsyncAction operation, CancellationToken token)
+    {
+        using var registration = token.Register(CancelCoverOperation, operation);
+        await operation;
+    }
+
+    private static void CancelCoverOperation(object? operation)
+    {
+        try { ((IAsyncInfo)operation!).Cancel(); }
+        catch (Exception ex) { App.WriteCrashLog("Sonic artwork cancellation", ex.Message, ex); }
+    }
+
     private static string FormatTime(double seconds)
     {
         int total = (int)Math.Max(0, seconds);
         return $"{total / 60}:{total % 60:00}";
     }
 
-    public async Task StopAsync()
+    public Task StopAsync() => _stopTask ??= StopCoreAsync();
+
+    private async Task StopCoreAsync()
     {
         _stopped = true;
         _active = false;
         ++_coverVersion;
         _timer.Stop();
         _timer.Tick -= OnTick;
-        if (_coverTask != null) await _coverTask;
-        Cover = null;
+        try
+        {
+            _stop.Cancel();
+            if (_coverTask != null) await _coverTask;
+        }
+        finally
+        {
+            Cover = null;
+            _thumbnail = null;
+            _coverTask = null;
+            _stop.Dispose();
+        }
     }
 }
