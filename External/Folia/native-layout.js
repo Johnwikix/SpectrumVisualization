@@ -21642,9 +21642,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			phase: 0,
 			bassOscillation: 0,
 			secondGearAngle: 0,
-			primaryTextColor: "#b8d6cc",
-			accentTextColor: "#c47a9c",
-			backgroundColor: "#0e1118",
+			primaryTextColor: input.theme?.primaryColor ?? "#b8d6cc",
+			accentTextColor: input.theme?.accentColor ?? "#c47a9c",
+			backgroundColor: input.theme?.backgroundColor ?? "#0e1118",
 			showGearDecor: "subtle",
 			showCenterGradient: true,
 			showCover: false,
@@ -21915,7 +21915,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		globalThis.nativeWidths = input.widths;
 		globalThis.nativeLines = input.lines;
 		const program = compileTemperaProgram(input.lines, input.seed);
-		const palette = resolveTemperaPalette({
+		const palette = resolveTemperaPalette(input.theme ?? {
 			backgroundColor: "#0e1118",
 			primaryColor: "#b8d6cc",
 			secondaryColor: "#4f6982",

@@ -2,6 +2,13 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-23 封面取色与辞曲新境主题同步
+
+- `AuroraCoverPalette`、`AuroraRingEffect`：修正均色重复除以 255 导致主色接近黑色，显式清空色相直方图；灰阶、透明及无封面使用确定的回退，不再沿用上一封面的配色。
+- `FoliaCoverPalette`、`FoliaPlaybackService`、`FoliaSong`：封面与原版代表色、可读暗色主题一起在后台准备并原子发布；保留透明度用于取色，上传前按舞台底色合成，潜流复用已提取的颜色；同曲封面移除、无效解码及迟到请求遵循曲目版本守卫。
+- `FoliaScenePreparation`、`FoliaSourcePlanner`、`native-layout.js`、凝彩／时计／镜台渲染：主题色进入布局缓存与绘制，修正固定配色、反色墨纸色及雾色不同步，封面更新继续复用字形图集。现有配置字段与模式列表不变，有封面时歌词配色现在跟随封面。
+- 验证：主工程 Debug 构建及 .NET 10 Release NativeAOT 发布通过；NativeAOT 离屏回归覆盖 13 种歌词／5 种背景、16 组当前上游取色对照、透明 PNG 解码、封面移除和迟到请求。实际显示、HDR 观感及交互由用户验收。
+
 ## 2026-10-22 MainWindow 标题栏命令化（MVVM）
 
 - `ViewModel/MainViewModel.cs`（新）：标题栏命令（最小化 / 最大化 / 关闭 / 全屏 / 锁定）与图标状态（`MaximizeGlyph` / `FullScreenGlyph`）；全屏命令的 `CanExecute` 挂壁纸模式守卫（监听 `AppSettings.WallpaperEnabled`，UI 线程刷新），命令按项目既有约定经 `App.MainWindow` 回跳，行为与原 Click 守卫一致。

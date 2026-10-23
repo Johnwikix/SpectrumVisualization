@@ -139,7 +139,7 @@ internal sealed class FoliaSceneUpload : IDisposable
         // Independent images can upload alongside glyph batches. Missing images and
         // resident glyphs consume no frames; actual copies still cross the host fence.
         var song = Scene.Request.Song;
-        bool coverReady = Cover == null || Cover.Advance(device, song.CoverRgba.Length == 0 ? emptyCover : song.CoverRgba);
+        bool coverReady = Cover == null || Cover.Advance(device, song.CoverRgba.Length == 0 ? emptyCover : song.DisplayCoverRgba ?? song.CoverRgba);
         bool modeReady = ModeAtlas == null || ModeAtlas.Advance(device,
             ModeAtlasSource is FoliaAssets.EmojiAtlas emojis ? emojis.Pixels.AsSpan() : Scene.Atlas.ShadowPixels);
         _complete = glyphsReady && coverReady && modeReady;

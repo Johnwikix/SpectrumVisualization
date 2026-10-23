@@ -355,8 +355,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         WriteTuning();
         _stageGraphicsCount = mode switch { "tempera" => _tempera.GraphicsCount, "sonnet" => _sonnet.GraphicsCount,
             "pendolo" when _atlas.Lines.Length > 0 => _pendolo.GraphicsCount, _ => 0 };
-        _data[8] = new(FoliaTempera.Ink, 1);
-        _data[9] = new(FoliaTempera.Paper, 1);
+        _data[8] = new(_tempera.InkColor, 1);
+        _data[9] = new(_tempera.PaperColor, 1);
         instances[..(_backgroundCount + _count)].CopyTo(new Span<FoliaInstance>(_mapped, Capacity));
     }
 

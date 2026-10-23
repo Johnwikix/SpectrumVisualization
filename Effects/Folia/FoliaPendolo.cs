@@ -23,12 +23,14 @@ internal sealed class FoliaPendolo
     internal FoliaMotionFrame Motion;
     internal int GraphicsCount { get; private set; }
 
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
+    private Vector3[]? _palette;
+    private Vector3 _background = FoliaSong.Empty.Palette[0];
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default, Vector3[]? palette = null)
     {
-        if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
+        if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale && ReferenceEquals(_palette, palette))
             return;
         using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(
-            FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePendolo", token));
+            FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, palette), "compilePendolo", token));
         var root = document.RootElement;
         var parts = root.GetProperty("parts");
         _parts = new Part[parts.GetArrayLength()];
@@ -65,6 +67,8 @@ internal sealed class FoliaPendolo
                 + (line.Translation.Length > 0 ? Rows(line.Translation, 18, maxWidth) * 23 + 6 : 0)) * 1.25f;
         }
         _index = -1;
+        _palette = palette;
+        _background = palette is null ? FoliaSong.Empty.Palette[0] : palette[0];
     }
 
     internal void Update(double elapsed, double position, int index, float bass, bool playing, int preceding, int lineCount)
@@ -106,7 +110,7 @@ internal sealed class FoliaPendolo
         float baseRadius = Math.Min(p.Width, p.Height) * .42f, ringRadius = baseRadius / .42f * .48f;
         float cx = p.Width * .5f - ringRadius;
         float cy = p.Height * .5f, gradient = baseRadius * 1.65f;
-        p.Shape(15, cx - gradient, cy - gradient, gradient * 2, gradient * 2, new(14 / 255f, 17 / 255f, 24 / 255f), 1);
+        p.Shape(15, cx - gradient, cy - gradient, gradient * 2, gradient * 2, _background, 1);
         if (Motion.Active)
         {
             float radius = baseRadius * (1 + Motion.Onset * .04f);

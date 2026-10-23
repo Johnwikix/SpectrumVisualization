@@ -42,11 +42,11 @@ internal sealed class FoliaModePlan
                 case "lumiere": Lumiere.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "cadenza": Cadenza.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "partita": Partita.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
-                case "tempera": Tempera.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "tempera": Tempera.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
                 case "fume": Fume.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "diorama": Diorama.Prepare(atlas, token); break;
                 case "tilt": Tilt.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
-                case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
+                case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
                 case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "monet": Monet.Prepare(atlas, request, token); break;
             }
@@ -169,6 +169,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
+                    || (request.Mode is "tempera" or "pendolo") && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
