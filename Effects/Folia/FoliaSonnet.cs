@@ -13,7 +13,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal sealed partial class FoliaSonnet
 {
     private sealed record TextRun(float Font, float Rotation, string Role, NativeGlyph[] Glyphs, FoliaSonnetTextDecor Decor, Vector3? KeywordColor);
-    private readonly record struct NativeGlyph(FoliaGlyph Glyph, Vector2 Base, Vector2 Enter, float EntryRotation, double Start, double Settle);
+    private readonly record struct NativeGlyph(FoliaGlyph Glyph, Vector2 Base, Vector2 Enter, float EntryRotation, double Start, double Settle, Vector3? EmphasisColor);
     private readonly record struct CameraFrame(Vector2 Focus, Vector2 Offset, float Scale, float Rotation);
     private sealed record Shot(string Kind, double Start, double End, Vector4 Camera, int Ordinal, TextRun[] Text, CameraFrame[] Frames,
         FoliaSonnetGraphics Graphics, double[] Cues, int Paragraph, double ParagraphStart, uint TransitionSeed, Transition? Enter, Transition? Exit);
@@ -66,7 +66,7 @@ internal sealed partial class FoliaSonnet
                         if ((uint)li >= (uint)atlas.Lines.Length || (uint)gi >= (uint)atlas.Lines[li].Glyphs.Length)
                             continue;
                         glyphs.Add(new(atlas.Lines[li].Glyphs[gi].Glyph, new(F(g, "baseX"), F(g, "baseY")), new(F(g, "enterX"), F(g, "enterY")),
-                            F(g, "entryRotation"), g.GetProperty("startTime").GetDouble(), g.GetProperty("settleTime").GetDouble()));
+                            F(g, "entryRotation"), g.GetProperty("startTime").GetDouble(), g.GetProperty("settleTime").GetDouble(), atlas.Lines[li].Glyphs[gi].ActiveColor));
                     }
                     texts.Add(new(F(text, "font"), F(text, "rotation"), text.GetProperty("role").GetString()!, glyphs.ToArray(), new(text.GetProperty("decor")),
                         text.TryGetProperty("keywordColor", out var keyword) && keyword.ValueKind == JsonValueKind.String ? FoliaThemePlanner.Rgb(keyword.GetString()!) : null));
@@ -184,8 +184,8 @@ internal sealed partial class FoliaSonnet
                     continue;
                 }
                 p.Glyph(g.Glyph, position.X - g.Glyph.Advance * font * .5f, position.Y - font * .6f, font,
-                    decorative ? text.KeywordColor ?? accent : primary, decorative ? .12f : .16f + reveal * .84f, angle + text.Rotation + g.EntryRotation * entry,
-                    glow: decorative ? 0 : 1, outline: decorative, glowColor: text.KeywordColor);
+                    decorative ? g.EmphasisColor ?? accent : primary, decorative ? .12f : .16f + reveal * .84f, angle + text.Rotation + g.EntryRotation * entry,
+                    glow: decorative ? 0 : 1, outline: decorative, glowColor: g.EmphasisColor);
             }
         }
         if (layer == 0)

@@ -171,7 +171,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 request = request with { Song = _themes.Resolve(request.Song, theme, token) };
                 if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
                     || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song)
-                    || _atlasRequest.Song.KeywordSignature != request.Song.KeywordSignature)
+                    || !ReferenceEquals(_atlasRequest.Song.KeywordRanges, request.Song.KeywordRanges))
                     ReplaceAtlas(CreateAtlas(request, token), request);
                 if (request.Mode == "tilt") PrepareTiltGlyphs(request, token);
                 _atlasRequest = request;
@@ -179,7 +179,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
-                    || (request.Mode is "tempera" or "pendolo" || request.Mode == "diorama" && request.Song.KeywordSignature.Length > 0)
+                    || (request.Mode is "tempera" or "pendolo" || request.Mode == "diorama" && request.Song.KeywordRanges.Length > 0)
                         && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))

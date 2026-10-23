@@ -1,4 +1,4 @@
-// Rebuild the original non-AI theme/keyword helpers from an explicit checkout, using Node 24+.
+// Rebuild the original non-AI theme helpers from an explicit checkout, using Node 24+.
 import fs from 'node:fs';
 import path from 'node:path';
 import { stripTypeScriptTypes } from 'node:module';
@@ -29,7 +29,7 @@ function add(relative) {
     modules.set(id, code + '\n' + exported.map(name => `exports.${name} = ${name};`).join('\n'));
     return id;
 }
-for (const file of ['src/utils/builtinTheme/generateBuiltinDualTheme.ts', 'src/utils/colorExtractor.ts', 'src/components/visualizer/wordColoring.ts']) add(file);
+for (const file of ['src/utils/builtinTheme/generateBuiltinDualTheme.ts', 'src/utils/colorExtractor.ts']) add(file);
 const revision = process.argv[3] ?? execFileSync('git', ['-C', source, 'rev-parse', '--short=8', 'HEAD'], { encoding: 'utf8' }).trim();
 const table = [...modules].map(([id, code]) => `${JSON.stringify(id)}: function(exports, require) {\n${code}\n}`).join(',\n');
 const adapter = fs.readFileSync(path.join(here, 'adapter.js'), 'utf8');

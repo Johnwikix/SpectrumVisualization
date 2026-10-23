@@ -25,6 +25,7 @@ namespace WinExSpectrumTest
         internal static FoliaPlaybackService FoliaPlayback { get; } = new(MediaInfoService);
         public static IServiceProvider Services { get; private set; }
         internal static Rendering.GpuShaderWarmup ShaderWarmup { get; } = new();
+        private static FoliaSystemThemeService FoliaSystemTheme { get; } = new();
         private static readonly IHost _host = Host.CreateDefaultBuilder()
              .ConfigureServices((context, services) =>
              {
@@ -93,6 +94,8 @@ namespace WinExSpectrumTest
             await _host.StartAsync();
             if (_exitTask != null) return;
             await DataJsonService.LoadSettingAsync();
+            if (_exitTask != null) return;
+            FoliaSystemTheme.Start();
             if (FoliaPlaybackService.PreviewEnabled)
             {
                 Model.AppSettings.VisualEffect = "folia";
@@ -117,6 +120,8 @@ namespace WinExSpectrumTest
 
         private static async Task ExitAsync()
         {
+            try { FoliaSystemTheme.Dispose(); }
+            catch (Exception ex) { WriteCrashLog("Theme shutdown", ex.Message, ex); }
             Task warmupShutdown = ShaderWarmup.StopAsync();
             Task shaderMaintenance = Rendering.ShaderCacheMaintenance.StopAsync();
             try { DataJsonService.SaveSettingNow(); }

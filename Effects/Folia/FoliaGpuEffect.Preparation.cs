@@ -19,7 +19,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         // Each published snapshot still commits its atlas, layout and images together.
         return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
             AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
-            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor, AppSettings.FoliaTheme);
+            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor, AppSettings.FoliaResolvedTheme);
     }
 
     private bool UpdatePreparedScene()

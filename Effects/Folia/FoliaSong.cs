@@ -25,7 +25,6 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
     // Native image shaders consume opaque RGB. Keep straight-alpha pixels for extraction,
     // and composite transparent artwork once on the cold worker before GPU upload.
     internal byte[]? DisplayCoverRgba { get; init; }
-    internal string KeywordSignature { get; init; } = "";
     internal FoliaKeywordRange[][] KeywordRanges { get; init; } = [];
     internal bool IsLightTheme { get; init; }
 
@@ -114,6 +113,7 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
                 if (end > 0 && line[..end].Contains(',') && line[(end + 1)..].TrimStart().StartsWith("<", StringComparison.Ordinal))
                     return Lyricify.Lyrics.Parsers.KrcParser.Parse(lyrics);
             }
+            if (lyrics.Contains('<') && Services.Lyrics.EnhancedLrcParser.TryParse(lyrics, out var enhanced)) return enhanced;
             var qrc = Lyricify.Lyrics.Parsers.QrcParser.Parse(lyrics);
             if (qrc.Lines?.Exists(static line => line is SyllableLineInfo { Syllables.Count: > 0 }) == true) return qrc;
             return Lyricify.Lyrics.Parsers.LrcParser.Parse(lyrics);

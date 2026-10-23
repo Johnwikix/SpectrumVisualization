@@ -39,10 +39,11 @@ public sealed record FoliaThemeSettings
 
     public FoliaThemeSettings Normalize() => this with
     {
-        Source = Source is "preset" or "custom" ? Source : "cover",
-        Variant = Variant == "light" ? "light" : "dark",
+        Source = Source == "preset" ? Source : "cover",
+        Variant = Variant is "light" or "system" ? Variant : "dark",
         CustomDark = (CustomDark ?? FoliaThemeColors.Dark).Normalize(FoliaThemeColors.Dark),
         CustomLight = (CustomLight ?? FoliaThemeColors.Light).Normalize(FoliaThemeColors.Light),
-        WordColors = WordColors is { Length: <= 16384 } ? WordColors.Replace("\r\n", "\n").Trim() : ""
+        // Retain JSON fields for old files; manual choices no longer drive the renderer.
+        WordColors = ""
     };
 }

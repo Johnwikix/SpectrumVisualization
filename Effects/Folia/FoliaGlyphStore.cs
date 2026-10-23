@@ -43,6 +43,19 @@ internal sealed class FoliaGlyphStore : IDisposable
     internal int Count { get { lock (_gate) return _entries.Count; } }
     internal void SetGpuEnabled(bool enabled) => _gpuEnabled = enabled;
 
+    internal bool TryAcquire(FoliaGlyphKey key, out FoliaCachedGlyph? glyph)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_entries.TryGetValue(key, out glyph)) return false;
+            glyph.Owners++;
+            glyph.LastUse = ++_use;
+            Reused++;
+            return true;
+        }
+    }
+
     internal FoliaCachedGlyph Acquire(FoliaGlyphKey key, Func<FoliaGlyphSource> create)
     {
         lock (_gate)
