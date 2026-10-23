@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -124,7 +125,7 @@ public sealed partial class SonicMediaViewModel : ObservableObject
                     return;
                 }
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+            catch (OperationCanceledException caughtException) when (token.IsCancellationRequested) { AppLog.Caught(caughtException); return; }
             catch (Exception ex)
             {
                 App.WriteCrashLog("Sonic artwork", ex.Message, ex);

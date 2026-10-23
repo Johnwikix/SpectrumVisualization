@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -129,7 +130,7 @@ internal sealed unsafe partial class ReadOnlyLyricsDatabase : IDisposable
             }
             return 0;
         }
-        catch { return 7; } // SQLITE_NOMEM; exceptions must never cross a native callback.
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); return 7; } // SQLITE_NOMEM; exceptions must never cross a native callback.
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

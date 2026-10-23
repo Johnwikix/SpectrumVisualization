@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -46,7 +47,7 @@ internal sealed class LyricsOnlineSearch
                     if (result.Status == LyricsSearchStatus.Found && !OriginalSoundLyricsSource.IsUsable(result.Content, track.Duration))
                         result = new(LyricsSearchStatus.NetworkError);
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (OperationCanceledException caughtException) when (token.IsCancellationRequested) { AppLog.Caught(caughtException); throw; }
                 catch (Exception ex)
                 {
                     App.WriteCrashLog("Lyrics provider " + channel, ex.Message, ex);

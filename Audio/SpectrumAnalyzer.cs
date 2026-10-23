@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using NAudio.Dsp;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
@@ -212,8 +213,6 @@ namespace WinExSpectrumTest.Audio
         /// <summary>Strength of the last detected high-frequency burst.</summary>
         public float MeteorTriggerStrength => Volatile.Read(ref _meteorTriggerStrength);
 
-        private int _processingErrorLogged;
-
         private void OnDataAvailable(object? sender, WaveInEventArgs e)
         {
             try
@@ -223,8 +222,7 @@ namespace WinExSpectrumTest.Audio
             catch (Exception ex)
             {
                 // Never let the audio thread die from transient decode issues.
-                if (Interlocked.Exchange(ref _processingErrorLogged, 1) == 0)
-                    App.WriteCrashLog("Audio", "Failed to process captured audio", ex);
+                App.WriteCrashLog("Audio", "Failed to process captured audio", ex);
             }
         }
 
@@ -277,8 +275,9 @@ namespace WinExSpectrumTest.Audio
                         capture.StartRecording();
                         started = true;
                     }
-                    catch (Exception)
+                    catch (Exception caughtException)
                     {
+                        AppLog.Caught(caughtException);
                         capture.Dispose();
                     }
                     if (!started) continue;
@@ -294,8 +293,9 @@ namespace WinExSpectrumTest.Audio
                         {
                             old.Dispose();
                         }
-                        catch (Exception)
+                        catch (Exception caughtException2)
                         {
+                            AppLog.Caught(caughtException2);
                         }
                     }
                     App.WriteCrashLog("Audio", $"loopback recreated on attempt {attempt}", null);
@@ -563,8 +563,9 @@ namespace WinExSpectrumTest.Audio
                 _capture.StopRecording();
                 _capture.Dispose();
             }
-            catch (Exception)
+            catch (Exception caughtException3)
             {
+                AppLog.Caught(caughtException3);
             }
         }
     }

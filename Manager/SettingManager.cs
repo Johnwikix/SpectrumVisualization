@@ -1,4 +1,5 @@
-﻿using System;
+using WinExSpectrumTest.Service;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,7 +35,8 @@ namespace WinExSpectrumTest.Manager
                 var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
                 return Path.Combine(localFolder, FileName);
             }
-            catch {
+            catch (global::System.Exception caughtException) {
+                AppLog.Caught(caughtException);
                 return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FileName);
             }
         }
@@ -66,6 +68,7 @@ namespace WinExSpectrumTest.Manager
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 System.Diagnostics.Debug.WriteLine($"加载配置失败: {ex.Message}");
                 return new SaveSetting();
             }
@@ -97,6 +100,7 @@ namespace WinExSpectrumTest.Manager
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 // 捕获写入文件或序列化过程中的任何异常
                 System.Diagnostics.Debug.WriteLine($"保存配置失败: {ex.Message}");
                 return false;
@@ -122,6 +126,7 @@ namespace WinExSpectrumTest.Manager
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 System.Diagnostics.Debug.WriteLine($"同步保存配置失败: {ex.Message}");
                 return false;
             }

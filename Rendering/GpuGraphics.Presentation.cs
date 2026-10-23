@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using Microsoft.Win32.SafeHandles;
 using Vortice.DXGI;
@@ -23,6 +24,7 @@ internal sealed unsafe partial class GpuGraphics
             }
             catch (Exception ex) when (ex.HResult is unchecked((int)0x887A0001) or unchecked((int)0x887A0004) or unchecked((int)0x80070057))
             {
+                AppLog.Caught(ex);
                 // Some composition configurations reject tearing despite factory support.
                 // Keep rendering with an explicitly reported composed presentation path.
             }

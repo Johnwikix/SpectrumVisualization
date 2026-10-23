@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -49,8 +50,9 @@ internal sealed partial class GpuPanel : SwapChainPanel
             _renderer = new GpuRenderer(analyzer, hwnd, BindFromWorker, PublishFromWorker, settings,
                 PublishReconstructionFromWorker, _debug, App.ShaderWarmup);
             try { _renderer.Start(); }
-            catch
+            catch (global::System.Exception caughtException)
             {
+                AppLog.Caught(caughtException);
                 ReleaseNative(_native);
                 _native = 0;
                 _renderer = null;
@@ -113,7 +115,7 @@ internal sealed partial class GpuPanel : SwapChainPanel
                 SetSwapChain(_native, swapChain);
                 completed.SetResult();
             }
-            catch (Exception ex) { completed.SetException(ex); }
+            catch (Exception ex) { AppLog.Caught(ex); completed.SetException(ex); }
         })) throw new InvalidOperationException("The rendering host dispatcher is unavailable.");
         completed.Task.GetAwaiter().GetResult();
     }

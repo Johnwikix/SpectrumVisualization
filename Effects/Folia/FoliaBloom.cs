@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using WinExSpectrumTest.Model;
 using System;
 using Vortice.Mathematics;
@@ -44,8 +45,9 @@ internal sealed unsafe class FoliaBloom : IDisposable
             _up = Pipeline(source, vertex, "Up");
             _combine = Pipeline(source, vertex, "Combine");
         }
-        catch
+        catch (global::System.Exception caughtException)
         {
+            AppLog.Caught(caughtException);
             Dispose();
             throw;
         }

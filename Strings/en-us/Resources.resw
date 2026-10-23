@@ -508,4 +508,10 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaKeywordColors.Header" xml:space="preserve"><value>Prolonged syllable colors</value></data>
   <data name="FoliaThemeOption_system.Content" xml:space="preserve"><value>Follow system</value></data>
   <data name="FoliaKeywordColors.Description" xml:space="preserve"><value>Select prolonged syllables by duration and generate matching theme colors. Line-timed lyrics are not inferred.</value></data>
+  <data name="RunInBackground.Header" xml:space="preserve"><value>Keep running in the background</value></data>
+  <data name="RunInBackground.Description" xml:space="preserve"><value>Closing the window keeps the tray icon and wallpaper running. Choose Exit from the tray menu to quit.</value></data>
+  <data name="RunInBackgroundToggle.AutomationProperties.Name" xml:space="preserve"><value>Keep running in the background</value></data>
+  <data name="DiagnosticLogs.Header" xml:space="preserve"><value>Diagnostic logs</value></data>
+  <data name="DiagnosticLogs.Description" xml:space="preserve"><value>Records startup, wallpaper attachment and exception details. Share these files with the developer after reproducing a problem.</value></data>
+  <data name="OpenLogDirectory.Content" xml:space="preserve"><value>Open log folder</value></data>
 </root>

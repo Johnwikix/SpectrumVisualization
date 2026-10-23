@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using Microsoft.Windows.ApplicationModel.Resources;
 using WinExSpectrumTest.Model;
@@ -26,6 +27,7 @@ public partial class SettingViewModel
             try { return LyricsDiskCache.Folder; }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or System.IO.IOException)
             {
+                AppLog.Caught(ex);
                 return new ResourceLoader().GetString("LyricsCacheFolderInvalid");
             }
         }

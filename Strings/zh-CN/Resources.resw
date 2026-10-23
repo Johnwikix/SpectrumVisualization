@@ -508,4 +508,10 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaKeywordColors.Header" xml:space="preserve"><value>长音节强调色</value></data>
   <data name="FoliaThemeOption_system.Content" xml:space="preserve"><value>跟随系统</value></data>
   <data name="FoliaKeywordColors.Description" xml:space="preserve"><value>根据音节时长自动选择延长音，并生成与主题协调的颜色；普通行级歌词不推断强调。</value></data>
+  <data name="RunInBackground.Header" xml:space="preserve"><value>关闭后在后台运行</value></data>
+  <data name="RunInBackground.Description" xml:space="preserve"><value>关闭窗口时保留托盘和壁纸；从托盘菜单选择“退出”可完全退出。</value></data>
+  <data name="RunInBackgroundToggle.AutomationProperties.Name" xml:space="preserve"><value>关闭后在后台运行</value></data>
+  <data name="DiagnosticLogs.Header" xml:space="preserve"><value>诊断日志</value></data>
+  <data name="DiagnosticLogs.Description" xml:space="preserve"><value>记录启动、壁纸挂接和异常详情。复现问题后，请将日志文件提供给开发者。</value></data>
+  <data name="OpenLogDirectory.Content" xml:space="preserve"><value>打开日志目录</value></data>
 </root>

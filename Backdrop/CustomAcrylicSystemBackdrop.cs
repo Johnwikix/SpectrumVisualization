@@ -1,4 +1,5 @@
-﻿using Microsoft.UI.Composition;
+using WinExSpectrumTest.Service;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -166,6 +167,7 @@ namespace WinExSpectrumTest.Backdrop
                 }
                 catch (Exception ex)
                 {
+                    AppLog.Caught(ex);
                     System.Diagnostics.Debug.WriteLine($"SetAcrylicProperties error: {ex.Message}");
                 }
             });

@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -112,7 +113,7 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
             distance = Array(Format.R16G16B16A16_Float, count);
             shadow = Array(Format.R8_UNorm, count);
         }
-        catch { distance?.Dispose(); shadow?.Dispose(); throw; }
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); distance?.Dispose(); shadow?.Dispose(); throw; }
         _oldDistance = Distance;
         _oldShadow = Shadow;
         _oldPages = Pages;
@@ -243,7 +244,7 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
                     owner.OutlineUploadBytes += edges.Count * 80L + contours.Count * 16L + jobs.Count * 48L;
                 }
             }
-            catch { Dispose(); throw; }
+            catch (global::System.Exception caughtException2) { AppLog.Caught(caughtException2); Dispose(); throw; }
         }
 
         private static ulong Align(ulong value, ulong alignment) => (value + alignment - 1) & ~(alignment - 1);

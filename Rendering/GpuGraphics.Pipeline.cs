@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Diagnostics;
 using Vortice.Direct3D12;
@@ -36,7 +37,7 @@ internal sealed unsafe partial class GpuGraphics
                 PostCommands = device.CreateCommandList<ID3D12GraphicsCommandList>(0, CommandListType.Direct, PostAllocator);
                 PostCommands.Close();
             }
-            catch { Dispose(); throw; }
+            catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); Dispose(); throw; }
         }
 
         public void Dispose()

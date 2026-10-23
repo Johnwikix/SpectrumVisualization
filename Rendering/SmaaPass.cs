@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -65,7 +66,7 @@ internal sealed unsafe class SmaaPass : IDisposable
                 device.CreateShaderResourceView(texture, null, _srv.GetCPUDescriptorHandleForHeapStart() + (pass * 5 + i) * _srvStride);
             }
         }
-        catch { Dispose(); throw; }
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); Dispose(); throw; }
     }
 
     private static StaticSamplerDescription Sampler(uint register, Filter filter) => new(register, filter,

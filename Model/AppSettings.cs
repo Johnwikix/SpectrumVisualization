@@ -78,6 +78,8 @@ namespace WinExSpectrumTest.Model
         public static bool IsLocked { get => _IsLocked; set => Set(ref _IsLocked, value); }
         private static bool _WallpaperEnabled;
         public static bool WallpaperEnabled { get => _WallpaperEnabled; set => Set(ref _WallpaperEnabled, value); }
+        private static bool _isRunningBackend = true;
+        public static bool IsRunningBackend { get => _isRunningBackend; set => Set(ref _isRunningBackend, value); }
         private static bool _IsDrawPlainSpectrum = false;
         public static bool IsDrawPlainSpectrum { get => _IsDrawPlainSpectrum; set => Set(ref _IsDrawPlainSpectrum, value); }
         private static bool _IsDrawRoundSpectrum = true;

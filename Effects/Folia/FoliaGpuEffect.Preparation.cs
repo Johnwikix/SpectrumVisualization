@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using WinExSpectrumTest.Model;
 
@@ -49,7 +50,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             {
                 _upload?.Dispose();
                 try { _upload = new(ready, _atlas!, _song!, _modeAtlasSource, _glyphAtlas); }
-                catch { ready.Dispose(); throw; }
+                catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); ready.Dispose(); throw; }
             }
         }
         if (_upload is { Complete: false })

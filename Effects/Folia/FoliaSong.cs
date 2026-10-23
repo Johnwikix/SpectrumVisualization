@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -121,6 +122,7 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
         catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException or IndexOutOfRangeException
             or System.Xml.XmlException or System.Text.Json.JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException)
         {
+            AppLog.Caught(ex);
             return null;
         }
     }

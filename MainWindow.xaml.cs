@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -88,15 +89,50 @@ namespace WinExSpectrumTest
                 UpdateDragRegion();
                 UpdateMaximizeGlyph();
             }
-            catch (Exception)
+            catch (Exception caughtException)
             {
+                AppLog.Caught(caughtException);
             }
         }
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
             args.Cancel = true;
+            if (App.IsExiting) return;
+            if (AppSettings.IsRunningBackend)
+            {
+                // Wallpaper remains attached; a hidden widget can suspend its renderer until restored.
+                if (!AppSettings.WallpaperEnabled)
+                {
+                    this.Hide();
+                    MyCanvas.SetRenderingSuspended(true);
+                }
+                AppLog.Info("Window close requested; continuing in background (tray Exit ends the process).");
+                return;
+            }
             App.Current_Exit();
+        }
+
+        internal void ShowFromActivation()
+        {
+            if (App.IsExiting) return;
+            AppLog.Info("Showing existing instance.");
+            if (AppSettings.WallpaperEnabled || AppSettings.IsLocked)
+            {
+                // Preserve the desktop child's no-activation policy and the locked widget's focus policy.
+                if (!Visible)
+                {
+                    _appWindow.Show(activateWindow: false);
+                    MyCanvas.SetRenderingSuspended(false);
+                }
+                WindowHelper.OpenWindow<View.SettingWindow>();
+                return;
+            }
+            this.Show();
+            if (_appWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
+                presenter.Restore();
+            MyCanvas.SetRenderingSuspended(false);
+            WindowHelper.SetForegroundWindow(this);
         }
 
         private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
@@ -118,8 +154,9 @@ namespace WinExSpectrumTest
                         UpdateDragRegion();
                         UpdateMaximizeGlyph();
                     }
-                    catch (Exception)
+                    catch (Exception caughtException2)
                     {
+                        AppLog.Caught(caughtException2);
                     }
                 });
             }
@@ -296,8 +333,9 @@ namespace WinExSpectrumTest
                     StartHoverTimer();
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException3)
             {
+                AppLog.Caught(caughtException3);
                 // 定时器回调里的异常会被 XAML stow 成进程崩溃，必须就地吞掉
             }
         }
@@ -323,8 +361,9 @@ namespace WinExSpectrumTest
                     WindowHelper.SetClickThrough(_hwnd, !overPanel);
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException4)
             {
+                AppLog.Caught(caughtException4);
             }
         }
 

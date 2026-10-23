@@ -23,7 +23,9 @@ public sealed partial class MainWindow
 
     public void SetWallpaperMode(bool enabled)
     {
+        if (App.IsExiting) return;
         if (_changingWallpaper || enabled == (_wallpaperHost != null)) return;
+        AppLog.Info($"Wallpaper mode requested: enabled={enabled}, effect={AppSettings.VisualEffect}, locked={AppSettings.IsLocked}, fullscreen={IsFullScreen}, visible={Visible}.");
         _changingWallpaper = true;
         try
         {
@@ -46,6 +48,9 @@ public sealed partial class MainWindow
 
                 // Snapshot the normal widget before removing chrome/parenting.
                 _wallpaperHost = new DesktopWallpaperHost(_hwnd);
+                // A widget hidden in the tray must be resumed before it is attached as wallpaper.
+                _appWindow.Show(activateWindow: false);
+                MyCanvas.SetRenderingSuspended(false);
                 StopIdleTimer();
                 StopHoverTimer();
                 AppTitleBar.Visibility = Visibility.Collapsed;
@@ -69,6 +74,7 @@ public sealed partial class MainWindow
                 RestoreWidget();
             }
             DataJsonService.SaveSettingNow();
+            AppLog.Info($"Wallpaper mode transition completed: enabled={AppSettings.WallpaperEnabled}.");
         }
         catch (Exception ex)
         {

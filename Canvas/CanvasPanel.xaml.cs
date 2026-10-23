@@ -34,7 +34,6 @@ public sealed partial class CanvasPanel : UserControl
     private string? _activeId;
     private Task? _switchTask;
     private Task? _stopTask;
-    private bool _drawErrorLogged;
     private bool _switching;
     private bool CanRender => !_disposed && !_suspended && !_switching && (_root?.IsHostVisible ?? true);
 
@@ -131,7 +130,7 @@ public sealed partial class CanvasPanel : UserControl
                             effect.OnResize((float)RenderHost.ActualWidth, (float)RenderHost.ActualHeight);
                             _aurora = effect;
                         }
-                        catch { effect.Dispose(); throw; }
+                        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); effect.Dispose(); throw; }
                     }
                     SpectrumCanvasControl.Visibility = Visibility.Visible;
                     _activeId = id;
@@ -286,7 +285,7 @@ public sealed partial class CanvasPanel : UserControl
     {
         if (!_drawAurora || _disposed || _suspended) return;
         try { _aurora?.Update(args.Timing.ElapsedTime.TotalSeconds); }
-        catch (Exception ex) { LogDrawError(ex); }
+        catch (Exception ex) { App.WriteCrashLog("Aurora update", ex.Message, ex); }
     }
 
     private void SpectrumCanvasControl_Draw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
@@ -302,15 +301,8 @@ public sealed partial class CanvasPanel : UserControl
                     Stopwatch.GetElapsedTime(started).TotalMilliseconds, 0, 0, default,
                     ReconstructionMode.Off, null, false, false, AppSettings.RefreshRate));
             RenderDiagnostics.RecordFrame(AuroraRingEffect.EffectId, _analyzer.PublicationCount);
-            _drawErrorLogged = false;
         }
-        catch (Exception ex) { LogDrawError(ex); }
-    }
-
-    private void LogDrawError(Exception ex)
-    {
-        if (!_drawErrorLogged) App.WriteCrashLog("Aurora render", ex.Message, ex);
-        _drawErrorLogged = true;
+        catch (Exception ex) { App.WriteCrashLog("Aurora draw", ex.Message, ex); }
     }
 
     public Task StopAsync() => _stopTask ??= StopCoreAsync();
@@ -329,7 +321,7 @@ public sealed partial class CanvasPanel : UserControl
         if (_switchTask != null) await _switchTask;
         await ReleaseGpuHostAsync();
         try { await SpectrumCanvasControl.RunOnGameLoopThreadAsync(static () => { }); }
-        catch (TaskCanceledException) { }
+        catch (TaskCanceledException caughtException2) { AppLog.Caught(caughtException2); }
         catch (Exception ex) { App.WriteCrashLog("Aurora drain", ex.Message, ex); }
         ReleaseAuroraEffect();
         SpectrumCanvasControl.RemoveFromVisualTree();

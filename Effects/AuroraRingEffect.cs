@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.Graphics.Canvas.Geometry;
@@ -337,8 +338,9 @@ namespace WinExSpectrumTest.Effects
                     (primary, palette) = AuroraCoverPalette.Extract(pixels);
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException)
             {
+                AppLog.Caught(caughtException);
                 bitmap?.Dispose();
                 bitmap = null;
             }

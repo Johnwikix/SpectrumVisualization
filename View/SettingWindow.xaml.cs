@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -51,6 +52,7 @@ namespace WinExSpectrumTest.View
                 }
                 catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or NotSupportedException)
                 {
+                    AppLog.Caught(ex);
                     var picker = new Windows.Storage.Pickers.FolderPicker();
                     picker.FileTypeFilter.Add("*");
                     WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));

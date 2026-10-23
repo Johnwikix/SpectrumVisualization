@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.IO;
 using System.Text;
@@ -32,6 +33,7 @@ internal static class LyricsDiskCache
         try { return Path.Combine(ApplicationData.Current.LocalFolder.Path, "LyricsCache"); }
         catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
         {
+            AppLog.Caught(ex);
             // Unpackaged builds have no package ApplicationData. Resolving a UI label must never break x:Bind.
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Spectrum", "LyricsCache");
         }
