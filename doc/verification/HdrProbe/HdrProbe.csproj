@@ -14,6 +14,7 @@
     <UseAppHost>true</UseAppHost>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../Service/AppLog.cs" Link="Diagnostics/AppLog.cs" />
     <!-- Keep ignored, locally generated Folia tests out of this versioned probe. -->
     <Compile Remove="FoliaChecks.cs" />
     <Compile Include="../../../Rendering/RenderCacheFile.cs;../../../Rendering/GpuPipelineCache.cs;../../../Rendering/ColorOutputShaderSource.cs;../../../Rendering/SmaaShaderSource.cs;../../../Rendering/ShaderCatalog.cs;../../../Rendering/ShaderCacheMaintenance.cs" LinkBase="Rendering" />

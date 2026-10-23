@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -210,9 +211,10 @@ internal sealed class FoliaScenePreparation : IDisposable
                         Interlocked.Exchange(ref _ready, result)?.Dispose();
                     else result.Dispose();
             }
-            catch (Exception) when (token.IsCancellationRequested) { }
+            catch (Exception caughtException) when (token.IsCancellationRequested) { AppLog.Caught(caughtException); }
             catch (Exception error)
             {
+                AppLog.Caught(error);
                 lock (_gate)
                     if (!_stopped && !token.IsCancellationRequested)
                         Interlocked.Exchange(ref _ready, new(requested, null, null, [], error))?.Dispose();
@@ -235,6 +237,7 @@ internal sealed class FoliaScenePreparation : IDisposable
         try { atlas = new(request.Song, request.Family, request.Weight, token, italics != null, Store, italics); }
         catch (Exception error) when (IsCapacityFailure(error))
         {
+            AppLog.Caught(error);
             // A large live pair cannot evict the visible scene. Keep the private CPU
             // capacity fallback, with the same selected italic glyphs as the shared atlas.
             atlas = new(request.Song, request.Family, request.Weight, token, italics != null, italicCharacters: italics);

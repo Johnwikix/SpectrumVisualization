@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -366,8 +367,9 @@ internal sealed class FoliaTextAtlas : IDisposable
             ArtistWidth = artistWidth;
             ChatSenders = FoliaCappellaSenders.Build(song.Lines);
         }
-        catch
+        catch (global::System.Exception caughtException)
         {
+            AppLog.Caught(caughtException);
             Dispose();
             throw;
         }

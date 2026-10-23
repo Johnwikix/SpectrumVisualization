@@ -1,4 +1,5 @@
-﻿using Microsoft.UI;
+using WinExSpectrumTest.Service;
+using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -35,6 +36,7 @@ namespace WinExSpectrumTest.Backdrop
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 Debug.WriteLine($"SetTransparentTitleBar error: {ex.Message}");
             }
         }
@@ -148,6 +150,7 @@ namespace WinExSpectrumTest.Backdrop
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 Debug.WriteLine($"SetAppStyle error: {ex.Message}");
             }
         }
@@ -182,8 +185,9 @@ namespace WinExSpectrumTest.Backdrop
                     Micabackdrop.UpdateActiveState(IsActive);
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException)
             {
+                AppLog.Caught(caughtException);
             }
         }
 
@@ -238,6 +242,7 @@ namespace WinExSpectrumTest.Backdrop
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 Debug.WriteLine($"SetAppTheme error: {ex.Message}");
             }
         }

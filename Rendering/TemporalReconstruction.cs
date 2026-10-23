@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D12;
@@ -53,9 +54,9 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     internal static uint Capabilities(ID3D12Device device)
     {
         try { return ReconstructionCapabilities(device.NativePointer); }
-        catch (DllNotFoundException) { return 0; }
-        catch (EntryPointNotFoundException) { return 0; }
-        catch (BadImageFormatException) { return 0; }
+        catch (DllNotFoundException caughtException) { AppLog.Caught(caughtException); return 0; }
+        catch (EntryPointNotFoundException caughtException2) { AppLog.Caught(caughtException2); return 0; }
+        catch (BadImageFormatException caughtException3) { AppLog.Caught(caughtException3); return 0; }
     }
 
     internal static TemporalReconstruction Create(ID3D12Device device, ID3D12GraphicsCommandList commands,

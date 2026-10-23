@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -69,7 +70,7 @@ internal sealed unsafe partial class FoliaGlyphOutline : IDisposable
             Flip = (flags & 4) != 0;
             CanGenerateOnGpu = (flags & 2) == 0;
         }
-        catch { _handle.Dispose(); throw; }
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); _handle.Dispose(); throw; }
     }
 
     internal void RenderCpu(int width, int height, float x, float y, Span<float> pixels)

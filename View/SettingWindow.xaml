@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <winex:WindowEx
     x:Class="WinExSpectrumTest.View.SettingWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -363,6 +363,26 @@
                                 VerticalAlignment="Center"
                                 IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />
                         </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="RunInBackground" Margin="10,0,10,4">
+                            <ToggleSwitch
+                                x:Uid="RunInBackgroundToggle"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="RunInBackground"
+                                IsOn="{x:Bind ViewModel.IsRunningBackend, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="DiagnosticLogs" Margin="10,0,10,4">
+                            <Button
+                                x:Uid="OpenLogDirectory"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="OpenLogDirectory"
+                                Command="{x:Bind ViewModel.OpenLogDirectoryCommand}" />
+                        </controls:SettingsCard>
+                        <TextBlock
+                            Margin="10,4,10,12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind ViewModel.LogDirectory}"
+                            TextWrapping="Wrap" />
                         <controls:SettingsCard x:Uid="ResetSettings" Margin="10,0,10,0">
                             <Button
                                 x:Uid="ResetSettingsButton"

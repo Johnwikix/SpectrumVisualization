@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -73,8 +74,9 @@ namespace WinExSpectrumTest.Services
 
                 StartHealthWatchdog();
             }
-            catch (Exception)
+            catch (Exception caughtException)
             {
+                AppLog.Caught(caughtException);
             }
         }
 
@@ -92,8 +94,9 @@ namespace WinExSpectrumTest.Services
                         await Task.Delay(2000, _lifetime.Token).ConfigureAwait(false);
                         await UpdateSessionAsync().ConfigureAwait(false);
                     }
-                    catch (Exception)
+                    catch (Exception caughtException2)
                     {
+                        AppLog.Caught(caughtException2);
                     }
                 }
             });
@@ -165,8 +168,9 @@ namespace WinExSpectrumTest.Services
                                 selected = sessions[i];
                             }
                         }
-                        catch (Exception)
+                        catch (Exception caughtException3)
                         {
+                            AppLog.Caught(caughtException3);
                         }
                         break;
                     }
@@ -184,8 +188,9 @@ namespace WinExSpectrumTest.Services
                                 break;
                             }
                         }
-                        catch (Exception)
+                        catch (Exception caughtException4)
                         {
+                            AppLog.Caught(caughtException4);
                         }
                     }
                 }
@@ -229,8 +234,9 @@ namespace WinExSpectrumTest.Services
                 await RefreshMediaPropertiesAsync().ConfigureAwait(false);
                 RefreshPlaybackAndTimeline();
             }
-            catch (Exception)
+            catch (Exception caughtException5)
             {
+                AppLog.Caught(caughtException5);
             }
             finally
             {
@@ -258,8 +264,9 @@ namespace WinExSpectrumTest.Services
                     await UpdateSessionAsync();
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException6)
             {
+                AppLog.Caught(caughtException6);
             }
         }
 
@@ -273,7 +280,7 @@ namespace WinExSpectrumTest.Services
         {
             // WinRT may project another wrapper for the same session. Use the same source identity as selection.
             try { return !_stopping && _session is { } current && sender.SourceAppUserModelId == current.SourceAppUserModelId; }
-            catch (Exception) { return false; }
+            catch (Exception caughtException7) { AppLog.Caught(caughtException7); return false; }
         }
 
         private async Task RefreshMediaPropertiesAsync()
@@ -301,8 +308,9 @@ namespace WinExSpectrumTest.Services
                 }
                 App.WriteCrashLog("SMTC", $"push title='{props.Title}' artist='{props.Artist}'", null);
             }
-            catch (Exception)
+            catch (Exception caughtException8)
             {
+                AppLog.Caught(caughtException8);
             }
         }
 
@@ -339,8 +347,9 @@ namespace WinExSpectrumTest.Services
                     TimelineChanged?.Invoke(timeline.Position, timeline.EndTime);
                 }
             }
-            catch (Exception)
+            catch (Exception caughtException9)
             {
+                AppLog.Caught(caughtException9);
             }
         }
 

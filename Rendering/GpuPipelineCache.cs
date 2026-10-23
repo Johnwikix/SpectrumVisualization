@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -27,7 +28,7 @@ internal static class GpuPipelineCache
             bool available = adapter.CheckInterfaceSupport(typeof(IDXGIDevice).GUID, out long driver).Success && driver != 0;
             identity = (FormattableString.Invariant($"{device.AdapterLuid:X16}/{info.VendorId:X8}/{info.DeviceId:X8}/{info.SubsystemId:X8}/{info.Revision:X8}/{driver:X16}/{Environment.OSVersion.Version}"), available);
         }
-        catch (SharpGenException) { identity = (device.AdapterLuid.ToString(), false); }
+        catch (SharpGenException caughtException) { AppLog.Caught(caughtException); identity = (device.AdapterLuid.ToString(), false); }
         Drivers.Add(device.NativePointer, identity);
         return identity;
     }
@@ -61,7 +62,7 @@ internal static class GpuPipelineCache
                     description.CachedPSO = new CachedPipelineState { CachedBlob = (nint)pointer, CachedBlobSizeInBytes = (nuint)cached.Length };
                     try { pipeline = device.CreateGraphicsPipelineState(description); DiskHits++; }
                     // Cached PSOs are driver-specific. An upgrade or incompatible blob simply rebuilds this pipeline.
-                    catch (SharpGenException) { }
+                    catch (SharpGenException caughtException2) { AppLog.Caught(caughtException2); }
                     finally { description.CachedPSO = default; }
                 }
             }
@@ -76,7 +77,7 @@ internal static class GpuPipelineCache
                     Marshal.Copy(blob.BufferPointer, bytes, 0, bytes.Length);
                     if (driver.Persistent) RenderCacheFile.Write(directory, key, bytes);
                 }
-                catch (SharpGenException) { } // Some drivers do not expose a serializable PSO.
+                catch (SharpGenException caughtException3) { AppLog.Caught(caughtException3); } // Some drivers do not expose a serializable PSO.
             }
             Pipelines.Add(identity, pipeline.QueryInterface<ID3D12PipelineState>());
             return pipeline;
@@ -110,7 +111,7 @@ internal static class GpuPipelineCache
                 {
                     description.CachedPSO = new CachedPipelineState { CachedBlob = (nint)pointer, CachedBlobSizeInBytes = (nuint)cached.Length };
                     try { pipeline = device.CreateComputePipelineState(description); DiskHits++; }
-                    catch (SharpGenException) { }
+                    catch (SharpGenException caughtException4) { AppLog.Caught(caughtException4); }
                     finally { description.CachedPSO = default; }
                 }
             if (pipeline == null)
@@ -124,7 +125,7 @@ internal static class GpuPipelineCache
                     Marshal.Copy(blob.BufferPointer, bytes, 0, bytes.Length);
                     if (driver.Persistent) RenderCacheFile.Write(directory, key, bytes);
                 }
-                catch (SharpGenException) { }
+                catch (SharpGenException caughtException5) { AppLog.Caught(caughtException5); }
             }
             Pipelines.Add(identity, pipeline.QueryInterface<ID3D12PipelineState>());
             return pipeline;

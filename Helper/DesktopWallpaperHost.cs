@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.Helper;
 
@@ -31,10 +33,12 @@ internal sealed class DesktopWallpaperHost
         _style = GetWindowLongPtr(window, GwlStyle).ToInt64();
         _exStyle = GetWindowLongPtr(window, GwlExStyle).ToInt64();
         Check(GetWindowRect(window, out _bounds));
+        AppLog.Info($"Wallpaper snapshot: HWND=0x{window:X}, parent=0x{_originalParent:X}, style=0x{_style:X}, exStyle=0x{_exStyle:X}, bounds=({_bounds.Left},{_bounds.Top})-({_bounds.Right},{_bounds.Bottom}), DPI={GetDpiForWindow(window)}.");
     }
 
     public void Attach()
     {
+        AppLog.Info("Wallpaper attach: locating Explorer desktop host.");
         (_desktop, _icons) = FindDesktop();
         if (_desktop == IntPtr.Zero)
             throw new InvalidOperationException("Explorer's wallpaper host is unavailable.");
@@ -46,8 +50,10 @@ internal sealed class DesktopWallpaperHost
         SetStyle(GwlExStyle, (_exStyle & ~(WsExAppWindow | WsExTopmost)) |
             WsExToolWindow | WsExNoActivate | WsExTransparent);
         WindowHelper.EnsureLayered(_window);
+        AppLog.Info($"Wallpaper attach: styles applied; reparenting HWND=0x{_window:X} to host=0x{_desktop:X}, icons=0x{_icons:X}.");
         ChangeParent(_desktop);
         FitPrimaryMonitor(force: true);
+        AppLog.Info($"Wallpaper attach completed; actual parent=0x{GetParent(_window):X}, DPI={GetDpiForWindow(_window)}.");
     }
 
     /// <summary>Handle primary-display changes and desktop host recreation.</summary>
@@ -56,6 +62,7 @@ internal sealed class DesktopWallpaperHost
         if (!IsWindow(_desktop) || GetParent(_window) != _desktop ||
             (_icons != IntPtr.Zero && !IsWindow(_icons)))
         {
+            AppLog.Info($"Wallpaper host changed: host=0x{_desktop:X}, parent=0x{GetParent(_window):X}, icons=0x{_icons:X}; reattaching.");
             Attach();
             return;
         }
@@ -64,6 +71,7 @@ internal sealed class DesktopWallpaperHost
 
     public void Restore()
     {
+        AppLog.Info($"Wallpaper restore: HWND=0x{_window:X}, parent=0x{_originalParent:X}.");
         // Restore parenting before removing WS_CHILD, as required by SetParent.
         ChangeParent(_originalParent);
         SetStyle(GwlStyle, _style);
@@ -72,6 +80,7 @@ internal sealed class DesktopWallpaperHost
             _bounds.Left, _bounds.Top, _bounds.Right - _bounds.Left, _bounds.Bottom - _bounds.Top,
             SwpNoActivate | SwpFrameChanged | SwpShowWindow));
         _desktop = IntPtr.Zero;
+        AppLog.Info("Wallpaper widget restore completed.");
     }
 
     private void FitPrimaryMonitor(bool force)
@@ -89,6 +98,7 @@ internal sealed class DesktopWallpaperHost
         // Convert the physical primary-monitor origin to parent-client coordinates.
         var origin = new WindowHelper.POINT { X = bounds.Left, Y = bounds.Top };
         Check(ScreenToClient(_desktop, ref origin));
+        AppLog.Info($"Wallpaper fit: host=0x{_desktop:X}, monitor=({bounds.Left},{bounds.Top})-({bounds.Right},{bounds.Bottom}), client origin=({origin.X},{origin.Y}), DPI={GetDpiForWindow(_window)}, force={force}.");
         Check(SetWindowPos(_window, _icons, origin.X, origin.Y,
             bounds.Right - bounds.Left, bounds.Bottom - bounds.Top,
             SwpNoActivate | SwpFrameChanged | SwpShowWindow));
@@ -97,15 +107,20 @@ internal sealed class DesktopWallpaperHost
     private static (IntPtr Host, IntPtr Icons) FindDesktop()
     {
         IntPtr progman = FindWindow("Progman", null);
-        if (progman == IntPtr.Zero) return default;
+        if (progman == IntPtr.Zero)
+            throw new InvalidOperationException("Wallpaper host lookup failed: Explorer Progman window is unavailable.");
 
         // Explorer's private desktop-layer request. Bound the wait so an unresponsive
         // shell cannot hang a tray click. Unsupported shells fall back to the widget.
         if (SendMessageTimeout(progman, 0x052C, new IntPtr(0xD), new IntPtr(1),
                 0x2 /* SMTO_ABORTIFHUNG */, 1000, out _) == IntPtr.Zero)
-            return default;
+        {
+            int error = Marshal.GetLastPInvokeError();
+            throw new Win32Exception(error, $"Wallpaper desktop request 0x052C failed or timed out; Progman=0x{progman:X}, Win32={error}.");
+        }
 
         IntPtr icons = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
+        AppLog.Info($"Wallpaper desktop lookup: Progman=0x{progman:X}, exStyle=0x{GetWindowLongPtr(progman, GwlExStyle).ToInt64():X}, DefView=0x{icons:X}.");
         if (icons != IntPtr.Zero &&
             (GetWindowLongPtr(progman, GwlExStyle).ToInt64() & WsExNoRedirectionBitmap) != 0)
         {
@@ -126,6 +141,9 @@ internal sealed class DesktopWallpaperHost
             host = candidate;
             return false;
         }, IntPtr.Zero);
+        if (host == IntPtr.Zero)
+            throw new InvalidOperationException($"Wallpaper host lookup found no WorkerW behind SHELLDLL_DefView; Progman=0x{progman:X}, DefView=0x{icons:X}.");
+        AppLog.Info($"Wallpaper desktop lookup: using WorkerW=0x{host:X}.");
         return (host, IntPtr.Zero);
     }
 
@@ -134,7 +152,8 @@ internal sealed class DesktopWallpaperHost
         Marshal.SetLastPInvokeError(0);
         IntPtr previous = SetParent(_window, parent);
         int error = Marshal.GetLastPInvokeError();
-        if (previous == IntPtr.Zero && error != 0) throw new Win32Exception(error);
+        if (previous == IntPtr.Zero && error != 0)
+            throw new Win32Exception(error, $"SetParent failed; HWND=0x{_window:X}, target=0x{parent:X}, Win32={error}.");
         // While WS_CHILD is still set, SetParent(NULL) reports the desktop HWND
         // through GetParent. Restore clears WS_CHILD immediately afterwards.
         if (parent != IntPtr.Zero && GetParent(_window) != parent)
@@ -146,12 +165,17 @@ internal sealed class DesktopWallpaperHost
         Marshal.SetLastPInvokeError(0);
         IntPtr previous = SetWindowLongPtr(_window, index, new IntPtr(style));
         int error = Marshal.GetLastPInvokeError();
-        if (previous == IntPtr.Zero && error != 0) throw new Win32Exception(error);
+        if (previous == IntPtr.Zero && error != 0)
+            throw new Win32Exception(error, $"SetWindowLongPtr failed; HWND=0x{_window:X}, index={index}, style=0x{style:X}, Win32={error}.");
     }
 
-    private static void Check(bool success)
+    private static void Check(bool success, [CallerArgumentExpression(nameof(success))] string operation = "")
     {
-        if (!success) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        if (!success)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            throw new Win32Exception(error, $"Wallpaper Win32 call failed: {operation}; Win32={error}.");
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -203,4 +227,6 @@ internal sealed class DesktopWallpaperHost
     private static extern IntPtr MonitorFromPoint(WindowHelper.POINT point, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr window);
 }

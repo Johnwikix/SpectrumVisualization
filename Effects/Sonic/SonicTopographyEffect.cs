@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using ComputeSharp;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -113,7 +114,7 @@ internal sealed class SonicTopographyEffect : IDisposable
         _analyzer = analyzer;
         _shaderData = device.AllocateReadOnlyBuffer<float4>(32);
         try { _upload = device.AllocateUploadBuffer<float4>(32); }
-        catch { _shaderData.Dispose(); throw; }
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); _shaderData.Dispose(); throw; }
 
         _lastPulseCount = analyzer.PulseTriggerCount;
         _lastMeteorCount = analyzer.MeteorTriggerCount;

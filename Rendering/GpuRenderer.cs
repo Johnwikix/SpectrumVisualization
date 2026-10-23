@@ -50,8 +50,9 @@ internal sealed class GpuRenderer
     {
         ShaderCacheMaintenance.Rebuilt += OnShaderCacheRebuilt;
         try { new Thread(Run) { IsBackground = true, Name = "Spectrum D3D12" }.Start(); }
-        catch
+        catch (global::System.Exception caughtException)
         {
+            AppLog.Caught(caughtException);
             ShaderCacheMaintenance.Rebuilt -= OnShaderCacheRebuilt;
             lock (_gate)
             {
@@ -122,7 +123,6 @@ internal sealed class GpuRenderer
         long previous = Stopwatch.GetTimestamp();
         long displayChecked = 0;
         DisplayOutput display = default;
-        bool failureLogged = false;
         bool? previousRequest = null;
         bool hdr = false;
         long shaderGeneration = ShaderCacheMaintenance.Generation;
@@ -155,6 +155,7 @@ internal sealed class GpuRenderer
                     }
                     catch (Exception ex)
                     {
+                        AppLog.Caught(ex);
                         pauseRequest.TrySetException(ex);
                         throw;
                     }
@@ -246,13 +247,11 @@ internal sealed class GpuRenderer
                         _lastReconstruction = graphics.Reconstruction;
                         _publishReconstruction(graphics.Reconstruction);
                     }
-                    failureLogged = false;
                 }
                 catch (Exception ex)
                 {
                     Publish(HdrOutputMode.Failed);
-                    if (!failureLogged) App.WriteCrashLog("GPU renderer", ex.Message, ex);
-                    failureLogged = true;
+                    App.WriteCrashLog("GPU renderer", ex.Message, ex);
                     try { graphics?.Dispose(); }
                     catch (Exception cleanup) { App.WriteCrashLog("GPU recovery", cleanup.Message, cleanup); }
                     graphics = null;

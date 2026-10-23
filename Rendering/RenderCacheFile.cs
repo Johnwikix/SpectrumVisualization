@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -28,7 +29,7 @@ internal static class RenderCacheFile
             SHA256.HashData(payload, checksum);
             return CryptographicOperations.FixedTimeEquals(header[12..], checksum) ? payload : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { AppLog.Caught(ex); return null; }
     }
 
     // Delete only artifacts this cache owns, never recurse or remove an installation directory.
@@ -63,13 +64,13 @@ internal static class RenderCacheFile
             File.Move(temporary, path, overwrite: true);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { AppLog.Caught(ex); return false; }
         finally
         {
             if (temporary != null)
             {
                 try { File.Delete(temporary); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) { AppLog.Caught(ex); }
             }
         }
     }

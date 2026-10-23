@@ -2,8 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using System;
-using System.IO;
 using System.Runtime;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.System.UserProfile;
 using WinExSpectrumTest.Service;
@@ -34,23 +34,22 @@ namespace WinExSpectrumTest
                  services.AddSingleton<SettingViewModel>();
              }).Build();
 
+        // Prevent eager beforefieldinit execution from running Host construction before Program installs diagnostics.
+        static App() { }
+
         /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
+        /// Initializes XAML after Program has established diagnostics and single-instance ownership.
         /// </summary>
         public App()
         {
+            UnhandledException += OnXamlUnhandledException;
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             InitializeComponent();
             Services = _host.Services;
 
-            // Log unhandled exceptions to a file so silent startup crashes leave a trace.
-            UnhandledException += OnXamlUnhandledException;
-            AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
-
-            var systemLanguages = GlobalizationPreferences.Languages;
             try
             {
+                var systemLanguages = GlobalizationPreferences.Languages;
                 IsChineseLanguage = systemLanguages.Count > 0 && systemLanguages[0].StartsWith("zh", StringComparison.OrdinalIgnoreCase);
                 if (IsChineseLanguage)
                 {
@@ -61,30 +60,21 @@ namespace WinExSpectrumTest
                     Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en";
                 }
             }
-            catch {
+            catch (global::System.Exception caughtException) {
+                AppLog.Caught(caughtException);
             }
         }
 
         private static void OnXamlUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
-            WriteCrashLog("XAML", e.Message, e.Exception);
+            AppLog.Fatal("XAML unhandled exception", e.Exception, e.Message);
         }
 
-        private static void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        internal static void WriteCrashLog(string source, string message, Exception? exception,
+            [CallerMemberName] string member = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         {
-            WriteCrashLog("AppDomain", e.ExceptionObject?.ToString() ?? "null", e.ExceptionObject as Exception);
-        }
-
-        internal static void WriteCrashLog(string source, string message, Exception? exception)
-        {
-            try
-            {
-                string line = $"[{DateTime.Now:HH:mm:ss.fff}] {source}: {message}\n{exception}\n\n";
-                File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log"), line);
-            }
-            catch (Exception)
-            {
-            }
+            if (exception != null) AppLog.Caught(exception, message == exception.Message ? source : $"{source}: {message}", member, file, line);
+            else AppLog.Info($"{source}: {message}");
         }
 
         /// <summary>
@@ -93,24 +83,52 @@ namespace WinExSpectrumTest
         /// <param name="args">Details about the launch request and process.</param>
         protected async override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            try
+            {
+                _startupTask = StartAsync();
+                await _startupTask;
+            }
+            catch (Exception error)
+            {
+                AppLog.Fatal("Application startup failed", error);
+                Current_Exit(1);
+            }
+        }
+
+        private static Task? _startupTask;
+        private static bool _settingsLoaded;
+
+        private static async Task StartAsync()
+        {
+            AppLog.Info("Starting application services and loading settings.");
             await _host.StartAsync();
-            if (_exitTask != null) return;
+            if (IsExiting) return;
             await DataJsonService.LoadSettingAsync();
-            if (_exitTask != null) return;
+            _settingsLoaded = true;
+            if (IsExiting) return;
             FoliaSystemTheme.Start();
             if (FoliaPlaybackService.PreviewEnabled)
             {
                 Model.AppSettings.VisualEffect = "folia";
                 Model.AppSettings.WallpaperEnabled = false;
             }
-            if (_exitTask != null) return;
+            if (IsExiting) return;
             _ = ShaderWarmup.Start();
             MainWindow = new MainWindow();
             MainWindow.Activate();
+            var dispatcher = MainWindow.DispatcherQueue;
+            Microsoft.UI.Dispatching.DispatcherQueueHandler showExisting = MainWindow.ShowFromActivation;
+            Program.Instance?.Listen(() =>
+            {
+                if (!dispatcher.TryEnqueue(showExisting))
+                    AppLog.Info("Activation was rejected because the UI dispatcher is stopping.");
+            });
+            AppLog.Info($"Main window ready; version={MainWindow.ViewModel.AppVersion}; wallpaper={Model.AppSettings.WallpaperEnabled}; background={Model.AppSettings.IsRunningBackend}; effect={Model.AppSettings.VisualEffect}.");
             if (Model.AppSettings.WallpaperEnabled)
             {
                 // Let WinUI finish its first layout before reparenting its HWND.
-                MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.SetWallpaperMode(true));
+                if (!MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.SetWallpaperMode(true)))
+                    AppLog.Info("Startup wallpaper request rejected by the UI dispatcher.");
             }
             // SMTC session enumeration can take hundreds of milliseconds; don't let it
             // delay the first frame. Effects receive late media updates through events.
@@ -118,15 +136,30 @@ namespace WinExSpectrumTest
         }
 
         private static Task? _exitTask;
-        public static void Current_Exit() => _exitTask ??= ExitAsync();
-
-        private static async Task ExitAsync()
+        private static bool _isExiting;
+        internal static bool IsExiting => _isExiting;
+        public static void Current_Exit() => Current_Exit(0);
+        private static void Current_Exit(int exitCode)
         {
+            if (_isExiting) return;
+            _isExiting = true;
+            _exitTask = ExitAsync(exitCode);
+        }
+
+        private static async Task ExitAsync(int exitCode)
+        {
+            AppLog.Info($"Application shutdown requested; exitCode={exitCode}.");
+            // Startup may still be awaiting settings/Host. Stop its continuation before releasing services.
+            if (_startupTask != null)
+            {
+                try { await _startupTask; }
+                catch (Exception error) { AppLog.Caught(error, "Startup ended with a failure during shutdown."); }
+            }
             try { FoliaSystemTheme.Dispose(); }
             catch (Exception ex) { WriteCrashLog("Theme shutdown", ex.Message, ex); }
-            Task warmupShutdown = ShaderWarmup.StopAsync();
-            Task shaderMaintenance = Rendering.ShaderCacheMaintenance.StopAsync();
-            try { DataJsonService.SaveSettingNow(); }
+            Task warmupShutdown = CleanupAsync("Shader warmup shutdown", ShaderWarmup.StopAsync);
+            Task shaderMaintenance = CleanupAsync("Shader cache shutdown", Rendering.ShaderCacheMaintenance.StopAsync);
+            try { if (_settingsLoaded) DataJsonService.SaveSettingNow(); }
             catch (Exception ex) { WriteCrashLog("Settings shutdown", ex.Message, ex); }
             try
             {
@@ -136,16 +169,16 @@ namespace WinExSpectrumTest
             {
                 WriteCrashLog("Render shutdown", ex.Message, ex);
             }
-            try { await shaderMaintenance; }
-            catch (Exception ex) { WriteCrashLog("Shader cache shutdown", ex.Message, ex); }
-            try { await warmupShutdown; }
-            catch (Exception ex) { WriteCrashLog("Shader warmup shutdown", ex.Message, ex); }
+            await shaderMaintenance;
+            await warmupShutdown;
             try { await MediaInfoService.StopAsync(); }
             catch (Exception ex) { WriteCrashLog("Media shutdown", ex.Message, ex); }
             try { await FoliaPlayback.StopAsync(); }
             catch (Exception ex) { WriteCrashLog("Lyrics shutdown", ex.Message, ex); }
-            Effects.Folia.FoliaSourcePlanner.ClearResults();
-            Effects.Folia.FoliaGlyphCache.ClearMemory();
+            try { Effects.Folia.FoliaSourcePlanner.ClearResults(); }
+            catch (Exception error) { AppLog.Caught(error, "Folia source cache cleanup failed."); }
+            try { Effects.Folia.FoliaGlyphCache.ClearMemory(); }
+            catch (Exception error) { AppLog.Caught(error, "Folia glyph cache cleanup failed."); }
             try { MainWindow?.ReleaseWallpaper(); }
             catch (Exception ex) { WriteCrashLog("Wallpaper shutdown", ex.Message, ex); }
             try
@@ -155,7 +188,15 @@ namespace WinExSpectrumTest
             catch (Exception ex) { WriteCrashLog("Service shutdown", ex.Message, ex); }
             try { _host.Dispose(); }
             catch (Exception ex) { WriteCrashLog("Service disposal", ex.Message, ex); }
-            Environment.Exit(0);
+            AppLog.Info("Application shutdown completed.");
+            await Task.Run(AppLog.Shutdown);
+            Environment.Exit(exitCode);
+        }
+
+        private static async Task CleanupAsync(string source, Func<Task> cleanup)
+        {
+            try { await cleanup(); }
+            catch (Exception error) { AppLog.Caught(error, source); }
         }
     }
 }

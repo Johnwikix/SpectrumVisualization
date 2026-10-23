@@ -625,8 +625,9 @@ namespace WinExSpectrumTest.ViewModel
             {
                 AppVersion = $"{Windows.ApplicationModel.Package.Current.Id.Version.Major}.{Windows.ApplicationModel.Package.Current.Id.Version.Minor}.{Windows.ApplicationModel.Package.Current.Id.Version.Build}.{Windows.ApplicationModel.Package.Current.Id.Version.Revision}";
             }
-            catch
+            catch (global::System.Exception caughtException)
             {
+                AppLog.Caught(caughtException);
                 string assemblyLocation = Assembly.GetExecutingAssembly().Location;
                 if (string.IsNullOrEmpty(assemblyLocation))
                 {
@@ -701,6 +702,12 @@ namespace WinExSpectrumTest.ViewModel
                 OnPropertyChanged(nameof(WallpaperEnabled));
                 return;
             }
+            if (name == nameof(AppSettings.IsRunningBackend))
+            {
+                OnPropertyChanged(nameof(IsRunningBackend));
+                DataJsonService.SaveSettingNow();
+                return;
+            }
             ReloadSettings();
         }
 
@@ -759,6 +766,7 @@ namespace WinExSpectrumTest.ViewModel
             NotifyGpuQuality();
             OnPropertyChanged(nameof(SonicGridSize));
             OnPropertyChanged(nameof(WallpaperEnabled));
+            OnPropertyChanged(nameof(IsRunningBackend));
             SonicIdleWaveEnabled = AppSettings.SonicIdleWaveEnabled;
             SonicRippleEnabled = AppSettings.SonicRippleEnabled;
             SonicMeteorEnabled = AppSettings.SonicMeteorEnabled;
@@ -884,6 +892,7 @@ namespace WinExSpectrumTest.ViewModel
             }
             catch (Exception ex)
             {
+                AppLog.Caught(ex);
                 Debug.WriteLine($"Error setting backdrop type: {ex.Message}");
             }
         }

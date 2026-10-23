@@ -120,6 +120,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.CoverPulseEnabled = settings.CoverPulseEnabled;
             AppSettings.SmtcTextAnimation = Effects.AnimatedTrackText.NormalizeEffect(settings.SmtcTextAnimation);
             AppSettings.WallpaperEnabled = settings.WallpaperEnabled;
+            AppSettings.IsRunningBackend = settings.IsRunningBackend;
             AppSettings.RotationSpeed = settings.RotationSpeed;
             AppSettings.CoverOpacity = settings.CoverOpacity;
             AppSettings.SpectrumOpacity = settings.SpectrumOpacity;
@@ -258,6 +259,7 @@ namespace WinExSpectrumTest.Service
                 CoverPulseEnabled = AppSettings.CoverPulseEnabled,
                 SmtcTextAnimation = AppSettings.SmtcTextAnimation,
                 WallpaperEnabled = AppSettings.WallpaperEnabled,
+                IsRunningBackend = AppSettings.IsRunningBackend,
                 RotationSpeed = AppSettings.RotationSpeed,
                 CoverOpacity = AppSettings.CoverOpacity,
                 SpectrumOpacity = AppSettings.SpectrumOpacity,

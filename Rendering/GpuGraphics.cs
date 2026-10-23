@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using ComputeSharp;
 using ComputeSharp.Interop;
 using System;
@@ -118,8 +119,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _bind(_swapChain.NativePointer, Width, Height);
             _attached = true;
         }
-        catch
+        catch (global::System.Exception caughtException)
         {
+            AppLog.Caught(caughtException);
             Dispose();
             throw;
         }
@@ -199,8 +201,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             if (candidate is ITemporalGpuEffect temporal) temporal.ConfigureTemporal(_temporal != null);
             candidate.Resize(_size);
         }
-        catch
+        catch (global::System.Exception caughtException2)
         {
+            AppLog.Caught(caughtException2);
             DisposeResource(candidate);
             throw;
         }
@@ -284,8 +287,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             ConfigurePipeline(options.Detail);
             _effect.Resize(size);
         }
-        catch
+        catch (global::System.Exception caughtException3)
         {
+            AppLog.Caught(caughtException3);
             DisposeResource(scene);
             DisposeResource(secondScene);
             DisposeResource(antialias);
@@ -332,7 +336,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         {
             _swapChain.SetColorSpace1(requested ? ColorSpaceType.RgbFullG2084NoneP2020 : ColorSpaceType.RgbFullG22NoneP709);
         }
-        catch when (requested) { return _hdr; }
+        catch (global::System.Exception caughtException4) when (requested) { AppLog.Caught(caughtException4); return _hdr; }
         _hdr = requested;
         return _hdr;
     }

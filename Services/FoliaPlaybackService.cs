@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -221,7 +222,7 @@ internal sealed class FoliaPlaybackService
                 }
                 Changed?.Invoke();
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException caughtException) { AppLog.Caught(caughtException); }
             catch (Exception ex) { App.WriteCrashLog("Folia cover", ex.Message, ex); }
             finally
             {
@@ -281,8 +282,9 @@ internal sealed class FoliaPlaybackService
             if (content is not null && player.Content is null && status == LyricsSearchStatus.Found)
                 await LyricsDiskCache.WriteAsync(track, content, token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException caughtException2)
         {
+            AppLog.Caught(caughtException2);
             // A deadline is recoverable; an obsolete track never changes the new song's state.
             if (!published) Publish(version, null, "failed");
         }
@@ -327,7 +329,7 @@ internal sealed class FoliaPlaybackService
                 ColorManagementMode.ColorManageToSRgb).AsTask(token).ConfigureAwait(false);
             return (pixels.DetachPixelData(), (int)width, (int)height);
         }
-        catch (Exception) when (!token.IsCancellationRequested) { return ([], 0, 0); }
+        catch (Exception caughtException3) when (!token.IsCancellationRequested) { AppLog.Caught(caughtException3); return ([], 0, 0); }
     }
 
     internal async Task StopAsync()

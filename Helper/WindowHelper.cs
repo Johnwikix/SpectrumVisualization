@@ -40,10 +40,10 @@ namespace WinExSpectrumTest.Helper
         [DllImport("user32.dll")]
         private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint crKey, byte bAlpha, uint dwFlags);
 
         [DllImport("user32.dll")]
@@ -77,8 +77,19 @@ namespace WinExSpectrumTest.Helper
         {
             int exStyle = (int)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
             if ((exStyle & WS_EX_LAYERED) != 0) return;
-            _ = SetWindowLongPtr(hWnd, GWL_EXSTYLE, (IntPtr)(exStyle | WS_EX_LAYERED));
-            _ = SetLayeredWindowAttributes(hWnd, 0, 255, LWA_ALPHA);
+            Marshal.SetLastPInvokeError(0);
+            IntPtr previous = SetWindowLongPtr(hWnd, GWL_EXSTYLE, (IntPtr)(exStyle | WS_EX_LAYERED));
+            int error = Marshal.GetLastPInvokeError();
+            if (previous == IntPtr.Zero && error != 0)
+                Service.AppLog.Caught(new System.ComponentModel.Win32Exception(error,
+                    $"EnsureLayered: SetWindowLongPtr failed; HWND=0x{hWnd:X}, Win32={error}."));
+            // Preserve best-effort layering: record unsupported attributes without changing attachment recovery.
+            if (!SetLayeredWindowAttributes(hWnd, 0, 255, LWA_ALPHA))
+            {
+                error = Marshal.GetLastPInvokeError();
+                Service.AppLog.Caught(new System.ComponentModel.Win32Exception(error,
+                    $"EnsureLayered: SetLayeredWindowAttributes failed; HWND=0x{hWnd:X}, Win32={error}."));
+            }
         }
 
         /// <summary>整窗点击穿透开关（只切 WS_EX_TRANSPARENT，需先 EnsureLayered）。</summary>

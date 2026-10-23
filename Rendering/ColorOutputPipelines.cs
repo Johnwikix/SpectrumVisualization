@@ -1,3 +1,4 @@
+using WinExSpectrumTest.Service;
 using System;
 using System.IO;
 using Vortice.Direct3D;
@@ -31,7 +32,7 @@ internal sealed class ColorOutputPipelines : IDisposable
             string aa = ColorOutputShaderSource.Fxaa();
             AntialiasOutput = Create(device,vs,aa,"EncodeAA",Format.R10G10B10A2_UNorm);
         }
-        catch { Dispose(); throw; }
+        catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); Dispose(); throw; }
     }
 
     private ID3D12PipelineState Create(ID3D12Device device, byte[] vs, string source, string entry, Format format) =>
