@@ -1,10 +1,7 @@
 using WinExSpectrumTest.Model;
 using System;
 using System.Threading;
-using System.IO;
 using System.Numerics;
-using System.Text;
-using System.Text.Json;
 using WinExSpectrumTest.Audio;
 
 namespace WinExSpectrumTest.Effects.Folia;
@@ -34,33 +31,10 @@ internal sealed class FoliaLatent
 
     internal static Vector3[] Extract(FoliaSong song, CancellationToken token = default)
     {
-        if (song.CoverRgba.Length == 0 || song.CoverWidth <= 0 || song.CoverHeight <= 0)
-            return [];
-        byte[] pixels = FoliaCoverSampling.PalettePixels(song.CoverRgba, song.CoverWidth, song.CoverHeight);
-        using var input = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(input))
-        {
-            writer.WriteStartArray();
-            for (int i = 0; i < pixels.Length; i += 4)
-            {
-                int alpha = pixels[i + 3];
-                for (int c = 0; c < 3; c++)
-                    writer.WriteNumberValue(alpha == 0 ? 0 : Math.Min(255, (pixels[i + c] * 255 + alpha / 2) / alpha));
-                writer.WriteNumberValue(alpha);
-            }
-            writer.WriteEndArray();
-        }
-        string json = FoliaSourcePlanner.Compile(Encoding.UTF8.GetString(input.GetBuffer(), 0, (int)input.Length), "compilePalette", token);
-        using var document = JsonDocument.Parse(json);
-        var colors = new Vector3[document.RootElement.GetArrayLength()];
-        for (int i = 0; i < colors.Length; i++)
-        {
-            string hex = document.RootElement[i].GetString()!;
-            int rgb = int.Parse(hex.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
-            colors[i] = new Vector3((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255) / 255;
-        }
-        return colors;
+        token.ThrowIfCancellationRequested();
+        return song.CoverColors ?? FoliaCoverPalette.Extract(song.CoverRgba, song.CoverWidth, song.CoverHeight, token);
     }
+
     internal void Update(bool active, bool paused, double elapsed, ReadOnlySpan<float> features, Span<Vector4> colors, out Vector4 frame, out Vector4 style, out Vector4 distortion)
     {
         if (!active)

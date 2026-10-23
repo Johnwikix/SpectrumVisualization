@@ -20,6 +20,11 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
 {
     // A metadata-only snapshot is provisional until lookup succeeds, finds nothing, or fails.
     internal bool LyricsPending { get; init; }
+    // null means an externally supplied snapshot still needs cold extraction; [] means no usable opaque pixels.
+    internal Vector3[]? CoverColors { get; init; }
+    // Native image shaders consume opaque RGB. Keep straight-alpha pixels for extraction,
+    // and composite transparent artwork once on the cold worker before GPU upload.
+    internal byte[]? DisplayCoverRgba { get; init; }
 
     internal static FoliaSong Empty
     {

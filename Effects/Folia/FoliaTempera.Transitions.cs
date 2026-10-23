@@ -43,13 +43,13 @@ internal sealed partial class FoliaTempera
             exit ? 1 - Math.Clamp((linear - .55f) / .45f, 0, 1) : Math.Clamp(linear / .45f, 0, 1), away * 6, 0);
     }
 
-    private static void WriteWipe(ref FoliaPainter painter, Shot shot, double time)
+    private void WriteWipe(ref FoliaPainter painter, Shot shot, double time)
     {
         float wipe = ResolveTransition(shot, time).Wipe;
         if (wipe <= 0 || wipe >= 2) return;
         float span = MathF.Sqrt(painter.Width * painter.Width + painter.Height * painter.Height);
         Vector2 direction = new(MathF.Cos(shot.Flow), MathF.Sin(shot.Flow));
         Vector2 center = new Vector2(painter.Width * .5f, painter.Height * .5f) + direction * ((wipe - 1) * span * 1.2f);
-        painter.Shape(1, center.X - span * .6f, center.Y - span * .6f, span * 1.2f, span * 1.2f, Ink, 1, rotation: shot.Flow);
+        painter.Shape(1, center.X - span * .6f, center.Y - span * .6f, span * 1.2f, span * 1.2f, InkColor, 1, rotation: shot.Flow);
     }
 }

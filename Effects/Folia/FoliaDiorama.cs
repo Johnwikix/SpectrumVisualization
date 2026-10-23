@@ -101,7 +101,7 @@ internal sealed partial class FoliaDiorama
     }
     private static float F(JsonElement value, string name) => value.GetProperty(name).GetSingle();
     private static Vector3 V(JsonElement value) => new(F(value, "x"), F(value, "y"), F(value, "z"));
-    internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float fontScale, Vector3 primary, Vector3 secondary, Vector3 accent)
+    internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float fontScale, Vector3 primary, Vector3 secondary, Vector3 accent, Vector3? background = null)
     {
         if (_lines.Length == 0)
             return;
@@ -224,7 +224,7 @@ internal sealed partial class FoliaDiorama
                 float reveal = time >= glyph.Start ? 1 : .5f;
                 float mix = AppSettings.FoliaDioramaGradient ? GradientEnergy(time, glyph.Start, glyph.End) : light * 1.15f;
                 Vector3 color = Vector3.Lerp(li > index ? secondary : primary, accent, Math.Clamp(mix, 0, 1));
-                color = Vector3.Lerp(color, FoliaSong.Empty.Palette[0], fog);
+                color = Vector3.Lerp(color, background ?? FoliaSong.Empty.Palette[0], fog);
                 p.GlyphQuad(glyph.Glyph, a, b, d, e, new(za, zb, zd, ze), color,
                     opacity * life * (li == index ? reveal : 1), AppSettings.FoliaDioramaGlow ? light * .9f * AppSettings.FoliaDioramaGlowStrength : 0);
                 if (AppSettings.FoliaDioramaSoul && soul > .015f)

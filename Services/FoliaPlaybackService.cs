@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
@@ -158,7 +159,7 @@ internal sealed class FoliaPlaybackService
     // Called under _gate. Same-song thumbnail updates have their own cancellation/epoch and never restart lyrics.
     private void RequestCover(IRandomAccessStreamReference? thumbnail, long version)
     {
-        if (thumbnail is null || ReferenceEquals(_thumbnail, thumbnail)) return;
+        if (ReferenceEquals(_thumbnail, thumbnail)) return;
         _thumbnail = thumbnail;
         _coverRequest?.Cancel();
         var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -168,14 +169,38 @@ internal sealed class FoliaPlaybackService
         {
             try
             {
-                var cover = await _decodeCover(thumbnail, cancellation.Token).ConfigureAwait(false);
+                var cover = thumbnail is null ? (Bytes: Array.Empty<byte>(), Width: 0, Height: 0)
+                    : await _decodeCover(thumbnail, cancellation.Token).ConfigureAwait(false);
                 cancellation.Token.ThrowIfCancellationRequested();
+                bool valid = cover.Width > 0 && cover.Height > 0 && (long)cover.Width * cover.Height * 4 == cover.Bytes.Length;
+                if (!valid) cover = ([], 0, 0);
                 lock (_gate)
                 {
-                    if (!_active || _stopped || version != _version || coverVersion != _coverVersion || cover.Width <= 0 || cover.Height <= 0) return;
+                    if (!_active || _stopped || version != _version || coverVersion != _coverVersion) return;
+                    // SMTC can supply an equivalent stream object repeatedly. Avoid re-extracting
+                    // its identical pixels; a failed decode may be retried on the next update.
+                    if (!valid) _thumbnail = null;
+                    var current = State.Song;
+                    if (current.CoverWidth == cover.Width && current.CoverHeight == cover.Height && current.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
+                }
+                // The cover and both palettes cross the publication boundary together. Never
+                // run Jint or image sampling while holding the service gate or on a frame thread.
+                Vector3[] colors;
+                try { colors = FoliaCoverPalette.Extract(cover.Bytes, cover.Width, cover.Height, cancellation.Token); }
+                catch (Exception error) when (!cancellation.IsCancellationRequested)
+                {
+                    App.WriteCrashLog("Folia cover palette; using default theme", error.Message, error);
+                    colors = [];
+                }
+                var palette = FoliaCoverPalette.CreateTheme(colors);
+                var displayCover = FoliaCoverPalette.Composite(cover.Bytes, palette[0], cancellation.Token);
+                lock (_gate)
+                {
+                    if (!_active || _stopped || version != _version || coverVersion != _coverVersion || cancellation.IsCancellationRequested) return;
                     var song = State.Song;
                     if (song.CoverWidth == cover.Width && song.CoverHeight == cover.Height && song.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
-                    State.Publish(song with { CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height });
+                    State.Publish(song with { CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height,
+                        CoverColors = colors, Palette = palette, DisplayCoverRgba = displayCover });
                 }
                 Changed?.Invoke();
             }
@@ -277,7 +302,7 @@ internal sealed class FoliaPlaybackService
             double scale = Math.Min(1, (double)maximumCoverDimension / Math.Max(decoder.PixelWidth, decoder.PixelHeight));
             uint width = Math.Max(1, (uint)(decoder.PixelWidth * scale));
             uint height = Math.Max(1, (uint)(decoder.PixelHeight * scale));
-            var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Ignore,
+            var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Straight,
                 new BitmapTransform { ScaledWidth = width, ScaledHeight = height }, ExifOrientationMode.RespectExifOrientation,
                 ColorManagementMode.ColorManageToSRgb).AsTask(token).ConfigureAwait(false);
             return (pixels.DetachPixelData(), (int)width, (int)height);

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Numerics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -13,6 +14,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 /// Only immutable native plans cross into the allocation-free D3D12 frame loop.</summary>
 internal static class FoliaSourcePlanner
 {
+    private static string Hex(Vector3 color) => $"#{(int)MathF.Round(color.X * 255):x2}{(int)MathF.Round(color.Y * 255):x2}{(int)MathF.Round(color.Z * 255):x2}";
     // Jint's prepared scripts are immutable and shareable; each plan still uses an isolated
     // engine, so song data and planner globals cannot leak into a later song.
     private static readonly Lazy<Prepared<Acornima.Ast.Script>> Source = new(() => Engine.PrepareScript(LoadSource()));
@@ -39,7 +41,7 @@ internal static class FoliaSourcePlanner
             _resultBytes = 0;
         }
     }
-    internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight)
+    internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight, Vector3[]? palette = null)
     {
         using var input = new MemoryStream();
         using (var w = new Utf8JsonWriter(input))
@@ -50,6 +52,15 @@ internal static class FoliaSourcePlanner
             w.WriteNumber("fontScale", fontScale);
             w.WriteString("fontFamily", family);
             w.WriteNumber("fontWeight", weight);
+            if (palette != null)
+            {
+                w.WriteStartObject("theme");
+                w.WriteString("backgroundColor", Hex(palette[0]));
+                w.WriteString("primaryColor", Hex(palette[1]));
+                w.WriteString("secondaryColor", Hex(palette[2]));
+                w.WriteString("accentColor", Hex(palette[3]));
+                w.WriteEndObject();
+            }
             w.WriteBoolean("temperaDecor", Model.AppSettings.FoliaTemperaDecor);
             w.WriteString("seed", atlas.Seed);
             w.WriteStartObject("widths");

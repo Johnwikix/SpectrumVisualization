@@ -17,6 +17,9 @@ internal sealed partial class FoliaTempera
     private sealed record Shot(double Start, double End, double LyricEnd, float Flow, Vector4 Camera, Vector4 CameraEnd, Node[] Nodes, Glyph[] Glyphs, float PostSeed,
         int Paragraph, double ParagraphStart, Transition? Enter, Transition? Exit);
     internal static readonly Vector3 Ink = new(184 / 255f, 214 / 255f, 204 / 255f), Paper = new(14 / 255f, 17 / 255f, 24 / 255f);
+    internal Vector3 InkColor { get; private set; } = Ink;
+    internal Vector3 PaperColor { get; private set; } = Paper;
+    private Vector3[]? _palette;
     private long _atlasIdentity;
     private float _width, _height, _scale;
     private Shot[] _shots = [];
@@ -25,12 +28,12 @@ internal sealed partial class FoliaTempera
     {
         get; private set;
     }
-    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default)
+    internal void Prepare(FoliaTextAtlas atlas, float width, float height, float scale, string family, int weight, CancellationToken token = default, Vector3[]? palette = null)
     {
         GraphicsCount = 0;
-        if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
+        if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale && ReferenceEquals(_palette, palette))
             return;
-        string input = FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight);
+        string input = FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, palette);
         string output = FoliaSourcePlanner.Compile(input, "compileTempera", token);
         using var document = JsonDocument.Parse(output);
         var shots = new List<Shot>();
@@ -68,6 +71,9 @@ internal sealed partial class FoliaTempera
         _width = width;
         _height = height;
         _scale = scale;
+        _palette = palette;
+        InkColor = palette is null ? Ink : palette[1];
+        PaperColor = palette is null ? Paper : palette[0];
     }
     private static float F(JsonElement value, string name, float fallback = 0) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.Number ? field.GetSingle() : fallback;
     private static bool B(JsonElement value, string name) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.True;
@@ -142,7 +148,7 @@ internal sealed partial class FoliaTempera
             }
         }
     }
-    private static void DrawGlyphs(ref FoliaPainter p, Shot shot, double time)
+    private void DrawGlyphs(ref FoliaPainter p, Shot shot, double time)
     {
         var pose = ResolvePose(shot, time, p.Width, p.Height);
         if (pose.Alpha < .001f)
@@ -192,14 +198,14 @@ internal sealed partial class FoliaTempera
             float font = g.Font * uniform * cameraScale, angle = g.Rotation + rotation + cameraRotation;
             // Print misregistration shares the inversion pass, so it cannot contaminate its own backdrop.
             if (AppSettings.FoliaTemperaDecor)
-                p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, Ink, alpha * .34f, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
-            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, Ink, alpha, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
+                p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f + g.Font * .06f, point.Y - font * .6f + g.Font * .08f, font, InkColor, alpha * .34f, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
+            p.Glyph(g.Shape, point.X - g.Shape.Advance * font * .5f, point.Y - font * .6f, font, InkColor, alpha, angle, blur: pose.Blur, difference: AppSettings.FoliaTemperaInversion ? 2 : 0);
             float echoAlpha = echo * (1 - FoliaMotion.Enter(reveal)) * .5f;
             if (echoAlpha > .004f)
                 for (int layer = 0; layer < 2; layer++)
                 {
                     Vector2 echoPoint = Vector2.Transform(g.Position + offset * (1 + layer * .85f), pose.Matrix);
-                    p.Glyph(g.Shape, echoPoint.X - g.Shape.Advance * font * .5f, echoPoint.Y - font * .6f, font, Ink, echoAlpha / (layer + 1.4f) * pose.Alpha, angle);
+                    p.Glyph(g.Shape, echoPoint.X - g.Shape.Advance * font * .5f, echoPoint.Y - font * .6f, font, InkColor, echoAlpha / (layer + 1.4f) * pose.Alpha, angle);
                 }
         }
     }

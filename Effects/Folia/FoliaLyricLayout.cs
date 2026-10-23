@@ -49,7 +49,7 @@ internal static partial class FoliaLyricLayout
                 monet.Write(ref painter, atlas, song, index, time);
                 break;
             case 8:
-                diorama.Write(ref painter, atlas, index, time, fontScale, primary, secondary, accent);
+                diorama.Write(ref painter, atlas, index, time, fontScale, primary, secondary, accent, palette[0]);
                 break;
             case 9:
                 pendolo.Write(ref painter, atlas, index, time, primary, secondary);

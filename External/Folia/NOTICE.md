@@ -42,6 +42,11 @@ or viewport changes through Jint 4.17.0 (BSD-2-Clause), using Acornima 1.7.0
 There is no browser or WebView renderer. Lyric content is passed as JSON data;
 CLR reflection interop is not exposed to scripts.
 
+Spectrum derives a readable dark stage theme from the original representative
+cover colors on its media worker. This is a native adaptation, not Folia's random
+or AI theme generator. Pendolo and Tempera accept that theme in the cold planner
+input so their baked artwork and the live lyric colors share one song palette.
+
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere
 light/line-art profiles are preserved from the reference checkout. Relevant
