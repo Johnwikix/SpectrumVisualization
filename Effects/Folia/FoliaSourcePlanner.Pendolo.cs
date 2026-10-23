@@ -54,12 +54,12 @@ internal static partial class FoliaSourcePlanner
         var engine = new Engine(options => options.CancellationToken(token));
         engine.SetValue("nativePendoloMesh", new ClrFunction(engine, "nativePendoloMesh", (_, args) =>
         {
-            var values = (JsTypedArray)args[0];
+            var values = args[0].AsArray();
             mesh = new float[checked((int)values.Length)];
             for (int i = 0; i < mesh.Length; i++)
             {
                 if ((i & 4095) == 0) token.ThrowIfCancellationRequested();
-                mesh[i] = (float)values[i].AsNumber();
+                mesh[i] = (float)values.Get((uint)i).AsNumber();
             }
             return JsValue.Undefined;
         }));

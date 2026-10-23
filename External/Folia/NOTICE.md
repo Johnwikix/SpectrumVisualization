@@ -43,20 +43,29 @@ There is no browser or WebView renderer. Lyric content is passed as JSON data;
 CLR reflection interop is not exposed to scripts.
 
 The embedded themes.js preserves Folia's original non-AI cover palette analysis,
-harmonious light/dark theme generator and keyword range matching. Regenerate it
+harmonious light/dark theme generator. Regenerate it
 with `node Build/FoliaThemes/sync.mjs <folia-major checkout> [upstream revision]`.
 Spectrum seeds the original random source per song for repeatable preparation;
 the user can regenerate the pair, select the original midnight/daylight presets,
-or edit independent custom light/dark colors and manual keyword rules. No AI
-theme service or emotion inference is included. Pendolo and Tempera receive the
+and follow the system light/dark preference. Spectrum selects emphasis from
+prolonged timed syllables, using song/local median durations and estimated syllable
+counts rather than manual keyword rules or semantic inference. Emphasis colors
+use OKLCH hue/chroma generation, gamut reduction and displayed-contrast correction.
+Oklab matrices follow Björn Ottosson’s public-domain reference implementation:
+https://bottosson.github.io/posts/oklab/ . No AI theme service or emotion inference
+is included. Pendolo and Tempera receive the
 selected theme in their cold planner input. Sonnet preserves keyword glow targets,
 and native Diorama keyword adaptation follows dioramaKeywordColor.ts, including
 linear/sRGB conversion and the original displayed-contrast correction.
 
-Pendolo optionally hands its original Float32Array directly to a native cold
-callback, avoiding a large numeric JSON round trip. Its complete JSON path remains
+Pendolo optionally hands its original numeric array directly to a native cold
+callback with Float32 rounding, avoiding interpreter typed-array and JSON copies. Its complete JSON path remains
 available for reference comparisons. The reusable clockwork mesh cache is keyed
-only by the viewport and colors the original builder actually reads.
+only by the viewport and colors the original builder actually reads. Diorama rounds
+its positions in place and omits unused normal conversion. Fume’s original font-fit
+search runs natively without constructing trial layout graphs; its final layout and
+20 Hz camera samples remain unchanged. Large immutable layout JSON cache entries
+are compressed and bounded; no interpreter engines are retained across songs.
 
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere

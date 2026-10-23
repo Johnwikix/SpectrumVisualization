@@ -2,6 +2,17 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-23 自动音节强调、系统明暗与切歌分配优化
+
+- `EnhancedLrcParser`、`FoliaSong`：支持 `<mm:ss.x/xx/xxx>` 增强 LRC 的绝对音节时间、重复行时间、offset 和缺失尾边界；用户提供的 `01_17_[I].lrc` 从 23 行均无音节同步修复为 23 行全部同步，正文不再残留时间标签。
+- `FoliaSyllableEmphasis`、`FoliaEmphasisColor`、主题解析与原生字形布局：按真实音节时长、局部／整曲中位数及音节数估计选择延长音，采用 OKLCH、色域收缩与显示对比度校正自动生成强调色；同词不同位置独立判断，普通行级 LRC 不虚构音节时间，不使用 AI 情绪或语义关键词分析。
+- 设置模型、`SettingViewModel.FoliaTheme`、设置页及两份资源：移除手动关键词规则和自定义取色器，旧自定义来源迁移为封面配色；保留旧 JSON 字段名以兼容配置。明暗版本新增“跟随系统”，默认仍为深色，持久化保留 system 偏好。
+- `FoliaSystemThemeService`、`AppSettings.FoliaTheme`、应用生命周期：仅在跟随系统时订阅系统颜色通知，向渲染端发布已解析的不可变明暗快照；退出、显式明暗选择及初始化失败时解绑。
+- `FoliaGlyphStore`、`FoliaTextAtlas`：图集完全命中时跳过 Win2D 设备和工作字体初始化；`FoliaSourcePlanner.Pendolo`、`FoliaDioramaNumericArrays` 去除解释器 typed-array 中间复制，`FoliaFumeFontSearch` 保留原版 8 轮搜索与最终布局、避免构造试字号布局图。
+- `FoliaCompiledResult`、布局缓存：大型不可变 JSON 压缩保留，缓存预算从 16 MiB 降至 4 MiB；降低模式切换后的保留与采样堆峰值，部分模式冷路径压缩分配增加约 0.5–1.2 MiB，未声称所有模式分配下降。
+- 性能检查（Release JIT、960×540、合成歌词／封面、每模式两次切歌）：烟岚约 62.26→33.36 MiB、钟摆约 56.46→28.67 MiB、镜台约 26.43→18.50 MiB／次；凝彩采样托管堆峰值约 83.06→74.42 MiB，本轮本地 GPU 最大采样约 259.83→251.69 MiB。同进程交替纯布局基准（预热后各 7 次）烟岚编译中位数 107.44→56.60 ms，凝彩压缩增加约 2.82 ms；场景墙钟准备时间波动明显。凝彩、商籁的脚本图形／镜头计算仍是主要冷路径分配来源，不将离屏耗时当屏幕 FPS 或播放器端到端切歌延迟。
+- 验证：Debug 构建与主工程／探针 Release NativeAOT 发布、增强 LRC 边界、源生成设置往返、系统取值／解绑、原版数值及 Float32 对照、210 组烟岚字号边界通过；NativeAOT 的 13 种歌词各 120 稳定帧渲染线程分配为 0，5 背景过渡／FSR、取消／失败恢复／DPI 离屏回归通过。36 次切歌后的旧歌曲／图集可回收，渲染器销毁后本进程 GPU 占用归零；既有依赖裁剪／AOT 警告仍在，实际显示、HDR 和交互由用户验收。
+
 ## 2026-10-23 原版主题、歌词专色与平滑切歌
 
 - `FoliaThemeSettings`、设置三层映射、`SettingViewModel.FoliaTheme`、设置页及中英文资源：新增原版预设、封面和谐明暗配色、自定义明暗四色、重新生成及手动关键词专色；保持原生 GPU 宿主，不加入 AI 情绪、静止或网页背景。

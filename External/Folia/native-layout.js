@@ -10797,7 +10797,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			return this.data.length / 7;
 		}
 		toFloat32() {
-			return new Float32Array(this.data);
+			// The native handoff rounds directly to float; avoid the interpreter's iterable copy.
+			return typeof nativePendoloMesh === "function" ? this.data : new Float32Array(this.data);
 		}
 		setActivePartId(partId) {
 			this.activePartId = partId;
@@ -11429,6 +11430,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	};
 	const countRenderableGraphemes = (text) => splitGraphemes(text).filter((value) => value.trim().length > 0).length;
 	const buildPreparedSingleLine = (text, fontFamily, width, variant, lyricsFontScale, densityScale, heroScale, theme) => {
+		if (typeof nativeFumeFont === "function") {
+			const fontPx = nativeFumeFont(text, width, variant === "hero", lyricsFontScale, densityScale, heroScale, globalThis.nativeWidths);
+			const prepared = prepareWithSegments(text, buildFontSpec(fontPx, variant, fontFamily, theme), FUME_PRETEXT_OPTIONS);
+			return { fontPx, prepared, layout: layoutWithLines(prepared, width, Math.round(fontPx * (variant === "hero" ? 1.02 : 1.06))) };
+		}
 		let low = variant === "hero" ? 18 : 10;
 		let high = variant === "hero" ? 58 : 30;
 		let best = null;
@@ -11898,7 +11904,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			const clampedOffset = clamp$6(offset, targetLine.start, targetLine.end);
 			const baseOffset = Math.floor(clampedOffset);
 			const fractionalOffset = clampedOffset - baseOffset;
-			const baseWidth = widthBetweenOffsets(block.prepared, block.segmentMetas, targetLine.start, baseOffset);
+			const widths = block.nativeFocusWidths?.[lineIndex];
+			const baseWidth = widths ? widths[baseOffset] ?? (widths[baseOffset] = widthBetweenOffsets(block.prepared, block.segmentMetas, targetLine.start, baseOffset))
+				: widthBetweenOffsets(block.prepared, block.segmentMetas, targetLine.start, baseOffset);
 			const localGlyphIndex = baseOffset - targetLine.start;
 			const glyphAdvance = localGlyphIndex >= 0 && localGlyphIndex < targetLine.graphemes.length ? resolveGlyphAdvance(targetLine, localGlyphIndex) : 0;
 			const minX = block.x + targetLine.left;
@@ -19125,6 +19133,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				char: grapheme.char,
 				startTime: grapheme.startTime,
 				endTime: grapheme.endTime,
+				sourceLine: grapheme.line,
+				sourceIndex: grapheme.index,
 				offset,
 				width
 			};
@@ -19363,6 +19373,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 						settleTime: glyph.endTime,
 						fontSize: glyphSize,
 						color: segmentColors?.[word.lineIndex]?.[word.segmentIndex] ?? null,
+						sourceLine: glyph.sourceLine,
+						sourceIndex: glyph.sourceIndex,
 						enterX: Math.cos(angle) * magnitude,
 						enterY: Math.sin(angle) * magnitude,
 						enterRotation: (visualizerHash01(seed, glyphSalt, 157) - .5) * .7,
@@ -21578,8 +21590,10 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		else if (kind === "sphere") buildCylinderSurface(budget, stretchKey, out);
 		else if (kind === "cone") buildTetrahedronSurface(budget, out);
 		else buildTorusSurface(budget, out);
-		const positions = Float32Array.from(out.positions);
-		const normals = Float32Array.from(out.normals);
+		const nativePositions = typeof nativeDioramaPositions === "function";
+		const positions = nativePositions ? nativeDioramaPositions(out.positions) : Float32Array.from(out.positions);
+		// Normals are unused by the native point-surface consumer.
+		const normals = nativePositions ? [] : Float32Array.from(out.normals);
 		const count = positions.length / 3;
 		let total = 0;
 		for (let index = 0; index < count; index += 1) total += Math.hypot(positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2]);
@@ -21725,6 +21739,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			blocks: [],
 			camera: []
 		});
+		// Prefix widths do not change across the original 20 Hz camera samples.
+		for (const block of article.blocks) block.nativeFocusWidths = block.renderLines.map(() => []);
 		const end = Math.max(...input.lines.map((l) => l.endTime)) + 4, camera = [];
 		let lineIndex = -1;
 		for (let i = 0; i <= Math.ceil(end * 20); i++) {
@@ -22015,6 +22031,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				settleStretch: .5,
 				segmentColors: groups.map(row => row.map(segment => segment.graphemes.map(g => input.lines[g.line]?.keywordColors?.[g.index]).find(Boolean) ?? null))
 			});
+			for (const glyph of glyphs) glyph.color = input.lines[glyph.sourceLine]?.keywordColors?.[glyph.sourceIndex] ?? null;
 			shots.push({
 				...shot,
 				nodes: graphics,
@@ -22096,7 +22113,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				});
 				return {
 					role: p.role,
-					keywordColor: input.wordColors?.find(w => w.word.toLowerCase() === s.text.toLowerCase())?.color ?? null,
+					keywordColor: s.graphemes.map(g => input.lines[g.line]?.keywordColors?.[g.index]).find(Boolean) ?? null,
 					font,
 					segment: s,
 					placement: p,

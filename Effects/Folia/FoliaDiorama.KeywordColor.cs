@@ -12,7 +12,7 @@ internal sealed partial class FoliaDiorama
     private void PrepareKeywordColors(FoliaTextAtlas atlas, Vector3[]? palette)
     {
         _keywordPalette = palette;
-        if (palette == null || atlas.KeywordRules.Length == 0) { _keywordColors = []; return; }
+        if (palette == null || !atlas.HasKeywords) { _keywordColors = []; return; }
         var colors = new Dictionary<Vector3, Vector3>();
         _keywordColors = new Vector3?[atlas.Lines.Length][];
         for (int li = 0; li < atlas.Lines.Length; li++)

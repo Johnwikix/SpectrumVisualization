@@ -20,10 +20,5 @@ return {
         const colors = require('src/utils/colorExtractor.ts').extractVibrantColorsFromPixels(input.pixels, 5);
         const pair = require('src/utils/builtinTheme/generateBuiltinDualTheme.ts').generateBuiltinDualTheme({ coverColors: colors, random });
         return JSON.stringify(pair);
-    },
-    match(json) {
-        const input = JSON.parse(json);
-        const build = require('src/components/visualizer/wordColoring.ts').buildWordColorRanges;
-        return JSON.stringify(input.texts.map(text => build(text, input.colors)));
     }
 };

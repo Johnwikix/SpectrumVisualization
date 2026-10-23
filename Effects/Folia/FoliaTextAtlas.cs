@@ -76,7 +76,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         _store?.Release(SharedGlyphs);
     }
     internal FoliaPreparedGlyph[] MonetTitle { get; }
-    internal FoliaWordColor[] KeywordRules { get; } = [];
+    internal bool HasKeywords { get; }
     internal float MonetTitleWidth { get; }
     internal FoliaPreparedGlyph[][] ChatTimestamps { get; }
     internal float[] ChatTimestampWidths { get; }
@@ -135,7 +135,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         try
         {
             Seed = song.Title.StartsWith("Folia ·", StringComparison.Ordinal) ? "spectrum-reference" : song.Title + "\n" + song.Artist;
-            if (song.KeywordSignature.Length > 0 && FoliaThemePlanner.TryParseRules(song.KeywordSignature, out var rules, out _)) KeywordRules = rules;
+            HasKeywords = song.KeywordRanges.Length > 0;
             var characters = new SortedSet<string>(StringComparer.Ordinal);
             AddCharacters(characters, song.Title);
             AddCharacters(characters, song.Artist);
@@ -147,15 +147,6 @@ internal sealed class FoliaTextAtlas : IDisposable
                 foreach (var word in line.Words)
                     AddCharacters(characters, word.Text);
             }
-            using var device = new CanvasDevice();
-            using var format = new CanvasTextFormat
-            {
-                FontFamily = family,
-                FontSize = Em,
-                FontWeight = new FontWeight { Weight = (ushort)Math.Clamp(weight, 100, 900) },
-                WordWrapping = CanvasWordWrapping.NoWrap,
-                VerticalAlignment = CanvasVerticalAlignment.Top
-            };
             // Mode-specific CSS headings and timestamps have fixed weights; retain their real outlines.
             var requests = new List<(string Text, int Weight, bool Italic)>();
             foreach (string text in characters)
@@ -181,29 +172,42 @@ internal sealed class FoliaTextAtlas : IDisposable
             {
                 Width = Height = FoliaGlyphStore.PageSize;
                 SharedGlyphs = new FoliaCachedGlyph[requests.Count];
-                Parallel.For(0, requests.Count, new ParallelOptions { CancellationToken = token, MaxDegreeOfParallelism = 4 },
-                    () => new GlyphWorker(family, 0), (i, _, worker) =>
-                    {
-                        var request = requests[i];
-                        var key = new FoliaGlyphKey(family, request.Weight, request.Italic, request.Text);
-                        SharedGlyphs[i] = store.Acquire(key, () =>
+                var missing = new List<int>();
+                for (int i = 0; i < requests.Count; i++)
+                {
+                    var request = requests[i];
+                    if (store.TryAcquire(new(family, request.Weight, request.Italic, request.Text), out var found)) SharedGlyphs[i] = found!;
+                    else missing.Add(i);
+                }
+                if (missing.Count > 0)
+                {
+                    // Cache hits need neither a new graphics device nor per-worker font objects.
+                    using var device = new CanvasDevice();
+                    Parallel.For(0, missing.Count, new ParallelOptions { CancellationToken = token, MaxDegreeOfParallelism = 4 },
+                        () => new GlyphWorker(family, 0), (i, _, worker) =>
                         {
-                            worker.Format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
-                            worker.Format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
-                            using var layout = new CanvasTextLayout(device, request.Text, worker.Format, 2048, 256);
-                            var bounds = layout.DrawBounds;
-                            using var geometry = CanvasGeometry.CreateText(layout);
-                            float center = FoliaDistanceField.CanvasMiddleCenter(layout, Em);
-                            return new FoliaGlyphSource(new FoliaGlyphOutline(geometry),
-                                Math.Max(1, (int)Math.Ceiling(bounds.Width) + Padding * 2),
-                                Math.Max(1, (int)Math.Ceiling(bounds.Height) + Padding * 2),
-                                Padding - (float)bounds.X, Padding - (float)bounds.Y,
-                                (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width,
-                                (float)bounds.X - Padding, (float)bounds.Y - Padding,
-                                center, (float)layout.LayoutBounds.Height / Em);
-                        });
-                        return worker;
-                    }, static worker => worker.Dispose());
+                            i = missing[i];
+                            var request = requests[i];
+                            var key = new FoliaGlyphKey(family, request.Weight, request.Italic, request.Text);
+                            SharedGlyphs[i] = store.Acquire(key, () =>
+                            {
+                                worker.Format.FontWeight = new FontWeight { Weight = (ushort)request.Weight };
+                                worker.Format.FontStyle = request.Italic ? FontStyle.Italic : FontStyle.Normal;
+                                using var layout = new CanvasTextLayout(device, request.Text, worker.Format, 2048, 256);
+                                var bounds = layout.DrawBounds;
+                                using var geometry = CanvasGeometry.CreateText(layout);
+                                float center = FoliaDistanceField.CanvasMiddleCenter(layout, Em);
+                                return new FoliaGlyphSource(new FoliaGlyphOutline(geometry),
+                                    Math.Max(1, (int)Math.Ceiling(bounds.Width) + Padding * 2),
+                                    Math.Max(1, (int)Math.Ceiling(bounds.Height) + Padding * 2),
+                                    Padding - (float)bounds.X, Padding - (float)bounds.Y,
+                                    (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width,
+                                    (float)bounds.X - Padding, (float)bounds.Y - Padding,
+                                    center, (float)layout.LayoutBounds.Height / Em);
+                            });
+                            return worker;
+                        }, static worker => worker.Dispose());
+                }
                 for (int i = 0; i < requests.Count; i++)
                 {
                     var request = requests[i];
@@ -214,6 +218,13 @@ internal sealed class FoliaTextAtlas : IDisposable
             }
             else
             {
+                using var device = new CanvasDevice();
+                using var format = new CanvasTextFormat
+                {
+                    FontFamily = family, FontSize = Em,
+                    FontWeight = new FontWeight { Weight = (ushort)Math.Clamp(weight, 100, 900) },
+                    WordWrapping = CanvasWordWrapping.NoWrap, VerticalAlignment = CanvasVerticalAlignment.Top
+                };
                 // A shelf atlas preserves actual glyph bounds, including combining marks and italic overhang.
                 var entries = new List<(string Text, int Weight, bool Italic, int X, int Y, int Width, int Height, float Advance, float XBearing, float YBearing)>();
                 Width = requests.Count > 256 ? 2048 : 1024;

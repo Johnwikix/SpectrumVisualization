@@ -24,11 +24,11 @@ internal static partial class FoliaSourcePlanner
         using var reader = new StreamReader(stream);
         return Engine.PrepareScript(reader.ReadToEnd());
     });
-    // A normal Pendolo mesh alone uses about 6 MiB of UTF-16 JSON. Keep a complete
-    // song's mode tour resident without letting that mesh evict every small layout.
-    private const int ResultLimit = 16 * 1024 * 1024, EntryLimit = 16;
+    // Meshes have a separate bounded numeric cache. Compress larger JSON layouts so
+    // a song's mode tour does not retain every expanded UTF-16 plan simultaneously.
+    private const int ResultLimit = 4 * 1024 * 1024, EntryLimit = 16;
     private static readonly object CacheGate = new();
-    private static readonly Dictionary<(string Function, string Input), string> Results = new();
+    private static readonly Dictionary<(string Function, string Input), FoliaCompiledResult> Results = new();
     private static readonly Queue<(string Function, string Input)> ResultOrder = new();
     private static int _resultBytes;
 
@@ -64,18 +64,6 @@ internal static partial class FoliaSourcePlanner
             }
             w.WriteBoolean("temperaDecor", Model.AppSettings.FoliaTemperaDecor);
             w.WriteString("seed", atlas.Seed);
-            if (atlas.KeywordRules.Length > 0)
-            {
-                w.WriteStartArray("wordColors");
-                foreach (var rule in atlas.KeywordRules)
-                {
-                    w.WriteStartObject();
-                    w.WriteString("word", rule.Word);
-                    w.WriteString("color", rule.Hex);
-                    w.WriteEndObject();
-                }
-                w.WriteEndArray();
-            }
             w.WriteStartObject("widths");
             foreach (var pair in atlas.CharacterGlyphs)
                 w.WriteNumber(pair.Key, pair.Value.Advance);
@@ -165,25 +153,34 @@ internal static partial class FoliaSourcePlanner
         // Only locally embedded source executes; lyric content is passed as data, with no CLR interop.
         token.ThrowIfCancellationRequested();
         var key = (Function: function, Input: json);
-        lock (CacheGate)
-            if (Results.TryGetValue(key, out string? cached)) return cached;
+        FoliaCompiledResult? cached;
+        lock (CacheGate) Results.TryGetValue(key, out cached);
+        if (cached != null) return cached.Read(token);
         string result = CompileUncached(json, function, token);
         token.ThrowIfCancellationRequested();
         // Cache only immutable output, never an engine or its mutable song globals. Repeated
         // mode/effect switches avoid the interpreter's short-lived number/object graph.
-        long bytes = ((long)function.Length + json.Length + result.Length) * sizeof(char);
-        if (bytes <= ResultLimit)
+        // Bound decoded cache entries as well as retained bytes. Small results keep
+        // their original string; reading a large hit never reconstructs a JS engine.
+        if (result.Length <= 8 * 1024 * 1024)
+        {
+            var entry = new FoliaCompiledResult(result, token);
+            long bytes = ((long)function.Length + json.Length) * sizeof(char) + entry.Bytes;
+            if (bytes <= ResultLimit)
             lock (CacheGate)
             {
-                if (Results.TryGetValue(key, out string? existing)) return existing;
-                while ((_resultBytes + bytes > ResultLimit || Results.Count >= EntryLimit)
-                    && ResultOrder.TryDequeue(out var oldest))
-                    if (Results.Remove(oldest, out string? value))
-                        _resultBytes -= (oldest.Function.Length + oldest.Input.Length + value.Length) * sizeof(char);
-                Results.Add(key, result);
-                ResultOrder.Enqueue(key);
-                _resultBytes += (int)bytes;
+                if (!Results.ContainsKey(key))
+                {
+                    while ((_resultBytes + bytes > ResultLimit || Results.Count >= EntryLimit)
+                        && ResultOrder.TryDequeue(out var oldest))
+                        if (Results.Remove(oldest, out var value))
+                            _resultBytes -= (oldest.Function.Length + oldest.Input.Length) * sizeof(char) + value.Bytes;
+                    Results.Add(key, entry);
+                    ResultOrder.Enqueue(key);
+                    _resultBytes += (int)bytes;
+                }
             }
+        }
         return result;
     }
 
@@ -193,6 +190,8 @@ internal static partial class FoliaSourcePlanner
         var engine = new Engine(options => options.CancellationToken(token));
         if (function == "compileCadenza") FoliaCadenzaSearch.Install(engine, token);
         if (function == "compileSonnet") FoliaSonnetCameraSamples.Install(engine, token);
+        if (function == "compileDiorama") FoliaDioramaNumericArrays.Install(engine, token);
+        if (function == "compileFume") FoliaFumeFontSearch.Install(engine, token);
         engine.Execute(Source.Value);
         if (function == "compileSonnet")
             engine.Execute(SonnetSource.Value);

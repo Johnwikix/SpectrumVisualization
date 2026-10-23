@@ -180,7 +180,7 @@ function geometry(kind, width, height, seed) {
 }
 function compile(json) {
     const input = JSON.parse(json);
-    const shots = JSON.parse(FoliaNativeSource.compile(json));
+    const shots = FoliaNativeSource.compile(json, true);
     for (const shot of shots) {
         shot.graphics = geometry(shot.kind, input.width, input.height, shot.seed);
         for (const text of shot.texts) {
