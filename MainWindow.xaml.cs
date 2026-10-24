@@ -98,6 +98,12 @@ namespace WinExSpectrumTest
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
             args.Cancel = true;
+            RequestClose();
+        }
+
+        /// <summary>Shared close request for the custom title bar and Windows close affordances.</summary>
+        internal void RequestClose()
+        {
             if (App.IsExiting) return;
             if (AppSettings.IsRunningBackend)
             {

@@ -130,7 +130,7 @@
                 <Button
                     Background="Transparent"
                     BorderThickness="0"
-                    Command="{x:Bind MainViewModel.ExitApplicationCommand}">
+                    Command="{x:Bind MainViewModel.CloseWindowCommand}">
                     <FontIcon FontSize="14" Glyph="&#xE711;" />
                 </Button>
             </StackPanel>

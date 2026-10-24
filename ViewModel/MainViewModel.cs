@@ -64,7 +64,7 @@ public partial class MainViewModel : ObservableObject
     private void ToggleMaximize() => App.MainWindow?.ToggleMaximize();
 
     [RelayCommand]
-    private void ExitApplication() => App.Current_Exit();
+    private void CloseWindow() => App.MainWindow?.RequestClose();
 
     private bool CanToggleFullScreen() => !AppSettings.WallpaperEnabled;
 
