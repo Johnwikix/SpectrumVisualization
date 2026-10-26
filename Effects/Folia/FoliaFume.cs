@@ -82,12 +82,6 @@ internal sealed partial class FoliaFume
                 {
                     ref readonly var glyph = ref line.Glyphs[gi];
                     double start = glyph.Start, end = glyph.End;
-                    if (!line.Source.WordSynced)
-                    {
-                        double duration = Math.Max(.08, line.Source.End - line.Source.Start);
-                        start = line.Source.Start + gi * duration / Math.Max(1, line.Glyphs.Length);
-                        end = line.Source.Start + (gi + 1) * duration / Math.Max(1, line.Glyphs.Length);
-                    }
                     double durationGlyph = Math.Max(.001, end - start), trailStart = start + durationGlyph * .18;
                     bool waiting = time < start;
                     float activeAlpha = block.Hero ? .985f : .92f, waitingAlpha = block.Hero ? .06f : .035f;

@@ -2,6 +2,17 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-10-26 修复逐字行末词后的显示空窗
+
+- `FoliaSong`：当前行的 `End` 独立作为显示末界，延伸到下一不同入场时间或曲目末尾；显式行尾与下一入场取较晚值，最后一个 word 的真实结束时间保持不变，避免末词完成后、下一行开始前整行提前消失。处理方式对应参考播放器的 `HighlightEndMs`，不把长间奏伪装成末词发音。
+- 验证：增强 LRC、QRC、TTML 的末词早退场景及末行保留通过，`RenderEnd` 和实际 `FindActiveLine` 均覆盖至下一入场；标准 LRC 分词、图集和 Planner／Classic 回归保持通过。
+
+## 2026-10-26 修复标准 LRC 分词与逐字动画
+
+- `FoliaSong`、`FoliaWordSegmentation`：行级歌词按 ICU 词边界拆分，严格保留原文和空白，六点间奏标记仍为单个词；按字素数量生成有界显示时间，长间奏不再被逐字动画铺满，逐字估算尊重显式结束时间且不修改真实逐字数据。
+- `FoliaTextAtlas`、`FoliaFume`：字形与烟岚统一消费 word/grapheme 显示时间，不再把整行作为一个词或按完整行尾重算；行级歌词仍保留 `WordSynced=false`，估算时间不用于真实音节强调。
+- 验证：Debug x64 构建、标准／增强 LRC、长间奏、空白／CJK／emoji、TTML 显式结束时间、Win2D 离屏图集及 Planner／Classic 映射回归通过；实机歌词动画观感由用户验收。
+
 ## 2026-10-24 修复标题栏关闭按钮绕过后台驻留
 
 - `MainViewModel`、`MainWindow.xaml`、`MainWindow.xaml.cs`：自绘“×”按钮改为关闭窗口请求，与系统关闭共用 `RequestClose`；后台开关开启时隐藏小组件并暂停渲染，关闭时走完整退出，壁纸模式保持运行，托盘“退出”继续完整退出。

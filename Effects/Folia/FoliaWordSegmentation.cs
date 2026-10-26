@@ -35,6 +35,63 @@ internal static unsafe partial class FoliaWordSegmentation
             finally { Close(iterator); }
         }
     }
+    /// <summary>Builds contiguous layout words and an estimated display timeline for line-only lyrics.</summary>
+    internal static FoliaWord[] CreateLineSyncedWords(string text, double start, double end)
+    {
+        if (string.IsNullOrWhiteSpace(text) || end <= start)
+            return [];
+        // A row of dots is Folia's interlude marker, not six independently placed words.
+        if (text == "......")
+            return [new(text, start, end)];
+        int[] boundaries = Boundaries(text);
+        if (!CompleteBoundaries(boundaries, text.Length))
+            boundaries = GraphemeBoundaries(text);
+        var pieces = new List<string>(boundaries.Length - 1);
+        string leadingWhitespace = "";
+        for (int i = 1; i < boundaries.Length; i++)
+        {
+            string piece = text[boundaries[i - 1]..boundaries[i]];
+            if (string.IsNullOrWhiteSpace(piece))
+            {
+                // Keep the source text contiguous, but never create an invisible animated word.
+                if (pieces.Count == 0) leadingWhitespace += piece;
+                else pieces[^1] += piece;
+            }
+            else
+            {
+                pieces.Add(leadingWhitespace + piece);
+                leadingWhitespace = "";
+            }
+        }
+        var weights = new int[pieces.Count];
+        int total = 0;
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            weights[i] = StringInfo.ParseCombiningCharacters(pieces[i]).Length;
+            total += weights[i];
+        }
+        var result = new FoliaWord[pieces.Count];
+        int consumed = 0;
+        double cursor = start;
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            consumed += weights[i];
+            double next = i + 1 == pieces.Count ? end : start + (end - start) * consumed / total;
+            result[i] = new(pieces[i], cursor, next);
+            cursor = next;
+        }
+        return result;
+    }
+
+    private static bool CompleteBoundaries(int[] boundaries, int length)
+    {
+        if (boundaries.Length < 2 || boundaries[0] != 0 || boundaries[^1] != length)
+            return false;
+        for (int i = 1; i < boundaries.Length; i++)
+            if (boundaries[i] <= boundaries[i - 1]) return false;
+        return true;
+    }
+
     private static int[] GraphemeBoundaries(string text)
     {
         int[] starts = StringInfo.ParseCombiningCharacters(text);
