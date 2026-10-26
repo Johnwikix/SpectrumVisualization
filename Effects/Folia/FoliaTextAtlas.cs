@@ -329,9 +329,9 @@ internal sealed class FoliaTextAtlas : IDisposable
                         string text = enumerator.GetTextElement();
                         if (!glyphs.TryGetValue(text, out var glyph))
                             continue;
-                        // Preserve true word intervals; graphemes subdivide only a real syllable's interval.
-                        double start = line.WordSynced ? word.Start + (word.End - word.Start) * inWord / Math.Max(1, count) : line.Start;
-                        double end = line.WordSynced ? word.Start + (word.End - word.Start) * (inWord + 1) / Math.Max(1, count) : line.End;
+                        // Real syllables keep exact timing; line-only words carry cold-path display estimates.
+                        double start = word.Start + (word.End - word.Start) * inWord / Math.Max(1, count);
+                        double end = word.Start + (word.End - word.Start) * (inWord + 1) / Math.Max(1, count);
                         inWord++;
                         Vector3? activeColor = null;
                         if (i < song.KeywordRanges.Length)

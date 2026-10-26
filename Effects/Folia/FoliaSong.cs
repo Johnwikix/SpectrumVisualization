@@ -48,8 +48,22 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
             if (string.IsNullOrWhiteSpace(line.Text) || line.StartTime is not int milliseconds)
                 continue;
             double start = milliseconds / 1000d;
-            double end = line.EndTime is int endMs && endMs > milliseconds ? endMs / 1000d :
-                i + 1 < source.Count && source[i + 1].StartTime is int next && next > milliseconds ? next / 1000d : Math.Max(start + 4, duration);
+            int endMilliseconds = line.EndTime is int value && value > milliseconds ? value : milliseconds;
+            bool hasExplicitEnd = endMilliseconds > milliseconds;
+            double sourceEnd = hasExplicitEnd ? endMilliseconds / 1000d : start;
+            // End is the row's display boundary, independent of the final word's real end.
+            // Like HighlightEndMs in the reference player, retain completed lyrics until the next entrance.
+            double end = sourceEnd;
+            bool hasNextEntrance = false;
+            for (int nextIndex = i + 1; nextIndex < source.Count; nextIndex++)
+            {
+                if (source[nextIndex].StartTime is not int next || next <= milliseconds) continue;
+                end = Math.Max(end, next / 1000d);
+                hasNextEntrance = true;
+                break;
+            }
+            if (!hasNextEntrance)
+                end = Math.Max(end, Math.Max(start + 4, duration));
             var words = new List<FoliaWord>();
             bool synced = line is SyllableLineInfo { Syllables.Count: > 0 };
             if (line is SyllableLineInfo syllable)
@@ -66,7 +80,12 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
                 }
             }
             if (words.Count == 0)
-                words.Add(new(line.Text, start, end));
+            {
+                // Line-only lyrics have no syllable timing. Build linguistic words for layout and
+                // a bounded display timeline, without promoting them to real word synchronization.
+                double estimatedWordEnd = hasExplicitEnd ? sourceEnd : Math.Min(end, start + 4);
+                words.AddRange(FoliaWordSegmentation.CreateLineSyncedWords(line.Text, start, estimatedWordEnd));
+            }
             string sub = (line as IFullLineInfo)?.ChineseTranslation ?? line.SubLine?.Text ?? "";
             if (translations != null)
                 foreach (var translated in translations)
