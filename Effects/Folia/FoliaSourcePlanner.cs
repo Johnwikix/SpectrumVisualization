@@ -24,6 +24,21 @@ internal static partial class FoliaSourcePlanner
         using var reader = new StreamReader(stream);
         return Engine.PrepareScript(reader.ReadToEnd());
     });
+    private static readonly Lazy<Prepared<Acornima.Ast.Script>> NativeStagesSource = new(() =>
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Spectrum.Folia.native-stages.js")!;
+        using var reader = new StreamReader(stream);
+        return Engine.PrepareScript(reader.ReadToEnd());
+    });
+
+    internal static JsonDocument CompileNativeStage(FoliaTextAtlas atlas, in FoliaSceneRequest request, string function, CancellationToken token,
+        IReadOnlyDictionary<string, int>? strokeCounts = null)
+    {
+        string input = CreateInput(atlas, request.Width, request.Height, request.Scale, request.Family,
+            request.Weight, request.Song.Palette, request.Song, strokeCounts);
+        return JsonDocument.Parse(Compile(input, function, token));
+    }
+
     // Meshes have a separate bounded numeric cache. Compress larger JSON layouts so
     // a song's mode tour does not retain every expanded UTF-16 plan simultaneously.
     private const int ResultLimit = 4 * 1024 * 1024, EntryLimit = 16;
@@ -42,12 +57,26 @@ internal static partial class FoliaSourcePlanner
             ClearPendoloResult();
         }
     }
-    internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight, Vector3[]? palette = null)
+    internal static string CreateInput(FoliaTextAtlas atlas, float width, float height, float fontScale, string family, int weight, Vector3[]? palette = null, FoliaSong? nativeSong = null,
+        IReadOnlyDictionary<string, int>? strokeCounts = null)
     {
         using var input = new MemoryStream();
         using (var w = new Utf8JsonWriter(input))
         {
             w.WriteStartObject();
+            if (nativeSong != null)
+            {
+                w.WriteString("title", nativeSong.Title);
+                w.WriteString("artist", nativeSong.Artist);
+                w.WriteNumber("duration", FoliaShotTimeline.SongEnd(nativeSong));
+            }
+            if (strokeCounts != null)
+            {
+                w.WriteStartObject("strokeCounts");
+                foreach (var pair in strokeCounts)
+                    w.WriteNumber(pair.Key, pair.Value);
+                w.WriteEndObject();
+            }
             w.WriteNumber("width", width);
             w.WriteNumber("height", height);
             w.WriteNumber("fontScale", fontScale);
@@ -193,6 +222,12 @@ internal static partial class FoliaSourcePlanner
         if (function == "compileDiorama") FoliaDioramaNumericArrays.Install(engine, token);
         if (function == "compileFume") FoliaFumeFontSearch.Install(engine, token);
         if (function == "compileTempera") FoliaTemperaPrimitives.Install(engine, token);
+        if (function is "hanabi" or "metaphor" or "nebbia")
+        {
+            engine.Execute(NativeStagesSource.Value);
+            engine.SetValue("nativeInput", json);
+            return engine.Evaluate("FoliaNativeStages." + function + "(nativeInput)").AsString();
+        }
         engine.Execute(Source.Value);
         if (function == "compileSonnet")
             engine.Execute(SonnetSource.Value);

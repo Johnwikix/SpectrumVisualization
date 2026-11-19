@@ -115,6 +115,22 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             font, color, alpha, rotation, glow: glow, outline: outline, outlineWidth: outlineWidth);
     }
 
+    internal void InkGlyph(in FoliaGlyph glyph, float x, float y, float font, Vector3 color, float rotation,
+        float age, float reveal, float melt, bool tinted, bool note)
+    {
+        int first = Count;
+        GlyphCentered(glyph, x, y, font, color, 1, rotation);
+        if (Count > first)
+        {
+            ref var instance = ref _instances[first];
+            instance.GlyphData.Y = tinted ? 1 : 0;
+            instance.GlyphData.Z = note ? 1 : 0;
+            instance.GlyphData.W = reveal;
+            instance.Transform.W = age;
+            instance.Effect.W = melt;
+        }
+    }
+
     internal void Glyph(in FoliaGlyph glyph, float x, float y, float font, Vector3 color, float alpha,
         float rotation = 0, float blur = 0, float glow = 0, float shear = 0, float reveal = 1, float difference = 0, bool outline = false, float outlineWidth = 1.05f, float revealSoftness = 0, Vector3? glowColor = null)
     {
@@ -176,6 +192,19 @@ internal ref struct FoliaPainter(Span<FoliaInstance> instances, float width, flo
             Shape = new(kind, stroke, radius, phase),
             Effect = new(1, 0, 0, 0)
         };
+    }
+
+    internal void InkShape(int kind, Vector2 point, Vector2 size, Vector3 mix, float rotation,
+        float parameter, Vector4 axes, Vector2 world, float worldRotation)
+    {
+        int first = Count;
+        Shape(kind, point.X - size.X, point.Y - size.Y, size.X * 2, size.Y * 2, mix, 1, rotation,
+            phase: parameter, uv: axes);
+        if (Count > first)
+        {
+            var (sin, cos) = MathF.SinCos(worldRotation);
+            _instances[first].GlyphData = new(world.X, world.Y, cos, sin);
+        }
     }
 
     internal void Line(float x1, float y1, float x2, float y2, Vector3 color, float alpha, float stroke = 1)

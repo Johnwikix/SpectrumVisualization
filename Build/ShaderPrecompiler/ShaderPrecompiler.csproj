@@ -8,4 +8,10 @@
     <EmbeddedResource Include="../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
     <EmbeddedResource Include="../../External/SMAA/SMAA.hlsl" LogicalName="Spectrum.SMAA.SMAA.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../External/RTXPT/*.hlsli" LogicalName="Spectrum.RTXPT.%(Filename).hlsli" />
+    <Compile Include="../../Effects/Folia/MachiDxrShaders.cs" Link="Runtime/MachiDxrShaders.cs" />
+    <EmbeddedResource Include="../../External/NRD/Shaders/NRD.hlsli;../../External/NRD/Shaders/NRDConfig.hlsli" LogicalName="Spectrum.NRD.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <Import Project="../../Rendering/DxcAssets.targets" />
 </Project>

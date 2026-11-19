@@ -382,9 +382,44 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaOption_hanabi.Content" xml:space="preserve"><value>Hanabi</value></data>
   <data name="FoliaOption_metaphor.Content" xml:space="preserve"><value>Metaphor</value></data>
   <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>Nebbia</value></data>
+  <data name="FoliaMachiTimeOfDay.Header" xml:space="preserve"><value>Time of day</value></data>
+  <data name="FoliaMachiTimeOfDay_auto.Content" xml:space="preserve"><value>Automatic</value></data>
+  <data name="FoliaMachiTimeOfDay_day.Content" xml:space="preserve"><value>Day</value></data>
+  <data name="FoliaMachiTimeOfDay_dusk.Content" xml:space="preserve"><value>Dusk</value></data>
+  <data name="FoliaMachiTimeOfDay_night.Content" xml:space="preserve"><value>Night</value></data>
+  <data name="FoliaMachiWeather.Header" xml:space="preserve"><value>Weather</value></data>
+  <data name="FoliaMachiWeather_auto.Content" xml:space="preserve"><value>Automatic</value></data>
+  <data name="FoliaMachiWeather_clear.Content" xml:space="preserve"><value>Clear</value></data>
+  <data name="FoliaMachiWeather_rain.Content" xml:space="preserve"><value>Rain</value></data>
+  <data name="FoliaMachiWeather_snow.Content" xml:space="preserve"><value>Snow</value></data>
+  <data name="FoliaMachiWeather_fog.Content" xml:space="preserve"><value>Fog</value></data>
+  <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>Machi settings</value></data>
+  <data name="FoliaMachiScene.Header" xml:space="preserve"><value>Scene</value></data>
+  <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>Camera drift</value></data>
+  <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>Path tracing denoiser</value></data>
+  <data name="MachiSceneAuto.Content" xml:space="preserve"><value>Choose by song</value></data>
+  <data name="MachiSceneKonbini.Content" xml:space="preserve"><value>Convenience store</value></data>
+  <data name="MachiSceneStation.Content" xml:space="preserve"><value>Gas station</value></data>
+  <data name="MachiSceneKowloon.Content" xml:space="preserve"><value>Kowloon bar</value></data>
+  <data name="MachiCapabilityPending" xml:space="preserve"><value>Machi requires a GPU with DXR support.</value></data>
+  <data name="MachiRequiresDxr" xml:space="preserve"><value>This GPU does not support DXR. Saved Machi selections use Classic for this session.</value></data>
+  <data name="MachiDxrAvailable" xml:space="preserve"><value>Hardware ray tracing is available.</value></data>
+  <data name="MachiNrdActive" xml:space="preserve"><value>Hardware path tracing with NRD is active.</value></data>
+  <data name="MachiRrActive" xml:space="preserve"><value>Hardware path tracing with DLSS Ray Reconstruction is active.</value></data>
+  <data name="MachiRrFallback" xml:space="preserve"><value>DLSS Ray Reconstruction is unavailable. NRD is active.</value></data>
+  <data name="MachiStageFailed" xml:space="preserve"><value>Machi initialization failed. Classic is active. Switch away and back to retry.</value></data>
   <data name="FoliaOption_machi.Content" xml:space="preserve"><value>Machi</value></data>
   <data name="FoliaMetaphorSettings.Header" xml:space="preserve"><value>Metaphor settings</value></data>
   <data name="FoliaMetaphorNegative.Header" xml:space="preserve"><value>Light ink on dark paper</value></data>
+  <data name="FoliaNebbiaSettings.Header" xml:space="preserve"><value>Fog Writing</value></data>
+  <data name="FoliaNebbiaBehind.Header" xml:space="preserve"><value>Window view</value></data>
+  <data name="FoliaNebbiaBehind_night.Content" xml:space="preserve"><value>Night street</value></data>
+  <data name="FoliaNebbiaBehind_aquarium.Content" xml:space="preserve"><value>Aquarium</value></data>
+  <data name="FoliaNebbiaBehind_backdrop.Content" xml:space="preserve"><value>Shared background</value></data>
+  <data name="FoliaNebbiaGlass.Header" xml:space="preserve"><value>Glass surface</value></data>
+  <data name="FoliaNebbiaGlass_rain.Content" xml:space="preserve"><value>Rain</value></data>
+  <data name="FoliaNebbiaGlass_dew.Content" xml:space="preserve"><value>Condensation</value></data>
+  <data name="FoliaNebbiaGlass_snow.Content" xml:space="preserve"><value>Snow</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>Common</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>Latent</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>Nomand</value></data>

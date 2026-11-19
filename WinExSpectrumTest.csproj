@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Jint" Version="4.17.0" />
+    <EmbeddedResource Include="External\Folia\native-stages.js" LogicalName="Spectrum.Folia.native-stages.js" />
     <EmbeddedResource Include="External\Folia\native-layout.js" LogicalName="Spectrum.Folia.native-layout.js" />
     <EmbeddedResource Include="External\Folia\themes.js" LogicalName="Spectrum.Folia.themes.js" />
     <EmbeddedResource Include="External\Folia\sonnet-graphics.js" LogicalName="Spectrum.Folia.sonnet-graphics.js" />
@@ -37,9 +38,9 @@
     <EmbeddedResource Include="External\Folia\Cappella\emo\*.png" LogicalName="Spectrum.Folia.Emoji.%(Filename)%(Extension)" />
     <EmbeddedResource Include="External\Folia\noise.png" LogicalName="Spectrum.Folia.noise.png" />
     <EmbeddedResource Include="External\Folia\Nebbia\strokes.bin.gz" LogicalName="Spectrum.Folia.Nebbia.strokes.bin.gz" WithCulture="false" />
-    <Content Include="External\Folia\Nebbia\ARPHICPL.TXT;External\Folia\Nebbia\COPYING.txt;External\Folia\Nebbia\NOTICE.txt"
+    <Content Include="External\Folia\Nebbia\ARPHICPL.TXT;External\Folia\Nebbia\COPYING.txt;External\Folia\Nebbia\LUCIDE-LICENSE.txt;External\Folia\Nebbia\NOTICE.txt"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Lyricify.Lyrics.Helper\LICENSE"
+    <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Folia\Machi\README.md;External\Lyricify.Lyrics.Helper\LICENSE"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
@@ -158,4 +159,8 @@
   <Import Project="Rendering\ReconstructionAssets.targets" />
   <Import Project="Rendering/FoliaTextAssets.targets" />
   <Import Project="Rendering/ShaderAssets.targets" />
+  <Import Project="Rendering/DxcAssets.targets" />
+  <ItemGroup>
+    <EmbeddedResource Include="External/Folia/Machi/*.machi.br" LogicalName="Spectrum.Folia.Machi.%(Filename)%(Extension)" WithCulture="false" />
+  </ItemGroup>
 </Project>

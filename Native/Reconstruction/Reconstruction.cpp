@@ -17,6 +17,7 @@
 #include <ffx_upscale.h>
 #include <nvsdk_ngx_helpers.h>
 #include <nvsdk_ngx_helpers_d3d.h>
+#include <nvsdk_ngx_helpers_dlssd_d3d.h>
 
 using Microsoft::WRL::ComPtr;
 #define API extern "C" __declspec(dllexport)
@@ -35,6 +36,25 @@ struct Frame
     float nearPlane, farPlane, verticalFieldOfView, padding;
 };
 static_assert(sizeof(Frame) == 80);
+
+struct RayReconstructionFrame
+{
+    Frame common;
+    ID3D12Resource* diffuseAlbedo;
+    ID3D12Resource* specularAlbedo;
+    ID3D12Resource* normalRoughness;
+    ID3D12Resource* specularHitDistance;
+    ID3D12Resource* reflectionMotion;
+    float worldToView[16], viewToClip[16]; // Row-major, row-vector matrices, matching the renderer.
+};
+static_assert(sizeof(RayReconstructionFrame) == 248);
+static thread_local char ngxDiagnostic[256]{};
+API const char* ReconstructionNgxDiagnostic() noexcept { return ngxDiagnostic; }
+static bool NgxResult(NVSDK_NGX_Result result, const char* stage)
+{
+    sprintf_s(ngxDiagnostic, "%s: NGX 0x%08X", stage, unsigned(result));
+    return NVSDK_NGX_SUCCEED(result);
+}
 
 static std::wstring Directory()
 {
@@ -102,7 +122,7 @@ static bool Nvidia(ID3D12Device* device)
         && SUCCEEDED(adapter->GetDesc1(&desc)) && desc.VendorId == 0x10DE;
 }
 
-static bool InitNgx(Context& context)
+static bool InitNgx(Context& context, bool rayReconstruction = false)
 {
     if (!Nvidia(context.device)) return false;
     // A private project identifier, not an NVIDIA-issued application identifier.
@@ -115,11 +135,11 @@ static bool InitNgx(Context& context)
     context.ngxCache = cache;
     auto result = NVSDK_NGX_D3D12_Init_with_ProjectID("8796023e-91c2-4811-8465-6b9756d1ef0a",
         NVSDK_NGX_ENGINE_TYPE_CUSTOM, "1.0", context.ngxCache.c_str(), context.device, &context.ngxInfo);
-    if (NVSDK_NGX_FAILED(result)) return false;
+    if (!NgxResult(result, "NGX initialization")) return false;
     context.ngx = true;
     if (NVSDK_NGX_FAILED(NVSDK_NGX_D3D12_GetCapabilityParameters(&context.parameters))) return false;
     int available = 0;
-    return NVSDK_NGX_SUCCEED(context.parameters->Get(NVSDK_NGX_Parameter_SuperSampling_Available, &available)) && available;
+    return NVSDK_NGX_SUCCEED(context.parameters->Get(rayReconstruction ? NVSDK_NGX_Parameter_SuperSamplingDenoising_Available : NVSDK_NGX_Parameter_SuperSampling_Available, &available)) && available;
 }
 
 static bool InitFsr(Context& context)
@@ -262,6 +282,30 @@ API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* 
             if (result == NVSDK_NGX_Result_FAIL_InvalidParameter) return -30;
             if (NVSDK_NGX_FAILED(result)) return -11;
         }
+        else if (mode == 6)
+        {
+            if (!InitNgx(*ctx, true)) return -9;
+            if (width < 32 || height < 32) return -30;
+            for (auto key : { NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_DLAA,
+                NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Quality,
+                NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Balanced,
+                NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance,
+                NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_UltraPerformance })
+                ctx->parameters->Set(key, unsigned(NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default));
+            const double ratio = double(inputWidth) / width;
+            NVSDK_NGX_DLSSD_Create_Params desc{};
+            desc.InWidth = inputWidth; desc.InHeight = inputHeight;
+            desc.InTargetWidth = width; desc.InTargetHeight = height;
+            desc.InPerfQualityValue = ratio >= 0.99 ? NVSDK_NGX_PerfQuality_Value_DLAA :
+                ratio >= 0.63 ? NVSDK_NGX_PerfQuality_Value_MaxQuality : ratio >= 0.55 ? NVSDK_NGX_PerfQuality_Value_Balanced :
+                ratio >= 0.45 ? NVSDK_NGX_PerfQuality_Value_MaxPerf : NVSDK_NGX_PerfQuality_Value_UltraPerformance;
+            desc.InDenoiseMode = NVSDK_NGX_DLSS_Denoise_Mode_DLUnified;
+            desc.InRoughnessMode = NVSDK_NGX_DLSS_Roughness_Mode_Packed;
+            desc.InUseHWDepth = NVSDK_NGX_DLSS_Depth_Type_HW;
+            desc.InFeatureCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes;
+            auto result = NGX_D3D12_CREATE_DLSSD_EXT(commands, 1, 1, &ctx->dlss, ctx->parameters, &desc);
+            if (!NgxResult(result, "DLSSD feature creation")) return -31;
+        }
         else return -12;
         *output = ctx.release();
         return 0;
@@ -318,3 +362,40 @@ API int ReconstructionExecute(Context* ctx, ID3D12GraphicsCommandList* commands,
 }
 
 API void ReconstructionDestroy(Context* context) noexcept { delete context; }
+
+API int ReconstructionExecuteDlssd(Context* ctx, ID3D12GraphicsCommandList* commands, const RayReconstructionFrame* frame) noexcept
+{
+    if (!ctx || ctx->mode != 6 || !commands || !frame || !frame->diffuseAlbedo || !frame->specularAlbedo ||
+        !frame->normalRoughness || !frame->specularHitDistance) return -1;
+    try
+    {
+        const auto& f = frame->common;
+        NVSDK_NGX_D3D12_DLSSD_Eval_Params args{};
+        args.pInColor = f.color; args.pInOutput = f.output;
+        args.pInDepth = f.depth; args.pInMotionVectors = f.motion;
+        args.pInDiffuseAlbedo = frame->diffuseAlbedo; args.pInSpecularAlbedo = frame->specularAlbedo;
+        args.pInNormals = frame->normalRoughness; // World-space unit normals, linear roughness in alpha.
+        args.pInSpecularHitDistance = frame->specularHitDistance;
+        args.pInMotionVectorsReflections = frame->reflectionMotion;
+        args.pInWorldToViewMatrix = const_cast<float*>(frame->worldToView);
+        args.pInViewToClipMatrix = const_cast<float*>(frame->viewToClip);
+        args.InJitterOffsetX = f.jitterX; args.InJitterOffsetY = f.jitterY;
+        args.InRenderSubrectDimensions = { f.width, f.height };
+        args.InReset = f.reset; args.InMVScaleX = args.InMVScaleY = 1;
+        args.InPreExposure = args.InExposureScale = 1; args.InFrameTimeDeltaInMsec = f.milliseconds;
+        return NgxResult(NGX_D3D12_EVALUATE_DLSSD_EXT(commands, ctx->dlss, ctx->parameters, &args), "DLSSD evaluation") ? 0 : -32;
+    }
+    catch (...) { return -100; }
+}
+
+
+API int ReconstructionRayReconstructionAvailable(ID3D12Device* device) noexcept
+{
+    if (!device) return 0;
+    try {
+        Context context;
+        context.device = device;
+        return InitNgx(context, true) ? 1 : 0;
+    }
+    catch (...) { return 0; }
+}

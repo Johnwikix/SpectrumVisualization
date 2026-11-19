@@ -49,7 +49,7 @@ public partial class SettingViewModel
     public string FoliaLyricMode
     {
         get => AppSettings.FoliaLyricMode;
-        set => AppSettings.FoliaLyricMode = value;
+        set { if (value != null && (value != "machi" || MachiAvailable)) AppSettings.FoliaLyricMode = value; }
     }
     public bool FoliaCoverBackground
     {
@@ -125,6 +125,56 @@ public partial class SettingViewModel
         set => AppSettings.FoliaSonnetPostProcess = value;
     }
     /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public string FoliaMachiScene
+    {
+        get => AppSettings.FoliaMachiScene;
+        set { if (value != null) AppSettings.FoliaMachiScene = value; }
+    }
+
+    public string FoliaMachiTimeOfDay
+    {
+        get => AppSettings.FoliaMachiTimeOfDay;
+        set { if (value != null) AppSettings.FoliaMachiTimeOfDay = value; }
+    }
+
+    public string FoliaMachiWeather
+    {
+        get => AppSettings.FoliaMachiWeather;
+        set { if (value != null) AppSettings.FoliaMachiWeather = value; }
+    }
+
+    public string FoliaMachiDenoiser
+    {
+        get => AppSettings.FoliaMachiDenoiser;
+        set { if (value != null) AppSettings.FoliaMachiDenoiser = value; }
+    }
+
+    public bool FoliaMachiMotion
+    {
+        get => AppSettings.FoliaMachiMotion;
+        set => AppSettings.FoliaMachiMotion = value;
+    }
+
+    public bool MachiAvailable => !Rendering.ReconstructionAvailability.Known || Rendering.ReconstructionAvailability.Status.HardwareRaytracing;
+
+    public string MachiRendererStatus
+    {
+        get
+        {
+            var status = Rendering.ReconstructionAvailability.Status;
+            string key = !Rendering.ReconstructionAvailability.Known ? "MachiCapabilityPending" :
+                !status.HardwareRaytracing ? "MachiRequiresDxr" : status.Machi switch
+                {
+                    Rendering.MachiRenderStatus.Nrd => "MachiNrdActive",
+                    Rendering.MachiRenderStatus.RayReconstruction => "MachiRrActive",
+                    Rendering.MachiRenderStatus.NrdFallback => "MachiRrFallback",
+                    Rendering.MachiRenderStatus.Unavailable => "MachiStageFailed",
+                    _ => "MachiDxrAvailable"
+                };
+            return new ResourceLoader().GetString(key);
+        }
+    }
+
     public bool FoliaMetaphorNegative
     {
         get => AppSettings.FoliaMetaphorNegative;
@@ -184,7 +234,16 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaSonnetFrame));
         OnPropertyChanged(nameof(FoliaSonnetTransitions));
         OnPropertyChanged(nameof(FoliaSonnetPostProcess));
+        OnPropertyChanged(nameof(FoliaMachiTimeOfDay));
+        OnPropertyChanged(nameof(FoliaMachiWeather));
+        OnPropertyChanged(nameof(FoliaMachiScene));
+        OnPropertyChanged(nameof(FoliaMachiMotion));
+        OnPropertyChanged(nameof(FoliaMachiDenoiser));
+        OnPropertyChanged(nameof(MachiAvailable));
+        OnPropertyChanged(nameof(MachiRendererStatus));
         OnPropertyChanged(nameof(FoliaMetaphorNegative));
+        OnPropertyChanged(nameof(FoliaNebbiaBehind));
+        OnPropertyChanged(nameof(FoliaNebbiaGlass));
         OnPropertyChanged(nameof(FoliaRealtimeMotion));
         OnPropertyChanged(nameof(FoliaSonnetMotionStrength));
         OnPropertyChanged(nameof(FoliaDioramaMotionStrength));

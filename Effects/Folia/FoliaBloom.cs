@@ -15,7 +15,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
 {
     private readonly ID3D12Device _device;
     private readonly ID3D12RootSignature _root;
-    private readonly ID3D12PipelineState _down, _up, _combine;
+    private readonly ID3D12PipelineState _down, _up, _combine, _combineLinear;
     private readonly ID3D12DescriptorHeap _srv, _rtv;
     private readonly int _srvStride, _rtvStride;
     private readonly ID3D12Resource?[] _textures = new ID3D12Resource?[12];
@@ -44,6 +44,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
             _down = Pipeline(source, vertex, "Down");
             _up = Pipeline(source, vertex, "Up");
             _combine = Pipeline(source, vertex, "Combine");
+            _combineLinear = Pipeline(source, vertex, "CombineLinear");
         }
         catch (global::System.Exception caughtException)
         {
@@ -109,15 +110,17 @@ internal sealed unsafe class FoliaBloom : IDisposable
         commands.DrawInstanced(3, 1, 0, 0);
         commands.ResourceBarrierTransition(_textures[target]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
     }
-    internal void Apply(ID3D12GraphicsCommandList commands, ID3D12Resource output, CpuDescriptorHandle target, bool text, float? strength = null)
+    internal void Apply(ID3D12GraphicsCommandList commands, ID3D12Resource output, CpuDescriptorHandle target, bool text,
+        float? strength = null, bool linearHdr = false, float streaks = 0, bool hanabiScreen = false)
     {
         commands.ResourceBarrierTransition(_textures[0]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         commands.SetDescriptorHeaps(_srv);
         commands.SetGraphicsRootSignature(_root);
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        float threshold = text ? .12f : .42f, knee = text ? .2f : .3f, spread = text ? .95f : .9f;
+        float threshold = linearHdr ? .85f : hanabiScreen ? .5f : text ? .12f : .42f;
+        float knee = text ? .2f : .3f, spread = hanabiScreen ? .85f : text ? .95f : .9f;
         float multiplier = strength ?? (text ? AppSettings.FoliaLumiereTextBloom : AppSettings.FoliaLumiereBloom);
-        int count = multiplier <= 0 ? 0 : text ? 5 : 6;
+        int count = multiplier <= 0 ? 0 : text || hanabiScreen ? 5 : 6;
         while (count > 1 && Math.Min(_width >> count, _height >> count) < 2)
             count--;
         int source = 0;
@@ -138,8 +141,10 @@ internal sealed unsafe class FoliaBloom : IDisposable
             source = 7 + i;
         }
         Bind(commands, 0, source);
-        Constants(commands, 0, threshold, knee, 0, spread, text ? 1.15f * AppSettings.FoliaLumiereTextBloom : 1.5f * AppSettings.FoliaLumiereBloom, text ? 1 : .25f);
-        commands.SetPipelineState(_combine);
+        Constants(commands, 0, threshold, knee, hanabiScreen ? 1 : 0, spread,
+            linearHdr || hanabiScreen ? multiplier : (text ? 1.15f : 1.5f) * multiplier,
+            linearHdr ? streaks : text || hanabiScreen ? 1 : .25f);
+        commands.SetPipelineState(linearHdr ? _combineLinear : _combine);
         commands.ResourceBarrierTransition(output, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         commands.OMSetRenderTargets(target);
         commands.RSSetViewport(0, 0, _width, _height, 0, 1);
@@ -157,6 +162,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
         GpuGraphics.DisposeResource(_down);
         GpuGraphics.DisposeResource(_up);
         GpuGraphics.DisposeResource(_combine);
+        GpuGraphics.DisposeResource(_combineLinear);
         GpuGraphics.DisposeResource(_root);
         GpuGraphics.DisposeResource(_srv);
         GpuGraphics.DisposeResource(_rtv);

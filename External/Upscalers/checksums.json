@@ -20,5 +20,11 @@
   "dlss/include/nvsdk_ngx_params.h": "943bc8cc5cdae03b6303016fbad3183636f2335ae27a2d18776798c3b4efabbc",
   "dlss/include/nvsdk_ngx.h": "dc38e7467cf415379c9d12ae1b6e4a494c453ed92720fb53e92aecb523e7b848",
   "dlss/lib/Windows_x86_64/rel/nvngx_dlss.dll": "3975567b8943c53acce397f2b72380092f84f162d00b0d2c7d08a1025c563983",
-  "dlss/lib/Windows_x86_64/x64/nvsdk_ngx_s.lib": "4e5d355086d2bc11e1a0842457d2519ea528ee1f3e112c45679a84960c07dff3"
+  "dlss/lib/Windows_x86_64/x64/nvsdk_ngx_s.lib": "4e5d355086d2bc11e1a0842457d2519ea528ee1f3e112c45679a84960c07dff3",
+  "dlss/include/nvsdk_ngx_defs_dlssd.h": "2e97fe1595b1334f71b51724f2cb67496e8c296a7a2eec5606da53055882e716",
+  "dlss/include/nvsdk_ngx_params_dlssd.h": "d41e3ba8f1d72583b55273092c99bf426dc4a0d46de827229e25d5b1325a370e",
+  "dlss/include/nvsdk_ngx_helpers_dlssd.h": "a25fdda925b479dfe869593aeba311ef08793da54e0391f2fe2fe756cbef5532",
+  "dlss/include/nvsdk_ngx_helpers_dlssd_d3d.h": "6df9d02c6f47feee3afc8d12340a9f554a7ddce4ddacb1b6a13a42b26c2c6293",
+  "dlss/include/nvsdk_ngx_helpers_dlssd_cuda.h": "7e35cde214d905346a487b9a28c05d35e1c55b480e237fe3de69580a7e332730",
+  "dlss/lib/Windows_x86_64/rel/nvngx_dlssd.dll": "4bc7ea5fcb2f32cf86bc2cb072e8d2860914a0be511cbdcb2fc206c1d9d83b80"
 }

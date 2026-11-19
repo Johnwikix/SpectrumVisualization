@@ -1,6 +1,6 @@
 # Reconstruction SDKs
 
-The files required to build the XeSS-SR, FSR 3.1 and DLSS/DLAA adapters are
+The files required to build the XeSS-SR, FSR 3.1 and DLSS/DLAA and Ray Reconstruction adapters are
 kept in this repository at the official upstream commits listed below. A normal
 checkout does not need a separate SDK download. Verify the vendored files with:
 
@@ -15,11 +15,11 @@ commit if needed. It checks the SHA-256 of every downloaded and existing file.
 Requires PowerShell 7, Visual Studio 2026 C++ x64 tools (v145), and a Windows SDK.
 Checksums cover headers, libraries, licenses and release DLLs. Existing mismatches
 fail instead of silently accepting a different ABI. Vendor binaries total
-approximately 160 MiB; each vendor keeps its own license.
+approximately 205 MiB; each vendor keeps its own license.
 
 - XeSS: https://github.com/intel/xess, `de0fb9c1c510661c571164e1418ceca8101dab69`.
 - FSR: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK, `60f4ea81909200d8542eca14dccb2628b763a9a3`. The adapter explicitly selects a 3.1 provider from the SDK, not FSR 4 or frame generation.
-- DLSS: https://github.com/NVIDIA/DLSS, `374959484e79a640feaba44c93ac8cfb0a03f5b5`. Links the static x64 NGX library and distributes only the release `nvngx_dlss.dll`, never the development/watermarked DLL.
+- DLSS: https://github.com/NVIDIA/DLSS, `374959484e79a640feaba44c93ac8cfb0a03f5b5`. Links the static x64 NGX library and packages the release `nvngx_dlss.dll` and `nvngx_dlssd.dll`.
 
 `Rendering/ReconstructionAssets.targets` builds the bridge and copies DLLs and
 licenses for normal builds, MSIX content and unpackaged publishes. It never downloads

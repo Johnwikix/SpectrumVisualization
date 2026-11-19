@@ -18,7 +18,9 @@ $packages = @(
     @{ Name = 'dlss'; Repo = 'NVIDIA/DLSS'; Commit = '374959484e79a640feaba44c93ac8cfb0a03f5b5'; Files = @(
         'include/nvsdk_ngx.h', 'include/nvsdk_ngx_defs.h', 'include/nvsdk_ngx_params.h',
         'include/nvsdk_ngx_helpers.h', 'include/nvsdk_ngx_helpers_d3d.h', 'include/nvsdk_ngx_helpers_cuda.h', 'LICENSE.txt',
-        'lib/Windows_x86_64/x64/nvsdk_ngx_s.lib', 'lib/Windows_x86_64/rel/nvngx_dlss.dll') }
+        'include/nvsdk_ngx_defs_dlssd.h', 'include/nvsdk_ngx_params_dlssd.h', 'include/nvsdk_ngx_helpers_dlssd.h',
+        'include/nvsdk_ngx_helpers_dlssd_d3d.h', 'include/nvsdk_ngx_helpers_dlssd_cuda.h',
+        'lib/Windows_x86_64/x64/nvsdk_ngx_s.lib', 'lib/Windows_x86_64/rel/nvngx_dlss.dll', 'lib/Windows_x86_64/rel/nvngx_dlssd.dll') }
 )
 foreach ($package in $packages) {
     foreach ($file in $package.Files) {

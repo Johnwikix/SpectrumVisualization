@@ -85,7 +85,8 @@ float4 VignettePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 float Cross2(float2 a,float2 b){return a.x*b.y-a.y*b.x;}
 float InversionLuminance(float2 uv){return dot(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,float3(.2126,.7152,.0722));}
 float4 CopyPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
-    return float4(ToLinear(max(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,0)),1);
+    float3 color = max(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,0);
+    return float4(NativeLyric.x == 4 ? color : ToLinear(color),1);
 }
 float4 BackgroundSnapshotPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     return BackdropTexture.SampleLevel(LinearClamp,uv,0);
@@ -97,13 +98,6 @@ struct TemporalOutput { float4 color:SV_Target0;float2 motion:SV_Target1;float r
 TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
     TemporalOutput o; o.color=CopyPS(p,uv);o.motion=0;
     o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5;
-    float materialReactive=0;
-    if (NativeLyric.x == 4) {
-        float4 geometry=BackgroundHistoryTexture.Load(int3(int2(p.xy),0));
-        o.motion=Jitter.z>.5 ? 0 : geometry.xy;
-        o.depth=1-geometry.z;
-        materialReactive=geometry.w;
-    }
     // Reject changing pixels while static text or reprojectable geometry retains history.
     float2 sampleUV=uv;
     float3 current=BackdropTexture.SampleLevel(LinearClamp,sampleUV,0).rgb;
@@ -122,7 +116,7 @@ TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
         float3 delta=abs(current-clamp(current,low,high));
         float difference=max(delta.r,max(delta.g,delta.b));
         float signal=max(max(current.r,max(current.g,current.b)),max(previous.r,max(previous.g,previous.b)));
-        o.reactive=max(materialReactive,saturate(difference/max(signal,.1)*2));
+        o.reactive=saturate(difference/max(signal,.1)*2);
     }
     return o;
 }
@@ -222,6 +216,76 @@ float4 SpritePS(SpriteOutput input):SV_Target {
         float2 q=abs(local)-v.rect.zw*.5+radius;
         float distance=length(max(q,0))+min(max(q.x,q.y),0)-radius;
         alpha*=1-smoothstep(-edge,edge,distance);
+    } else if(kind>=32 && kind<=36) {
+        float boundary=min(v.rect.z*.5-abs(local.x),v.rect.w*.5-abs(local.y));
+        if(kind==33) {
+            float2 q=(uv-.5)*2;
+            float loops=max(abs(q.y)*2.2+abs(abs(q.x)-.44)*2.1-.82,length(q)*1.4-.95);
+            float knot=length(q)-.25;
+            float d=min(loops,knot);
+            alpha*=1-smoothstep(-.05,.05,d);
+            color=lerp(color,1,smoothstep(-.20,-.06,d)*.85);
+        } else if(kind==36) {
+            float2 q=(uv-.5)*2;
+            float a=atan2(q.y,q.x);
+            float d=length(q)-(.62+.16*cos(a*5));
+            alpha*=1-smoothstep(-.035,.04,d);
+            color=lerp(color,1,smoothstep(-.16,-.04,d)*.86);
+            color=lerp(color,1,(1-smoothstep(.15,.24,length(q)))*.75);
+        } else {
+            float2 p=uv*v.rect.zw/max(Options.z,1);
+            float2 grid=abs(frac(p/12)-.5);
+            float marks=kind==32?1-smoothstep(.1,.16,length(grid)):
+                kind==34?1-smoothstep(.02,.06,min(grid.x,grid.y)):0;
+            color=lerp(color,1,marks*.52);
+            color=lerp(color,1,(1-smoothstep(1,2.3,boundary))*.91);
+        }
+    } else if(kind>=37 && kind<=40) {
+        float h=v.rect.w, x=uv.x*v.rect.z+v.uv.x, y=uv.y*h;
+        float aa=max(edge*.65,.05);
+        if(kind==37) {
+            float r=max(3,h*.21), tile=(frac(x/(2*r))-.5)*2*r;
+            float scallop=length(float2(tile,abs(y-h*.5)-h*.25))-r;
+            float body=min(abs(y-h*.5)-h*.25,scallop);
+            float hole=min(length(float2(tile,abs(y-h*.5)-h*.25-r*.45))-r*.3,
+                length(float2(tile,abs(y-h*.5)-h*.175))-max(.8,h*.035));
+            float ribbon=1-smoothstep(-aa,aa,abs(y-h*.5)-h*.1);
+            float highlight=1-smoothstep(-aa,aa,abs(y-h*.452)-max(.5,h*.016));
+            color=lerp(1,color,ribbon);
+            color=lerp(color,1,highlight*.45);
+            alpha*=max(ribbon,.96*(1-smoothstep(-aa,aa,max(body,-hole))));
+        } else if(kind==38) {
+            float pitch=max(10,h*.9), dashWidth=max(2,h*.11);
+            float dx=max(abs(frac(x/pitch)*pitch-(pitch*.55+dashWidth)*.5)-(pitch*.55-dashWidth)*.5,0);
+            float foreground=1-smoothstep(-aa,aa,length(float2(dx,y-h*.5))-dashWidth*.5);
+            float shadow=.35*(1-smoothstep(-aa,aa,length(float2(dx,y-h*.5-dashWidth*.6))-dashWidth*.5));
+            float coverage=foreground+shadow*(1-foreground);
+            color=lerp(float3(.118,.063,.188),color,foreground/max(coverage,.001));
+            alpha*=coverage;
+        } else if(kind==39) {
+            float frame=h*1.18, pitch=frame*.25;
+            float2 hole=float2(abs(frac(x/pitch)-.5)*pitch-pitch*.24,abs(abs(uv.y-.5)-.375)*h-h*.055);
+            float frameX=frac(x/frame), tile=abs(frameX-.5)-.43;
+            float interior=1-smoothstep(-aa,aa,max(tile*frame,abs(y-h*.5)-h*.25));
+            float variant=fmod(floor(x/frame)+3000,3);
+            float3 mat=variant==0?color:variant==1?float3(1,.56,.71):float3(.56,.94,.78);
+            color=lerp(float3(.169,.122,.239),mat,interior);
+            float center=length(float2((frameX-.5)*frame,y-h*.5));
+            color=lerp(color,1,.9*(1-smoothstep(h*.10,h*.125,center)));
+            alpha*=.92*smoothstep(-aa,aa,max(hole.x,hole.y));
+        } else {
+            float2 p=uv*float2(160,48);
+            float tooth=(1-abs(frac(p.y/12)*2-1))*4.2;
+            float pattern;
+            if(v.shape.w<.5)
+                pattern=.55*(1-smoothstep(.24,.31,abs(frac((p.x+p.y)/18)-.5)));
+            else if(v.shape.w<1.5)
+                pattern=.65*(1-smoothstep(2.7,3.7,length((frac(p/16)-.5)*16)));
+            else
+                pattern=.38*(1-fmod(floor(p.x/12)+floor(p.y/12),2));
+            color=lerp(color,1,pattern);
+            alpha*=lerp(.78,1,pattern)*smoothstep(-.8,.8,min(p.x,160-p.x)-tooth);
+        }
     } else if(kind==4) alpha*=exp(-dot(uv-.5,uv-.5)*18);
     else if(kind==17) {
         float r=length(uv-.5)*2;
@@ -272,12 +336,70 @@ float4 SpritePS(SpriteOutput input):SV_Target {
     return float4(color*alpha,alpha);
 }
 
-float4 InkFieldPS(SpriteOutput input):SV_Target {
+struct InkFields {
+    float4 amount:SV_Target0;
+    float4 color:SV_Target1;
+};
+
+InkFields InkFieldPS(SpriteOutput input) {
     Instance v=ReadInstance(input.instance);
-    if ((int)v.shape.x!=0) {
-        float coverage=SpritePS(input).a;
-        return float4(v.color.rgb*coverage, coverage);
+    InkFields result;
+    result.color=0;
+    int kind=(int)v.shape.x-27;
+    if (kind>=0) {
+        float2 scale=max(v.uv.xy,.0001);
+        float2 local=(input.uv*2-1)*v.uv.zw;
+        local.y=-local.y;
+        float2 turn=v.glyphData.zw;
+        float2 w=v.glyphData.xy+float2(local.x*turn.x-local.y*turn.y,local.x*turn.y+local.y*turn.x);
+        float t=floor(Time.y*8)/8;
+        float2 shake=float2(sin(w.y*1.7+t*.35)+sin(w.x*.9-t*.2),sin(w.x*1.3-t*.3)+sin(w.y*1.1+t*.25))*.5
+            +.32*float2(sin(w.y*7.1+w.x*2.3+t*.6),sin(w.x*6.3-w.y*1.9-t*.5))
+            +.12*float2(sin(w.y*37+w.x*17)+sin(w.x*53),sin(w.x*41-w.y*13)+sin(w.y*59));
+        local+=float2(shake.x*turn.x+shake.y*turn.y,shake.y*turn.x-shake.x*turn.y)*.05;
+        float3 mix=v.color.rgb;
+        float core;
+        float halo;
+        if (kind==0) {
+            float2 q=local/scale;
+            float k=max(0,1-dot(q,q));
+            core=k*k*k*1.45;
+            halo=k*k*(mix.y*.6+.55*(mix.x+mix.z));
+            result.amount=float4(core*mix.x,halo,core*mix.z,1);
+        } else if (kind==1) {
+            float band=abs(length(local/scale)-.88);
+            core=1-smoothstep(.012,.03,band);
+            halo=1-smoothstep(.02,.12,band);
+            result.amount=float4(core*mix.x,core*mix.y+halo*.35,core*mix.z,1);
+        } else {
+            const float STROKE=.016;
+            float reach=STROKE;
+            float distance;
+            float cut=1;
+            if (kind==2) {
+                reach=scale.y;
+                distance=max(abs(local.y),abs(local.x)-scale.x+reach);
+                if (v.shape.w>.5) cut=step(frac((local.x/scale.x*.5+.5)*v.shape.w+.25),.55);
+            } else if (kind==3) {
+                reach=STROKE*scale.y;
+                distance=abs(length(local)-.9*scale.x);
+                cut=step(abs(atan2(local.y,local.x)),v.shape.w*3.14159265+.001);
+            } else {
+                float phase=1.57079633*v.shape.w*(local.x/scale.x+1);
+                float amplitude=scale.y*.75;
+                float slope=amplitude*cos(phase)*1.57079633*v.shape.w/scale.x;
+                distance=abs(local.y-amplitude*sin(phase))/sqrt(1+slope*slope);
+                cut=step(abs(local.x),scale.x);
+            }
+            float soft=min(reach,STROKE);
+            core=(1-smoothstep(reach-soft*.8,reach+soft*1.4,distance))*cut;
+            halo=(1-smoothstep(reach,reach+.11,distance))*cut*max(min(1,mix.x+mix.z)*.55,mix.y*.4);
+            result.amount=float4(core*mix.x,core*mix.y+halo,core*mix.z,1);
+        }
+        result.color=float4(Palette[3].rgb,1)*(core*mix.z);
+        return result;
     }
+    if ((int)v.shape.x!=0) { result.amount=0; return result; }
     float2 sampleUv=v.uv.xy+input.uv*v.uv.zw;
     float2 inset=.5/TextureSize.xy;
     float2 at=clamp(sampleUv,v.uv.xy+inset,v.uv.xy+v.uv.zw-inset);
@@ -285,23 +407,70 @@ float4 InkFieldPS(SpriteOutput input):SV_Target {
     float range=GlyphPixelRange(sampleUv);
     float tight=saturate(.5+(Median3(distances.rgb)-.5)*range);
     float soft=smoothstep(-.39,.35,distances.a-.5);
-    float3 ink=float3(tight*.87+soft*.19,soft*.54,v.color.b*(tight*.85+soft*.18));
-    return float4(ink*v.color.a,tight*v.color.a);
+    float age=v.transform.w;
+    float on=step(0,age);
+    age=max(0,age);
+    float set=on*(1-exp(-age*4.5));
+    float bulge=on*exp(-age*1.5);
+    float melt=v.effect.w,keep=1-melt;
+    float ink=tight*set*keep*keep+soft*(bulge*1.25+.3*set+.9*melt*set)*keep;
+    float tone=(tight*(1-set)*.85+soft*(.3+.45*set))*v.glyphData.w*keep;
+    if(v.glyphData.z>.5) {
+        ink=tight*on*keep*keep*1.12;
+        tone=min(.55,soft*1.6)*on*keep;
+    }
+    float tinted=v.glyphData.y*ink;
+    result.amount=float4(ink-tinted,tone,tinted,1);
+    result.color=float4(v.color.rgb,1)*tinted;
+    return result;
 }
-
-float WindowMaskPS(SpriteOutput input):SV_Target {
-    return SpritePS(input).a;
+float4 WindowMaskPS(SpriteOutput input):SV_Target {
+    Instance ink=ReadInstance(input.instance);
+    if(ink.shape.x==28) {
+        float d=length((input.uv-.5)*2);
+        return float4(0,(1-smoothstep(.73,1,d))*ink.color.a,0,0);
+    }
+    if(ink.shape.x==29) {
+        float d=length((input.uv-.5)*2);
+        float mask=d<.45?lerp(1,.7,d/.45):.7*saturate((1-d)/.55);
+        return float4(0,0,mask*ink.color.a,ink.shape.y*(1-smoothstep(.98,1,d)));
+    }
+    if(ink.shape.x!=27) return float4(SpritePS(input).a,0,0,0);
+    float2 local=(input.uv-.5)*ink.rect.zw;
+    local.x=max(abs(local.x)-(ink.rect.z-ink.rect.w)*.5,0);
+    float d=length(local), r=ink.shape.y*.5;
+    float aa=max(.5,max(fwidth(local.x),fwidth(local.y)));
+    float wide=saturate(.5+(r*1.3-d)/aa);
+    float mid=saturate(.5+(r-d)/aa);
+    float core=saturate(.5+(r*.62-d)/aa);
+    float coverage=wide*.38;
+    coverage=lerp(coverage,.72,mid);
+    coverage=lerp(coverage,1,core);
+    return float4(coverage*ink.color.a,0,0,0);
 }
 
 SpriteOutput MachiPanelVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     id+=InstanceOffset;
     Instance glyph=Instances[id];
     float2 quad=float2((vertex==1||vertex==2||vertex==4)?1:0,(vertex>=2&&vertex<=4)?1:0);
-    float2 uv=(glyph.rect.xy+quad*glyph.rect.zw)/float2(1024,320);
+    float2 local=(quad-.5)*glyph.rect.zw;
+    float sine,cosine;
+    sincos(glyph.transform.x,sine,cosine);
+    float2 panelPosition=glyph.rect.xy+glyph.rect.zw*.5+
+        float2(cosine*local.x-sine*local.y,sine*local.x+cosine*local.y);
+    float2 uv=panelPosition/float2(1024,560);
     SpriteOutput o;
     o.position=float4(uv*float2(2,-2)+float2(-1,1),0,1);
     o.uv=quad;o.instance=id;o.pixel=uv;
     return o;
+}
+
+float4 MachiPanelPS(SpriteOutput input) : SV_Target {
+    float band=Instances[input.instance].glyphData.w;
+    float lower=band==0 ? 0 : (band==1 ? 320 : 320+40*band);
+    float upper=band==0 ? 320 : (band==1 ? 400 : (band==4 ? 560 : lower+40));
+    clip(min(input.position.y-lower,upper-input.position.y));
+    return SpritePS(input);
 }
 
 // Pendolo keeps the original static triangle mesh on the GPU. Only 32 part transforms change each frame.

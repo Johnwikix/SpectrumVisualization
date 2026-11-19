@@ -10,7 +10,14 @@
     <Content Include="$(ReconstructionRoot)External\SMAA\LICENSE.txt" Link="Licenses\SMAA.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\NOTICE.txt" Link="Licenses\Graphics-NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(ReconstructionRoot)External\RTXPT\*.hlsli" LogicalName="Spectrum.RTXPT.%(Filename).hlsli" />
+    <Content Include="$(ReconstructionRoot)External\RTXPT\LICENSE.txt" Link="Licenses\RTXPT.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="$(ReconstructionRoot)External\NRD\Shaders\*.hlsli" LogicalName="Spectrum.NRD.%(Filename).hlsli" />
+  </ItemGroup>
   <ItemGroup Condition="'$(EnableVendorReconstruction)' == 'true'">
+    <Content Include="$(ReconstructionRoot)External\NRD\Runtime\NRD.dll" Link="NRD.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\NRD\*LICENSE.txt" Link="Licenses\NRD-%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)Native\Reconstruction\bin\Spectrum.Reconstruction.dll" Link="Spectrum.Reconstruction.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\xess\bin\libxess.dll" Link="libxess.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\fsr\Kits\FidelityFX\signedbin\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -18,6 +25,7 @@
     <Content Include="$(ReconstructionRoot)External\Upscalers\xess\LICENSE.txt" Link="Licenses\XeSS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\xess\third-party-programs.txt" Link="Licenses\XeSS-third-party.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\fsr\Kits\FidelityFX\docs\license.md" Link="Licenses\FSR.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ReconstructionRoot)External\Upscalers\dlss\lib\Windows_x86_64\rel\nvngx_dlssd.dll" Link="nvngx_dlssd.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(ReconstructionRoot)External\Upscalers\dlss\LICENSE.txt" Link="Licenses\DLSS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="BuildReconstructionBridge" BeforeTargets="PrepareForBuild" Condition="'$(EnableVendorReconstruction)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipReconstructionNativeBuild)' != 'true'">

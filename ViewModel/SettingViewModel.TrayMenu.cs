@@ -33,7 +33,11 @@ public partial class SettingViewModel
             if (item.Children is { } children)
             {
                 foreach (var child in children)
-                    if (child.Tag is string mode) child.IsChecked = mode == lyricMode;
+                    if (child.Tag is string mode)
+                    {
+                        child.IsChecked = mode == lyricMode;
+                        child.IsEnabled = mode != "machi" || MachiAvailable;
+                    }
             }
             else if (item.Tag is string id)
             {
@@ -53,7 +57,7 @@ public partial class SettingViewModel
     [RelayCommand]
     private void SelectFoliaLyricMode(string? mode)
     {
-        if (string.IsNullOrEmpty(mode)) return;
+        if (string.IsNullOrEmpty(mode) || (mode == "machi" && !MachiAvailable)) return;
         FoliaLyricMode = mode;
         VisualEffect = FoliaGpuEffect.EffectId;
     }
@@ -78,6 +82,7 @@ public partial class SettingViewModel
                         Title = resources.GetString("FoliaModeName_" + mode),
                         Tag = mode,
                         GroupName = FoliaLyricGroup,
+                        IsEnabled = mode != "machi" || MachiAvailable,
                         IsChecked = mode == lyricMode,
                         AutomationId = "SwitchEffect_" + id + "_" + mode,
                         Command = SelectFoliaLyricModeCommand

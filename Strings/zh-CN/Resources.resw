@@ -382,9 +382,44 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaOption_hanabi.Content" xml:space="preserve"><value>花火</value></data>
   <data name="FoliaOption_metaphor.Content" xml:space="preserve"><value>隐喻</value></data>
   <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>雾笺</value></data>
+  <data name="FoliaMachiTimeOfDay.Header" xml:space="preserve"><value>时段</value></data>
+  <data name="FoliaMachiTimeOfDay_auto.Content" xml:space="preserve"><value>自动</value></data>
+  <data name="FoliaMachiTimeOfDay_day.Content" xml:space="preserve"><value>白天</value></data>
+  <data name="FoliaMachiTimeOfDay_dusk.Content" xml:space="preserve"><value>黄昏</value></data>
+  <data name="FoliaMachiTimeOfDay_night.Content" xml:space="preserve"><value>夜晚</value></data>
+  <data name="FoliaMachiWeather.Header" xml:space="preserve"><value>天气</value></data>
+  <data name="FoliaMachiWeather_auto.Content" xml:space="preserve"><value>自动</value></data>
+  <data name="FoliaMachiWeather_clear.Content" xml:space="preserve"><value>晴</value></data>
+  <data name="FoliaMachiWeather_rain.Content" xml:space="preserve"><value>雨</value></data>
+  <data name="FoliaMachiWeather_snow.Content" xml:space="preserve"><value>雪</value></data>
+  <data name="FoliaMachiWeather_fog.Content" xml:space="preserve"><value>雾</value></data>
+  <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>町景设置</value></data>
+  <data name="FoliaMachiScene.Header" xml:space="preserve"><value>布景</value></data>
+  <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>缓慢运镜</value></data>
+  <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>路径追踪降噪</value></data>
+  <data name="MachiSceneAuto.Content" xml:space="preserve"><value>按歌曲自动选择</value></data>
+  <data name="MachiSceneKonbini.Content" xml:space="preserve"><value>便利店街角</value></data>
+  <data name="MachiSceneStation.Content" xml:space="preserve"><value>加油站停车场</value></data>
+  <data name="MachiSceneKowloon.Content" xml:space="preserve"><value>九龙城寨酒吧</value></data>
+  <data name="MachiCapabilityPending" xml:space="preserve"><value>运行町景需要支持 DXR 的显卡。</value></data>
+  <data name="MachiRequiresDxr" xml:space="preserve"><value>当前显卡不支持 DXR。选择町景的存档将临时显示流光。</value></data>
+  <data name="MachiDxrAvailable" xml:space="preserve"><value>当前显卡支持硬件光线追踪。</value></data>
+  <data name="MachiNrdActive" xml:space="preserve"><value>正在使用硬件路径追踪和 NRD。</value></data>
+  <data name="MachiRrActive" xml:space="preserve"><value>正在使用硬件路径追踪和 DLSS 光线重建。</value></data>
+  <data name="MachiRrFallback" xml:space="preserve"><value>DLSS 光线重建不可用，正在使用 NRD。</value></data>
+  <data name="MachiStageFailed" xml:space="preserve"><value>町景初始化失败，暂时显示流光。重新选择町景可重试。</value></data>
   <data name="FoliaOption_machi.Content" xml:space="preserve"><value>町景</value></data>
   <data name="FoliaMetaphorSettings.Header" xml:space="preserve"><value>隐喻设置</value></data>
   <data name="FoliaMetaphorNegative.Header" xml:space="preserve"><value>深纸浅墨</value></data>
+  <data name="FoliaNebbiaSettings.Header" xml:space="preserve"><value>雾笺</value></data>
+  <data name="FoliaNebbiaBehind.Header" xml:space="preserve"><value>窗外景色</value></data>
+  <data name="FoliaNebbiaBehind_night.Content" xml:space="preserve"><value>夜间街道</value></data>
+  <data name="FoliaNebbiaBehind_aquarium.Content" xml:space="preserve"><value>水族箱</value></data>
+  <data name="FoliaNebbiaBehind_backdrop.Content" xml:space="preserve"><value>共享背景</value></data>
+  <data name="FoliaNebbiaGlass.Header" xml:space="preserve"><value>玻璃表面</value></data>
+  <data name="FoliaNebbiaGlass_rain.Content" xml:space="preserve"><value>雨水</value></data>
+  <data name="FoliaNebbiaGlass_dew.Content" xml:space="preserve"><value>凝露</value></data>
+  <data name="FoliaNebbiaGlass_snow.Content" xml:space="preserve"><value>积雪</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>通用</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>流动渐变</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>封面滤镜</value></data>

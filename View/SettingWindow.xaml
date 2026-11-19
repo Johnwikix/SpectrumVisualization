@@ -620,13 +620,70 @@
                                 <ComboBoxItem x:Uid="FoliaOption_hanabi" Tag="hanabi" />
                                 <ComboBoxItem x:Uid="FoliaOption_metaphor" Tag="metaphor" />
                                 <ComboBoxItem x:Uid="FoliaOption_nebbia" Tag="nebbia" />
-                                <ComboBoxItem x:Uid="FoliaOption_machi" Tag="machi" />
+                                <ComboBoxItem x:Uid="FoliaOption_machi" Tag="machi" IsEnabled="{x:Bind ViewModel.MachiAvailable, Mode=OneWay}" />
                             </ComboBox>
                         </controls:SettingsCard>
+                        <controls:SettingsExpander x:Uid="FoliaMachiSettings" Margin="10,0,10,0" IsExpanded="False"
+                            Description="{x:Bind ViewModel.MachiRendererStatus, Mode=OneWay}">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaMachiScene">
+                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiScene, Mode=TwoWay}" SelectedValuePath="Tag">
+                                        <ComboBoxItem x:Uid="MachiSceneAuto" Tag="auto" />
+                                        <ComboBoxItem x:Uid="MachiSceneKonbini" Tag="konbini" />
+                                        <ComboBoxItem x:Uid="MachiSceneStation" Tag="station" />
+                                        <ComboBoxItem x:Uid="MachiSceneKowloon" Tag="kowloon" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaMachiTimeOfDay">
+                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiTimeOfDay, Mode=TwoWay}" SelectedValuePath="Tag">
+                                        <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_auto" Tag="auto" />
+                                        <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_day" Tag="day" />
+                                        <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_dusk" Tag="dusk" />
+                                        <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_night" Tag="night" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaMachiWeather">
+                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiWeather, Mode=TwoWay}" SelectedValuePath="Tag">
+                                        <ComboBoxItem x:Uid="FoliaMachiWeather_auto" Tag="auto" />
+                                        <ComboBoxItem x:Uid="FoliaMachiWeather_clear" Tag="clear" />
+                                        <ComboBoxItem x:Uid="FoliaMachiWeather_rain" Tag="rain" />
+                                        <ComboBoxItem x:Uid="FoliaMachiWeather_snow" Tag="snow" />
+                                        <ComboBoxItem x:Uid="FoliaMachiWeather_fog" Tag="fog" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaMachiMotion">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMachiMotion, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaMachiDenoiser">
+                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiDenoiser, Mode=TwoWay}" SelectedValuePath="Tag">
+                                        <ComboBoxItem Content="NRD" Tag="nrd" />
+                                        <ComboBoxItem Content="DLSS Ray Reconstruction" Tag="dlss-rr" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
                         <controls:SettingsExpander x:Uid="FoliaMetaphorSettings" Margin="10,0,10,0" IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaMetaphorNegative">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMetaphorNegative, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsExpander x:Uid="FoliaNebbiaSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaNebbiaBehind">
+                                    <ComboBox SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaBehind, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_night" Tag="night" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_aquarium" Tag="aquarium" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_backdrop" Tag="backdrop" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNebbiaGlass">
+                                    <ComboBox SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaGlass, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_rain" Tag="rain" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_dew" Tag="dew" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_snow" Tag="snow" />
+                                    </ComboBox>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>

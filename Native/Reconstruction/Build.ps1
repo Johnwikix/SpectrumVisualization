@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 & (Join-Path $PSScriptRoot '../../External/Upscalers/Restore.ps1') -VerifyOnly
+& (Join-Path $PSScriptRoot '../../External/NRD/Verify.ps1')
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $msbuild = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'MSBuild/**/Bin/MSBuild.exe' | Select-Object -First 1
 if (-not $msbuild) { throw 'Install Visual Studio C++ x64 build tools before building reconstruction.' }
