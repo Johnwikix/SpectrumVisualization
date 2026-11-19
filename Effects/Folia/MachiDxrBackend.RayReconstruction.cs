@@ -42,7 +42,8 @@ internal sealed unsafe partial class MachiDxrBackend
     }
 
     private static bool IsRayReconstructionGuide(int index) => (MachiDxrSignal)index is MachiDxrSignal.Albedo or MachiDxrSignal.SpecularAlbedo
-        or MachiDxrSignal.LinearNormal or MachiDxrSignal.SpecularDistance;
+        or MachiDxrSignal.LinearNormal or MachiDxrSignal.SpecularDistance or MachiDxrSignal.ReconstructionDepth
+        or MachiDxrSignal.ReconstructionMotion;
 
     private bool PrepareRayReconstruction(int frameSlot, bool requested)
     {
@@ -99,9 +100,11 @@ internal sealed unsafe partial class MachiDxrBackend
         }
         RayReconstructionFrame frame = new()
         {
-            Color = Signal(MachiDxrSignal.Noisy).NativePointer, Depth = Signal(MachiDxrSignal.Depth).NativePointer, Motion = Signal(MachiDxrSignal.Motion).NativePointer,
+            Color = Signal(MachiDxrSignal.Noisy).NativePointer,
+            Depth = Signal(MachiDxrSignal.ReconstructionDepth).NativePointer,
+            Motion = Signal(MachiDxrSignal.ReconstructionMotion).NativePointer,
             Output = _rrOutput.NativePointer, Width = (uint)_width, Height = (uint)_height,
-            JitterX = camera.Jitter.X, JitterY = camera.Jitter.Y, Milliseconds = Math.Clamp(seconds * 1000, .01f, 200),
+            Milliseconds = Math.Clamp(seconds * 1000, .01f, 200),
             Reset = reset ? 1u : 0, NearPlane = .1f, FarPlane = 200,
             DiffuseAlbedo = Signal(MachiDxrSignal.Albedo).NativePointer, SpecularAlbedo = Signal(MachiDxrSignal.SpecularAlbedo).NativePointer,
             NormalRoughness = Signal(MachiDxrSignal.LinearNormal).NativePointer, SpecularHitDistance = Signal(MachiDxrSignal.SpecularDistance).NativePointer, ReflectionMotion = Signal(MachiDxrSignal.ReflectionMotion).NativePointer,

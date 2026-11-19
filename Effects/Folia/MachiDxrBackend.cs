@@ -45,7 +45,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     };
 
     private readonly record struct Camera(Matrix4x4 ViewProjection, Matrix4x4 View, Matrix4x4 Projection,
-        Matrix4x4 Inverse, Vector2 Jitter);
+        Matrix4x4 Inverse);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constants
@@ -296,7 +296,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             }, Cpu(slot, index));
     }
 
-    private static Camera GetCamera(Matrix4x4 viewProjection, uint frameIndex)
+    private static Camera GetCamera(Matrix4x4 viewProjection)
     {
         if (!Matrix4x4.Invert(viewProjection, out var inverse))
             throw new ArgumentException("Machi camera projection is singular.", nameof(viewProjection));
@@ -308,21 +308,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         var eye = near - forward * .1f;
         var view = Matrix4x4.CreateLookAt(eye, eye + forward, up);
         Matrix4x4.Invert(view, out var inverseView);
-        Vector2 jitter = new(Halton((frameIndex & 15) + 1, 2) - .5f, Halton((frameIndex & 15) + 1, 3) - .5f);
-        return new(viewProjection, view, inverseView * viewProjection, inverse, jitter);
-    }
-
-    private static float Halton(uint index, uint radix)
-    {
-        float sample = 0;
-        float place = 1f / radix;
-        while (index != 0)
-        {
-            sample += index % radix * place;
-            index /= radix;
-            place /= radix;
-        }
-        return sample;
+        return new(viewProjection, view, inverseView * viewProjection, inverse);
     }
 
     internal void Record(ID3D12GraphicsCommandList commands, ID3D12Resource output, ID3D12Resource lyrics,
@@ -341,7 +327,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         bool requestRayReconstruction = PrepareRayReconstruction(frameSlot, frame.RequestRayReconstruction);
 
         bool reset = frame.ResetHistory || !_historyValid;
-        Camera camera = GetCamera(frame.ViewProjection, _frameIndex);
+        Camera camera = GetCamera(frame.ViewProjection);
         Camera previous = reset ? camera : _previous;
         Vector3 sun = frame.SunDirection.LengthSquared() > 1e-6f ? Vector3.Normalize(frame.SunDirection) : Vector3.UnitY;
         int offset = frameSlot * 2 * ConstantsStride;
@@ -349,7 +335,9 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         {
             Inverse = camera.Inverse, ViewProjection = camera.ViewProjection, PreviousViewProjection = previous.ViewProjection,
             View = camera.View, SkyWetness = new(frame.Sky, frame.Wetness), SunDirectionFrame = new(sun, _frameIndex & 0xffff),
-            SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, camera.Jitter.X, camera.Jitter.Y),
+            // Post optics consume this frame's primary depth and deterministic radiance
+            // directly. Both native-resolution denoisers must use that same pixel center.
+            SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, 0, 0),
             Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : 0),
             SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, frame.SceneHalf),
             AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0, 0),
@@ -427,7 +415,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         NativeNrd.Frame frame = new()
         {
             WorldToView = camera.View, WorldToViewPrevious = previous.View, ViewToClip = camera.Projection,
-            ViewToClipPrevious = previous.Projection, Jitter = camera.Jitter, PreviousJitter = previous.Jitter,
+            ViewToClipPrevious = previous.Projection,
             FrameIndex = _frameIndex, FrameSlot = (uint)slot, Reset = reset ? 1u : 0,
             Milliseconds = Math.Clamp(seconds * 1000, .01f, 200), DenoisingRange = 200,
             MaxAccumulatedFrames = camera.ViewProjection == previous.ViewProjection ? NativeNrd.DefaultMaxAccumulatedFrames
