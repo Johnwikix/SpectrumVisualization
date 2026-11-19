@@ -7,12 +7,13 @@ struct Hit { float t; uint primitive; float2 bary; uint instance; };
 struct Surface
 {
     float3 p, previousP, n, previousNormal, face, base, emission;
-    float roughness, metal, waterReflectance;
+    float roughness, metal, waterReflectance, wetCoverage;
     uint material, entering;
 };
 struct Plane
 {
     float3 position, previousPosition, normal, color, deterministic;
+    float3 albedo, specularAlbedo;
     float hitDistance, roughness;
 };
 
@@ -78,6 +79,8 @@ RWTexture2D<float4> SpecularAlbedo : register(u20);
 RWTexture2D<float4> LinearNormal : register(u21);
 RWTexture2D<float> Depth : register(u22);
 RWTexture2D<float> SpecularDistance : register(u23);
+RWTexture2D<float> ReconstructionDepth : register(u24);
+RWTexture2D<float2> ReconstructionMotion : register(u25);
 
 static const float Pi = 3.141592653589793;
 static const float Epsilon = .001;
@@ -211,6 +214,7 @@ void WetGround(inout Surface s)
     // water within the energy-conserving BSDF. Both layers reflect across the
     // whole road, with a broader lobe on the wet film.
     s.waterReflectance = lerp(.30 * wetness, .58, puddle);
+    s.wetCoverage = wetness;
     s.roughness = lerp(lerp(s.roughness, .27, wetness), .075, puddle);
     float2 wobble = float2(PuddleNoise(p * 2.7 + 3.1), PuddleNoise(p * 2.7 - 11.4)) - .5;
     float2 slope = wobble * lerp(.012, .005, puddle);
@@ -273,6 +277,7 @@ Surface Evaluate(Hit hit, float3 direction)
     s.base = saturate(color.rgb);
     s.emission = 0;
     s.waterReflectance = 0;
+    s.wetCoverage = 0;
     uint materialParameters = (uint)a.v.w;
     s.roughness = materialParameters == 0 ? .72 : max(.03, (materialParameters >> 4) / 15.0);
     s.metal = (materialParameters & 15) / 15.0;
@@ -582,7 +587,7 @@ bool Scatter(Surface s, float3 samples, inout float3 direction, inout float3 thr
 }
 
 Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
-    uint2 pixel, uint stream, bool optical)
+    uint2 pixel, uint stream, bool optical, float wetGroundReflection)
 {
     Plane result = (Plane)0;
     result.roughness = 1;
@@ -596,7 +601,12 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
         Hit hit = Trace(origin, direction, SunRadianceFar.w);
         if (hit.primitive == 0xffffffff)
         {
-            result.color += throughput * EnvironmentRadiance(direction);
+            float3 environment = EnvironmentRadiance(direction);
+            // The source's reflection target clears with a transparent background.
+            // Retain a little sky tint without applying the entire lighting dome.
+            if (segment == 0 && wetGroundReflection > 0)
+                environment = lerp(environment, .16 * BackgroundSky(direction), wetGroundReflection);
+            result.color += throughput * environment;
             break;
         }
         Surface s = Evaluate(hit, direction);
@@ -617,6 +627,11 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
             result.previousPosition = s.previousP;
             result.normal = s.n;
             result.roughness = s.roughness;
+            if (optical && Lighting.w > 0)
+            {
+                result.albedo = s.base * (1 - s.metal);
+                result.specularAlbedo = F0(s);
+            }
         }
         if (any(s.emission > 0))
         {
@@ -624,7 +639,9 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
             float emitterPdf = (1 - analyticChance) * EmitterPdf[TriangleOffset(hit) / 3]
                 * hit.t * hit.t / max(abs(dot(s.face, direction)), 1e-6);
             float weight = bsdfPdf > 0 ? PowerHeuristic(bsdfPdf, emitterPdf) : 1;
-            if (optical && (s.material == 2 || s.material == 6 || s.material == 7 || s.material == 8 || s.material == 10) && bsdfPdf == 0)
+            // Camera-visible emission through a smooth pane is resolved at
+            // the actual hit, including static neon and vending-machine strips.
+            if (firstSurface && optical)
                 result.deterministic += throughput * s.emission;
             else
                 result.color += throughput * s.emission * weight;
@@ -636,7 +653,7 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
             Direct(s, -direction, PathSample(pixel, vertex, 3), false, 0, allAnalytic, d, r);
             result.color += throughput * (d + r);
             if (allAnalytic)
-                result.color += throughput * TotalAnalyticLighting(s, -direction);
+                result.deterministic += throughput * TotalAnalyticLighting(s, -direction);
         }
         priorAnalytic = allAnalytic;
         if (++bounce == 3 || !Scatter(s, PathSample(pixel, vertex, 1), direction, throughput, bsdfPdf)) break;
@@ -662,6 +679,12 @@ void ReflectPlane(Surface s, inout Plane plane)
     plane.normal = reflect(plane.normal, s.n);
 }
 
+float DeviceDepth(float3 position)
+{
+    float4 clip = mul(float4(position, 1), ViewProjection);
+    return saturate(clip.z / clip.w);
+}
+
 [shader("raygeneration")]
 void RayGen()
 {
@@ -679,6 +702,7 @@ void RayGen()
     float roughness = 1, z = -1e6, depth = 1;
     float2 motion = 0;
     float3 rawAlbedo = 0, rawSpecular = 0;
+    float reflectionDominance = 0;
     Plane reflection = (Plane)0, transmission = (Plane)0;
     reflection.hitDistance = transmission.hitDistance = SunRadianceFar.w;
     reflection.normal = transmission.normal = -primary;
@@ -693,8 +717,7 @@ void RayGen()
         rawAlbedo = s.material == 1 ? 0 : s.base * (1 - s.metal);
         rawSpecular = F0(s);
         z = SignedViewZ(s.p);
-        float4 clip = mul(float4(s.p, 1), ViewProjection);
-        depth = saturate(clip.z / clip.w);
+        depth = DeviceDepth(s.p);
         motion = Reproject(s.p, s.previousP);
         if (s.material == 1)
         {
@@ -726,13 +749,15 @@ void RayGen()
                     }
                 }
             }
+            const float3 luma = float3(.2126, .7152, .0722);
+            reflectionDominance = dot(reflectionWeight - transmissionWeight, luma);
             [loop]
             for (uint optical = 0; optical < (fresnel < 1 ? 2 : 1); optical++)
             {
                 float3 direction = optical == 0 ? reflected : transmissionDirection;
                 float3 originOnPane = optical == 0 ? Offset(s, direction) : transmissionOrigin;
                 float3 throughput = optical == 0 ? reflectionWeight : transmissionWeight;
-                Plane branch = Follow(originOnPane, direction, throughput, 0, pixel, optical + 1, true);
+                Plane branch = Follow(originOnPane, direction, throughput, 0, pixel, optical + 1, true, 0);
                 if (optical == 0) reflection = branch;
                 else transmission = branch;
             }
@@ -743,7 +768,7 @@ void RayGen()
         else
         {
             float3 view = -primary;
-            bool wetRoad = s.waterReflectance > 0;
+            bool wetRoad = s.wetCoverage > .02;
             float specularRate = clamp(SpecularProbability(s, view), .25, .75);
             Direct(s, view, PathSample(pixel, 0, 3), true, wetRoad ? -1 : specularRate, true, d, r);
             deterministic += TotalAnalyticLighting(s, view);
@@ -765,7 +790,8 @@ void RayGen()
                 if (pdf <= 0) continue;
                 float3 value = specular ? sampledSpecular : sampledDiffuse;
                 float3 weight = value * saturate(dot(s.n, direction)) / pdf;
-                Plane sample = Follow(Offset(s, direction), direction, weight, pdf, pixel, specular ? 4 : 3, false);
+                Plane sample = Follow(Offset(s, direction), direction, weight, pdf, pixel, specular ? 4 : 3,
+                    false, specular ? s.wetCoverage : 0);
                 if (!specular)
                 {
                     d += sample.color;
@@ -799,17 +825,36 @@ void RayGen()
     Reflection[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validR ? reflection.color : 0, reflection.hitDistance, true);
     ReflectionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(reflection.normal, reflection.roughness, 0);
     ReflectionZ[pixel] = validR ? reflectedZ : -1e6;
-    ReflectionMotion[pixel] = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
+    float2 reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
+    ReflectionMotion[pixel] = reflectionMotion;
     Transmission[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validT ? transmission.color : 0, transmission.hitDistance, true);
     TransmissionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(transmission.normal, transmission.roughness, 0);
     TransmissionZ[pixel] = validT ? transmittedZ : -1e6;
-    TransmissionMotion[pixel] = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
+    float2 transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
+    TransmissionMotion[pixel] = transmissionMotion;
     Deterministic[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
         + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color), 1);
     Noisy[pixel] = float4(d + r + (validR ? reflection.color : 0) + (validT ? transmission.color : 0), 1);
     Depth[pixel] = depth;
     if (Lighting.w > 0)
     {
+        // RR has one G-buffer. Choose its optical lobe from the Fresnel
+        // weights, independently of the stochastic sample's brightness.
+        // The primary device depth above still supplies weather and DOF.
+        bool useReflection = validR && (!validT || reflectionDominance > 0);
+        if (useReflection || validT)
+        {
+            Plane guide = transmission;
+            if (useReflection) guide = reflection;
+            depth = DeviceDepth(guide.position);
+            motion = useReflection ? reflectionMotion : transmissionMotion;
+            worldNormal = guide.normal;
+            roughness = guide.roughness;
+            rawAlbedo = guide.albedo;
+            rawSpecular = guide.specularAlbedo;
+        }
+        ReconstructionDepth[pixel] = depth;
+        ReconstructionMotion[pixel] = motion;
         Albedo[pixel] = float4(rawAlbedo, 1);
         SpecularAlbedo[pixel] = float4(rawSpecular, 1);
         LinearNormal[pixel] = float4(worldNormal, roughness);

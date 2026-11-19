@@ -9,7 +9,8 @@ internal enum MachiDxrSignal
 {
     Diffuse, DiffuseSh, Specular, SpecularSh, Normal, ViewZ, Motion, DiffuseFactor, SpecularFactor, Deterministic,
     Reflection, ReflectionNormal, ReflectionZ, ReflectionMotion, Transmission, TransmissionNormal, TransmissionZ,
-    TransmissionMotion, Noisy, Albedo, SpecularAlbedo, LinearNormal, Depth, SpecularDistance, Count
+    TransmissionMotion, Noisy, Albedo, SpecularAlbedo, LinearNormal, Depth, SpecularDistance,
+    ReconstructionDepth, ReconstructionMotion, Count
 }
 
 internal static class MachiDxrShaders
@@ -22,8 +23,9 @@ internal static class MachiDxrShaders
     internal static int SignalComponents(MachiDxrSignal signal) => signal switch
     {
         MachiDxrSignal.ViewZ or MachiDxrSignal.ReflectionZ or MachiDxrSignal.TransmissionZ or
-        MachiDxrSignal.Depth or MachiDxrSignal.SpecularDistance => 1,
-        MachiDxrSignal.Motion or MachiDxrSignal.ReflectionMotion or MachiDxrSignal.TransmissionMotion => 2,
+        MachiDxrSignal.Depth or MachiDxrSignal.SpecularDistance or MachiDxrSignal.ReconstructionDepth => 1,
+        MachiDxrSignal.Motion or MachiDxrSignal.ReflectionMotion or MachiDxrSignal.TransmissionMotion or
+        MachiDxrSignal.ReconstructionMotion => 2,
         _ => 4
     };
 
