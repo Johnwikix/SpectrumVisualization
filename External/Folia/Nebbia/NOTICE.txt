@@ -1,0 +1,11 @@
+Nebbia stroke medians, distributed under the Arphic Public License.
+
+Derived from AnimCJK (copyright 2016-2026 FM&SH)
+https://github.com/parsimonhi/animCJK/tree/99dba566b92daf45ae20d05e6c91d3f68d8619f2
+
+Modified by the Spectrum project on 2026-11-19. Only the stroke medians are
+retained from graphicsJaKana.txt, graphicsZhHans.txt and graphicsJa.txt.
+The vertical coordinate is flipped (y = 900 - y), out-of-grid helper strokes are
+removed, duplicate glyphs use the first matching input, and coordinates are
+stored as gzip-compressed little-endian integers. To regenerate the data, run
+Build/FoliaNebbia/strokes.py. See ARPHICPL.TXT and COPYING.txt for the original notices.

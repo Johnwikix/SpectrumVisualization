@@ -36,9 +36,19 @@ internal sealed class FoliaModePlan
     internal FoliaPendolo Pendolo { get; } = new();
     internal FoliaTempera Tempera { get; } = new();
     internal FoliaMonet Monet { get; } = new();
+    internal FoliaHanabi? Hanabi { get; }
+    internal FoliaMetaphor? Metaphor { get; }
+    internal FoliaNebbia? Nebbia { get; }
 
     internal FoliaModePlan(FoliaTextAtlas atlas, in FoliaSceneRequest request, CancellationToken token)
     {
+        switch (request.Mode)
+        {
+            case "hanabi": Hanabi = new(atlas, request, token); break;
+            case "metaphor": Metaphor = new(atlas, request, token); break;
+            case "nebbia": Nebbia = new(atlas, request, token); break;
+            case "machi": _ = FoliaMachi.ConvenienceStore; break;
+        }
         if (atlas.Lines.Length != 0)
             switch (request.Mode)
             {
@@ -181,6 +191,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
                     || _planRequest.Height != request.Height || _planRequest.Scale != request.Scale
+                    || (request.Mode is "hanabi" or "metaphor") && _planRequest.Song.Duration != request.Song.Duration
                     || (request.Mode is "tempera" or "pendolo" || request.Mode == "diorama" && request.Song.KeywordRanges.Length > 0)
                         && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor

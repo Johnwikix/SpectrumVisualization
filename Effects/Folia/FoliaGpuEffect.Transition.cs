@@ -20,6 +20,11 @@ internal sealed unsafe partial class FoliaGpuEffect
         _transitionPending = false;
         _captureBackground = false;
         if (_holdBackground) CommitBackgroundTransition();
+        if (NativeStage(request.Mode) != FoliaNativeStage.None || NativeStage(_activeRequest.Mode) != FoliaNativeStage.None)
+        {
+            _backgroundAlpha = 0;
+            return;
+        }
         if (!_hasScene || request.Song.Title.Length == 0) return;
         if (_activeRequest.Song.Title == request.Song.Title && _activeRequest.Song.Artist == request.Song.Artist
             && ReferenceEquals(_activeRequest.Song.CoverRgba, request.Song.CoverRgba)

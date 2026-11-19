@@ -117,6 +117,9 @@ internal sealed class FoliaPlaybackService
         {
             if (!_active || _stopped) return;
             State.SetClock(position.TotalSeconds, duration.TotalSeconds, _media.IsPlaying);
+            var song = State.Song;
+            if (song.Title.Length != 0 && song.Duration <= 0 && duration > TimeSpan.Zero)
+                State.Publish(song with { Duration = duration.TotalSeconds });
         }
     }
 
@@ -142,7 +145,10 @@ internal sealed class FoliaPlaybackService
             _request = cancellation;
             long version = ++_version;
             // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
-            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with { Title = title, Artist = artist, LyricsPending = title.Length != 0 });
+            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with
+            {
+                Title = title, Artist = artist, LyricsPending = title.Length != 0, Duration = track.Duration
+            });
             _songKey = key;
             _thumbnail = null;
             _coverRequest?.Cancel();
@@ -272,7 +278,8 @@ internal sealed class FoliaPlaybackService
             lock (_gate)
             {
                 if (!_active || _stopped || version != _version) return;
-                State.Publish(State.Song with { Lines = lines, LyricsPending = false });
+                var song = State.Song;
+                State.Publish(song with { Lines = lines, LyricsPending = false, Duration = song.Duration > 0 ? song.Duration : track.Duration });
                 _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
                 published = true;
             }

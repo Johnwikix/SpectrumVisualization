@@ -96,12 +96,20 @@ float4 BackgroundBlendPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 struct TemporalOutput { float4 color:SV_Target0;float2 motion:SV_Target1;float reactive:SV_Target2;float depth:SV_Depth; };
 TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
     TemporalOutput o; o.color=CopyPS(p,uv);o.motion=0;
-    // The stage is a planar emissive surface. Reject changing pixels, while static text retains temporal history.
+    o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5;
+    float materialReactive=0;
+    if (NativeLyric.x == 4) {
+        float4 geometry=BackgroundHistoryTexture.Load(int3(int2(p.xy),0));
+        o.motion=Jitter.z>.5 ? 0 : geometry.xy;
+        o.depth=1-geometry.z;
+        materialReactive=geometry.w;
+    }
+    // Reject changing pixels while static text or reprojectable geometry retains history.
     float2 sampleUV=uv;
     float3 current=BackdropTexture.SampleLevel(LinearClamp,sampleUV,0).rgb;
     if(Jitter.z>.5) o.reactive=1;
     else {
-        float2 previousUV=sampleUV+(PreviousJitter.xy-Jitter.xy)/Screen.xy;
+        float2 previousUV=sampleUV+(o.motion+PreviousJitter.xy-Jitter.xy)/Screen.xy;
         float3 previous=PreviousStageTexture.SampleLevel(LinearClamp,previousUV,0).rgb;
         float3 low=previous,high=previous;
         // A subpixel raster sample can change edge coverage on a static glyph. Compare
@@ -114,9 +122,9 @@ TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
         float3 delta=abs(current-clamp(current,low,high));
         float difference=max(delta.r,max(delta.g,delta.b));
         float signal=max(max(current.r,max(current.g,current.b)),max(previous.r,max(previous.g,previous.b)));
-        o.reactive=saturate(difference/max(signal,.1)*2);
+        o.reactive=max(materialReactive,saturate(difference/max(signal,.1)*2));
     }
-     o.depth=(100.0/(100-.1))-(100*.1/(100-.1))/5; return o;
+    return o;
 }
 
 struct Instance { float4 rect,uv,color,transform,shape,effect,glyphData; };
@@ -262,6 +270,38 @@ float4 SpritePS(SpriteOutput input):SV_Target {
         alpha*=step(0,Cross2(b-a,uv-a)*direction)*step(0,Cross2(c-b,uv-b)*direction)*step(0,Cross2(a-c,uv-c)*direction);
     }
     return float4(color*alpha,alpha);
+}
+
+float4 InkFieldPS(SpriteOutput input):SV_Target {
+    Instance v=ReadInstance(input.instance);
+    if ((int)v.shape.x!=0) {
+        float coverage=SpritePS(input).a;
+        return float4(v.color.rgb*coverage, coverage);
+    }
+    float2 sampleUv=v.uv.xy+input.uv*v.uv.zw;
+    float2 inset=.5/TextureSize.xy;
+    float2 at=clamp(sampleUv,v.uv.xy+inset,v.uv.xy+v.uv.zw-inset);
+    float4 distances=AtlasTexture.SampleLevel(LinearClamp,float3(at,v.glyphData.x),0);
+    float range=GlyphPixelRange(sampleUv);
+    float tight=saturate(.5+(Median3(distances.rgb)-.5)*range);
+    float soft=smoothstep(-.39,.35,distances.a-.5);
+    float3 ink=float3(tight*.87+soft*.19,soft*.54,v.color.b*(tight*.85+soft*.18));
+    return float4(ink*v.color.a,tight*v.color.a);
+}
+
+float WindowMaskPS(SpriteOutput input):SV_Target {
+    return SpritePS(input).a;
+}
+
+SpriteOutput MachiPanelVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
+    id+=InstanceOffset;
+    Instance glyph=Instances[id];
+    float2 quad=float2((vertex==1||vertex==2||vertex==4)?1:0,(vertex>=2&&vertex<=4)?1:0);
+    float2 uv=(glyph.rect.xy+quad*glyph.rect.zw)/float2(1024,320);
+    SpriteOutput o;
+    o.position=float4(uv*float2(2,-2)+float2(-1,1),0,1);
+    o.uv=quad;o.instance=id;o.pixel=uv;
+    return o;
 }
 
 // Pendolo keeps the original static triangle mesh on the GPU. Only 32 part transforms change each frame.

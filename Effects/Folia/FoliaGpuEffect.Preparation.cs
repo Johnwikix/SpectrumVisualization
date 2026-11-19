@@ -99,6 +99,9 @@ internal sealed unsafe partial class FoliaGpuEffect
             _pendolo = plan.Pendolo;
             _tempera = plan.Tempera;
             _monet = plan.Monet;
+            _hanabi = plan.Hanabi;
+            _metaphor = plan.Metaphor;
+            _nebbia = plan.Nebbia;
             _latent.SetPalette(request.Song, scene.Colors);
             _activeRequest = request;
             CommitBackgroundTransition();

@@ -64,10 +64,23 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private bool _lastCoverBackground;
     private double _lastPosition;
     private FoliaClock _displayClock;
-    public bool ResetHistoryRequested => _upload is { Complete: true }
-        || _lyricsVisible != (_hasScene && playback.Song.Title.Length != 0)
-        || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
-        || _hasScene && Math.Abs((FollowsPlaybackClock(playback.Song) ? playback.Clock : _displayClock).Now - _lastPosition) > .5;
+    private FoliaClock? _sampledClock;
+    private double _sampledPosition;
+    public bool ResetHistoryRequested
+    {
+        get
+        {
+            var song = playback.Song;
+            _sampledClock = FollowsPlaybackClock(song) ? playback.Clock : _displayClock;
+            _sampledPosition = _sampledClock.Now;
+            return _upload is { Complete: true }
+                || _lyricsVisible != (_hasScene && song.Title.Length != 0)
+                || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
+                || _hasScene && Math.Abs(_sampledPosition - _lastPosition) > .5
+                || _nativeStage == FoliaNativeStage.Metaphor
+                    && (_metaphor!.ShotAt(_sampledPosition) != _metaphorShot || _negativeInk != AppSettings.FoliaMetaphorNegative);
+        }
+    }
 
     private bool FollowsPlaybackClock(FoliaSong song) => _hasScene && FoliaSceneRequest.SameText(_song!, song);
     private Vector4* _data;
@@ -95,7 +108,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private FoliaSong? _song;
     private object? _modeAtlasSource;
     private double _animation;
-    public TemporalCamera Camera => new(.1f, 100, MathF.PI / 3);
+    public TemporalCamera Camera => _nativeStage == FoliaNativeStage.Machi
+        ? new(FoliaMachi.Near, FoliaMachi.Far, FoliaMachi.FieldOfView) : new(.1f, 100, MathF.PI / 3);
     public ID3D12Resource Depth => _depth!;
     public ID3D12Resource Motion => _motion!;
     public ID3D12Resource Reactive => _reactive!;
@@ -172,7 +186,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             BlendState = screen ? new BlendDescription(Blend.One, Blend.InverseSourceColor, Blend.One, Blend.InverseSourceAlpha) : sprites ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = temporal, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Always, StencilEnable = false }
-    }, $"Folia/root-v8-theme-crossfade-keyword-glow/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
+    }, $"Folia/root-v9-native-stages/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
     }
 
     public void ConfigureTemporal(bool enabled)
@@ -186,6 +200,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     public void Resize(in GpuRenderSize size)
     {
         ResetBackgroundTransition();
+        ReleaseStageTargets();
         _size = size;
         for (int i = 3; i < 5; i++)
         {
@@ -231,20 +246,27 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             }
         bool songChanged = UpdatePreparedScene();
         var song = _song!;
-        string mode = _lyricsVisible && _atlas!.Lines.Length > 0 ? _activeRequest.Mode : "classic";
-        string backgroundMode = _hasScene ? _activeRequest.Background : "common";
+        _nativeStage = ActiveNativeStage();
+        bool native = _nativeStage != FoliaNativeStage.None;
+        PrepareStageTargets(_nativeStage);
+        string mode = native || _lyricsVisible && _atlas!.Lines.Length > 0 ? _activeRequest.Mode : "classic";
+        string backgroundMode = _hasScene && !native ? _activeRequest.Background : "common";
         float fontScale = _hasScene ? _activeRequest.Scale : 1;
         // The visible scene keeps its own immutable clock while the next track
         // prepares. Its Now still advances; commit switches scene and clock together.
         if (FollowsPlaybackClock(playback.Song) || !_lyricsVisible)
             _displayClock = playback.Clock;
         var clock = _displayClock;
-        double position = clock.Now;
+        // Select the same shot as the pre-PrepareFrame history check. If a new clock
+        // arrived in between, it is consumed on the next frame of this active stage.
+        double position = _sampledClock != null && (!songChanged && _nativeStage == FoliaNativeStage.Metaphor
+            || ReferenceEquals(clock, _sampledClock)) ? _sampledPosition : clock.Now;
+        _sampledClock = null;
         bool modeChanged = _lastMode != mode;
         bool backgroundChanged = _lastBackground != backgroundMode;
         bool motionReset = songChanged || modeChanged || Math.Abs(position - _lastPosition) > .5 || elapsedSeconds > .25;
         var motion = _realtimeMotion.Update(_analyzer.LatestFeatures, elapsedSeconds,
-            AppSettings.FoliaRealtimeMotion && mode is "sonnet" or "diorama" or "pendolo", clock.Playing, motionReset);
+            AppSettings.FoliaRealtimeMotion && (native || mode is "sonnet" or "diorama" or "pendolo"), clock.Playing, motionReset);
         _sonnet.Motion = mode == "sonnet" ? motion.Scale(AppSettings.FoliaSonnetMotionStrength) : default;
         _diorama.SetMotion(mode == "diorama" ? motion.Scale(AppSettings.FoliaDioramaMotionStrength) : default, position, motionReset);
         _pendolo.Motion = mode == "pendolo" ? motion.Scale(AppSettings.FoliaPendoloMotionStrength) : default;
@@ -272,10 +294,16 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _lineIndex = lineIndex;
         // PrepareFrame follows the preceding-frame fence. Exclusive mode resources can
         // be released here instead of retaining the largest visited mode until shutdown.
-        if (mode != "lumiere" && _bloom != null)
+        bool needsBloom = mode is "lumiere" or "hanabi";
+        if (!needsBloom && _bloom != null)
         {
             _bloom.Dispose();
             _bloom = null;
+        }
+        if (needsBloom && _bloom == null)
+        {
+            _bloom = new FoliaBloom(_device);
+            _bloom.Resize(_size.Width, _size.Height, _textures[4]!);
         }
         if (backgroundMode != "latent" && _latentTarget != null)
         {
@@ -317,14 +345,9 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         float dpi = _size.PixelsPerDip;
         float layoutWidth = _hasScene ? _activeRequest.Width : _size.OutputWidth / dpi;
         float layoutHeight = _hasScene ? _activeRequest.Height : _size.OutputHeight / dpi;
-        _backgroundCount = mode == "fume" && backgroundMode == "common" ? 0 : _geometry.Write(instances, song, (int)_data[2].X, (float)_animation, energy, layoutWidth, layoutHeight, !clock.Playing, _analyzer.LatestFeatures);
+        _backgroundCount = native || mode == "fume" && backgroundMode == "common" ? 0 : _geometry.Write(instances, song, (int)_data[2].X, (float)_animation, energy, layoutWidth, layoutHeight, !clock.Playing, _analyzer.LatestFeatures);
         if ((int)_data[2].Y == 12)
         {
-            if (_bloom == null)
-            {
-                _bloom = new FoliaBloom(_device);
-                _bloom.Resize(_size.Width, _size.Height, _textures[4]!);
-            }
             _lumiere.Update(new Span<Vector4>(_lightData, 52), song, position, _size.Width, _size.Height, _analyzer.LatestFeatures[FeatureIndex.Bass]);
         }
         if ((int)_data[2].Y == 1)
@@ -364,7 +387,9 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _glowWords.Energy = clock.Playing ? energy : 0;
         _monet.FrameDelta = (float)elapsedSeconds;
         _glowWords.Begin(lineIndex, (int)_data[2].Y, position);
-        _count = _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet) : 0;
+        _data[38] = _data[39] = default;
+        _count = native ? WriteNativeStage(instances, position, layoutWidth, layoutHeight, fontScale, lineIndex, motion, motionReset)
+            : _lyricsVisible ? FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, position, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet) : 0;
         if (mode == "sonnet")
         {
             var overlay = new FoliaPainter(instances[(_backgroundCount + _count)..], layoutWidth, layoutHeight);
@@ -387,13 +412,16 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _glyphAtlas.RecordGrowth(commands);
         _upload?.Record(commands);
         UploadImages(commands);
-        commands.SetDescriptorHeaps(_srv);
-        commands.SetGraphicsRootSignature(_root);
-        commands.SetGraphicsRootConstantBufferView(0, _constants.GPUVirtualAddress);
-        commands.SetGraphicsRootConstantBufferView(2, _lightConstants.GPUVirtualAddress);
-        commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        commands.RSSetViewport(0, 0, _size.Width, _size.Height, 0, 1);
-        commands.RSSetScissorRect(_size.Width, _size.Height);
+        SetFoliaState(commands);
+        if (_nativeStage == FoliaNativeStage.None)
+            RecordSharedStage(commands);
+        else
+            RecordNativeStage(commands);
+        RecordStageOutput(commands, target);
+    }
+
+    private void RecordSharedStage(ID3D12GraphicsCommandList commands)
+    {
         int background = (int)_data[2].X;
         if (background == 1)
             RenderLatent(commands);
@@ -471,6 +499,10 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
                 CopyScratch(commands, 4, 3, ResourceStates.PixelShaderResource);
             }
         }
+    }
+
+    private void RecordStageOutput(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target)
+    {
         Bind(commands, 2);
         if (_temporal)
         {
@@ -575,6 +607,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _pendolo = null!;
         _tempera = null!;
         _monet = null!;
+        DisposeNativeStages();
         _latent.SetPalette(FoliaSong.Empty, []);
         foreach (var p in _backgrounds)
             GpuGraphics.DisposeResource(p);

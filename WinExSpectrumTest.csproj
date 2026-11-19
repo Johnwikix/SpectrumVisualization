@@ -36,6 +36,9 @@
     <EmbeddedResource Include="Effects\Folia\Shaders\*.hlsl" LogicalName="Spectrum.Folia.%(Filename).hlsl" />
     <EmbeddedResource Include="External\Folia\Cappella\emo\*.png" LogicalName="Spectrum.Folia.Emoji.%(Filename)%(Extension)" />
     <EmbeddedResource Include="External\Folia\noise.png" LogicalName="Spectrum.Folia.noise.png" />
+    <EmbeddedResource Include="External\Folia\Nebbia\strokes.bin.gz" LogicalName="Spectrum.Folia.Nebbia.strokes.bin.gz" WithCulture="false" />
+    <Content Include="External\Folia\Nebbia\ARPHICPL.TXT;External\Folia\Nebbia\COPYING.txt;External\Folia\Nebbia\NOTICE.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Lyricify.Lyrics.Helper\LICENSE"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

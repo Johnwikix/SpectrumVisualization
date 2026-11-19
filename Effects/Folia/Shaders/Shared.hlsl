@@ -36,6 +36,8 @@ cbuffer Frame : register(b0) {
     float4 NomandDots;
     float4 NomandLens;
     float4 BackgroundTuning;
+    float4 NativeLyric; // native mode, onset, bass response, negative print
+    float4 NativeComposition;
 };
 void Fullscreen(uint id : SV_VertexID, out float4 p : SV_Position, out float2 uv : TEXCOORD0) {
     float2 xy = float2((id << 1) & 2, id & 2);

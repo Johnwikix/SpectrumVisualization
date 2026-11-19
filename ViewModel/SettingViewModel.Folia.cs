@@ -125,6 +125,12 @@ public partial class SettingViewModel
         set => AppSettings.FoliaSonnetPostProcess = value;
     }
     /// <summary>Gets or sets the corresponding native renderer switch.</summary>
+    public bool FoliaMetaphorNegative
+    {
+        get => AppSettings.FoliaMetaphorNegative;
+        set => AppSettings.FoliaMetaphorNegative = value;
+    }
+
     public bool FoliaRealtimeMotion
     {
         get => AppSettings.FoliaRealtimeMotion;
@@ -178,6 +184,7 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaSonnetFrame));
         OnPropertyChanged(nameof(FoliaSonnetTransitions));
         OnPropertyChanged(nameof(FoliaSonnetPostProcess));
+        OnPropertyChanged(nameof(FoliaMetaphorNegative));
         OnPropertyChanged(nameof(FoliaRealtimeMotion));
         OnPropertyChanged(nameof(FoliaSonnetMotionStrength));
         OnPropertyChanged(nameof(FoliaDioramaMotionStrength));

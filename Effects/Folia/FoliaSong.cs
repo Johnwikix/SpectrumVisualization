@@ -21,6 +21,7 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
 {
     // A metadata-only snapshot is provisional until lookup succeeds, finds nothing, or fails.
     internal bool LyricsPending { get; init; }
+    internal double Duration { get; init; }
     // null means an externally supplied snapshot still needs cold extraction; [] means no usable opaque pixels.
     internal Vector3[]? CoverColors { get; init; }
     // Native image shaders consume opaque RGB. Keep straight-alpha pixels for extraction,
@@ -170,6 +171,6 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
                 cover[p + 2] = (byte)(140 + (Math.Sin(x * .025 + y * .013) + 1) * 40);
                 cover[p + 3] = 255;
             }
-        return new("Folia · 辞曲新境", "Spectrum shader preview", lines, cover, width, height, Empty.Palette);
+        return new("Folia · 辞曲新境", "Spectrum shader preview", lines, cover, width, height, Empty.Palette) { Duration = 64 };
     }
 }

@@ -375,6 +375,16 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaModeName_sonnet" xml:space="preserve"><value>Sonnet</value></data>
   <data name="FoliaModeName_tempera" xml:space="preserve"><value>Tempera</value></data>
   <data name="FoliaModeName_lumiere" xml:space="preserve"><value>Lumiere</value></data>
+  <data name="FoliaModeName_hanabi" xml:space="preserve"><value>Hanabi</value></data>
+  <data name="FoliaModeName_metaphor" xml:space="preserve"><value>Metaphor</value></data>
+  <data name="FoliaModeName_nebbia" xml:space="preserve"><value>Nebbia</value></data>
+  <data name="FoliaModeName_machi" xml:space="preserve"><value>Machi</value></data>
+  <data name="FoliaOption_hanabi.Content" xml:space="preserve"><value>Hanabi</value></data>
+  <data name="FoliaOption_metaphor.Content" xml:space="preserve"><value>Metaphor</value></data>
+  <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>Nebbia</value></data>
+  <data name="FoliaOption_machi.Content" xml:space="preserve"><value>Machi</value></data>
+  <data name="FoliaMetaphorSettings.Header" xml:space="preserve"><value>Metaphor settings</value></data>
+  <data name="FoliaMetaphorNegative.Header" xml:space="preserve"><value>Light ink on dark paper</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>Common</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>Latent</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>Nomand</value></data>
@@ -420,7 +430,7 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>Ripple and word hop strength</value></data>
   <data name="FoliaPendoloSettings.Header" xml:space="preserve"><value>Pendolo settings</value></data>
   <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>Drumhead motion and light strength</value></data>
-  <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>Drives Sonnet, Diorama and Pendolo from live loopback spectrum transients, without whole-track analysis. Strength 0 disables an effect; 1 is normal.</value></data>
+  <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>Uses live loopback spectrum transients in Sonnet, Diorama, Pendolo, Hanabi, Metaphor, Nebbia and Machi. For modes with a strength control, 0 disables motion and 1 is the standard strength.</value></data>
   <data name="FoliaFumeSettings.Header" xml:space="preserve"><value>Fume settings</value></data>
   <data name="FoliaFumeGeometry.Header" xml:space="preserve"><value>Geometric background</value></data>
   <data name="FoliaFumeGeometryOpacity.Header" xml:space="preserve"><value>Geometry opacity</value></data>

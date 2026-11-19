@@ -19,8 +19,12 @@ internal static class ShaderCatalog
         Pair(SonicTerrainSource.Code, "TerrainVS", "TerrainPS", "TerrainTemporalPS");
         Pair(SonicTerrainSource.Code, "ParticleVS", "ParticlePS");
         Pair(FoliaShaderLibrary.Background("Stage"), "Fullscreen", "PS", "CopyPS", "TemporalPS", "VignettePS", "LatentCompositePS", "BackgroundSnapshotPS", "BackgroundBlendPS");
-        Pair(FoliaShaderLibrary.Background("Stage"), "SpriteVS", "SpritePS");
+        Pair(FoliaShaderLibrary.Background("Stage"), "SpriteVS", "SpritePS", "InkFieldPS", "WindowMaskPS");
+        compile(FoliaShaderLibrary.Background("Stage"), "MachiPanelVS", "vs_5_0");
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
+        Pair(FoliaShaderLibrary.Background("LyricMaterials"), "Fullscreen", "HanabiSkyPS", "InkDevelopPS", "NebbiaPS");
+        Pair(FoliaShaderLibrary.Background("Machi"), "Fullscreen", "MachiSkyPS");
+        Pair(FoliaShaderLibrary.Background("Machi"), "MachiVS", "MachiPS");
         foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print", "Sonnet" })
             Pair(FoliaShaderLibrary.Background(name), "Fullscreen", "PS");
         Pair(FoliaShaderLibrary.Background("Sora"), "VS", "PS");
