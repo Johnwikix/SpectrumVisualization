@@ -50,6 +50,9 @@ namespace WinExSpectrumTest.Model
         private static bool _FoliaSonnetPostProcess = false;
         /// <summary>Gets or sets whether sonnet: film and lens post processing is enabled.</summary>
         public static bool FoliaSonnetPostProcess { get => _FoliaSonnetPostProcess; set => Set(ref _FoliaSonnetPostProcess, value); }
+        private static bool _foliaMetaphorNegative = false;
+        /// <summary>Controls the paper and ink polarity of the Metaphor stage.</summary>
+        public static bool FoliaMetaphorNegative { get => _foliaMetaphorNegative; set => Set(ref _foliaMetaphorNegative, value); }
         private static bool _FoliaRealtimeMotion = false;
         /// <summary>Gets or sets whether realtime motion is enabled.</summary>
         public static bool FoliaRealtimeMotion { get => _FoliaRealtimeMotion; set => Set(ref _FoliaRealtimeMotion, value); }

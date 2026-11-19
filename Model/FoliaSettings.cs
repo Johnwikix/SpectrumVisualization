@@ -5,7 +5,7 @@ namespace WinExSpectrumTest.Model;
 /// <summary>Persistent identifiers follow Folia's mode registry, independent of display names.</summary>
 public static class FoliaSettings
 {
-    private static readonly string[] Modes = ["classic", "cadenza", "partita", "fume", "cappella", "tilt", "claddagh", "monet", "diorama", "pendolo", "sonnet", "tempera", "lumiere"];
+    private static readonly string[] Modes = ["classic", "cadenza", "partita", "fume", "cappella", "tilt", "claddagh", "monet", "diorama", "pendolo", "sonnet", "tempera", "lumiere", "hanabi", "metaphor", "nebbia", "machi"];
     private static readonly string[] Backgrounds = ["common", "latent", "monet", "nomand", "sora"];
     private static readonly string[] ImageModes = ["dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion"];
     public static ReadOnlySpan<string> LyricModes => Modes;

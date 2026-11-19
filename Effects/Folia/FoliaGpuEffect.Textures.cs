@@ -67,7 +67,14 @@ internal sealed unsafe partial class FoliaGpuEffect
             _device.CreateShaderResourceView(shadow, FoliaGpuGlyphAtlas.Srv(shadow), _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 5) * _srvStride);
             _device.CreateShaderResourceView(_textures[5] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 6) * _srvStride);
             _device.CreateShaderResourceView(_textures[6] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 7) * _srvStride);
-            _device.CreateShaderResourceView(table == 0 ? _backgroundHistory ?? _textures[1]! : _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 8) * _srvStride);
+            var extra = table switch
+            {
+                0 => _backgroundHistory,
+                1 => _windowTexture ?? _panelTexture,
+                2 => _machiGeometry,
+                _ => null
+            };
+            _device.CreateShaderResourceView(extra ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 8) * _srvStride);
         }
     }
 }

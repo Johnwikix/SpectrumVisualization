@@ -375,6 +375,16 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaModeName_sonnet" xml:space="preserve"><value>商籁</value></data>
   <data name="FoliaModeName_tempera" xml:space="preserve"><value>凝彩</value></data>
   <data name="FoliaModeName_lumiere" xml:space="preserve"><value>绘光</value></data>
+  <data name="FoliaModeName_hanabi" xml:space="preserve"><value>花火</value></data>
+  <data name="FoliaModeName_metaphor" xml:space="preserve"><value>隐喻</value></data>
+  <data name="FoliaModeName_nebbia" xml:space="preserve"><value>雾笺</value></data>
+  <data name="FoliaModeName_machi" xml:space="preserve"><value>町景</value></data>
+  <data name="FoliaOption_hanabi.Content" xml:space="preserve"><value>花火</value></data>
+  <data name="FoliaOption_metaphor.Content" xml:space="preserve"><value>隐喻</value></data>
+  <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>雾笺</value></data>
+  <data name="FoliaOption_machi.Content" xml:space="preserve"><value>町景</value></data>
+  <data name="FoliaMetaphorSettings.Header" xml:space="preserve"><value>隐喻设置</value></data>
+  <data name="FoliaMetaphorNegative.Header" xml:space="preserve"><value>深纸浅墨</value></data>
   <data name="FoliaOption_common.Content" xml:space="preserve"><value>通用</value></data>
   <data name="FoliaOption_latent.Content" xml:space="preserve"><value>流动渐变</value></data>
   <data name="FoliaOption_nomand.Content" xml:space="preserve"><value>封面滤镜</value></data>
@@ -420,7 +430,7 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaDioramaMotionStrength.Header" xml:space="preserve"><value>涟漪与词语跳动强度</value></data>
   <data name="FoliaPendoloSettings.Header" xml:space="preserve"><value>时计设置</value></data>
   <data name="FoliaPendoloMotionStrength.Header" xml:space="preserve"><value>鼓面震动与亮起强度</value></data>
-  <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>使用环回频谱的瞬态响应驱动商籁、镜台和时计；不进行整曲分析。各效果强度 0 为关闭，1 为标准强度。</value></data>
+  <data name="FoliaRealtimeMotion.Description" xml:space="preserve"><value>商籁、镜台、钟摆、花火、隐喻、雾笺和町景可随环回频谱的瞬态变化。有强度设置的模式，0 表示关闭，1 表示标准强度。</value></data>
   <data name="FoliaFumeSettings.Header" xml:space="preserve"><value>烟岚设置</value></data>
   <data name="FoliaFumeGeometry.Header" xml:space="preserve"><value>几何背景</value></data>
   <data name="FoliaFumeGeometryOpacity.Header" xml:space="preserve"><value>背景几何不透明度</value></data>

@@ -103,6 +103,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.FoliaSonnetFrame = settings.FoliaSonnetFrame;
             AppSettings.FoliaSonnetTransitions = settings.FoliaSonnetTransitions;
             AppSettings.FoliaSonnetPostProcess = settings.FoliaSonnetPostProcess;
+            AppSettings.FoliaMetaphorNegative = settings.FoliaMetaphorNegative;
             AppSettings.FoliaRealtimeMotion = settings.FoliaRealtimeMotion;
             AppSettings.FoliaSonnetMotionStrength = settings.FoliaSonnetMotionStrength;
             AppSettings.FoliaDioramaMotionStrength = settings.FoliaDioramaMotionStrength;
@@ -242,6 +243,7 @@ namespace WinExSpectrumTest.Service
                 FoliaSonnetFrame = AppSettings.FoliaSonnetFrame,
                 FoliaSonnetTransitions = AppSettings.FoliaSonnetTransitions,
                 FoliaSonnetPostProcess = AppSettings.FoliaSonnetPostProcess,
+                FoliaMetaphorNegative = AppSettings.FoliaMetaphorNegative,
                 FoliaRealtimeMotion = AppSettings.FoliaRealtimeMotion,
                 FoliaSonnetMotionStrength = AppSettings.FoliaSonnetMotionStrength,
                 FoliaDioramaMotionStrength = AppSettings.FoliaDioramaMotionStrength,

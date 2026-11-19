@@ -20,6 +20,8 @@ namespace WinExSpectrumTest.Model
         public bool FoliaSonnetTransitions { get; set; } = true;
         /// <summary>Gets or sets whether sonnet: film and lens post processing is enabled.</summary>
         public bool FoliaSonnetPostProcess { get; set; } = false;
+        /// <summary>Whether Metaphor uses light ink on dark paper.</summary>
+        public bool FoliaMetaphorNegative { get; set; } = false;
         /// <summary>Gets or sets whether realtime motion is enabled.</summary>
         public bool FoliaRealtimeMotion { get; set; } = false;
         /// <summary>Gets or sets the live response strength, from zero to two.</summary>

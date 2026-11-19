@@ -109,14 +109,14 @@ internal sealed unsafe class FoliaBloom : IDisposable
         commands.DrawInstanced(3, 1, 0, 0);
         commands.ResourceBarrierTransition(_textures[target]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
     }
-    internal void Apply(ID3D12GraphicsCommandList commands, ID3D12Resource output, CpuDescriptorHandle target, bool text)
+    internal void Apply(ID3D12GraphicsCommandList commands, ID3D12Resource output, CpuDescriptorHandle target, bool text, float? strength = null)
     {
         commands.ResourceBarrierTransition(_textures[0]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         commands.SetDescriptorHeaps(_srv);
         commands.SetGraphicsRootSignature(_root);
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         float threshold = text ? .12f : .42f, knee = text ? .2f : .3f, spread = text ? .95f : .9f;
-        float multiplier = text ? AppSettings.FoliaLumiereTextBloom : AppSettings.FoliaLumiereBloom;
+        float multiplier = strength ?? (text ? AppSettings.FoliaLumiereTextBloom : AppSettings.FoliaLumiereBloom);
         int count = multiplier <= 0 ? 0 : text ? 5 : 6;
         while (count > 1 && Math.Min(_width >> count, _height >> count) < 2)
             count--;

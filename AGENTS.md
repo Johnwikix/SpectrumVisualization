@@ -12,6 +12,10 @@ SpectrumVisualization（WinExSpectrumTest）：WinUI 3 音频频谱可视化应�
 - 时域重建通过 `ITemporalGpuEffect` + `TemporalReconstruction` 接入；运动矢量为不含 jitter 的当前帧到上一帧输入像素偏移，深度为常规 0..1，近远面与垂直 FOV 由效果的 `TemporalCamera` 提供。相机、投影或效果改动必须同步这个契约。SDK 上下文与资源只由渲染线程使用，并在队列完成后释放；粒子在重建后按输出分辨率叠加。厂商 SDK 恢复脚本及 SHA-256 固定位于 `External/Upscalers`，不得将插帧混入此链路。
 - HLSL 统一经 `ShaderCompiler`，新增入口同步 `ShaderCatalog`，由正式构建工具预编译。字节码按完整源码 / 入口 / 目标 / 编译选项失效；`GpuPipelineCache` 的驱动缓存另含显卡实例、型号、驱动及系统标识。根签名、固定管线状态或资源契约改变时必须更新调用处的管线版本键，避免旧 PSO 被错误复用。缓存只走冷路径，不能在逐帧绘制中读写磁盘或建立管线；手动重建完成后由渲染工作线程在安全边界重新加载。
 
+## 辞曲新境上游对齐
+
+- 「静止」（`still`）是本项目早期版本主动移除的歌词模式。后续同步或移植 folia-major 歌词效果时，须排除该模式及其设置页、托盘入口。
+
 ## NativeAOT 发布约束
 
 - 项目以 `PublishAot` + `PublishTrimmed` + SelfContained 发布，仅 Release publish 生效，Debug 构建不覆盖这些路径。改动涉及反射、序列化、COM/WinRT 封送时，必须跑一次 `dotnet publish` 验证，普通 build 通过不算数。

@@ -120,7 +120,7 @@ internal static partial class FoliaLyricLayout
 
     private static float Progress(in FoliaPreparedGlyph glyph, double time) => Math.Clamp((float)((time - glyph.Start) / Math.Max(.001, glyph.End - glyph.Start)), 0, 1);
 
-    private static void Subtitle(ref FoliaPainter p, FoliaTextAtlas atlas, int active, int anchor, double time, Vector3 primary, Vector3 secondary)
+    internal static void Subtitle(ref FoliaPainter p, FoliaTextAtlas atlas, int active, int anchor, double time, Vector3 primary, Vector3 secondary)
     {
         int selected = active >= 0 ? active : anchor;
         if (selected < 0) return;

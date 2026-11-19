@@ -71,6 +71,12 @@ small polygons without holes, and for child-to-parent double transforms. Larger
 polygons, holes and filtering/repair retain the full original Earcut path. The
 original JavaScript expansion remains available for parity checks.
 
+Hanabi, Metaphor, Nebbia and Machi are native adaptations of folia-major v0.7.29
+(commit 4c4c3c3befee3f3305832fff958f14167e8d7537). The Nebbia stroke medians
+and their original Arphic license are in `Nebbia/`. The first Machi scene is
+the convenience-store diorama. The native renderers use Folia's lyric clock
+and Spectrum's live mixed-band transients.
+
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere
 light/line-art profiles are preserved from the reference checkout. Relevant

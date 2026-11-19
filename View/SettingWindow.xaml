@@ -617,8 +617,19 @@
                                 <ComboBoxItem x:Uid="FoliaOption_sonnet" Tag="sonnet" />
                                 <ComboBoxItem x:Uid="FoliaOption_tempera" Tag="tempera" />
                                 <ComboBoxItem x:Uid="FoliaOption_lumiere" Tag="lumiere" />
+                                <ComboBoxItem x:Uid="FoliaOption_hanabi" Tag="hanabi" />
+                                <ComboBoxItem x:Uid="FoliaOption_metaphor" Tag="metaphor" />
+                                <ComboBoxItem x:Uid="FoliaOption_nebbia" Tag="nebbia" />
+                                <ComboBoxItem x:Uid="FoliaOption_machi" Tag="machi" />
                             </ComboBox>
                         </controls:SettingsCard>
+                        <controls:SettingsExpander x:Uid="FoliaMetaphorSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaMetaphorNegative">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMetaphorNegative, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
                         <controls:SettingsExpander x:Uid="FoliaThemeSettings" Margin="10,0,10,0" IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaThemeSource">
