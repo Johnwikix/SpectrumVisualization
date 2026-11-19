@@ -21,14 +21,21 @@ internal static class ShaderCatalog
         Pair(FoliaShaderLibrary.Background("Stage"), "Fullscreen", "PS", "CopyPS", "TemporalPS", "VignettePS", "LatentCompositePS", "BackgroundSnapshotPS", "BackgroundBlendPS");
         Pair(FoliaShaderLibrary.Background("Stage"), "SpriteVS", "SpritePS", "InkFieldPS", "WindowMaskPS");
         compile(FoliaShaderLibrary.Background("Stage"), "MachiPanelVS", "vs_5_0");
+        compile(FoliaShaderLibrary.Background("Stage"), "MachiPanelPS", "ps_5_0");
+        Pair(FoliaShaderLibrary.Background("Machi"), "Fullscreen", "AtmospherePS", "LensPS");
+        Pair(FoliaShaderLibrary.Background("Machi"), "WeatherVS", "WeatherPS");
+        Pair(FoliaShaderLibrary.Background("Machi"), "VolumeVS", "VolumePS");
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
-        Pair(FoliaShaderLibrary.Background("LyricMaterials"), "Fullscreen", "HanabiSkyPS", "InkDevelopPS", "NebbiaPS");
-        Pair(FoliaShaderLibrary.Background("Machi"), "Fullscreen", "MachiSkyPS");
-        Pair(FoliaShaderLibrary.Background("Machi"), "MachiVS", "MachiPS");
+        Pair(FoliaShaderLibrary.Background("LyricMaterials"), "Fullscreen", "HanabiSkyPS", "InkDevelopPS", "NebbiaFogPS", "NebbiaPS");
+        compile(MachiDxrShaders.Trace, "", "lib_6_3");
+        string resolve = MachiDxrShaders.Resolve;
+        compile(resolve, "Resolve", "cs_6_0");
+        compile(resolve, "ResolveRaw", "cs_6_0");
+        compile(resolve, "ResolveRayReconstruction", "cs_6_0");
         foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print", "Sonnet" })
             Pair(FoliaShaderLibrary.Background(name), "Fullscreen", "PS");
         Pair(FoliaShaderLibrary.Background("Sora"), "VS", "PS");
-        Pair(FoliaShaderLibrary.Load("Bloom"), "VS", "Down", "Up", "Combine");
+        Pair(FoliaShaderLibrary.Load("Bloom"), "VS", "Down", "Up", "Combine", "CombineLinear");
         foreach (string entry in new[] { "GenerateMtsdf", "CorrectMtsdf", "ShadowHorizontal", "ShadowVertical" })
             compile(FoliaShaderLibrary.Load("GlyphGenerator"), entry, "cs_5_0");
     }

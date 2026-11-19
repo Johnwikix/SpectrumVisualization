@@ -61,6 +61,8 @@ internal sealed unsafe partial class FoliaGpuEffect
             {
                 // Do not bind a private render target as an SRV during its own pass.
                 var texture = slot == 0 && _atlas!.IsShared ? _glyphAtlas.Distance : slot == 3 ? ((table == 2 || table == 3) ? _textures[3] : _textures[1]) : slot == 4 ? ((table == 1 || table == 3) ? _textures[4] : _textures[1]) : _textures[slot];
+                if (table == 1 && slot == 3 && _windowFog != null)
+                    texture = _windowFog;
                 _device.CreateShaderResourceView(texture!, slot == 0 ? FoliaGpuGlyphAtlas.Srv(texture!) : null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + slot) * _srvStride);
             }
             var shadow = _atlas!.IsShared ? _glyphAtlas.Shadow! : _textures[5]!;
@@ -70,8 +72,8 @@ internal sealed unsafe partial class FoliaGpuEffect
             var extra = table switch
             {
                 0 => _backgroundHistory,
-                1 => _windowTexture ?? _panelTexture,
-                2 => _machiGeometry,
+                1 => _machiBackend?.SurfaceDepth ?? _windowTexture ?? _inkTint,
+                2 => _machiBackend?.SurfaceDepth,
                 _ => null
             };
             _device.CreateShaderResourceView(extra ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 8) * _srvStride);

@@ -18,13 +18,37 @@ internal sealed unsafe partial class FoliaGpuEffect
     private FoliaMetaphor? _metaphor;
     private FoliaNebbia? _nebbia;
     private FoliaNativeStage _nativeStage, _targetStage;
-    private ID3D12PipelineState? _hanabiSky, _inkField, _inkDevelop, _windowMask, _windowScene, _machiSky, _machiPanel, _machiScene;
-    private ID3D12Resource? _windowTexture, _panelTexture, _machiGeometry, _machiDepth, _machiVertices;
-    private ID3D12DescriptorHeap? _stageRtv, _stageDsv;
+    private ID3D12PipelineState? _hanabiSky, _inkField, _inkDevelop, _windowMask, _windowScene, _machiPanel;
+    private ID3D12Resource? _inkTint, _windowTexture, _panelTexture;
+    private ID3D12PipelineState? _windowFogPipeline;
+    private ID3D12Resource? _windowFog;
+    private ID3D12DescriptorHeap? _stageRtv;
     private int _windowWidth, _windowHeight, _nativeForegroundCount, _metaphorShot = -1;
+    private int _windowFogWidth, _windowFogHeight;
     private float _hanabiBloom;
     private bool _negativeInk;
-    private Matrix4x4 _machiPrevious;
+    private int _nebbiaWindowSetting;
+    private double _nebbiaTime;
+    private FoliaMachi? _machi, _installedMachi;
+    private FoliaMachi.Plan? _machiPlan;
+    private MachiDxrBackend? _machiBackend;
+    private MachiDxrFrame _machiFrame;
+    private Matrix4x4[] _actorTransforms = [];
+    private ID3D12PipelineState? _machiAtmosphere, _machiLens, _machiWeather, _machiVolume;
+    private float _machiMotionWeight;
+    private bool _hardwareRaytracing, _vendorInitializationReady;
+    private (FoliaSong Song, string Scene, string Denoiser)? _failedMachiSelection;
+    private void RecordMachiFailure(in FoliaSceneRequest request) =>
+        _failedMachiSelection = (request.Song, request.MachiScene, AppSettings.FoliaMachiDenoiser);
+    public bool MachiHdrOutput { private get; set; }
+    public bool UsesMachiReconstruction => _hardwareRaytracing && _failedMachiSelection == null
+        && (AppSettings.FoliaLyricMode == "machi" || (_hasScene && _activeRequest.Mode == "machi"));
+    public MachiRenderStatus MachiStatus => _failedMachiSelection != null ? MachiRenderStatus.Unavailable :
+        _machiBackend == null ? MachiRenderStatus.Idle :
+        _machiBackend.RayReconstructionActive ? MachiRenderStatus.RayReconstruction :
+        !_machiBackend.DenoiserAvailable ? MachiRenderStatus.Unavailable :
+        AppSettings.FoliaMachiDenoiser == "dlss-rr" && _vendorInitializationReady ? MachiRenderStatus.NrdFallback : MachiRenderStatus.Nrd;
+    public void EnableVendorInitialization() => _vendorInitializationReady = true;
 
     internal static FoliaNativeStage NativeStage(ReadOnlySpan<char> mode) => mode switch
     {
@@ -35,80 +59,117 @@ internal sealed unsafe partial class FoliaGpuEffect
         _ => FoliaNativeStage.None
     };
 
+    private static int NebbiaWindowSetting()
+    {
+        int behind = AppSettings.FoliaNebbiaBehind switch { "aquarium" => 1, "backdrop" => 2, _ => 0 };
+        int glass = AppSettings.FoliaNebbiaGlass switch { "dew" => 1, "snow" => 2, _ => 0 };
+        return behind + glass * 3;
+    }
+
     private FoliaNativeStage ActiveNativeStage()
     {
         if (!_lyricsVisible || (_atlas!.Lines.Length == 0 && _song!.LyricsPending))
+            return FoliaNativeStage.None;
+        if (_activeRequest.Mode == "machi" && (_temporal || _failedMachiSelection != null || _machi == null))
             return FoliaNativeStage.None;
         return NativeStage(_activeRequest.Mode);
     }
 
     private void PrepareStageTargets(FoliaNativeStage stage)
     {
-        if (stage == _targetStage)
+        if (stage == _targetStage && (stage != FoliaNativeStage.Machi || ReferenceEquals(_machi, _installedMachi)))
             return;
-        ReleaseStageTargets();
+        if (stage != FoliaNativeStage.Machi || _targetStage != stage) ReleaseStageTargets();
         switch (stage)
         {
             case FoliaNativeStage.Hanabi:
                 _hanabiSky ??= Pipeline("LyricMaterials", "Fullscreen", "HanabiSkyPS");
                 break;
             case FoliaNativeStage.Metaphor:
-                _inkField ??= StagePipeline("Stage", "SpriteVS", "InkFieldPS", new BlendDescription(Blend.One, Blend.One, Blend.One, Blend.One), Format.R16G16B16A16_Float);
+                _inkField ??= StagePipeline("Stage", "SpriteVS", "InkFieldPS", new BlendDescription(Blend.One, Blend.One, Blend.One, Blend.One),
+                    Format.R16G16B16A16_Float, Format.R16G16B16A16_Float, depth: false);
+                _stageRtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 1));
+                _inkTint = StageTarget(Format.R16G16B16A16_Float, _size.Width, _size.Height, 0);
                 _inkDevelop ??= Pipeline("LyricMaterials", "Fullscreen", "InkDevelopPS");
                 break;
             case FoliaNativeStage.Nebbia:
                 var maximum = new BlendDescription(Blend.One, Blend.One, Blend.One, Blend.One);
                 maximum.RenderTarget[0].BlendOperation = BlendOperation.Max;
                 maximum.RenderTarget[0].BlendOperationAlpha = BlendOperation.Max;
-                _windowMask ??= StagePipeline("Stage", "SpriteVS", "WindowMaskPS", maximum, Format.R8_UNorm);
+                _windowMask ??= StagePipeline("Stage", "SpriteVS", "WindowMaskPS", maximum, Format.R8G8B8A8_UNorm);
                 _windowScene ??= Pipeline("LyricMaterials", "Fullscreen", "NebbiaPS");
-                _stageRtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 1));
+                _windowFogPipeline ??= Pipeline("LyricMaterials", "Fullscreen", "NebbiaFogPS");
+                _stageRtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 2));
                 _windowWidth = Math.Max(1, (_size.Width + 1) / 2);
                 _windowHeight = Math.Max(1, (_size.Height + 1) / 2);
-                _windowTexture = StageTarget(Format.R8_UNorm, _windowWidth, _windowHeight, 0);
+                _windowTexture = StageTarget(Format.R8G8B8A8_UNorm, _windowWidth, _windowHeight, 0);
+                _windowFogWidth = 2 * Math.Max(1, (_size.Width + 3) / 4);
+                _windowFogHeight = Math.Max(1, (_size.Height + 3) / 4);
+                _windowFog = StageTarget(Format.R16G16B16A16_Float, _windowFogWidth, _windowFogHeight, 1);
                 break;
             case FoliaNativeStage.Machi:
-                _machiSky ??= Pipeline("Machi", "Fullscreen", "MachiSkyPS");
-                _machiPanel ??= Pipeline("Stage", "MachiPanelVS", "SpritePS", sprites: true);
-                _machiScene ??= StagePipeline("Machi", "MachiVS", "MachiPS", BlendDescription.Opaque,
-                    Format.R16G16B16A16_Float, Format.R16G16B16A16_Float);
-                _stageRtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 2));
-                _stageDsv = _device.CreateDescriptorHeap(new(DescriptorHeapType.DepthStencilView, 1));
-                _panelTexture = StageTarget(Format.R16G16B16A16_Float, FoliaMachi.PanelWidth, FoliaMachi.PanelHeight, 0);
-                _machiGeometry = StageTarget(Format.R16G16B16A16_Float, _size.Width, _size.Height, 1);
-                _machiDepth = _device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
-                    ResourceDescription.Texture2D(Format.D32_Float, (uint)_size.Width, (uint)_size.Height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil),
-                    ResourceStates.DepthWrite, new ClearValue(Format.D32_Float, 1, 0));
-                _device.CreateDepthStencilView(_machiDepth, null, _stageDsv.GetCPUDescriptorHandleForHeapStart());
-                var vertices = FoliaMachi.ConvenienceStore.Mesh.AsSpan();
-                _machiVertices = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
-                    ResourceDescription.Buffer((ulong)vertices.Length * (uint)sizeof(FoliaMachi.Vertex)), ResourceStates.GenericRead);
-                vertices.CopyTo(new Span<FoliaMachi.Vertex>(_machiVertices.Map<FoliaMachi.Vertex>(0), vertices.Length));
-                _machiVertices.Unmap(0);
+                try
+                {
+                    _machiPanel ??= Pipeline("Stage", "MachiPanelVS", "MachiPanelPS", sprites: true);
+                    _machiAtmosphere ??= Pipeline("Machi", "Fullscreen", "AtmospherePS");
+                    _machiLens ??= Pipeline("Machi", "Fullscreen", "LensPS");
+                    _machiVolume ??= StagePipeline("Machi", "VolumeVS", "VolumePS",
+                        new BlendDescription(Blend.One, Blend.One, Blend.One, Blend.One), Format.R16G16B16A16_Float);
+                    _machiWeather ??= StagePipeline("Machi", "WeatherVS", "WeatherPS", BlendDescription.AlphaBlend, Format.R16G16B16A16_Float);
+                    var asset = _machi!;
+                    if (_machiBackend == null)
+                    {
+                        _stageRtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 1));
+                        _panelTexture = StageTarget(Format.R16G16B16A16_Float, FoliaMachi.PanelWidth, FoliaMachi.PanelHeight, 0);
+                        _machiBackend = new(_device, _size.Width, _size.Height, asset.Mesh, asset.Indices,
+                            asset.SignPixels, asset.SignWidth, asset.SignHeight, asset.StaticIndexCount, asset.Actors,
+                            preferRayReconstruction: _vendorInitializationReady && AppSettings.FoliaMachiDenoiser == "dlss-rr", lights: asset.Lights);
+                    }
+                    else
+                    {
+                        _machiBackend.ReplaceScene(asset.Mesh, asset.Indices, asset.SignPixels, asset.SignWidth,
+                            asset.SignHeight, asset.StaticIndexCount, asset.Actors, asset.Lights);
+                    }
+                    if (!_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionAvailable)
+                        throw new InvalidOperationException($"Machi NRD initialization failed: {_machiBackend.DenoiserResult}.");
+                    _actorTransforms = new Matrix4x4[asset.Actors.Length];
+                    SetMachiWeatherLayout(asset.Weather);
+                    _installedMachi = asset;
+                }
+                catch (Exception ex)
+                {
+                    App.WriteCrashLog("Machi DXR initialization", ex.Message, ex);
+                    RecordMachiFailure(_activeRequest);
+                    ReleaseStageTargets();
+                    _nativeStage = FoliaNativeStage.None;
+                    Descriptors();
+                    return;
+                }
                 break;
         }
         _targetStage = stage;
         Descriptors();
     }
 
-    private ID3D12PipelineState StagePipeline(string file, string vs, string ps, in BlendDescription blend, Format color, Format geometry = Format.Unknown)
+    private ID3D12PipelineState StagePipeline(string file, string vs, string ps, in BlendDescription blend, Format color, Format geometry = Format.Unknown, bool depth = true)
     {
         string source = FoliaShaderLibrary.Background(file);
-        bool mesh = geometry != Format.Unknown;
+        bool multipleTargets = geometry != Format.Unknown;
+        bool mesh = multipleTargets && depth;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
             VertexShader = ShaderCompiler.Compile(source, vs, "vs_5_0"),
             PixelShader = ShaderCompiler.Compile(source, ps, "ps_5_0"),
             PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
-            RenderTargetFormats = mesh ? [color, geometry] : [color],
+            RenderTargetFormats = multipleTargets ? [color, geometry] : [color],
             DepthStencilFormat = mesh ? Format.D32_Float : Format.Unknown,
             BlendState = blend,
             SampleDescription = new(1, 0),
             SampleMask = uint.MaxValue,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = mesh, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.LessEqual, StencilEnable = false }
-        }, $"Folia/root-v9-native-stages/{file}/{vs}/{ps}/{color}/{geometry}");
+        }, $"Folia/root-v10-native-stages/{file}/{vs}/{ps}/{color}/{geometry}/{mesh}");
     }
 
     private CpuDescriptorHandle NativeRtv(int slot) => _stageRtv!.GetCPUDescriptorHandleForHeapStart() + slot * _rtvStride;
@@ -124,14 +185,19 @@ internal sealed unsafe partial class FoliaGpuEffect
     private void ReleaseStageTargets()
     {
         GpuGraphics.DisposeResource(_windowTexture);
+        GpuGraphics.DisposeResource(_windowFog);
+        _windowFog = null;
+        GpuGraphics.DisposeResource(_inkTint);
+        _inkTint = null;
         GpuGraphics.DisposeResource(_panelTexture);
-        GpuGraphics.DisposeResource(_machiGeometry);
-        GpuGraphics.DisposeResource(_machiDepth);
-        GpuGraphics.DisposeResource(_machiVertices);
+        GpuGraphics.DisposeResource(_machiBackend);
+        _machiBackend = null;
+        _installedMachi = null;
+        _machiEnvironment = default;
+        _actorTransforms = [];
         GpuGraphics.DisposeResource(_stageRtv);
-        GpuGraphics.DisposeResource(_stageDsv);
-        _windowTexture = _panelTexture = _machiGeometry = _machiDepth = _machiVertices = null;
-        _stageRtv = _stageDsv = null;
+        _windowTexture = _panelTexture = null;
+        _stageRtv = null;
         _targetStage = FoliaNativeStage.None;
     }
 
@@ -143,9 +209,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         GpuGraphics.DisposeResource(_inkDevelop);
         GpuGraphics.DisposeResource(_windowMask);
         GpuGraphics.DisposeResource(_windowScene);
+        GpuGraphics.DisposeResource(_windowFogPipeline);
         GpuGraphics.DisposeResource(_machiPanel);
-        GpuGraphics.DisposeResource(_machiScene);
-        GpuGraphics.DisposeResource(_machiSky);
+        GpuGraphics.DisposeResource(_machiWeather);
+        GpuGraphics.DisposeResource(_machiVolume);
+        GpuGraphics.DisposeResource(_machiAtmosphere);
+        GpuGraphics.DisposeResource(_machiLens);
         _hanabi = null;
         _metaphor = null;
         _nebbia = null;
@@ -164,32 +233,43 @@ internal sealed unsafe partial class FoliaGpuEffect
         switch (_nativeStage)
         {
             case FoliaNativeStage.Hanabi:
-                _hanabi!.Write(ref painter, song, position, scale, motion);
+                _hanabi!.Write(ref painter, position, motion);
                 _hanabiBloom = _hanabi.Bloom(position);
                 break;
             case FoliaNativeStage.Metaphor:
-                _metaphor!.Write(ref painter, atlas, position, scale, motion);
-                _metaphorShot = _metaphor.ShotAt(position);
+                _metaphorShot = _metaphor!.Write(ref painter, position, scale, motion, out var development);
+                _data[39] = development;
+                var inkPalette = _metaphor.Palette(development.W > .5f, _negativeInk);
+                _data[4] = new(inkPalette.Paper, 1);
+                _data[5] = new(inkPalette.Ink, 1);
+                _data[6] = new(inkPalette.Tone, 1);
+                _data[7] = new(inkPalette.Accent, 1);
                 break;
             case FoliaNativeStage.Nebbia:
-                Vector2 focus = _nebbia!.Write(ref painter, atlas, position, scale, anchor);
-                _data[39] = new(focus, 0, 0);
+                Vector2 focus = _nebbia!.Write(ref painter, atlas, position, anchor, _nebbiaWindowSetting >= 6, out float radius, out float intensity);
+                _data[38].Y = radius;
+                _data[38].Z = intensity;
+                _data[38].W = _nebbiaWindowSetting;
+                _data[39] = new(focus, (float)_nebbiaTime, 0);
                 break;
             case FoliaNativeStage.Machi:
-                Matrix4x4 current = FoliaMachi.Camera(position, (float)_size.Width / _size.Height);
-                // Both matrices exclude jitter. The shader stores previous minus current in scene pixels.
-                Matrix4x4* matrices = (Matrix4x4*)_lightData;
-                matrices[0] = current;
-                matrices[1] = reset || _frame.Reset ? current : _machiPrevious;
-                _machiPrevious = current;
-                _nativeForegroundCount = FoliaMachi.WritePanel(instances, atlas, song, position, anchor, scale);
-                return _nativeForegroundCount;
+                UpdateMachiFrame(song, position, anchor, reset);
+                _nativeForegroundCount = _machiPlan!.WritePanel(instances, position, _animation, scale);
+                if (anchor < 0) return _nativeForegroundCount;
+                var subtitles = new FoliaPainter(instances[_nativeForegroundCount..], width, height);
+                // The traced stage is already linear HDR. Use linear white for the final overlay.
+                var subtitleWhite = new Vector3(.807f, .828f, .933f);
+                FoliaLyricLayout.Subtitle(ref subtitles, atlas, FoliaLyricLayout.FindActiveLine(atlas.Lines, position),
+                    anchor, position, subtitleWhite, subtitleWhite);
+                return _nativeForegroundCount + subtitles.Count;
         }
         _nativeForegroundCount = painter.Count;
-        if (anchor >= 0)
+        if (_nativeStage == FoliaNativeStage.Hanabi)
+            _hanabi!.WriteCredits(ref painter, position);
+        if (anchor >= 0 && _nativeStage != FoliaNativeStage.Nebbia)
         {
-            Vector3 textColor = _nativeStage == FoliaNativeStage.Metaphor && !_negativeInk
-                ? new(.13f, .11f, .14f) : new(.91f, .92f, .97f);
+            Vector3 textColor = _nativeStage == FoliaNativeStage.Metaphor
+                ? new(_data[5].X, _data[5].Y, _data[5].Z) : new(.91f, .92f, .97f);
             FoliaLyricLayout.Subtitle(ref painter, atlas, FoliaLyricLayout.FindActiveLine(atlas.Lines, position),
                 anchor, position, textColor, textColor);
         }
@@ -206,19 +286,41 @@ internal sealed unsafe partial class FoliaGpuEffect
                 commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
                 var bloomTarget = _bloom!.Begin(commands);
                 DrawRange(commands, bloomTarget, 0, _nativeForegroundCount);
-                _bloom.Apply(commands, _textures[3]!, Rtv(0), false, _hanabiBloom);
+                _bloom.Apply(commands, _textures[3]!, Rtv(0), false, _hanabiBloom, hanabiScreen: true);
                 break;
             case FoliaNativeStage.Metaphor:
                 var field = Rtv(1);
                 commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
                 commands.ClearRenderTargetView(field, new Color4(0, 0, 0, 0));
-                RecordNativeInstances(commands, field, _inkField!);
+                var tint = NativeRtv(0);
+                commands.ResourceBarrierTransition(_inkTint!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+                commands.ClearRenderTargetView(tint, new Color4(0, 0, 0, 0));
+                var targets = stackalloc CpuDescriptorHandle[2] { field, tint };
+                Bind(commands, 0);
+                commands.OMSetRenderTargets(2, targets, false, null);
+                commands.SetPipelineState(_inkField!);
+                SetInstanceOffset(commands, 0);
+                commands.DrawInstanced(6, (uint)_nativeForegroundCount, 0, 0);
+                commands.ResourceBarrierTransition(_inkTint!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
                 commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
                 commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
                 RecordFullStage(commands, Rtv(0), _inkDevelop!, 1);
                 commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
                 break;
             case FoliaNativeStage.Nebbia:
+                if (_nebbiaWindowSetting % 3 == 2)
+                {
+                    RecordSharedBackground(commands);
+                    CopyScratch(commands, 3, 4, ResourceStates.PixelShaderResource);
+                }
+                else
+                {
+                    commands.ResourceBarrierTransition(_windowFog!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+                    commands.RSSetViewport(0, 0, _windowFogWidth, _windowFogHeight, 0, 1);
+                    commands.RSSetScissorRect(_windowFogWidth, _windowFogHeight);
+                    RecordFullStage(commands, NativeRtv(1), _windowFogPipeline!);
+                    commands.ResourceBarrierTransition(_windowFog!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+                }
                 var mask = NativeRtv(0);
                 commands.ResourceBarrierTransition(_windowTexture!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
                 commands.ClearRenderTargetView(mask, new Color4(0, 0, 0, 0));
@@ -240,9 +342,87 @@ internal sealed unsafe partial class FoliaGpuEffect
         if (_count > _nativeForegroundCount)
         {
             commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-            DrawRange(commands, Rtv(0), _nativeForegroundCount, _count - _nativeForegroundCount);
+            DrawRange(commands, Rtv(0), _backgroundCount + _nativeForegroundCount, _count - _nativeForegroundCount);
             commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         }
+    }
+
+    private int _machiDrips, _machiPuffs;
+    private void SetMachiWeatherLayout(FoliaMachi.WeatherLayout layout)
+    {
+        int roofs = Math.Min(layout.Roofs.Length, 4);
+        int glints = Math.Min(layout.Glints.Length, 3);
+        _machiDrips = Math.Min(layout.Drips.Length, 96);
+        _lightData[12] = new(layout.GroundY, MathF.Sin(layout.WindYaw) * layout.WindSlant,
+            MathF.Cos(layout.WindYaw) * layout.WindSlant, roofs);
+        _lightData[213] = layout.ConeApex;
+        _lightData[214] = layout.ConeTarget;
+        _lightData[215] = new(layout.ConeColor, 0);
+        _lightData[216] = layout.GlowA;
+        _lightData[217] = layout.GlowB;
+        _lightData[218] = new(layout.GlowColorA, 0);
+        _lightData[219] = new(layout.GlowColorB, 0);
+        _machiPuffs = layout.Steam.Length;
+        if (_machiPuffs > 32) throw new InvalidOperationException("Machi steam layout exceeds its shader capacity.");
+        for (int i = 0; i < _machiPuffs; ++i)
+        {
+            _lightData[220+2*i] = layout.Steam[i].Source;
+            _lightData[221+2*i] = new(layout.Steam[i].Seed, 0, 0);
+        }
+        _lightData[13] = default;
+        for (int i = 0; i < roofs; ++i)
+        {
+            var r = layout.Roofs[i];
+            _lightData[14+i] = new(r.X0, r.Z0, r.X1, r.Z1);
+            ((float*)(_lightData+13))[i] = r.Y;
+        }
+        for (int i = 0; i < 3; ++i)
+            _lightData[18+i] = i < glints ? new(layout.Glints[i].Position, layout.Glints[i].Radius) : default;
+        for (int i = 0; i < _machiDrips; ++i)
+        {
+            var d = layout.Drips[i];
+            _lightData[21+2*i] = new(d.X, d.Z, d.From, d.To);
+            _lightData[22+2*i] = new(d.Period, d.Phase, 0, 0);
+        }
+    }
+
+    private FoliaMachi.EnvironmentState _machiEnvironment;
+    private float _machiChorus, _machiVacancyChorus;
+    private void UpdateMachiFrame(FoliaSong song, double position, int anchor, bool reset)
+    {
+        reset |= _machiEnvironment.Song == null;
+        var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, AppSettings.FoliaMachiTimeOfDay,
+            AppSettings.FoliaMachiWeather, song, DateTime.Now, (float)_data[1].W, reset, _machiPlan!.SceneId);
+        float delta = Math.Clamp(_data[1].W, 0, .1f);
+        _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
+        var camera = _machi!.ViewProjection((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
+        _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _animation);
+        Matrix4x4.Invert(camera, out var inverse);
+        *(Matrix4x4*)_lightData = camera;
+        *(Matrix4x4*)(_lightData + 4) = inverse;
+        _lightData[8] = new(environment.SkyBottom, environment.Mist);
+        _lightData[9] = new(environment.Rain, environment.Snow, environment.Haze, environment.Daylight);
+        float flash = 0;
+        if (environment.Rain >= .5f && anchor >= 0 && song.Lines[anchor].IsChorus && (anchor == 0 || !song.Lines[anchor-1].IsChorus))
+        {
+            float since = (float)(position-song.Lines[anchor].Start);
+            if (since is >= 0 and <= 1.2f)
+            {
+                float first = (since-.04f)/.05f, second = (since-.24f)/.06f;
+                flash = environment.Rain * MathF.Min(1, MathF.Exp(-first*first) + .7f*MathF.Exp(-second*second) + .25f*MathF.Exp(-since*3.5f));
+            }
+        }
+        _lightData[10] = new(_machi.SceneHalf, (float)(_animation % 3600), flash, MachiHdrOutput ? 1 : 0);
+        _lightData[11] = new(environment.SkyTop, 0);
+        _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
+            environment.Wetness, (float)_data[1].W, reset, _vendorInitializationReady && AppSettings.FoliaMachiDenoiser == "dlss-rr")
+        {
+            HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
+            NoVacancy = _machiPlan.UpdateVacancy(position, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
+            AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machi.Weather.Puddles,
+            SkyBottom = environment.SkyBottom, Artificial = environment.Artificial, SceneHalf = _machi.SceneHalf,
+            SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze
+        };
     }
 
     private void RecordMachi(ID3D12GraphicsCommandList commands)
@@ -253,24 +433,36 @@ internal sealed unsafe partial class FoliaGpuEffect
         commands.RSSetViewport(0, 0, FoliaMachi.PanelWidth, FoliaMachi.PanelHeight, 0, 1);
         commands.RSSetScissorRect(FoliaMachi.PanelWidth, FoliaMachi.PanelHeight);
         RecordNativeInstances(commands, panel, _machiPanel!);
-        commands.ResourceBarrierTransition(_panelTexture!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        commands.ResourceBarrierTransition(_panelTexture!, ResourceStates.RenderTarget, ResourceStates.NonPixelShaderResource);
+        commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.UnorderedAccess);
+        _machiBackend!.Record(commands, _textures[3]!, _panelTexture!, 0, in _machiFrame, _actorTransforms);
+        commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.UnorderedAccess, ResourceStates.PixelShaderResource);
+        commands.ResourceBarrierTransition(_panelTexture!, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
+        if (!_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionActive)
+            RecordMachiFailure(_activeRequest);
+
+        var depth = _machiBackend.SurfaceDepth;
         SetFoliaState(commands);
-        var scene = Rtv(0);
-        var geometry = NativeRtv(1);
-        var depth = _stageDsv!.GetCPUDescriptorHandleForHeapStart();
+        commands.ResourceBarrierTransition(depth, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
+        var atmosphere = _bloom!.Begin(commands);
+        RecordFullStage(commands, atmosphere, _machiAtmosphere!, 2);
+        commands.SetPipelineState(_machiVolume!);
+        SetInstanceOffset(commands, 0);
+        commands.DrawInstanced(60, 1, 0, 0);
+        SetInstanceOffset(commands, 1);
+        commands.DrawInstanced(6, (uint)_machiPuffs, 0, 0);
+        float night = 1 - _lightData[9].W;
+        _bloom.Apply(commands, _textures[4]!, Rtv(1), false, .12f + .38f * night, linearHdr: true, streaks: .55f * night * night);
+        SetFoliaState(commands);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-        RecordFullStage(commands, scene, _machiSky!);
-        commands.ResourceBarrierTransition(_machiGeometry!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-        commands.ClearRenderTargetView(geometry, new Color4(0, 0, 0, 0));
-        commands.ClearDepthStencilView(depth, ClearFlags.Depth, 1, 0);
-        CpuDescriptorHandle* targets = stackalloc CpuDescriptorHandle[2] { scene, geometry };
-        commands.OMSetRenderTargets(2, targets, false, depth);
-        Bind(commands, 1);
-        commands.SetGraphicsRootShaderResourceView(6, _machiVertices!.GPUVirtualAddress);
-        commands.SetPipelineState(_machiScene!);
-        commands.DrawInstanced((uint)FoliaMachi.ConvenienceStore.Mesh.Length, 1, 0, 0);
-        commands.ResourceBarrierTransition(_machiGeometry!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        RecordFullStage(commands, Rtv(0), _machiLens!, 1);
+        if (_lightData[9].X + _lightData[9].Y > .001f)
+        {
+            commands.SetPipelineState(_machiWeather!);
+            commands.DrawInstanced(6, (uint)(2304 + _machiDrips), 0, 0);
+        }
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        commands.ResourceBarrierTransition(depth, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
     }
 
     private void RecordNativeInstances(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target, ID3D12PipelineState pipeline)
@@ -278,7 +470,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         Bind(commands, 0);
         commands.OMSetRenderTargets(target);
         commands.SetPipelineState(pipeline);
-        SetInstanceOffset(commands, 0);
+        SetInstanceOffset(commands, (uint)_backgroundCount);
         commands.DrawInstanced(6, (uint)_nativeForegroundCount, 0, 0);
     }
 

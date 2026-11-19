@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Security.Cryptography;
@@ -59,7 +60,10 @@ internal static class ShaderCompiler
     // Complete source, compiler options, entry point and target profile invalidate bytecode together.
     internal static string Key(string source, string entry, string profile)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            "d3dcompiler47/O3/cache-v1\n" + profile + "\n" + entry + "\n" + source)));
+            (UsesDxc(profile) ? "dxc-1.9.2609.5/O3/HV2021/cache-v1\n" : "d3dcompiler47/O3/cache-v1\n") +
+            profile + "\n" + entry + "\n" + source)));
+
+    private static bool UsesDxc(string profile) => profile.Contains("_6_", StringComparison.Ordinal);
 
     internal static byte[] CompileToDirectory(string source, string entry, string profile, string directory)
     {
@@ -81,6 +85,7 @@ internal static class ShaderCompiler
     private static unsafe byte[] CompileNative(string sourceText, string entry, string profile)
     {
         Interlocked.Increment(ref _compiled);
+        if (UsesDxc(profile)) return CompileDxil(sourceText, entry, profile);
         byte[] source = Encoding.UTF8.GetBytes(sourceText);
         fixed (byte* pointer = source)
         {
@@ -96,5 +101,35 @@ internal static class ShaderCompiler
                 return bytes;
             }
         }
+    }
+
+    // Builds ship the bytecode. The packaged compiler also services explicit cache rebuilds.
+    private static byte[] CompileDxil(string source, string entry, string profile)
+    {
+        string directory = Directory.CreateTempSubdirectory("Spectrum-DXC-").FullName;
+        string input = Path.Combine(directory, "shader.hlsl");
+        string output = Path.Combine(directory, "shader.dxil");
+        try
+        {
+            File.WriteAllText(input, source, new UTF8Encoding(false));
+            var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "DXC", "dxc.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
+            };
+            foreach (string arg in new[] { "-T", profile, "-HV", "2021", "-O3", "-Fo", output })
+                start.ArgumentList.Add(arg);
+            if (entry.Length > 0)
+            {
+                start.ArgumentList.Add("-E");
+                start.ArgumentList.Add(entry);
+            }
+            start.ArgumentList.Add(input);
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("DXC failed to start.");
+            string errors = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            if (process.ExitCode != 0) throw new InvalidOperationException($"DXC {profile} {entry}: {errors}");
+            return File.ReadAllBytes(output);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 }

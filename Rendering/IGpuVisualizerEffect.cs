@@ -15,7 +15,19 @@ internal readonly record struct GpuRenderSize(int OutputWidth, int OutputHeight,
 }
 
 /// <summary>Provides borrowed devices and the application's existing analyzer.</summary>
-internal readonly record struct GpuEffectServices(GraphicsDevice Compute, ID3D12Device Device, SpectrumAnalyzer Analyzer);
+internal readonly record struct GpuEffectServices(GraphicsDevice Compute, ID3D12Device Device, SpectrumAnalyzer Analyzer,
+    bool HardwareRaytracing = false, bool VendorInitializationDeferred = false);
+
+internal enum MachiRenderStatus { Idle, Nrd, RayReconstruction, NrdFallback, Unavailable }
+
+internal interface IMachiRenderEffect
+{
+    // Query before selecting host jitter. The stage owns denoising and reconstruction.
+    bool UsesMachiReconstruction { get; }
+    bool MachiHdrOutput { set; }
+    MachiRenderStatus MachiStatus { get; }
+    void EnableVendorInitialization();
+}
 
 /// <summary>Records an opaque linear Rec.709 scene on the owning render thread.</summary>
 /// <remarks>The host drains both queues before resize, replacement or disposal. Effects never present or release borrowed devices.</remarks>

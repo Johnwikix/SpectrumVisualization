@@ -77,6 +77,12 @@ internal sealed class FoliaTextAtlas : IDisposable
         _store?.Release(SharedGlyphs);
     }
     internal FoliaPreparedGlyph[] MonetTitle { get; }
+    internal bool HasMachiCard { get; }
+    internal string NativeDecor { get; } = "";
+    internal FoliaPreparedGlyph[] MachiCardTitle { get; } = [];
+    internal FoliaPreparedGlyph[] MachiCardArtist { get; } = [];
+    internal float MachiCardTitleWidth { get; }
+    internal float MachiCardArtistWidth { get; }
     internal bool HasKeywords { get; }
     internal float MonetTitleWidth { get; }
     internal FoliaPreparedGlyph[][] ChatTimestamps { get; }
@@ -130,17 +136,28 @@ internal sealed class FoliaTextAtlas : IDisposable
         return true;
     }
     internal FoliaTextAtlas(FoliaSong song, string family, int weight, CancellationToken token = default, bool includeItalics = false,
-        FoliaGlyphStore? store = null, IReadOnlySet<string>? italicCharacters = null)
+        FoliaGlyphStore? store = null, IReadOnlySet<string>? italicCharacters = null, bool includeMachi = false,
+        string nativeDecor = "")
     {
         _store = store;
         try
         {
             Seed = song.Title.StartsWith("Folia ·", StringComparison.Ordinal) ? "spectrum-reference" : song.Title + "\n" + song.Artist;
             HasKeywords = song.KeywordRanges.Length > 0;
+            HasMachiCard = includeMachi;
+            NativeDecor = nativeDecor;
+            const int MachiCardWeight = 700;
+            string machiTitle = includeMachi ? $"♪ {song.Title}" : "";
             var characters = new SortedSet<string>(StringComparer.Ordinal);
             AddCharacters(characters, song.Title);
             AddCharacters(characters, song.Artist);
             AddCharacters(characters, "0123456789:");
+            if (nativeDecor == "hanabi")
+                AddCharacters(characters, "HANABI花火No.–/!?( )");
+            if (nativeDecor == "metaphor")
+                AddCharacters(characters, "()+=,./:<=>ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz°²³¹Å×ħΔΣαβγθλμνπχ—⁰⁴⁶⁺⁻ⁿ₀₁₂₃ℓ→−√≥");
+            if (includeMachi && weight == MachiCardWeight)
+                AddCharacters(characters, machiTitle);
             foreach (var line in song.Lines)
             {
                 AddCharacters(characters, line.Text);
@@ -162,6 +179,14 @@ internal sealed class FoliaTextAtlas : IDisposable
             if (weight != 500)
                 foreach (char digit in "0123456789:")
                     requests.Add((digit.ToString(), 500, false));
+            if (includeMachi && weight != MachiCardWeight)
+            {
+                var machiCharacters = new SortedSet<string>(StringComparer.Ordinal);
+                AddCharacters(machiCharacters, machiTitle);
+                AddCharacters(machiCharacters, song.Artist);
+                foreach (string text in machiCharacters)
+                    requests.Add((text, MachiCardWeight, false));
+            }
             if (includeItalics)
                 foreach (string text in characters)
                     if (italicCharacters == null || italicCharacters.Contains(text)) requests.Add((text, weight, true));
@@ -169,6 +194,7 @@ internal sealed class FoliaTextAtlas : IDisposable
             var titleGlyphs = weight == 600 ? glyphs : new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal);
             var italicGlyphs = new Dictionary<string, FoliaGlyph>(characters.Count, StringComparer.Ordinal);
             var timestampGlyphs = weight == 500 ? glyphs : new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal);
+            var machiGlyphs = includeMachi && weight != MachiCardWeight ? new Dictionary<string, FoliaGlyph>(StringComparer.Ordinal) : glyphs;
             if (store != null)
             {
                 Width = Height = FoliaGlyphStore.PageSize;
@@ -212,7 +238,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                 for (int i = 0; i < requests.Count; i++)
                 {
                     var request = requests[i];
-                    var destination = request.Italic ? italicGlyphs : request.Weight == weight ? glyphs : request.Weight == 600 ? titleGlyphs : timestampGlyphs;
+                    var destination = request.Italic ? italicGlyphs : GlyphsForWeight(request.Weight);
                     destination[request.Text] = SharedGlyphs[i].Glyph;
                 }
                 store.PrepareCpuTiles(SharedGlyphs, token);
@@ -303,7 +329,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                         tileShadow.Slice(rowIndex * entry.Width, entry.Width)
                             .CopyTo(ShadowPixels.Slice((entry.Y + rowIndex) * Width + entry.X, entry.Width));
                     }
-                    var destinationGlyphs = entry.Italic ? italicGlyphs : entry.Weight == weight ? glyphs : entry.Weight == 600 ? titleGlyphs : timestampGlyphs;
+                    var destinationGlyphs = entry.Italic ? italicGlyphs : GlyphsForWeight(entry.Weight);
                     destinationGlyphs[entry.Text] = metrics[i];
                 }
             }
@@ -363,8 +389,21 @@ internal sealed class FoliaTextAtlas : IDisposable
             }
             Title = PrepareText(song.Title, glyphs, out float titleWidth);
             Artist = PrepareText(song.Artist, glyphs, out float artistWidth);
+            if (includeMachi)
+            {
+                MachiCardTitle = PrepareText(machiTitle, machiGlyphs, out float machiTitleWidth);
+                MachiCardArtist = PrepareText(song.Artist, machiGlyphs, out float machiArtistWidth);
+                MachiCardTitleWidth = machiTitleWidth;
+                MachiCardArtistWidth = machiArtistWidth;
+            }
             TitleWidth = titleWidth;
             ArtistWidth = artistWidth;
+            Dictionary<string, FoliaGlyph> GlyphsForWeight(int requested) => requested == weight ? glyphs : requested switch
+            {
+                600 => titleGlyphs,
+                MachiCardWeight => machiGlyphs,
+                _ => timestampGlyphs
+            };
             ChatSenders = FoliaCappellaSenders.Build(song.Lines);
         }
         catch (global::System.Exception caughtException)

@@ -16,11 +16,16 @@ internal sealed unsafe partial class FoliaGpuEffect
     {
         float dpi = _size.PixelsPerDip;
         var song = playback.Song;
+        string mode = AppSettings.FoliaLyricMode;
+        if (_failedMachiSelection is { } failed && (mode != "machi" || !ReferenceEquals(song, failed.Song)
+            || AppSettings.FoliaMachiScene != failed.Scene || AppSettings.FoliaMachiDenoiser != failed.Denoiser))
+            _failedMachiSelection = null;
+        if (mode == "machi" && (!_hardwareRaytracing || _failedMachiSelection != null)) mode = "classic";
         // Metadata and decoded cover can become visible before a slow lyric lookup finishes.
         // Each published snapshot still commits its atlas, layout and images together.
         return new(song, AppSettings.FoliaFontFamily, AppSettings.FoliaFontWeight,
-            AppSettings.FoliaLyricMode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
-            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor, AppSettings.FoliaResolvedTheme);
+            mode, AppSettings.FoliaBackground, _size.OutputWidth / dpi,
+            _size.OutputHeight / dpi, AppSettings.FoliaFontScale, AppSettings.FoliaTemperaDecor, AppSettings.FoliaResolvedTheme, AppSettings.FoliaMachiScene);
     }
 
     private bool UpdatePreparedScene()
@@ -42,7 +47,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         {
             if (!ready.Request.Matches(request) || ready.Error != null)
             {
-                if (ready.Error != null) App.WriteCrashLog("Folia scene preparation", ready.Error.Message, ready.Error);
+                if (ready.Error != null)
+                {
+                    App.WriteCrashLog("Folia scene preparation", ready.Error.Message, ready.Error);
+                    if (request.Mode == "machi" && ready.Request.Matches(request))
+                        RecordMachiFailure(request);
+                }
                 ready.Dispose();
             }
             else if (_upload != null && _upload.Scene.Request.Matches(ready.Request)) ready.Dispose();
@@ -102,6 +112,8 @@ internal sealed unsafe partial class FoliaGpuEffect
             _hanabi = plan.Hanabi;
             _metaphor = plan.Metaphor;
             _nebbia = plan.Nebbia;
+            _machi = plan.Machi;
+            _machiPlan = plan.MachiPlan;
             _latent.SetPalette(request.Song, scene.Colors);
             _activeRequest = request;
             CommitBackgroundTransition();

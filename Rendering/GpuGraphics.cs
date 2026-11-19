@@ -47,7 +47,11 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private uint _capabilities;
     private bool _unsupportedScale;
     private Func<IGpuVisualizerEffect> _effectFactory;
-    internal ReconstructionStatus Reconstruction => new(_capabilities, _options.Mode, _activeMode, _unsupportedScale);
+    private readonly bool _hardwareRaytracing;
+    private bool _stageOwnsReconstruction;
+    private bool StageOwnsReconstruction => _effect is IMachiRenderEffect { UsesMachiReconstruction: true };
+    internal ReconstructionStatus Reconstruction => new(_capabilities, _options.Mode, _activeMode, _unsupportedScale,
+        _hardwareRaytracing, (_effect as IMachiRenderEffect)?.MachiStatus ?? MachiRenderStatus.Idle);
     private ColorOutputPipelines _pipelines = null!;
     private IGpuVisualizerEffect _effect = null!;
     private readonly SpectrumAnalyzer _analyzer;
@@ -110,7 +114,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
             _pipelines = new ColorOutputPipelines(_device);
             _effect = factory();
-            _effect.Initialize(new GpuEffectServices(_compute, _device, analyzer));
+            _hardwareRaytracing = SupportsHardwareRaytracing(_device, _factory);
+            _effect.Initialize(new GpuEffectServices(_compute, _device, analyzer, _hardwareRaytracing, deferReconstruction));
             if (!deferReconstruction) _capabilities = TemporalReconstruction.Capabilities(_device);
             CreatePresentationSwapChain(width, height, requestTearing);
             CreateSizeResources(width, height);
@@ -125,6 +130,18 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             Dispose();
             throw;
         }
+    }
+
+    private static bool SupportsHardwareRaytracing(ID3D12Device device, IDXGIFactory6 factory)
+    {
+        var options = device.CheckFeatureSupport<FeatureDataD3D12Options5>(Vortice.Direct3D12.Feature.Options5);
+        if (options.RaytracingTier < RaytracingTier.Tier1_0 ||
+            device.CheckHighestShaderModel(ShaderModel.Model6_3) < ShaderModel.Model6_3)
+            return false;
+
+        using var adapter = factory.EnumAdapterByLuid<IDXGIAdapter1>(
+            System.Runtime.CompilerServices.Unsafe.BitCast<long, Vortice.Luid>(device.AdapterLuid));
+        return (adapter.Description1.Flags & AdapterFlags.Software) == 0;
     }
 
     public void Resize(int width, int height) => Resize(width, height, _options);
@@ -188,6 +205,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         if (!_reconstructionDeferred) return;
         _capabilities = TemporalReconstruction.Capabilities(_device);
         _reconstructionDeferred = false;
+        (_effect as IMachiRenderEffect)?.EnableVendorInitialization();
         _reconstructionDirty = _options.Mode >= ReconstructionMode.XeSS;
     }
 
@@ -197,7 +215,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         var candidate = factory();
         try
         {
-            candidate.Initialize(new GpuEffectServices(_compute, _device, _analyzer));
+            candidate.Initialize(new GpuEffectServices(_compute, _device, _analyzer, _hardwareRaytracing, _reconstructionDeferred));
             if (candidate is ITemporalGpuEffect temporal) temporal.ConfigureTemporal(_temporal != null);
             candidate.Resize(_size);
         }
@@ -229,9 +247,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _reconstructionDirty = false;
         DisposeResource(_temporal);
         _temporal = null;
-        _activeMode = options.Mode;
+        _stageOwnsReconstruction = StageOwnsReconstruction;
+        _activeMode = _stageOwnsReconstruction ? ReconstructionMode.Off : options.Mode;
         _unsupportedScale = false;
-        if (options.Mode >= ReconstructionMode.XeSS)
+        if (_activeMode >= ReconstructionMode.XeSS)
         {
             if (_effect is ITemporalGpuEffect && (_capabilities & (1u << (int)options.Mode)) != 0)
             {
@@ -378,6 +397,18 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         LastFrameRendered = false;
         LastPresentMilliseconds = 0;
         LastGpuWaitMilliseconds = 0;
+        if (_effect is IMachiRenderEffect machi) machi.MachiHdrOutput = _hdr;
+        bool ownsReconstruction = StageOwnsReconstruction;
+        if (_stageOwnsReconstruction != ownsReconstruction)
+        {
+            if (_options.Mode != ReconstructionMode.Off)
+            {
+                WaitForGpu();
+                CreateSceneResources(_options);
+                ResetHistory();
+            }
+            _stageOwnsReconstruction = ownsReconstruction;
+        }
         BeginAntialiasTimingFrame();
         if (_effect is ITemporalGpuEffect { ResetHistoryRequested: true }) _temporal?.Reset();
         if (PipelineEnabled) return RenderPipelined(elapsed, white, peak);
@@ -645,4 +676,5 @@ internal readonly record struct GpuSceneOptions(int RenderScalePercent, Reconstr
 }
 
 /// <summary>Immutable render-thread status, marshalled to the UI only when it changes.</summary>
-internal readonly record struct ReconstructionStatus(uint Capabilities, ReconstructionMode Requested, ReconstructionMode Active, bool UnsupportedScale = false);
+internal readonly record struct ReconstructionStatus(uint Capabilities, ReconstructionMode Requested, ReconstructionMode Active, bool UnsupportedScale = false,
+    bool HardwareRaytracing = false, MachiRenderStatus Machi = MachiRenderStatus.Idle);

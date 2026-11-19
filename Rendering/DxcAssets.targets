@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Direct3D.DXC" Version="1.9.2609.5" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+    <Content Include="$(PkgMicrosoft_Direct3D_DXC)/build/native/bin/x64/dxc.exe;$(PkgMicrosoft_Direct3D_DXC)/build/native/bin/x64/dxcompiler.dll;$(PkgMicrosoft_Direct3D_DXC)/build/native/bin/x64/dxil.dll"
+             Link="DXC/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(PkgMicrosoft_Direct3D_DXC)/LICENCE-MIT.txt;$(PkgMicrosoft_Direct3D_DXC)/LICENSE-LLVM.txt;$(PkgMicrosoft_Direct3D_DXC)/LICENSE-MS.txt"
+             Link="Licenses/DXC/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

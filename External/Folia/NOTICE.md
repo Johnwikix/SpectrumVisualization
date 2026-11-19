@@ -71,11 +71,17 @@ small polygons without holes, and for child-to-parent double transforms. Larger
 polygons, holes and filtering/repair retain the full original Earcut path. The
 original JavaScript expansion remains available for parity checks.
 
-Hanabi, Metaphor, Nebbia and Machi are native adaptations of folia-major v0.7.29
-(commit 4c4c3c3befee3f3305832fff958f14167e8d7537). The Nebbia stroke medians
-and their original Arphic license are in `Nebbia/`. The first Machi scene is
-the convenience-store diorama. The native renderers use Folia's lyric clock
-and Spectrum's live mixed-band transients.
+Hanabi, Metaphor and Nebbia use the 0.7.29 sources at
+commit 6ee9404f7957b8ea841a46bad8b085a5a604a3cf. The embedded
+`native-stages.js` contains the original song/shot planners, Hanabi collage
+and firework parameters, Metaphor camera and ink-shape plans, and Nebbia's
+nine compositions. Regenerate from that checkout using
+`node Build/FoliaNative/sync.mjs <folia-major-checkout>` on Node 24 or newer.
+The Nebbia stroke medians, original Arphic license and Lucide doodle icon license are in `Nebbia/`.
+The native renderers use Folia's lyric clock and Spectrum's live mixed-band
+transients.
+
+Machi uses the same upstream revision for its three scene geometries, signs, camera and weather. The convenience store incorporates optimized RainyCorner props. Asset provenance and regeneration instructions are in [Machi/README.md](Machi/README.md).
 
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere

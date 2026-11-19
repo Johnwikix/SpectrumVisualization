@@ -17,7 +17,9 @@ internal static class RenderCacheFile
     {
         try
         {
-            using var stream = File.OpenRead(Path.Combine(directory, key + ".bin"));
+            string path = Path.Combine(directory, key + ".bin");
+            if (!File.Exists(path)) return null;
+            using var stream = File.OpenRead(path);
             Span<byte> header = stackalloc byte[HeaderSize];
             stream.ReadExactly(header);
             if (!header[..8].SequenceEqual("SPCACHE1"u8)) return null;

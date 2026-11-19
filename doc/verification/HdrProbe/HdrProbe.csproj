@@ -32,7 +32,7 @@
     <Compile Include="../../../Rendering/GpuFramePacer.cs" LinkBase="Rendering" />
     <Compile Include="../../../Rendering/SmaaPass.cs;../../../Rendering/TemporalReconstruction.cs" LinkBase="Rendering" />
     <EmbeddedResource Include="../../../External/FXAA/Fxaa3_11.h" LogicalName="Spectrum.Fxaa3_11.h" />
-    <Compile Include="../../../Model/AppSettings.cs;../../../Model/SaveSetting.cs;../../../Manager/SettingsJsonContext.cs;../../../Manager/SettingManager.cs" LinkBase="Settings" />
+    <Compile Include="../../../Model/AppSettings.cs;../../../Model/AppSettings.FoliaTheme.cs;../../../Model/AppSettings.FoliaTuning.cs;../../../Model/AppSettings.FoliaScenes.cs;../../../Model/FoliaThemeSettings.cs;../../../Model/SaveSetting.cs;../../../Model/SaveSetting.FoliaTuning.cs;../../../Model/SaveSetting.FoliaScenes.cs;../../../Manager/SettingsJsonContext.cs;../../../Manager/SettingManager.cs" LinkBase="Settings" />
     <!-- SettingsJsonContext serializes Services.Lyrics preference and cache types; keep the probe self-contained. -->
     <Compile Include="../../../Services/Lyrics/LyricsContent.cs" LinkBase="Lyrics" />
     <PackageReference Include="ComputeSharp" Version="3.2.0" />
@@ -42,5 +42,9 @@
     <PackageReference Include="NAudio.Wasapi" Version="3.1.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../../Effects/Folia/MachiDxrShaders.cs" LinkBase="Folia" />
+  </ItemGroup>
+  <Import Project="../../../Rendering/DxcAssets.targets" />
   <Import Project="../../../Rendering/ReconstructionAssets.targets" />
 </Project>

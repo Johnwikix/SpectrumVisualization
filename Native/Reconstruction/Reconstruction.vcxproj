@@ -8,9 +8,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup><OutDir>$(MSBuildThisFileDirectory)bin\</OutDir><IntDir>$(MSBuildThisFileDirectory)obj\</IntDir><TargetName>Spectrum.Reconstruction</TargetName><SdkRoot>$(MSBuildThisFileDirectory)..\..\External\Upscalers\</SdkRoot></PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile><LanguageStandard>stdcpp17</LanguageStandard><RuntimeLibrary>MultiThreaded</RuntimeLibrary><Optimization>MaxSpeed</Optimization><WarningLevel>Level4</WarningLevel><ExceptionHandling>Sync</ExceptionHandling><AdditionalIncludeDirectories>$(SdkRoot)xess\inc;$(SdkRoot)fsr\Kits\FidelityFX\api\include;$(SdkRoot)fsr\Kits\FidelityFX\upscalers\include;$(SdkRoot)dlss\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <ClCompile><LanguageStandard>stdcpp17</LanguageStandard><RuntimeLibrary>MultiThreaded</RuntimeLibrary><Optimization>MaxSpeed</Optimization><WarningLevel>Level4</WarningLevel><ExceptionHandling>Sync</ExceptionHandling><AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\..\External\NRD\Include;$(SdkRoot)xess\inc;$(SdkRoot)fsr\Kits\FidelityFX\api\include;$(SdkRoot)fsr\Kits\FidelityFX\upscalers\include;$(SdkRoot)dlss\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
     <Link><AdditionalDependencies>$(SdkRoot)dlss\lib\Windows_x86_64\x64\nvsdk_ngx_s.lib;d3d12.lib;dxgi.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
-  <ItemGroup><ClCompile Include="Reconstruction.cpp" /></ItemGroup>
+  <ItemGroup><ClCompile Include="Reconstruction.cpp" /><ClCompile Include="Nrd.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

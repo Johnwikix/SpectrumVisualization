@@ -14,7 +14,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 /// <summary>Reads only the medians needed by the current atlas and estimates missing shapes on the CPU worker.</summary>
 internal static class FoliaNebbiaStrokes
 {
-    internal readonly record struct Segment(Vector2 Start, Vector2 End);
+    internal readonly record struct Segment(Vector2 Start, Vector2 End, bool StartsStroke = false);
     private const int Grid = 32;
 
     internal static Dictionary<int, Segment[]> ReadMedialPaths(HashSet<int> wanted, CancellationToken token)
@@ -30,6 +30,7 @@ internal static class FoliaNebbiaStrokes
             throw new InvalidDataException("Invalid Nebbia stroke resource.");
         int count = reader.ReadInt32();
         var segments = new List<Segment>();
+        var anchors = new List<Vector2>();
         for (int i = 0; i < count && paths.Count < wanted.Count; i++)
         {
             token.ThrowIfCancellationRequested();
@@ -37,34 +38,48 @@ internal static class FoliaNebbiaStrokes
             int strokeCount = reader.ReadByte();
             bool keep = wanted.Contains(codepoint);
             segments.Clear();
-            Vector2 minimum = new(float.MaxValue), maximum = new(float.MinValue);
             for (int stroke = 0; stroke < strokeCount; stroke++)
             {
                 int points = reader.ReadUInt16();
-                Vector2 previous = default;
+                anchors.Clear();
                 for (int j = 0; j < points; j++)
                 {
                     var point = new Vector2(reader.ReadInt16(), reader.ReadInt16());
-                    if (!keep)
-                        continue;
-                    if (j > 0 && previous != point)
-                        segments.Add(new(previous, point));
-                    minimum = Vector2.Min(minimum, point);
-                    maximum = Vector2.Max(maximum, point);
-                    previous = point;
+                    if (keep) anchors.Add(point / 1024);
                 }
+                if (keep) SmoothStroke(anchors, segments);
             }
             if (!keep || segments.Count == 0)
                 continue;
-            Vector2 size = Vector2.Max(maximum - minimum, new Vector2(1));
-            for (int j = 0; j < segments.Count; j++)
-            {
-                var segment = segments[j];
-                segments[j] = new((segment.Start - minimum) / size, (segment.End - minimum) / size);
-            }
             paths.Add(codepoint, segments.ToArray());
         }
         return paths;
+    }
+
+    private static void SmoothStroke(List<Vector2> points, List<Segment> output)
+    {
+        if (points.Count < 2) return;
+        Vector2 previous = points[0];
+        bool first = true;
+        if (points.Count >= 3)
+        {
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                Vector2 a = points[Math.Max(0, i - 1)], b = points[i], c = points[i + 1], d = points[Math.Min(points.Count - 1, i + 2)];
+                for (int j = 0; j < 6; j++)
+                {
+                    float t = j / 6f, t2 = t * t;
+                    Vector2 p = .5f * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 +
+                        (-a + 3 * b - 3 * c + d) * (t2 * t));
+                    if (p == previous) continue;
+                    output.Add(new(previous, p, first));
+                    first = false;
+                    previous = p;
+                }
+            }
+        }
+        if (previous != points[^1])
+            output.Add(new(previous, points[^1], first));
     }
 
     internal static Segment[] Estimate(CanvasDevice device, CanvasTextFormat format, string text)

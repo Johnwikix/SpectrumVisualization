@@ -50,6 +50,17 @@ namespace WinExSpectrumTest.Model
         private static bool _FoliaSonnetPostProcess = false;
         /// <summary>Gets or sets whether sonnet: film and lens post processing is enabled.</summary>
         public static bool FoliaSonnetPostProcess { get => _FoliaSonnetPostProcess; set => Set(ref _FoliaSonnetPostProcess, value); }
+        private static string _foliaMachiScene = "auto";
+        private static bool _foliaMachiMotion;
+        private static string _foliaMachiTimeOfDay = "auto";
+        public static string FoliaMachiTimeOfDay { get => _foliaMachiTimeOfDay; set => Set(ref _foliaMachiTimeOfDay, value is "day" or "dusk" or "night" ? value : "auto"); }
+        private static string _foliaMachiWeather = "auto";
+        public static string FoliaMachiWeather { get => _foliaMachiWeather; set => Set(ref _foliaMachiWeather, value is "clear" or "rain" or "snow" or "fog" ? value : "auto"); }
+        private static string _foliaMachiDenoiser = "nrd";
+        public static string FoliaMachiScene { get => _foliaMachiScene; set => Set(ref _foliaMachiScene, value is "konbini" or "station" or "kowloon" ? value : "auto"); }
+        public static bool FoliaMachiMotion { get => _foliaMachiMotion; set => Set(ref _foliaMachiMotion, value); }
+        public static string FoliaMachiDenoiser { get => _foliaMachiDenoiser; set => Set(ref _foliaMachiDenoiser, value == "dlss-rr" ? value : "nrd"); }
+
         private static bool _foliaMetaphorNegative = false;
         /// <summary>Controls the paper and ink polarity of the Metaphor stage.</summary>
         public static bool FoliaMetaphorNegative { get => _foliaMetaphorNegative; set => Set(ref _foliaMetaphorNegative, value); }

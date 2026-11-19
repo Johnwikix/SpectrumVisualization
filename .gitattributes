@@ -7,6 +7,10 @@
 External/Upscalers/xess/** -text
 External/Upscalers/fsr/** -text
 External/Upscalers/dlss/** -text
+External/NRD/Include/** -text
+External/NRD/Shaders/** -text
+External/NRD/*LICENSE.txt -text
+External/Folia/Machi/*.br binary
 
 ###############################################################################
 # Set default behavior for command prompt diff.

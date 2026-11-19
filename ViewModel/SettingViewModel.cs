@@ -459,6 +459,8 @@ namespace WinExSpectrumTest.ViewModel
                 if (Effects.EffectRegistry.Resolve(AppSettings.VisualEffect).Host != Effects.EffectHost.Gpu)
                     return new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader().GetString("GpuReconstructionWin2D");
                 var status = Rendering.ReconstructionAvailability.Status;
+                if (AppSettings.VisualEffect == Effects.Folia.FoliaGpuEffect.EffectId && AppSettings.FoliaLyricMode == "machi" && status.Machi != Rendering.MachiRenderStatus.Idle)
+                    return MachiRendererStatus;
                 string key = !Rendering.ReconstructionAvailability.Known ? "GpuReconstructionPending" :
                     status.UnsupportedScale ? "GpuReconstructionScaleUnsupported" :
                     status.Requested != status.Active ? "GpuReconstructionFallback" : "GpuReconstructionReady";
@@ -468,6 +470,8 @@ namespace WinExSpectrumTest.ViewModel
 
         private void OnReconstructionChanged()
         {
+            OnPropertyChanged(nameof(MachiAvailable));
+            OnPropertyChanged(nameof(MachiRendererStatus));
             OnPropertyChanged(nameof(GpuXeSSAvailable));
             OnPropertyChanged(nameof(GpuFsrAvailable));
             OnPropertyChanged(nameof(GpuDlssAvailable));
