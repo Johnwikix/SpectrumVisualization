@@ -34,16 +34,26 @@ void Resolve(uint3 id : SV_DispatchThreadID)
     Output[p] = float4(max(0, color), 1);
 }
 
-Texture2D<float4> Reconstructed : register(t12);
+Texture2D<float4> ResolvedInput : register(t12);
 Texture2D<float4> Raw : register(t13);
 
 [numthreads(8, 8, 1)]
-void ResolveRayReconstruction(uint3 id : SV_DispatchThreadID)
+void ResolveScale(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
     Output.GetDimensions(width, height);
     if (any(id.xy >= uint2(width, height))) return;
-    Output[id.xy] = float4(max(0, Deterministic[id.xy].rgb + Reconstructed[id.xy].rgb), 1);
+    uint inputWidth, inputHeight;
+    ResolvedInput.GetDimensions(inputWidth, inputHeight);
+    float2 source = (float2(id.xy) + .5) / float2(width, height) * float2(inputWidth, inputHeight) - .5;
+    int2 p = int2(floor(source));
+    int2 edge = int2(inputWidth, inputHeight) - 1;
+    float2 fraction = frac(source);
+    float3 a = ResolvedInput.Load(int3(clamp(p, 0, edge), 0)).rgb;
+    float3 b = ResolvedInput.Load(int3(clamp(p + int2(1, 0), 0, edge), 0)).rgb;
+    float3 c = ResolvedInput.Load(int3(clamp(p + int2(0, 1), 0, edge), 0)).rgb;
+    float3 d = ResolvedInput.Load(int3(clamp(p + 1, 0, edge), 0)).rgb;
+    Output[id.xy] = float4(lerp(lerp(a, b, fraction.x), lerp(c, d, fraction.x), fraction.y), 1);
 }
 
 [numthreads(8, 8, 1)]
@@ -52,5 +62,5 @@ void ResolveRaw(uint3 id : SV_DispatchThreadID)
     uint width, height;
     Output.GetDimensions(width, height);
     if (any(id.xy >= uint2(width, height))) return;
-    Output[id.xy] = float4(max(0, Deterministic[id.xy].rgb + Raw[id.xy].rgb), 1);
+    Output[id.xy] = float4(max(0, Raw[id.xy].rgb), 1);
 }

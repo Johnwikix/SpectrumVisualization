@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { brotliCompressSync, constants, gunzipSync } from 'node:zlib';
 
-const revision = '6ee9404f7957b8ea841a46bad8b085a5a604a3cf';
+const revision = '847bb51dd80316b4d94461d9d838db50d31da2c8';
 if (!process.argv[3]) throw new Error('Usage: node Build/FoliaMachi/sync.mjs <folia-major-checkout> <rainy-corner.json> [chromium-executable]');
 const upstream = resolve(process.argv[2]);
 if (execFileSync('git', ['--git-dir', resolve(upstream, '.git'), 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() !== revision) {

@@ -53,11 +53,9 @@ internal sealed partial class FoliaMachi
         _elevation = reader.ReadSingle();
         _zoom = reader.ReadSingle();
         SceneHalf = reader.ReadSingle();
-        int actorCount = reader.ReadInt32();
-        if (actorCount is < 0 or > 16)
-            throw new InvalidDataException("Invalid Machi actor count.");
+        int actorCount = ReadCount(reader, 16, minimum: 0);
         StaticIndexCount = ReadCount(reader, indexCount);
-        int lights = ReadCount(reader, 128);
+        int lights = ReadCount(reader, 128, minimum: 0);
 
         Vector3 forward = -OrbitDirection(_azimuth, _elevation);
         Vector3 right = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitY));
@@ -189,10 +187,10 @@ internal sealed partial class FoliaMachi
     private static float Wave(double time, double period, double phase) =>
         (float)Math.Sin(time * (2 * Math.PI / period) + phase);
 
-    private static int ReadCount(BinaryReader reader, int limit)
+    private static int ReadCount(BinaryReader reader, int limit, int minimum = 1)
     {
         int value = reader.ReadInt32();
-        return value > 0 && value <= limit ? value : throw new InvalidDataException("Invalid Machi scene size.");
+        return value >= minimum && value <= limit ? value : throw new InvalidDataException("Invalid Machi scene size.");
     }
 
     private static Vertex[] ReadVertices(Stream stream, int count, CancellationToken cancellationToken)
@@ -216,11 +214,16 @@ internal sealed partial class FoliaMachi
                 for (int i = 0; i < vertices.Length; i++)
                 {
                     ref readonly PackedVertex source = ref vertices[i];
+                    bool fixture = source.Material == 11;
                     result[start + i] = new Vertex(
                         new(source.X, source.Y, source.Z, source.Material),
                         new(linear[source.R], linear[source.G], linear[source.B], source.Gain / 16f),
-                        new(source.Nx / 32767f, source.Ny / 32767f, source.Nz / 32767f, source.U / 65535f),
-                        new(source.V / 65535f, source.OverlayU / 16383.75f - 2, source.OverlayV / 16383.75f - 2, source.Surface));
+                        new(source.Nx / 32767f, source.Ny / 32767f, source.Nz / 32767f,
+                            fixture ? (float)BitConverter.UInt16BitsToHalf(source.U) :
+                                source.Material == 12 ? source.U : source.U / 65535f),
+                        new(fixture ? (float)BitConverter.UInt16BitsToHalf(source.V) : source.V / 65535f,
+                            fixture ? (float)BitConverter.UInt16BitsToHalf(source.OverlayU) : source.OverlayU / 16383.75f - 2,
+                            source.OverlayV / 16383.75f - 2, source.Surface));
                 }
             }
             return result;

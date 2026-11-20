@@ -27,6 +27,7 @@ internal sealed class GpuRenderer
     private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private GpuRenderSettings _settings;
     private long _scaleChangedAt;
+    private long _machiScaleChangedAt;
     private long _sizeChangedAt;
     private bool _stopping;
     private HdrOutputMode? _lastStatus;
@@ -76,6 +77,8 @@ internal sealed class GpuRenderer
             if (_stopping) return;
             if (_settings.Scene.RenderScalePercent != settings.Scene.RenderScalePercent)
                 _scaleChangedAt = Environment.TickCount64;
+            if (_settings.Scene.MachiQuality.RenderScalePercent != settings.Scene.MachiQuality.RenderScalePercent)
+                _machiScaleChangedAt = Environment.TickCount64;
             if (_settings.Width != settings.Width || _settings.Height != settings.Height)
                 _sizeChangedAt = Environment.TickCount64;
             _settings = settings;
@@ -133,6 +136,7 @@ internal sealed class GpuRenderer
             {
                 GpuRenderSettings settings;
                 long scaleChangedAt;
+                long machiScaleChangedAt;
                 long sizeChangedAt;
                 TaskCompletionSource? pauseRequest;
                 lock (_gate)
@@ -140,6 +144,7 @@ internal sealed class GpuRenderer
                     if (_stopping) break;
                     settings = _settings;
                     scaleChangedAt = _scaleChangedAt;
+                    machiScaleChangedAt = _machiScaleChangedAt;
                     sizeChangedAt = _sizeChangedAt;
                     pauseRequest = _paused;
                     _paused = null;
@@ -204,6 +209,14 @@ internal sealed class GpuRenderer
                     var scene = Environment.TickCount64 - scaleChangedAt < 150
                         ? settings.Scene with { RenderScalePercent = graphics.RenderScalePercent }
                         : settings.Scene;
+                    if (activeEffect == settings.Effect.Id && graphics.MachiRenderScalePercent > 0 &&
+                        scene.MachiQuality.RenderScalePercent > 0 && Environment.TickCount64 - machiScaleChangedAt < 150)
+                    {
+                        scene = scene with
+                        {
+                            MachiQuality = scene.MachiQuality with { RenderScalePercent = graphics.MachiRenderScalePercent }
+                        };
+                    }
                     bool resizing = Environment.TickCount64 - sizeChangedAt < 180;
                     // XAML scales the existing surface during a drag. Rebuild once dimensions settle,
                     // applying pending SR options in the same resource transaction.

@@ -1,4 +1,5 @@
 using System;
+using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects;
@@ -8,9 +9,12 @@ internal enum EffectHost { Win2D, Gpu }
 
 /// <summary>Registers an effect without constructing graphics devices while listing the catalog.</summary>
 internal sealed record EffectDescriptor(string Id, string ResourceKey, EffectHost Host, bool UsesMedia,
-    Func<IGpuVisualizerEffect>? CreateGpu, Func<int>? GetDetail = null)
+    Func<IGpuVisualizerEffect>? CreateGpu, Func<int>? GetDetail = null, Func<GpuQualitySettings>? GetMachiQuality = null)
 {
-    // Resolution and AA always come from the host; registrations only supply effect detail.
-    internal GpuSceneOptions GetSceneOptions(float pixelsPerDip = 1) => GpuSceneOptions.FromSettings(GetDetail?.Invoke() ?? 0)
-        with { PixelsPerDip = float.IsFinite(pixelsPerDip) && pixelsPerDip > 0 ? pixelsPerDip : 1 };
+    internal GpuSceneOptions GetSceneOptions(float pixelsPerDip = 1) =>
+        GpuSceneOptions.FromSettings(GetDetail?.Invoke() ?? 0) with
+        {
+            PixelsPerDip = float.IsFinite(pixelsPerDip) && pixelsPerDip > 0 ? pixelsPerDip : 1,
+            MachiQuality = GetMachiQuality?.Invoke() ?? default
+        };
 }

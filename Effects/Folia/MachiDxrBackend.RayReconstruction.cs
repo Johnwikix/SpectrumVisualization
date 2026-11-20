@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D12;
+using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -10,10 +11,15 @@ internal sealed unsafe partial class MachiDxrBackend
     private const string NativeLibrary = "Spectrum.Reconstruction";
     private nint _rayReconstruction;
     private bool _rayReconstructionChecked;
-    private readonly bool[] _rrBound = new bool[FrameSlots];
+    private TemporalReconstruction? _superResolution;
+    private bool _superResolutionAttempted, _superResolutionFailed;
+    private uint _jitterIndex;
 
     internal int RayReconstructionResult { get; private set; }
     internal uint RayReconstructionDispatchCount { get; private set; }
+    internal int SuperResolutionResult { get; private set; }
+    internal uint SuperResolutionDispatchCount { get; private set; }
+    internal ReconstructionMode SuperResolutionActive { get; private set; }
     internal int DenoiserResult { get; private set; }
     internal uint DenoiserDispatchCount { get; private set; }
 
@@ -45,74 +51,50 @@ internal sealed unsafe partial class MachiDxrBackend
         or MachiDxrSignal.LinearNormal or MachiDxrSignal.SpecularDistance or MachiDxrSignal.ReconstructionDepth
         or MachiDxrSignal.ReconstructionMotion;
 
-    private bool PrepareRayReconstruction(int frameSlot, bool requested)
+    private bool PrepareRayReconstruction(ID3D12GraphicsCommandList commands, bool requested)
     {
         if (!requested) return false;
         if (!_rayReconstructionChecked) InitializeRayReconstruction();
         if (!RayReconstructionAvailable) return false;
-        if (_rrOutput is null)
+        if (_rayReconstruction == 0)
         {
             try
             {
                 for (int i = 0; i < TraceOutputs; i++)
-                    if (IsRayReconstructionGuide(i))
+                    if (IsRayReconstructionGuide(i) && _signals[i] == null)
+                    {
                         _signals[i] = Texture(SignalFormat(i));
-                _rrOutput = Texture(HdrFormat);
+                        for (int slot = 0; slot < FrameSlots; slot++) BindTraceOutput(slot, i);
+                    }
+                RayReconstructionResult = CreateRayReconstruction(_device.NativePointer, commands.NativePointer,
+                    6, 0, (uint)_renderSize.OutputWidth, (uint)_renderSize.OutputHeight, (uint)_width, (uint)_height, out _rayReconstruction);
             }
             catch (SharpGen.Runtime.SharpGenException exception)
             {
-                for (int i = 0; i < TraceOutputs; i++)
-                {
-                    if (!IsRayReconstructionGuide(i)) continue;
-                    _signals[i]?.Dispose();
-                    _signals[i] = null!;
-                }
-                RayReconstructionAvailable = false;
                 RayReconstructionResult = exception.HResult;
-                return false;
             }
+            if (RayReconstructionResult != 0) RayReconstructionAvailable = false;
         }
-
-        if (!_rrBound[frameSlot])
-        {
-            for (int i = 0; i < TraceOutputs; i++)
-                if (IsRayReconstructionGuide(i))
-                    BindTraceOutput(frameSlot, i);
-            _device.CreateShaderResourceView(_rrOutput, null, Cpu(frameSlot, TraceOutputs + 2 + 12));
-            _rrBound[frameSlot] = true;
-        }
-        return true;
+        return RayReconstructionAvailable;
     }
 
-    private bool TryRayReconstruction(ID3D12GraphicsCommandList commands, in Camera camera, bool reset,
-        float seconds, bool requested)
+    private bool TryRayReconstruction(ID3D12GraphicsCommandList commands, in Camera camera,
+        ID3D12Resource output, in TemporalFrame temporal, float seconds)
     {
-        if (!requested) return false;
-        if (_rayReconstruction == 0)
-        {
-            RayReconstructionResult = CreateRayReconstruction(_device.NativePointer, commands.NativePointer,
-                6, 0, (uint)_width, (uint)_height, (uint)_width, (uint)_height, out _rayReconstruction);
-            if (RayReconstructionResult != 0)
-            {
-                RayReconstructionAvailable = false;
-                return false;
-            }
-        }
         RayReconstructionFrame frame = new()
         {
             Color = Signal(MachiDxrSignal.Noisy).NativePointer,
             Depth = Signal(MachiDxrSignal.ReconstructionDepth).NativePointer,
             Motion = Signal(MachiDxrSignal.ReconstructionMotion).NativePointer,
-            Output = _rrOutput.NativePointer, Width = (uint)_width, Height = (uint)_height,
+            Output = output.NativePointer, Width = (uint)_width, Height = (uint)_height,
+            JitterX = temporal.JitterX, JitterY = temporal.JitterY,
             Milliseconds = Math.Clamp(seconds * 1000, .01f, 200),
-            Reset = reset ? 1u : 0, NearPlane = .1f, FarPlane = 200,
+            Reset = temporal.Reset ? 1u : 0, NearPlane = .1f, FarPlane = 200,
             DiffuseAlbedo = Signal(MachiDxrSignal.Albedo).NativePointer, SpecularAlbedo = Signal(MachiDxrSignal.SpecularAlbedo).NativePointer,
             NormalRoughness = Signal(MachiDxrSignal.LinearNormal).NativePointer, SpecularHitDistance = Signal(MachiDxrSignal.SpecularDistance).NativePointer, ReflectionMotion = Signal(MachiDxrSignal.ReflectionMotion).NativePointer,
             WorldToView = camera.View, ViewToClip = camera.Projection
         };
-        commands.ResourceBarrierTransition(_rrOutput, Read, Write);
         RayReconstructionResult = ExecuteRayReconstruction(_rayReconstruction, commands.NativePointer, &frame);
-        commands.ResourceBarrierTransition(_rrOutput, Write, Read);
         if (RayReconstructionResult != 0)
         {
             RayReconstructionAvailable = false;
@@ -120,6 +102,49 @@ internal sealed unsafe partial class MachiDxrBackend
         }
         RayReconstructionDispatchCount++;
         return true;
+    }
+
+    private bool PrepareSuperResolution(ID3D12GraphicsCommandList commands)
+    {
+        if (_superResolutionMode < ReconstructionMode.XeSS || _superResolutionFailed) return false;
+        if (!_superResolutionAttempted)
+        {
+            _superResolutionAttempted = true;
+            try { _superResolution = TemporalReconstruction.Create(_device, commands, _superResolutionMode, _preset, _renderSize, reactiveMask: false); }
+            catch (ReconstructionSizeException) { SuperResolutionResult = -30; }
+            catch (Exception error)
+            {
+                SuperResolutionResult = error.HResult;
+                App.WriteCrashLog("Machi super resolution initialization", error.Message, error);
+            }
+        }
+        return _superResolution != null;
+    }
+
+    private bool TrySuperResolution(ID3D12GraphicsCommandList commands, ID3D12Resource output, in TemporalFrame temporal, float seconds)
+    {
+        var depth = Signal(_superResolutionMode == ReconstructionMode.Fsr ? MachiDxrSignal.ReconstructionDepth : MachiDxrSignal.Depth);
+        SuperResolutionResult = _superResolution!.Execute(commands, _resolveInput!, depth,
+            Signal(MachiDxrSignal.Motion), null, output, new TemporalCamera(.1f, 200, MathF.PI / 3), temporal, seconds);
+        if (SuperResolutionResult != 0)
+        {
+            _superResolutionFailed = true;
+            App.WriteCrashLog("Machi super resolution dispatch", $"{_superResolutionMode} failed ({SuperResolutionResult}).", null);
+            return false;
+        }
+        SuperResolutionActive = _superResolutionMode;
+        SuperResolutionDispatchCount++;
+        return true;
+    }
+
+    private void DisposeSuperResolution()
+    {
+        _superResolution?.Dispose();
+        _superResolution = null;
+        _superResolutionAttempted = _superResolutionFailed = false;
+        SuperResolutionResult = 0;
+        SuperResolutionActive = ReconstructionMode.Off;
+        _jitterIndex = 0;
     }
 
     private void DisposeRayReconstruction()

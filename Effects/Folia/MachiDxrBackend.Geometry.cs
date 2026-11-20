@@ -193,6 +193,9 @@ internal sealed unsafe partial class MachiDxrBackend
                 float estimate = material switch
                 {
                     2 or 6 or 8 => 1.1f,
+                    11 => .2126f * a.NormalUvX.W + .7152f * a.UvY.X + .0722f * a.UvY.Y,
+                    // The bulb alternates between .18 and 1.9 at equal duty cycle.
+                    12 => 1.04f * (.2126f * a.Color.X + .7152f * a.Color.Y + .0722f * a.Color.Z),
                     3 or 5 or 7 or 10 => a.Color.W * Math.Max(.15f, .2126f * a.Color.X + .7152f * a.Color.Y + .0722f * a.Color.Z),
                     _ => 0
                 };

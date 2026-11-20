@@ -318,7 +318,7 @@ Submit rate is not the display frame rate</value></data>
   <data name="ResetSettingsDialogMessage" xml:space="preserve"><value>All settings will be restored to their defaults. This cannot be undone. Continue?</value></data>
   <data name="ResetSettingsDialogConfirm" xml:space="preserve"><value>Reset</value></data>
   <data name="ResetSettingsDialogCancel" xml:space="preserve"><value>Cancel</value></data>
-  <data name="GpuSettingsScope.Text" xml:space="preserve"><value>GPU quality applies to Sonic Topography and future effects drawn directly to the swap chain. Win2D effects such as Aurora Ring use their own rendering.</value></data>
+  <data name="GpuSettingsScope.Text" xml:space="preserve"><value>GPU quality applies to effects drawn directly to the swap chain, including Sonic Topography and Folia Major. Machi can override anti-aliasing and render scale in its own settings.</value></data>
   <data name="GpuAntiAliasing.Description" xml:space="preserve"><value>FXAA / SMAA smooth edges. XeSS / FSR / DLSS use temporal reconstruction and require effect depth and motion vectors. Unsupported modes fall back to FXAA.</value></data>
   <data name="GpuReconstructionStatus.Header" xml:space="preserve"><value>Current GPU rendering status</value></data>
   <data name="GpuReconstructionWin2D" xml:space="preserve"><value>A Win2D effect is active. Saved GPU quality settings apply when switching to a GPU effect.</value></data>
@@ -397,6 +397,13 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>Scene</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>Camera drift</value></data>
   <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>Path tracing denoiser</value></data>
+  <data name="FoliaMachiGpuQualityOverride.Header" xml:space="preserve"><value>Override GPU quality</value></data>
+  <data name="FoliaMachiGpuQualityOverride.Description" xml:space="preserve"><value>Set anti-aliasing and render scale together for this mode. When off, both follow global GPU quality.</value></data>
+  <data name="FoliaMachiGpuQualityToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Override Machi GPU quality</value></data>
+  <data name="FoliaMachiAntiAliasing.Header" xml:space="preserve"><value>Anti-aliasing</value></data>
+  <data name="FoliaMachiAntiAliasing.Description" xml:space="preserve"><value>Applies when using NRD, including when Ray Reconstruction falls back to NRD. Unsupported modes fall back to FXAA.</value></data>
+  <data name="MachiNrdSuperResolutionActive" xml:space="preserve"><value>Hardware path tracing with NRD denoising and {0} is active.</value></data>
+  <data name="MachiRrFallbackSuperResolution" xml:space="preserve"><value>DLSS Ray Reconstruction is unavailable. NRD and {0} are active.</value></data>
   <data name="MachiSceneAuto.Content" xml:space="preserve"><value>Choose by song</value></data>
   <data name="MachiSceneKonbini.Content" xml:space="preserve"><value>Convenience store</value></data>
   <data name="MachiSceneStation.Content" xml:space="preserve"><value>Gas station</value></data>

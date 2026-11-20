@@ -16,6 +16,25 @@ const sceneLabels = {
     station: 'FOLIA SERVICE',
     kowloon: 'KOWLOON',
 };
+// These upstream analytic lights stand in for identifiable meshes. A group of
+// proxy lights supplies one total flux budget to all of its emitting surfaces.
+const fixtureGroups = {
+    konbini: [
+        { mesh: 'CeilingLights', role: 'ceilingLight', count: 9, downward: true, base: .68,
+            lights: ['Lights/interior0', 'Lights/interior1'] },
+        { mesh: 'Lens', donorMesh: 'RainyCorner/lamp/warm_light', role: 'lampHead', count: 1, downward: true, base: .62,
+            lights: ['Lights/street'] },
+    ],
+    station: [
+        { mesh: 'Canopy/light', role: 'canopyLight', count: 6, downward: true, base: .68,
+            lights: ['Lights/canopy0', 'Lights/canopy1'] },
+        { mesh: 'Lens', role: 'lampHead', count: 1, downward: true, base: .62, lights: ['Lights/lotLamp'] },
+    ],
+    kowloon: [
+        { mesh: 'Bulb', role: 'stallBulb', count: 1, downward: false, base: .62, lights: ['Lights/stall'] },
+        { mesh: 'LampLens', role: 'lampHead', count: 1, downward: true, base: .62, lights: ['Lights/lamp'] },
+    ],
+};
 const theme = {
     provider: 'preset',
     name: '',
@@ -59,6 +78,7 @@ function fitRainyCorner(scene, donor, materials, palette) {
         counter: { white: 'counter' },
         ac: { white: 'acUnit' },
     };
+    const donorEmitters = { vending: ['RC vending LED diffuser', 'cyan_light'], lamp: ['warm_light'] };
     const materialFor = (category, key) => {
         if (key === 'glass') return materials.glass;
         if (key === 'RC vending LED diffuser' || key === 'cyan_light') return materials.glow('vendingGlow');
@@ -91,6 +111,12 @@ function fitRainyCorner(scene, donor, materials, palette) {
         const template = new THREE.Group();
         const source = donor.groups[category];
         if (!source || targets.length === 0) throw new Error(`RainyCorner ${category} is missing.`);
+        for (const key of donorEmitters[category] ?? []) {
+            const surface = source[key]?.surface;
+            const validRgb = rgb => rgb?.length === 3 && rgb.every(value => Number.isFinite(value) && value >= 0);
+            if (!validRgb(surface?.emission) || !surface.emission.some(value => value > 0) || !validRgb(surface.baseColor))
+                throw new Error(`RainyCorner ${category}/${key} lacks physical light data. Re-export with extract-rainy-corner.py.`);
+        }
         for (const [key, data] of Object.entries(source)) {
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
@@ -98,7 +124,9 @@ function fitRainyCorner(scene, donor, materials, palette) {
             geometry.setIndex(data.indices);
             const material = materialFor(category, key).clone();
             if (data.surface) material.userData.rainyCorner = data.surface;
-            template.add(new THREE.Mesh(geometry, materials.track(material)));
+            const mesh = new THREE.Mesh(geometry, materials.track(material));
+            mesh.name = `RainyCorner/${category}/${key}`;
+            template.add(mesh);
         }
         const sourceBounds = new THREE.Box3().setFromObject(template);
         const sourceSize = sourceBounds.getSize(new THREE.Vector3());
@@ -121,7 +149,7 @@ function fitRainyCorner(scene, donor, materials, palette) {
     return applied;
 }
 
-function collectScene(scene) {
+function collectScene(scene, blend) {
     const road = new Set(scene.surfaces.road);
     const lot = new Set(scene.surfaces.lot);
     const staticDraws = [];
@@ -150,7 +178,10 @@ function collectScene(scene) {
             const alternative = object.name === 'Motel/vacancy' ? scene.signs.vacancyFull.texture : null;
             const name = material.name;
             let kind = 0;
-            if (name === 'machi:lyricScreen') kind = 2;
+            const fixture = material.userData.rainyCorner;
+            if (fixture?.emission) kind = 11;
+            else if (object.name === 'Motel/bulbs') kind = 12;
+            else if (name === 'machi:lyricScreen') kind = 2;
             else if (name === 'machi:led') kind = 6;
             else if (object.name === 'Hologram/panel') kind = 8;
             else if (texture) kind = alternative ? 10 : 5;
@@ -161,7 +192,7 @@ function collectScene(scene) {
             }
             else if (road.has(object)) kind = 4;
             else if (lot.has(object)) kind = 9;
-            else if (name.startsWith('machi:glow:') || object.name === 'Motel/bulbs' || /^(Headlight|Taillight)$/.test(object.name)) kind = 3;
+            else if (name.startsWith('machi:glow:') || /^(Headlight|Taillight)$/.test(object.name)) kind = 3;
 
             if (!material.isShaderMaterial || kind !== 0) {
                 const count = object.isInstancedMesh ? object.count : 1;
@@ -176,13 +207,15 @@ function collectScene(scene) {
                     }
                     if (actor?.kind === 5) transform.elements[13] -= 30;
                     color.copy(material.color ?? material.uniforms?.uColor?.value ?? new THREE.Color(1, 1, 1));
+                    if (kind === 11) color.fromArray(fixture.baseColor);
+                    else if (kind === 12) color.copy(blend.get('streetLight'));
                     if (object.instanceColor) {
                         const instanceColor = new THREE.Color();
                         object.getColorAt(i, instanceColor);
                         color.multiply(instanceColor);
                     }
                     const gain = kind === 3 ? Math.max(1, color.r, color.g, color.b) :
-                        kind === 5 || kind === 10 ? (material.isMeshBasicMaterial ? color.r : 0.3) : 1;
+                        kind === 5 || kind === 10 ? (material.isMeshBasicMaterial ? color.r : 0) : 1;
                     if (kind === 3) color.multiplyScalar(1 / gain);
                     else if (kind === 5 || kind === 10) color.setRGB(.03, .035, .05);
                     else if (kind === 2) color.set(0x1e1822);
@@ -192,7 +225,8 @@ function collectScene(scene) {
                     const boardCells = material.uniforms?.uCells?.value;
                     const dots = material.uniforms?.uDots?.value;
                     const cells = kind === 2 ? boardCells : kind === 6 ? new THREE.Vector2(Math.floor(dots * material.uniforms.uAspect.value), dots) : null;
-                    draws.push({ geo, kind, gain, color: color.clone(), transform, texture, alternative, cells, surface, name: object.name });
+                    draws.push({ geo, kind, gain, color: color.clone(), transform, texture, alternative, cells, surface,
+                        emission: fixture?.emission, bulbPhase: kind === 12 ? i % 4 : 0, name: object.name, materialName: name });
                     vertexCount += geo.attributes.position.count;
                     indexCount += geo.index?.count ?? geo.attributes.position.count;
                 }
@@ -292,6 +326,94 @@ function collectLights(scene) {
         lights.push({ name: light.name, values: [...position, ...aim, ...light.color, light.intensity, light.distance, inner, outer] });
     });
     return lights;
+}
+
+function emittingFaces(draw, downward) {
+    const { geo, transform } = draw;
+    const position = geo.getAttribute('position');
+    const count = geo.index?.count ?? position.count;
+    const active = [], inactive = [];
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), cross = new THREE.Vector3();
+    const handedness = Math.sign(transform.determinant());
+    let area = 0;
+    for (let i = 0; i < count; i += 3) {
+        const ai = geo.index ? geo.index.getX(i) : i;
+        const bi = geo.index ? geo.index.getX(i + 1) : i + 1;
+        const ci = geo.index ? geo.index.getX(i + 2) : i + 2;
+        a.fromBufferAttribute(position, ai).applyMatrix4(transform);
+        b.fromBufferAttribute(position, bi).applyMatrix4(transform);
+        c.fromBufferAttribute(position, ci).applyMatrix4(transform);
+        cross.crossVectors(b.sub(a), c.sub(a));
+        const twiceArea = cross.length();
+        if (twiceArea <= 1e-10 || (downward && cross.y * handedness >= -twiceArea * 1e-6)) {
+            inactive.push(ai, bi, ci);
+            continue;
+        }
+        area += twiceArea / 2;
+        active.push(ai, bi, ci);
+    }
+    const withIndices = indices => {
+        const part = new THREE.BufferGeometry();
+        for (const [name, attribute] of Object.entries(geo.attributes)) part.setAttribute(name, attribute);
+        return part.setIndex(indices);
+    };
+    return { area, active: inactive.length ? withIndices(active) : geo, inactive: inactive.length ? withIndices(inactive) : null };
+}
+
+function analyticFlux(light) {
+    const [r, g, b, intensity, , inner, outer] = light.values.slice(6);
+    // Integrate Three.js' smoothstep cone in cosine space. Its penumbra
+    // contributes half the solid angle between its two limits.
+    const solidAngle = outer === -1 ? 4 * Math.PI : 2 * Math.PI * (1 - (inner + outer) / 2);
+    return [r, g, b].map(channel => channel * intensity * solidAngle);
+}
+
+const luminance = ([r, g, b]) => .2126 * r + .7152 * g + .0722 * b;
+
+function transferFixtureLights(id, data, lights) {
+    const replaced = new Map();
+    // The path tracer gets vending illumination from the diffusers and window
+    // spill from the ceiling fixtures through the glass.
+    const transferred = new Set(id === 'konbini' ? ['Lights/vending', 'Lights/spill0', 'Lights/spill1'] : []);
+    const fixtureStats = [];
+    for (const group of fixtureGroups[id]) {
+        const draws = data.draws.filter(draw => (draw.name === group.mesh || draw.name === group.donorMesh)
+            && draw.materialName === `machi:glow:${group.role}`);
+        const sources = lights.filter(light => group.lights.includes(light.name));
+        if (draws.length !== group.count || sources.length !== group.lights.length)
+            throw new Error(`Unexpected Machi fixture mapping: ${id}/${group.mesh}.`);
+        const parts = draws.map(draw => emittingFaces(draw, group.downward));
+        const area = parts.reduce((sum, part) => sum + part.area, 0);
+        if (parts.some(part => part.area <= 0)) throw new Error(`No emitting surface for ${id}/${group.mesh}.`);
+        const flux = [0, 0, 0];
+        for (const light of sources) {
+            const sourceFlux = analyticFlux(light);
+            for (let channel = 0; channel < 3; channel++) flux[channel] += sourceFlux[channel];
+            transferred.add(light.name);
+        }
+        // The hemispherical integral of a one-sided Lambertian emitter is π.
+        const diffuse = new THREE.Color().setRGB(group.base, group.base, group.base);
+        const donorEmission = group.donorMesh ? draws[0].emission : null;
+        // Keep the Blender lamp's chromaticity and use the upstream spotlight
+        // only to calibrate its total luminance-weighted flux.
+        const calibrated = donorEmission?.some(channel => channel > 0)
+            ? donorEmission.map(channel => channel * luminance(flux) / luminance(donorEmission)) : flux;
+        const emission = calibrated.map(channel => channel / (Math.PI * area));
+        for (let index = 0; index < draws.length; index++) {
+            const draw = draws[index];
+            const part = parts[index];
+            const color = draw.emission ? draw.color : diffuse;
+            const replacement = [{ ...draw, geo: part.active, kind: 11, gain: 1, color, emission }];
+            if (part.inactive) {
+                replacement.push({ ...draw, geo: part.inactive, kind: 0, gain: 1, color, emission: undefined });
+                data.vertexCount += part.inactive.getAttribute('position').count;
+            }
+            replaced.set(draw, replacement);
+        }
+        fixtureStats.push({ mesh: draws[0].name, count: draws.length, area, flux, emission });
+    }
+    data.draws = data.draws.flatMap(draw => replaced.get(draw) ?? [draw]);
+    return { lights: lights.filter(light => !transferred.has(light.name)), fixtureStats };
 }
 
 function writeScene(id, scene, data, signs, lights) {
@@ -403,6 +525,13 @@ function writeScene(id, scene, data, signs, lights) {
             bytes[offset + 27] = surface;
             view.setUint16(offset + 28, unorm(overlayU * .25 + .5), true);
             view.setUint16(offset + 30, unorm(overlayV * .25 + .5), true);
+            // Untextured physical luminaires store linear emitted RGB separately from albedo.
+            if (kind === 11) {
+                view.setFloat16(offset + 18, draw.emission[0], true);
+                view.setFloat16(offset + 20, draw.emission[1], true);
+                view.setFloat16(offset + 28, draw.emission[2], true);
+            }
+            if (kind === 12) view.setUint16(offset + 18, draw.bulbPhase, true);
             offset += stride;
         }
         const count = geo.index?.count ?? position.count;
@@ -475,11 +604,11 @@ export async function exportScene(id, donor) {
             paint.fillRect(pylon.width * .07, y + rowHeight * .3164, pylon.width * .86, rowHeight * .60);
         }
     }
-    const referenceTriangles = donor ? collectScene(scene).indexCount / 3 : null;
+    const referenceTriangles = donor ? collectScene(scene, blend).indexCount / 3 : null;
     const donorInstances = donor ? fitRainyCorner(scene, donor, materials, palette) : null;
-    const data = collectScene(scene);
+    const data = collectScene(scene, blend);
     const signs = packSigns(data.textures);
-    const lights = collectLights(scene);
+    const { lights, fixtureStats } = transferFixtureLights(id, data, collectLights(scene));
     const bytes = writeScene(id, scene, data, signs, lights);
     // All three upstream sets use a 20-segment open cone and instanced steam quads.
     const cone = scene.lightCones.mesh.geometry;
@@ -510,6 +639,6 @@ export async function exportScene(id, donor) {
     return { binary, weather, stats: {
         draws: data.draws.length, actors: data.actors.map(actor => actor.kind), vertices: new DataView(bytes.buffer).getUint32(4, true),
         triangles: data.indexCount / 3, referenceTriangles, donorInstances,
-        lights: lights.length, signs: data.textures.size, atlas: [signs.width, signs.height], unpacked: bytes.length,
+        lights: lights.length, fixtures: fixtureStats, signs: data.textures.size, atlas: [signs.width, signs.height], unpacked: bytes.length,
     } };
 }

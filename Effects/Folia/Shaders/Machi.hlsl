@@ -5,6 +5,7 @@ cbuffer MachiPost : register(b1) {
     float4 HorizonMist, Weather, Scene, SkyTop;
     float4 Precipitation, RoofY, Roofs[4], Glints[3], Drips[192];
     float4 ConeApex, ConeTarget, ConeColor, GlowA, GlowB, GlowColorA, GlowColorB, Steam[64];
+    float2 DepthUvOffset;
 };
 float Noise2(float2 p) {
     float2 cell=floor(p), t=frac(p);
@@ -16,7 +17,14 @@ float Fbm(float2 p) {
     return .56*Noise2(p)+.28*Noise2(p*2.07+4.3)+.16*Noise2(p*4.13-1.8);
 }
 float MetricDepth(float2 uv) {
-    return BackgroundHistoryTexture.SampleLevel(LinearClamp,uv,0).x*199.9;
+    return BackgroundHistoryTexture.SampleLevel(LinearClamp,uv+DepthUvOffset,0).x*199.9;
+}
+float SurfaceDepth(float2 position) {
+    uint width,height;
+    BackgroundHistoryTexture.GetDimensions(width,height);
+    uint2 size=uint2(width,height);
+    int2 texel=int2(floor((position/Screen.xy+DepthUvOffset)*size));
+    return BackgroundHistoryTexture.Load(int3(clamp(texel,0,int2(size)-1),0)).x;
 }
 float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float3 rgb=BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb;
@@ -101,8 +109,6 @@ float4 LensPS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
         color+=float3(.85,.9,1)*star*stars*1.3*smoothstep(.1,.55,1-uv.y);
     }
     color*=lerp(1,1-smoothstep(.35,1.15,length(v)*1.15),.55);
-    float grain=Hash(uv*float2(1733,977)+frac(Scene.y*7.31))-.5;
-    color+=grain*.032*(.25+dot(color,float3(.3333,.3333,.3333)));
     color=max(color,0);
     // Khronos PBR Neutral, as used by the source scene. The HDR10 output stage
     // applies its own display-dependent highlight shoulder above paper white.
@@ -182,7 +188,7 @@ Particle WeatherVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     return o;
 }
 float4 WeatherPS(Particle p):SV_Target {
-    float depth=BackgroundHistoryTexture.Load(int3(p.pos.xy,0)).x;
+    float depth=SurfaceDepth(p.pos.xy);
     clip(depth-p.pos.z);
     float edge=length(2*p.uv-1);
     float3 color=lerp(float3(.11,.18,.29),float3(.68,.76,.93),saturate(p.glint)*(1-.9*Weather.w));
@@ -233,7 +239,7 @@ VolumeVertex VolumeVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     return o;
 }
 float4 VolumePS(VolumeVertex i):SV_Target {
-    clip(BackgroundHistoryTexture.Load(int3(i.pos.xy,0)).x-i.pos.z);
+    clip(SurfaceDepth(i.pos.xy)-i.pos.z);
     if(i.kind==0) {
         float3 dir=normalize(mul(float4(0,0,1,0),InverseCamera).xyz);
         float facing=dot(normalize(i.normal),dir);

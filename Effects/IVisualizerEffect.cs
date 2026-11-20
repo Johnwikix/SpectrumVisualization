@@ -58,7 +58,8 @@ namespace WinExSpectrumTest.Effects
             new(SonicTopographyEffect.EffectId, "SonicEffectName", EffectHost.Gpu, true,
                 static () => new SonicGpuEffect(), static () => AppSettings.SonicGridSize),
             new(Folia.FoliaGpuEffect.EffectId, "FoliaEffectName", EffectHost.Gpu, false,
-                static () => new Folia.FoliaGpuEffect(App.FoliaPlayback.State))
+                static () => new Folia.FoliaGpuEffect(App.FoliaPlayback.State),
+                GetMachiQuality: static () => AppSettings.EffectiveFoliaMachiGpuQuality)
         ];
 
         internal static EffectDescriptor Resolve(string? id)

@@ -26,6 +26,9 @@ namespace WinExSpectrumTest.Model
         public string FoliaMachiTimeOfDay { get; set; } = "auto";
         public string FoliaMachiWeather { get; set; } = "auto";
         public string FoliaMachiDenoiser { get; set; } = "nrd";
+        public bool FoliaMachiGpuQualityOverride { get; set; }
+        public string FoliaMachiAntiAliasing { get; set; } = "fxaa";
+        public int FoliaMachiRenderScalePercent { get; set; } = 100;
         public bool FoliaMetaphorNegative { get; set; } = false;
         /// <summary>Gets or sets whether realtime motion is enabled.</summary>
         public bool FoliaRealtimeMotion { get; set; } = false;

@@ -191,6 +191,25 @@ namespace WinExSpectrumTest.Model
         /// <summary>Gets or sets the explicit DLSS model preset independently of resolution.</summary>
         public static string GpuDlssPreset { get => _gpuQuality.DlssPreset; set => GpuQuality = _gpuQuality with { DlssPreset = value }; }
 
+        private static bool _foliaMachiGpuQualityOverride;
+        public static bool FoliaMachiGpuQualityOverride
+        {
+            get => _foliaMachiGpuQualityOverride;
+            set => Set(ref _foliaMachiGpuQualityOverride, value);
+        }
+
+        private static GpuQualitySettings _foliaMachiGpuQuality = GpuQualitySettings.Default;
+        // Store the two local choices. The DLSS model preset is shared with the global profile.
+        public static GpuQualitySettings FoliaMachiGpuQuality
+        {
+            get => _foliaMachiGpuQuality;
+            set => Set(ref _foliaMachiGpuQuality, (value with { DlssPreset = GpuQualitySettings.Default.DlssPreset }).Normalize());
+        }
+
+        public static GpuQualitySettings EffectiveFoliaMachiGpuQuality => FoliaMachiGpuQualityOverride
+            ? FoliaMachiGpuQuality with { DlssPreset = GpuDlssPreset }
+            : GpuQuality;
+
         // Sonic Topography effect settings.
         private static string _SonicTheme = "nocturnal";
         public static string SonicTheme { get => _SonicTheme; set => Set(ref _SonicTheme, value); }
