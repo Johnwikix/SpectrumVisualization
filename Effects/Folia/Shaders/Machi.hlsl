@@ -6,6 +6,7 @@ cbuffer MachiPost : register(b1) {
     float4 Precipitation, RoofY, Roofs[4], Glints[3], Drips[192];
     float4 ConeApex, ConeTarget, ConeColor, GlowA, GlowB, GlowColorA, GlowColorB, Steam[64];
     float2 DepthUvOffset;
+    float ChromaticAberrationEnabled, DepthOfFieldEnabled;
 };
 float Noise2(float2 p) {
     float2 cell=floor(p), t=frac(p);
@@ -67,36 +68,41 @@ float2 BlurRadii(float2 uv) {
 }
 float4 LensPS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float2 centered=uv-.5;
-    float2 shift=centered*dot(centered,centered)*.014;
-    float3 center=float3(LayerTexture.SampleLevel(LinearClamp,uv+shift,0).r,
-        LayerTexture.SampleLevel(LinearClamp,uv,0).g, LayerTexture.SampleLevel(LinearClamp,uv-shift,0).b);
-    float radius=.012*Screen.y;
-    float2 mid=BlurRadii(uv);
-    float2 dir=float2(1,0);
-    // The center anchors a barely defocused edge. Opposite taps enter the aperture
-    // together so changing focus cannot translate a straight pole sideways.
-    float4 nearSum=0,farSum=float4(center,1);
-    [unroll] for(int i=0;i<8;i++) {
-        float ring=(i+.5)/8;
-        float r=ring*radius;
-        float area=2*ring;
-        float2 delta=dir*r/Screen.xy;
-        dir=float2(-.73736888*dir.x-.67549029*dir.y,.67549029*dir.x-.73736888*dir.y);
-        float2 plus=BlurRadii(uv+delta),minus=BlurRadii(uv-delta);
-        float4 a=float4(LayerTexture.SampleLevel(LinearClamp,uv+delta,0).rgb,1);
-        float4 b=float4(LayerTexture.SampleLevel(LinearClamp,uv-delta,0).rgb,1);
-        float farRadius=min(mid.x,min(plus.x,minus.x));
-        farSum+=(a+b)*(area*saturate((farRadius-r+1.2)/1.2));
-        float2 nearRadius=float2(plus.y,minus.y);
-        float2 weight=saturate((nearRadius-r+1.2)/1.2)*smoothstep(0,1,nearRadius);
-        // Within a foreground surface preserve its centroid. At a silhouette
-        // the near tap alone can still spread over the background.
-        float inside=smoothstep(0,1,min(mid.y,min(plus.y,minus.y)));
-        weight=lerp(weight,min(weight.x,weight.y),inside);
-        nearSum+=area*(a*weight.x+b*weight.y);
+    float3 color=LayerTexture.SampleLevel(LinearClamp,uv,0).rgb;
+    [branch] if (ChromaticAberrationEnabled>.5) {
+        float2 shift=centered*dot(centered,centered)*.014;
+        color.r=LayerTexture.SampleLevel(LinearClamp,uv+shift,0).r;
+        color.b=LayerTexture.SampleLevel(LinearClamp,uv-shift,0).b;
     }
-    float3 color=lerp(center,farSum.rgb/farSum.a,saturate(mid.x));
-    color=lerp(color,nearSum.rgb/max(nearSum.a,.0001),saturate(nearSum.a*3.14159/16));
+    [branch] if (DepthOfFieldEnabled>.5) {
+        float radius=.012*Screen.y;
+        float2 mid=BlurRadii(uv);
+        float2 dir=float2(1,0);
+        // The center anchors a barely defocused edge. Opposite taps enter the aperture
+        // together so changing focus cannot translate a straight pole sideways.
+        float4 nearSum=0,farSum=float4(color,1);
+        [unroll] for(int i=0;i<8;i++) {
+            float ring=(i+.5)/8;
+            float r=ring*radius;
+            float area=2*ring;
+            float2 delta=dir*r/Screen.xy;
+            dir=float2(-.73736888*dir.x-.67549029*dir.y,.67549029*dir.x-.73736888*dir.y);
+            float2 plus=BlurRadii(uv+delta),minus=BlurRadii(uv-delta);
+            float4 a=float4(LayerTexture.SampleLevel(LinearClamp,uv+delta,0).rgb,1);
+            float4 b=float4(LayerTexture.SampleLevel(LinearClamp,uv-delta,0).rgb,1);
+            float farRadius=min(mid.x,min(plus.x,minus.x));
+            farSum+=(a+b)*(area*saturate((farRadius-r+1.2)/1.2));
+            float2 nearRadius=float2(plus.y,minus.y);
+            float2 weight=saturate((nearRadius-r+1.2)/1.2)*smoothstep(0,1,nearRadius);
+            // Within a foreground surface preserve its centroid. At a silhouette
+            // the near tap alone can still spread over the background.
+            float inside=smoothstep(0,1,min(mid.y,min(plus.y,minus.y)));
+            weight=lerp(weight,min(weight.x,weight.y),inside);
+            nearSum+=area*(a*weight.x+b*weight.y);
+        }
+        color=lerp(color,farSum.rgb/farSum.a,saturate(mid.x));
+        color=lerp(color,nearSum.rgb/max(nearSum.a,.0001),saturate(nearSum.a*3.14159/16));
+    }
     float2 v=centered*float2(Screen.x/Screen.y,1);
     float sky=MetricDepth(uv)>199.88;
     float stars=(1-Weather.w)*(1-max(Weather.x,max(Weather.y,saturate(Weather.z/.42))))*(1-smoothstep(.05,.35,Weather.w));

@@ -175,6 +175,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12PipelineState Pipeline(string file, string vs, string ps, bool sprites = false, bool temporal = false, bool screen = false)
     {
         string shader = FoliaShaderLibrary.Background(file);
+        int pipelineVersion = file == "Machi" && ps == "LensPS" ? 11 : 10;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
@@ -188,7 +189,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             BlendState = screen ? new BlendDescription(Blend.One, Blend.InverseSourceColor, Blend.One, Blend.InverseSourceAlpha) : sprites ? BlendDescription.AlphaBlend : BlendDescription.Opaque,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = temporal, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.Always, StencilEnable = false }
-    }, $"Folia/root-v10-native-stages/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
+    }, $"Folia/root-v{pipelineVersion}-native-stages/{file}/{vs}/{ps}/{sprites}/{temporal}/{screen}");
     }
 
     public void ConfigureTemporal(bool enabled)
@@ -204,7 +205,11 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         ResetBackgroundTransition();
         if (_machiBackend != null)
         {
-            try { _machiBackend.Resize(MachiTraceSize(size), _machiSuperResolutionMode, _machiDlssPreset, MachiRayReconstructionRequested); }
+            try
+            {
+                _machiBackend.Resize(MachiTraceSize(size), _machiSuperResolutionMode, _machiDlssPreset,
+                    MachiRayReconstructionRequested, MachiDenoisingRequested == MachiDenoisingMode.None);
+            }
             catch (Exception error)
             {
                 App.WriteCrashLog("Machi DXR resize", error.Message, error);
@@ -307,7 +312,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _lineIndex = lineIndex;
         // PrepareFrame follows the preceding-frame fence. Exclusive mode resources can
         // be released here instead of retaining the largest visited mode until shutdown.
-        bool needsBloom = mode is "lumiere" or "hanabi" or "machi";
+        bool needsBloom = mode is "lumiere" or "hanabi" || mode == "machi" && AppSettings.FoliaMachiBloom;
         if (!needsBloom && _bloom != null)
         {
             _bloom.Dispose();

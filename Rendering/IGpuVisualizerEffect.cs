@@ -18,16 +18,17 @@ internal readonly record struct GpuRenderSize(int OutputWidth, int OutputHeight,
 internal readonly record struct GpuEffectServices(GraphicsDevice Compute, ID3D12Device Device, SpectrumAnalyzer Analyzer,
     bool HardwareRaytracing = false, bool VendorInitializationDeferred = false);
 
-internal enum MachiRenderStatus { Idle, Nrd, RayReconstruction, NrdFallback, Unavailable, NrdSuperResolution }
+internal enum MachiRenderStatus { Idle, Nrd, RayReconstruction, NrdFallback, Unavailable, NrdSuperResolution, Raw, RawSuperResolution }
+internal enum MachiDenoisingMode { Nrd, RayReconstruction, None }
 
 internal interface IMachiRenderEffect
 {
     // Query before selecting host jitter. The stage owns denoising and reconstruction.
     bool UsesMachiReconstruction { get; }
-    bool WantsMachiRayReconstruction { get; }
+    MachiDenoisingMode RequestedMachiDenoising { get; }
     ReconstructionMode MachiSuperResolution { get; }
     bool MachiUnsupportedScale { get; }
-    void ConfigureMachi(in GpuRenderSize size, ReconstructionMode mode, string preset, bool rayReconstruction);
+    void ConfigureMachi(in GpuRenderSize size, ReconstructionMode mode, string preset, MachiDenoisingMode denoising);
     void ResetMachiHistory();
     bool MachiHdrOutput { set; }
     MachiRenderStatus MachiStatus { get; }

@@ -25,7 +25,7 @@ cbuffer Camera : register(b0)
     row_major float4x4 WorldToView;
     float4 SkyWetness, SunDirectionFrame, SunRadianceFar, SizeJitter, Lighting, SkyBottom;
     float2 AnalyticLightControl;
-    float NoVacancy;
+    float NoVacancy, TraceGuideMode;
     float4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
 }
 
@@ -815,6 +815,9 @@ void RayGen()
     float4 farPlane = mul(float4(ndc, 1, 1), InverseViewProjection);
     float3 origin = nearPlane.xyz / nearPlane.w;
     float3 primary = normalize(farPlane.xyz / farPlane.w - origin);
+    // 0: denoiser and fallback guides. 1: raw only. 2: raw with temporal AA.
+    bool writeDenoiser = TraceGuideMode == 0;
+    bool writeMotion = writeDenoiser || TraceGuideMode == 2;
 
     float3 d = 0, r = 0, dFactor = 1, sFactor = 1, deterministic = BackgroundSky(primary);
     float3 dDirection = -primary, sDirection = -primary;
@@ -833,13 +836,16 @@ void RayGen()
     {
         Surface s = Evaluate(hit, origin);
         deterministic = s.emission;
-        worldNormal = s.n;
-        roughness = GuideRoughness(s);
-        rawAlbedo = s.material == 1 ? 0 : s.base * (1 - s.metal);
-        rawSpecular = F0(s);
-        z = SignedViewZ(s.p);
+        if (writeDenoiser)
+        {
+            worldNormal = s.n;
+            roughness = GuideRoughness(s);
+            rawAlbedo = s.material == 1 ? 0 : s.base * (1 - s.metal);
+            rawSpecular = F0(s);
+            z = SignedViewZ(s.p);
+        }
         depth = DeviceDepth(s.p);
-        motion = Reproject(s.p, s.previousP);
+        if (writeMotion) motion = Reproject(s.p, s.previousP);
         if (s.material == 1)
         {
             float3 reflected = reflect(primary, s.n);
@@ -893,7 +899,7 @@ void RayGen()
             float specularRate = clamp(SpecularProbability(s, view), .25, .75);
             Direct(s, view, PathSample(pixel, 0, 3), true, wetRoad ? -1 : specularRate, true, d, r);
             deterministic += TotalAnalyticLighting(s, view);
-            NRD_MaterialFactors(s.n, view, rawAlbedo, rawSpecular, roughness, dFactor, sFactor);
+            if (writeDenoiser) NRD_MaterialFactors(s.n, view, rawAlbedo, rawSpecular, roughness, dFactor, sFactor);
             // The wet road always traces the diffuse and specular paths.
             // Use the ground's normal, depth and motion for both sides of the
             // puddle transition. Its rough reflection has no single virtual surface.
@@ -928,7 +934,7 @@ void RayGen()
             }
             // Keep the NRD hit distance stable when wet microfacets sample
             // different geometry. This ray supplies a guide, never radiance.
-            if (Lighting.w == 0 && s.wetCoverage > .45)
+            if (writeDenoiser && Lighting.w == 0 && s.wetCoverage > .45)
             {
                 float3 direction = reflect(primary, s.n);
                 if (dot(direction, s.face) > 0)
@@ -940,32 +946,37 @@ void RayGen()
         }
     }
 
-    float4 dSh, sSh;
-    Diffuse[pixel] = RELAX_FrontEnd_PackSh(d / dFactor, dDistance, dDirection, dSh, true);
-    Specular[pixel] = RELAX_FrontEnd_PackSh(r / sFactor, sDistance, sDirection, sSh, true);
-    DiffuseSh[pixel] = dSh;
-    SpecularSh[pixel] = sSh;
-    Normal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(worldNormal, roughness, 0);
-    ViewZ[pixel] = z;
-    Motion[pixel] = motion;
-    DiffuseFactor[pixel] = float4(dFactor, 1);
-    SpecularFactor[pixel] = float4(sFactor, 1);
+    bool validR = false, validT = false;
+    float2 reflectionMotion = 0, transmissionMotion = 0;
+    if (writeDenoiser)
+    {
+        float4 dSh, sSh;
+        Diffuse[pixel] = RELAX_FrontEnd_PackSh(d / dFactor, dDistance, dDirection, dSh, true);
+        Specular[pixel] = RELAX_FrontEnd_PackSh(r / sFactor, sDistance, sDirection, sSh, true);
+        DiffuseSh[pixel] = dSh;
+        SpecularSh[pixel] = sSh;
+        Normal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(worldNormal, roughness, 0);
+        ViewZ[pixel] = z;
+        DiffuseFactor[pixel] = float4(dFactor, 1);
+        SpecularFactor[pixel] = float4(sFactor, 1);
 
-    float reflectedZ = SignedViewZ(reflection.position), transmittedZ = SignedViewZ(transmission.position);
-    bool validR = reflection.hitDistance < SunRadianceFar.w && abs(reflectedZ) < SunRadianceFar.w;
-    bool validT = transmission.hitDistance < SunRadianceFar.w && abs(transmittedZ) < SunRadianceFar.w;
-    Reflection[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validR ? reflection.color : 0, reflection.hitDistance, true);
-    ReflectionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(reflection.normal, reflection.roughness, 0);
-    ReflectionZ[pixel] = validR ? reflectedZ : -1e6;
-    float2 reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
-    ReflectionMotion[pixel] = reflectionMotion;
-    Transmission[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validT ? transmission.color : 0, transmission.hitDistance, true);
-    TransmissionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(transmission.normal, transmission.roughness, 0);
-    TransmissionZ[pixel] = validT ? transmittedZ : -1e6;
-    float2 transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
-    TransmissionMotion[pixel] = transmissionMotion;
-    Deterministic[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
-        + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color), 1);
+        float reflectedZ = SignedViewZ(reflection.position), transmittedZ = SignedViewZ(transmission.position);
+        validR = reflection.hitDistance < SunRadianceFar.w && abs(reflectedZ) < SunRadianceFar.w;
+        validT = transmission.hitDistance < SunRadianceFar.w && abs(transmittedZ) < SunRadianceFar.w;
+        Reflection[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validR ? reflection.color : 0, reflection.hitDistance, true);
+        ReflectionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(reflection.normal, reflection.roughness, 0);
+        ReflectionZ[pixel] = validR ? reflectedZ : -1e6;
+        reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
+        ReflectionMotion[pixel] = reflectionMotion;
+        Transmission[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validT ? transmission.color : 0, transmission.hitDistance, true);
+        TransmissionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(transmission.normal, transmission.roughness, 0);
+        TransmissionZ[pixel] = validT ? transmittedZ : -1e6;
+        transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
+        TransmissionMotion[pixel] = transmissionMotion;
+        Deterministic[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
+            + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color), 1);
+    }
+    if (writeMotion) Motion[pixel] = motion;
     Noisy[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
         + d + r + reflection.color + transmission.color, 1);
     Depth[pixel] = depth;

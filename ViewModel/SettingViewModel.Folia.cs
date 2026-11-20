@@ -143,10 +143,32 @@ public partial class SettingViewModel
         set { if (value != null) AppSettings.FoliaMachiWeather = value; }
     }
 
-    public string FoliaMachiDenoiser
+    public int FoliaMachiDenoiserIndex
     {
-        get => AppSettings.FoliaMachiDenoiser;
-        set { if (value != null) AppSettings.FoliaMachiDenoiser = value; }
+        get => AppSettings.FoliaMachiDenoiser switch { "dlss-rr" => 1, "none" => 2, _ => 0 };
+        set
+        {
+            if (_isInitialized && value is >= 0 and <= 2)
+                AppSettings.FoliaMachiDenoiser = value switch { 1 => "dlss-rr", 2 => "none", _ => "nrd" };
+        }
+    }
+
+    public bool FoliaMachiChromaticAberration
+    {
+        get => AppSettings.FoliaMachiChromaticAberration;
+        set => AppSettings.FoliaMachiChromaticAberration = value;
+    }
+
+    public bool FoliaMachiDepthOfField
+    {
+        get => AppSettings.FoliaMachiDepthOfField;
+        set => AppSettings.FoliaMachiDepthOfField = value;
+    }
+
+    public bool FoliaMachiBloom
+    {
+        get => AppSettings.FoliaMachiBloom;
+        set => AppSettings.FoliaMachiBloom = value;
     }
 
     public bool FoliaMachiGpuQualityOverride
@@ -216,6 +238,10 @@ public partial class SettingViewModel
                     Rendering.MachiRenderStatus.Nrd when status.Requested != status.Active => "GpuReconstructionFallback",
                     Rendering.MachiRenderStatus.Nrd => "MachiNrdActive",
                     Rendering.MachiRenderStatus.NrdSuperResolution => "MachiNrdSuperResolutionActive",
+                    Rendering.MachiRenderStatus.Raw when status.UnsupportedScale => "MachiRawScaleUnsupported",
+                    Rendering.MachiRenderStatus.Raw when status.Requested != status.Active => "MachiRawFallback",
+                    Rendering.MachiRenderStatus.Raw => "MachiRawActive",
+                    Rendering.MachiRenderStatus.RawSuperResolution => "MachiRawSuperResolutionActive",
                     Rendering.MachiRenderStatus.RayReconstruction => "MachiRrActive",
                     Rendering.MachiRenderStatus.NrdFallback when upscaler != null => "MachiRrFallbackSuperResolution",
                     Rendering.MachiRenderStatus.NrdFallback => "MachiRrFallback",
@@ -290,7 +316,10 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaMachiWeather));
         OnPropertyChanged(nameof(FoliaMachiScene));
         OnPropertyChanged(nameof(FoliaMachiMotion));
-        OnPropertyChanged(nameof(FoliaMachiDenoiser));
+        OnPropertyChanged(nameof(FoliaMachiDenoiserIndex));
+        OnPropertyChanged(nameof(FoliaMachiChromaticAberration));
+        OnPropertyChanged(nameof(FoliaMachiDepthOfField));
+        OnPropertyChanged(nameof(FoliaMachiBloom));
         OnPropertyChanged(nameof(MachiAvailable));
         OnPropertyChanged(nameof(MachiRendererStatus));
         OnPropertyChanged(nameof(FoliaMetaphorNegative));

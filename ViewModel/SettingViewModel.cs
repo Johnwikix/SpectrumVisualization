@@ -671,6 +671,8 @@ namespace WinExSpectrumTest.ViewModel
                 if (name == nameof(AppSettings.FoliaTheme)) NotifyFoliaThemeSettings();
                 if (name is nameof(AppSettings.FoliaMachiGpuQualityOverride) or nameof(AppSettings.FoliaMachiGpuQuality))
                     NotifyFoliaMachiQuality();
+                else if (name == nameof(AppSettings.FoliaMachiDenoiser))
+                    OnPropertyChanged(nameof(FoliaMachiDenoiserIndex));
                 else
                     OnPropertyChanged(name);
                 if (name == nameof(AppSettings.FoliaBackground))
