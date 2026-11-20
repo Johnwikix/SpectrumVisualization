@@ -660,6 +660,48 @@
                                         <ComboBoxItem Content="DLSS Ray Reconstruction" Tag="dlss-rr" />
                                     </ComboBox>
                                 </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaMachiGpuQualityOverride">
+                                    <ToggleSwitch
+                                        x:Uid="FoliaMachiGpuQualityToggle"
+                                        AutomationProperties.AutomationId="FoliaMachiGpuQualityOverride"
+                                        IsOn="{x:Bind ViewModel.FoliaMachiGpuQualityOverride, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard
+                                    x:Uid="FoliaMachiAntiAliasing"
+                                    IsEnabled="{x:Bind ViewModel.FoliaMachiGpuQualityOverride, Mode=OneWay}">
+                                    <ComboBox
+                                        x:Uid="GpuAntiAliasingCombo"
+                                        Width="220"
+                                        AutomationProperties.AutomationId="FoliaMachiAntiAliasing"
+                                        SelectedIndex="{x:Bind ViewModel.FoliaMachiAntiAliasingIndex, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="GpuAntiAliasingOff" />
+                                        <ComboBoxItem Content="FXAA" />
+                                        <ComboBoxItem Content="SMAA 1x" />
+                                        <ComboBoxItem Content="XeSS" IsEnabled="{x:Bind ViewModel.GpuXeSSAvailable, Mode=OneWay}" />
+                                        <ComboBoxItem Content="FSR 3.1" IsEnabled="{x:Bind ViewModel.GpuFsrAvailable, Mode=OneWay}" />
+                                        <ComboBoxItem Content="DLSS" IsEnabled="{x:Bind ViewModel.GpuDlssAvailable, Mode=OneWay}" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard
+                                    x:Uid="GpuRenderScale"
+                                    IsEnabled="{x:Bind ViewModel.FoliaMachiGpuQualityOverride, Mode=OneWay}">
+                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="12">
+                                        <Slider
+                                            x:Uid="GpuRenderScaleSlider"
+                                            Width="220"
+                                            AutomationProperties.AutomationId="FoliaMachiRenderScale"
+                                            LargeChange="10"
+                                            Maximum="100"
+                                            Minimum="1"
+                                            SmallChange="1"
+                                            StepFrequency="1"
+                                            Value="{x:Bind ViewModel.FoliaMachiRenderScale, Mode=TwoWay}" />
+                                        <TextBlock
+                                            Width="48"
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind ViewModel.FoliaMachiRenderScaleLabel, Mode=OneWay}" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
                         <controls:SettingsExpander x:Uid="FoliaMetaphorSettings" Margin="10,0,10,0" IsExpanded="False">

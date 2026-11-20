@@ -31,7 +31,7 @@ internal static class ShaderCatalog
         string resolve = MachiDxrShaders.Resolve;
         compile(resolve, "Resolve", "cs_6_0");
         compile(resolve, "ResolveRaw", "cs_6_0");
-        compile(resolve, "ResolveRayReconstruction", "cs_6_0");
+        compile(resolve, "ResolveScale", "cs_6_0");
         foreach (string name in new[] { "mesh-gradient", "dithering", "image-dithering", "fluted-glass", "paper-texture", "halftone-dots", "lens-distortion", "Lumiere", "Print", "Sonnet" })
             Pair(FoliaShaderLibrary.Background(name), "Fullscreen", "PS");
         Pair(FoliaShaderLibrary.Background("Sora"), "VS", "PS");

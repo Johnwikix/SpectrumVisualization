@@ -275,6 +275,12 @@ public sealed partial class CanvasPanel : UserControl
         }
         if (name == nameof(AppSettings.ShowDebugOverlay)) { UpdateDebugOverlay(); return; }
         if (name == nameof(AppSettings.RefreshRate)) { ChangeRefreshRate(); return; }
+        if (name is nameof(AppSettings.FoliaMachiGpuQualityOverride) or nameof(AppSettings.FoliaMachiGpuQuality)
+            or nameof(AppSettings.FoliaMachiDenoiser))
+        {
+            if (_activeId == Effects.Folia.FoliaGpuEffect.EffectId) ConfigureGpu();
+            return;
+        }
         if (name is nameof(AppSettings.HdrEnabled) or nameof(AppSettings.HdrWhiteNits) or nameof(AppSettings.HdrPeakNits)
             or nameof(AppSettings.GpuQuality) or nameof(AppSettings.SonicGridSize)) ConfigureGpu();
     }

@@ -68,7 +68,13 @@ def surface(material):
     node = next((node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
     if node is None:
         return {"roughness": .72, "metalness": 0}
-    return {"roughness": node.inputs["Roughness"].default_value, "metalness": node.inputs["Metallic"].default_value}
+    values = {"roughness": node.inputs["Roughness"].default_value, "metalness": node.inputs["Metallic"].default_value}
+    strength = node.inputs["Emission Strength"].default_value
+    emission = [value * strength for value in node.inputs["Emission Color"].default_value[:3]]
+    if any(emission):
+        values["emission"] = emission
+        values["baseColor"] = list(node.inputs["Base Color"].default_value[:3])
+    return values
 
 
 def extract():

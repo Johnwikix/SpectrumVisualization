@@ -149,6 +149,46 @@ public partial class SettingViewModel
         set { if (value != null) AppSettings.FoliaMachiDenoiser = value; }
     }
 
+    public bool FoliaMachiGpuQualityOverride
+    {
+        get => AppSettings.FoliaMachiGpuQualityOverride;
+        set { if (_isInitialized) AppSettings.FoliaMachiGpuQualityOverride = value; }
+    }
+
+    public int FoliaMachiAntiAliasingIndex
+    {
+        get => GetGpuAntiAliasingIndex(AppSettings.EffectiveFoliaMachiGpuQuality.AntiAliasing);
+        set
+        {
+            if (_isInitialized && FoliaMachiGpuQualityOverride && value is >= 0 and <= 5)
+                AppSettings.FoliaMachiGpuQuality = AppSettings.FoliaMachiGpuQuality with { AntiAliasing = GetGpuAntiAliasingMode(value) };
+        }
+    }
+
+    public double FoliaMachiRenderScale
+    {
+        get => AppSettings.EffectiveFoliaMachiGpuQuality.RenderScalePercent;
+        set
+        {
+            if (_isInitialized && FoliaMachiGpuQualityOverride && double.IsFinite(value))
+                AppSettings.FoliaMachiGpuQuality = AppSettings.FoliaMachiGpuQuality with { RenderScalePercent = (int)Math.Clamp(Math.Round(value), 1, 100) };
+        }
+    }
+
+    public string FoliaMachiRenderScaleLabel => $"{FoliaMachiRenderScale}%";
+
+    private void NotifyFoliaMachiQuality()
+    {
+        bool initialized = _isInitialized;
+        _isInitialized = false;
+        OnPropertyChanged(nameof(FoliaMachiGpuQualityOverride));
+        OnPropertyChanged(nameof(FoliaMachiAntiAliasingIndex));
+        OnPropertyChanged(nameof(FoliaMachiRenderScale));
+        OnPropertyChanged(nameof(FoliaMachiRenderScaleLabel));
+        OnPropertyChanged(nameof(GpuDlssSelected));
+        _isInitialized = initialized;
+    }
+
     public bool FoliaMachiMotion
     {
         get => AppSettings.FoliaMachiMotion;
@@ -162,16 +202,28 @@ public partial class SettingViewModel
         get
         {
             var status = Rendering.ReconstructionAvailability.Status;
+            string? upscaler = status.Active switch
+            {
+                Rendering.ReconstructionMode.Dlss => "DLSS Super Resolution",
+                Rendering.ReconstructionMode.Fsr => "FSR",
+                Rendering.ReconstructionMode.XeSS => "XeSS",
+                _ => null
+            };
             string key = !Rendering.ReconstructionAvailability.Known ? "MachiCapabilityPending" :
                 !status.HardwareRaytracing ? "MachiRequiresDxr" : status.Machi switch
                 {
+                    Rendering.MachiRenderStatus.Nrd when status.UnsupportedScale => "GpuReconstructionScaleUnsupported",
+                    Rendering.MachiRenderStatus.Nrd when status.Requested != status.Active => "GpuReconstructionFallback",
                     Rendering.MachiRenderStatus.Nrd => "MachiNrdActive",
+                    Rendering.MachiRenderStatus.NrdSuperResolution => "MachiNrdSuperResolutionActive",
                     Rendering.MachiRenderStatus.RayReconstruction => "MachiRrActive",
+                    Rendering.MachiRenderStatus.NrdFallback when upscaler != null => "MachiRrFallbackSuperResolution",
                     Rendering.MachiRenderStatus.NrdFallback => "MachiRrFallback",
                     Rendering.MachiRenderStatus.Unavailable => "MachiStageFailed",
                     _ => "MachiDxrAvailable"
                 };
-            return new ResourceLoader().GetString(key);
+            string message = new ResourceLoader().GetString(key);
+            return upscaler == null ? message : string.Format(CultureInfo.CurrentCulture, message, upscaler);
         }
     }
 

@@ -60,11 +60,11 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     }
 
     internal static TemporalReconstruction Create(ID3D12Device device, ID3D12GraphicsCommandList commands,
-        ReconstructionMode mode, string preset, in GpuRenderSize size)
+        ReconstructionMode mode, string preset, in GpuRenderSize size, bool reactiveMask = true)
     {
         int p = preset switch { "j" => 10, "l" => 12, "m" => 13, _ => 11 };
         int result = ReconstructionCreate(device.NativePointer, commands.NativePointer, (int)mode, p,
-            (uint)size.OutputWidth, (uint)size.OutputHeight, (uint)size.Width, (uint)size.Height, out nint context);
+            (uint)size.OutputWidth, (uint)size.OutputHeight, (uint)size.Width, (uint)size.Height, reactiveMask ? 1u : 0, out nint context);
         if (result == -30) throw new ReconstructionSizeException();
         if (result != 0) throw new InvalidOperationException($"{mode} initialization failed ({result}).");
         return new TemporalReconstruction
@@ -80,9 +80,14 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     internal TemporalFrame BeginFrame(double elapsed)
     {
         if (elapsed > .25 || elapsed <= 0) Reset();
-        int phases = Math.Max(8, (int)Math.Ceiling(8.0 * Size.OutputWidth * Size.OutputWidth / ((double)Size.Width * Size.Width)));
-        uint sample = _frame % (uint)phases + 1;
-        return new(Halton(sample, 2) - .5f, Halton(sample, 3) - .5f, _reset);
+        return Sample(Size, _frame, _reset);
+    }
+
+    internal static TemporalFrame Sample(in GpuRenderSize size, uint index, bool reset)
+    {
+        int phases = Math.Max(8, (int)Math.Ceiling(8.0 * size.OutputWidth * size.OutputWidth / ((double)size.Width * size.Width)));
+        uint sample = index % (uint)phases + 1;
+        return new(Halton(sample, 2) - .5f, Halton(sample, 3) - .5f, reset);
     }
 
     private static float Halton(uint index, uint radix)
@@ -96,19 +101,28 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
     internal void Record(ID3D12GraphicsCommandList commands, ID3D12Resource color, ITemporalGpuEffect effect,
         ID3D12Resource output, in TemporalFrame frame, double elapsed)
     {
-        var camera = effect.Camera;
+        int result = Execute(commands, color, effect.Depth, effect.Motion, effect.Reactive, output, effect.Camera, frame, elapsed);
+        if (result != 0) throw new InvalidOperationException($"Temporal reconstruction dispatch failed ({result}).");
+    }
+
+    internal int Execute(ID3D12GraphicsCommandList commands, ID3D12Resource color, ID3D12Resource depth,
+        ID3D12Resource motion, ID3D12Resource? reactive, ID3D12Resource output, in TemporalCamera camera, in TemporalFrame frame, double elapsed)
+    {
         NativeFrame args = new()
         {
-            Color = color.NativePointer, Depth = effect.Depth.NativePointer, Motion = effect.Motion.NativePointer,
-            Reactive = effect.Reactive.NativePointer, Output = output.NativePointer,
+            Color = color.NativePointer, Depth = depth.NativePointer, Motion = motion.NativePointer,
+            Reactive = reactive?.NativePointer ?? 0, Output = output.NativePointer,
             Width = (uint)Size.Width, Height = (uint)Size.Height,
             JitterX = frame.JitterX, JitterY = frame.JitterY, Milliseconds = (float)Math.Clamp(elapsed * 1000, 1, 250), Reset = frame.Reset ? 1u : 0,
             NearPlane = camera.NearPlane, FarPlane = camera.FarPlane, VerticalFieldOfView = camera.VerticalFieldOfView
         };
         int result = ReconstructionExecute(_context, commands.NativePointer, &args);
-        if (result != 0) throw new InvalidOperationException($"Temporal reconstruction dispatch failed ({result}).");
-        _reset = false;
-        _frame++;
+        if (result == 0)
+        {
+            _reset = false;
+            _frame++;
+        }
+        return result;
     }
 
     public void Dispose()
@@ -130,9 +144,9 @@ internal sealed unsafe partial class TemporalReconstruction : IDisposable
 
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCapabilities")]
     private static partial uint ReconstructionCapabilities(nint device);
-    [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCreateV2")]
+    [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionCreateV3")]
     private static partial int ReconstructionCreate(nint device, nint commands, int mode, int preset, uint width, uint height,
-        uint inputWidth, uint inputHeight, out nint context);
+        uint inputWidth, uint inputHeight, uint reactiveMask, out nint context);
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionExecute")]
     private static partial int ReconstructionExecute(nint context, nint commands, NativeFrame* frame);
     [LibraryImport("Spectrum.Reconstruction", EntryPoint = "ReconstructionDestroy")]

@@ -429,13 +429,19 @@ namespace WinExSpectrumTest.ViewModel
         /// <summary>Uses a typed index so NativeAOT does not reflect over ComboBoxItem.Tag.</summary>
         public int GpuAntiAliasingIndex
         {
-            get => AppSettings.GpuAntiAliasing switch { "off" => 0, "smaa" => 2, "xess" => 3, "fsr" => 4, "dlss" => 5, _ => 1 };
+            get => GetGpuAntiAliasingIndex(AppSettings.GpuAntiAliasing);
             set
             {
                 if (_isInitialized && value is >= 0 and <= 5)
-                    AppSettings.GpuAntiAliasing = value switch { 0 => "off", 2 => "smaa", 3 => "xess", 4 => "fsr", 5 => "dlss", _ => "fxaa" };
+                    AppSettings.GpuAntiAliasing = GetGpuAntiAliasingMode(value);
             }
         }
+
+        private static int GetGpuAntiAliasingIndex(string mode) =>
+            mode switch { "off" => 0, "smaa" => 2, "xess" => 3, "fsr" => 4, "dlss" => 5, _ => 1 };
+
+        private static string GetGpuAntiAliasingMode(int index) =>
+            index switch { 0 => "off", 2 => "smaa", 3 => "xess", 4 => "fsr", 5 => "dlss", _ => "fxaa" };
 
         /// <summary>Gets or sets the explicitly requested DLSS model.</summary>
         public int GpuDlssPresetIndex
@@ -448,7 +454,8 @@ namespace WinExSpectrumTest.ViewModel
             }
         }
 
-        public bool GpuDlssSelected => AppSettings.GpuAntiAliasing == "dlss";
+        public bool GpuDlssSelected => AppSettings.GpuAntiAliasing == "dlss" ||
+                                       AppSettings.EffectiveFoliaMachiGpuQuality.AntiAliasing == "dlss";
         public bool GpuXeSSAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.XeSS);
         public bool GpuFsrAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Fsr);
         public bool GpuDlssAvailable => Rendering.ReconstructionAvailability.Supports(Rendering.ReconstructionMode.Dlss);
@@ -662,7 +669,10 @@ namespace WinExSpectrumTest.ViewModel
             if (name.StartsWith("Folia", StringComparison.Ordinal))
             {
                 if (name == nameof(AppSettings.FoliaTheme)) NotifyFoliaThemeSettings();
-                OnPropertyChanged(name);
+                if (name is nameof(AppSettings.FoliaMachiGpuQualityOverride) or nameof(AppSettings.FoliaMachiGpuQuality))
+                    NotifyFoliaMachiQuality();
+                else
+                    OnPropertyChanged(name);
                 if (name == nameof(AppSettings.FoliaBackground))
                     OnPropertyChanged(nameof(IsFoliaImageBackground));
                 if (name == nameof(AppSettings.FoliaFontFamily))
@@ -723,8 +733,8 @@ namespace WinExSpectrumTest.ViewModel
             OnPropertyChanged(nameof(GpuRenderScale));
             OnPropertyChanged(nameof(GpuRenderScaleLabel));
             OnPropertyChanged(nameof(GpuDlssPresetIndex));
-            OnPropertyChanged(nameof(GpuDlssSelected));
             OnPropertyChanged(nameof(GpuReconstructionStatus));
+            NotifyFoliaMachiQuality();
             _isInitialized = initialized;
         }
 

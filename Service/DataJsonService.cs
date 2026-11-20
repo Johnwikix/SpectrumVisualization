@@ -157,6 +157,8 @@ namespace WinExSpectrumTest.Service
             AppSettings.SonicAudioIntensity = settings.SonicAudioIntensity;
             AppSettings.SonicResponseRange = settings.SonicResponseRange;
             AppSettings.GpuQuality = GpuQualitySettings.FromSaved(settings);
+            AppSettings.FoliaMachiGpuQuality = new(settings.FoliaMachiRenderScalePercent, settings.FoliaMachiAntiAliasing);
+            AppSettings.FoliaMachiGpuQualityOverride = settings.FoliaMachiGpuQualityOverride;
             AppSettings.SonicGridSize = settings.SonicGridSize;
             AppSettings.SonicIdleWaveEnabled = settings.SonicIdleWaveEnabled;
             AppSettings.SonicRippleEnabled = settings.SonicRippleEnabled;
@@ -255,6 +257,9 @@ namespace WinExSpectrumTest.Service
                 FoliaMachiScene = AppSettings.FoliaMachiScene,
                 FoliaMachiMotion = AppSettings.FoliaMachiMotion,
                 FoliaMachiDenoiser = AppSettings.FoliaMachiDenoiser,
+                FoliaMachiGpuQualityOverride = AppSettings.FoliaMachiGpuQualityOverride,
+                FoliaMachiAntiAliasing = AppSettings.FoliaMachiGpuQuality.AntiAliasing,
+                FoliaMachiRenderScalePercent = AppSettings.FoliaMachiGpuQuality.RenderScalePercent,
                 FoliaMetaphorNegative = AppSettings.FoliaMetaphorNegative,
                 FoliaNebbiaBehind = AppSettings.FoliaNebbiaBehind,
                 FoliaNebbiaGlass = AppSettings.FoliaNebbiaGlass,

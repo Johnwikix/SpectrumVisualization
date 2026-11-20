@@ -204,7 +204,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         ResetBackgroundTransition();
         if (_machiBackend != null)
         {
-            try { _machiBackend.Resize(size.Width, size.Height); }
+            try { _machiBackend.Resize(MachiTraceSize(size), _machiSuperResolutionMode, _machiDlssPreset, MachiRayReconstructionRequested); }
             catch (Exception error)
             {
                 App.WriteCrashLog("Machi DXR resize", error.Message, error);

@@ -49,9 +49,22 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private Func<IGpuVisualizerEffect> _effectFactory;
     private readonly bool _hardwareRaytracing;
     private bool _stageOwnsReconstruction;
+    private bool _machiRayReconstruction;
+    private GpuRenderSize _machiRenderSize;
     private bool StageOwnsReconstruction => _effect is IMachiRenderEffect { UsesMachiReconstruction: true };
-    internal ReconstructionStatus Reconstruction => new(_capabilities, _options.Mode, _activeMode, _unsupportedScale,
-        _hardwareRaytracing, (_effect as IMachiRenderEffect)?.MachiStatus ?? MachiRenderStatus.Idle);
+    internal ReconstructionStatus Reconstruction
+    {
+        get
+        {
+            var machi = _effect as IMachiRenderEffect;
+            var machiStatus = machi?.MachiStatus ?? MachiRenderStatus.Idle;
+            if (!_stageOwnsReconstruction || machi == null)
+                return new(_capabilities, _options.Mode, _activeMode, _unsupportedScale, _hardwareRaytracing, machiStatus);
+            var active = machiStatus == MachiRenderStatus.RayReconstruction ? ReconstructionMode.Off
+                : machi.MachiSuperResolution >= ReconstructionMode.XeSS ? machi.MachiSuperResolution : _activeMode;
+            return new(_capabilities, _options.ForMachi().Mode, active, machi.MachiUnsupportedScale, _hardwareRaytracing, machiStatus);
+        }
+    }
     private ColorOutputPipelines _pipelines = null!;
     private IGpuVisualizerEffect _effect = null!;
     private readonly SpectrumAnalyzer _analyzer;
@@ -66,7 +79,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     public int Width { get; private set; }
     public int Height { get; private set; }
     internal int RenderScalePercent => _options.RenderScalePercent;
-    internal GpuRenderSize RenderSize => _size;
+    internal int MachiRenderScalePercent => _options.MachiQuality.RenderScalePercent;
+    internal GpuRenderSize RenderSize => _stageOwnsReconstruction &&
+        _effect is IMachiRenderEffect { MachiStatus: not MachiRenderStatus.Idle and not MachiRenderStatus.Unavailable }
+        ? _machiRenderSize : _size;
     private bool _captureTimings;
     internal bool CaptureTimings
     {
@@ -184,7 +200,8 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     {
         if (_options == options && !_reconstructionDirty) return;
         if (_reconstructionDirty || _options.RenderScalePercent != options.RenderScalePercent || _options.Mode != options.Mode ||
-            _options.PixelsPerDip != options.PixelsPerDip || (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset))
+            _options.PixelsPerDip != options.PixelsPerDip || (options.Mode == ReconstructionMode.Dlss && _options.DlssPreset != options.DlssPreset) ||
+            (_stageOwnsReconstruction && _options.ForMachi() != options.ForMachi()))
         {
             WaitForGpu();
             CreateSceneResources(options);
@@ -206,7 +223,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _capabilities = TemporalReconstruction.Capabilities(_device);
         _reconstructionDeferred = false;
         (_effect as IMachiRenderEffect)?.EnableVendorInitialization();
-        _reconstructionDirty = _options.Mode >= ReconstructionMode.XeSS;
+        _reconstructionDirty = _options.Mode >= ReconstructionMode.XeSS || _stageOwnsReconstruction;
     }
 
     public void ChangeEffect(Func<IGpuVisualizerEffect> factory)
@@ -248,7 +265,19 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         DisposeResource(_temporal);
         _temporal = null;
         _stageOwnsReconstruction = StageOwnsReconstruction;
-        _activeMode = _stageOwnsReconstruction ? ReconstructionMode.Off : options.Mode;
+        _machiRayReconstruction = false;
+        _activeMode = options.Mode;
+        if (_stageOwnsReconstruction && _effect is IMachiRenderEffect machi)
+        {
+            var quality = options.ForMachi();
+            _machiRayReconstruction = machi.WantsMachiRayReconstruction;
+            _machiRenderSize = GpuRenderSize.Create(Width, Height, quality.RenderScalePercent) with { PixelsPerDip = options.PixelsPerDip };
+            var stageMode = !_reconstructionDeferred && (_capabilities & (1u << (int)quality.Mode)) != 0
+                ? quality.Mode : ReconstructionMode.Off;
+            machi.ConfigureMachi(_machiRenderSize, stageMode, quality.DlssPreset, _machiRayReconstruction);
+            size = new GpuRenderSize(Width, Height, Width, Height) with { PixelsPerDip = options.PixelsPerDip };
+            _activeMode = quality.Mode >= ReconstructionMode.XeSS ? ReconstructionMode.Fxaa : quality.Mode;
+        }
         _unsupportedScale = false;
         if (_activeMode >= ReconstructionMode.XeSS)
         {
@@ -399,15 +428,12 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         LastGpuWaitMilliseconds = 0;
         if (_effect is IMachiRenderEffect machi) machi.MachiHdrOutput = _hdr;
         bool ownsReconstruction = StageOwnsReconstruction;
-        if (_stageOwnsReconstruction != ownsReconstruction)
+        if (_reconstructionDirty || _stageOwnsReconstruction != ownsReconstruction ||
+            (ownsReconstruction && _effect is IMachiRenderEffect stage && _machiRayReconstruction != stage.WantsMachiRayReconstruction))
         {
-            if (_options.Mode != ReconstructionMode.Off)
-            {
-                WaitForGpu();
-                CreateSceneResources(_options);
-                ResetHistory();
-            }
-            _stageOwnsReconstruction = ownsReconstruction;
+            WaitForGpu();
+            CreateSceneResources(_options);
+            ResetHistory();
         }
         BeginAntialiasTimingFrame();
         if (_effect is ITemporalGpuEffect { ResetHistoryRequested: true }) _temporal?.Reset();
@@ -440,7 +466,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             _temporal = null;
             DisposeResource(_effect);
             _effect = _effectFactory();
-            _effect.Initialize(new GpuEffectServices(_compute, _device, _analyzer));
+            _effect.Initialize(new GpuEffectServices(_compute, _device, _analyzer, _hardwareRaytracing, _reconstructionDeferred));
             CreateSceneResources(_options);
             return false;
         }
@@ -452,7 +478,11 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         return true;
     }
 
-    internal void ResetHistory() => _temporal?.Reset();
+    internal void ResetHistory()
+    {
+        _temporal?.Reset();
+        if (_effect is IMachiRenderEffect machi) machi.ResetMachiHistory();
+    }
 
     private bool ComposeAndPresent(float white, float peak)
     {
@@ -469,7 +499,9 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
 
     private void RecordComposition(float white, float peak)
     {
-        if (_antialias != null) BeginAntialiasTiming();
+        bool spatial = _antialias != null && (!_stageOwnsReconstruction ||
+            _effect is IMachiRenderEffect { MachiStatus: not MachiRenderStatus.RayReconstruction, MachiSuperResolution: < ReconstructionMode.XeSS });
+        if (spatial) BeginAntialiasTiming();
         _commands.SetDescriptorHeaps(_srvs);
         _commands.SetGraphicsRootSignature(_pipelines.Root);
         _commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
@@ -478,13 +510,13 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + (_temporal != null ? 2 * _srvStride : 0));
         float* constants = stackalloc float[6] { _hdr ? 1 : 0, white, peak, 0, 1f / Width, 1f / Height };
         _commands.SetGraphicsRoot32BitConstants(1, 6, constants, 0);
-        if (_antialias != null)
+        if (spatial)
         {
-            Transition(_antialias, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+            Transition(_antialias!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
             _commands.OMSetRenderTargets(Rtv(3), null);
             _commands.SetPipelineState(_pipelines.PrepareAntialias);
             _commands.DrawInstanced(3, 1, 0, 0);
-            Transition(_antialias, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+            Transition(_antialias!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
             if (_smaa != null)
             {
                 _smaa.Record(_commands, _hdr ? MathF.Sqrt(white / peak) : 1);
@@ -498,10 +530,10 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         int buffer = (int)_swapChain.CurrentBackBufferIndex;
         Transition(_backBuffers[buffer]!, ResourceStates.Common, ResourceStates.RenderTarget);
         _commands.OMSetRenderTargets(Rtv(buffer), null);
-        _commands.SetPipelineState(_smaa != null ? _pipelines.PreparedOutput : _antialias != null ? _pipelines.AntialiasOutput : _pipelines.Output);
+        _commands.SetPipelineState(spatial ? _smaa != null ? _pipelines.PreparedOutput : _pipelines.AntialiasOutput : _pipelines.Output);
         _commands.DrawInstanced(3, 1, 0, 0);
         // FXAA is fused with color encoding in AntialiasOutput; report that whole pass.
-        if (_activeMode == ReconstructionMode.Fxaa) EndAntialiasTiming();
+        if (spatial && _activeMode == ReconstructionMode.Fxaa) EndAntialiasTiming();
         Transition(_backBuffers[buffer]!, ResourceStates.RenderTarget, ResourceStates.Common);
         ResolveAntialiasTiming();
     }
@@ -660,11 +692,16 @@ internal readonly record struct DisplayOutput(bool HdrEnabled, float PeakNits);
 internal readonly record struct GpuSceneOptions(int RenderScalePercent, ReconstructionMode Mode, int Detail, string DlssPreset = "k")
 {
     internal float PixelsPerDip { get; init; } = 1;
+    internal Model.GpuQualitySettings MachiQuality { get; init; }
     internal GpuSceneOptions(int scale, bool antialias, int detail) : this(scale, antialias ? ReconstructionMode.Fxaa : ReconstructionMode.Off, detail) { }
 
-    internal static GpuSceneOptions FromSettings(int detail)
+    internal static GpuSceneOptions FromSettings(int detail) => FromQuality(Model.AppSettings.GpuQuality, detail);
+
+    internal GpuSceneOptions ForMachi() => MachiQuality.RenderScalePercent > 0 ? FromQuality(MachiQuality, Detail)
+        : new(RenderScalePercent, Mode, Detail, DlssPreset);
+
+    private static GpuSceneOptions FromQuality(Model.GpuQualitySettings quality, int detail)
     {
-        var quality = Model.AppSettings.GpuQuality;
         var mode = quality.AntiAliasing switch
         {
             "fxaa" => ReconstructionMode.Fxaa, "smaa" => ReconstructionMode.Smaa,

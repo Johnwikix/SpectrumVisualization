@@ -190,10 +190,11 @@ API uint32_t ReconstructionCapabilities(ID3D12Device* device) noexcept
     return bits;
 }
 
-// V2: the host owns the exact input size; quality enums are internal SDK initialization hints.
+// The host owns the exact input size; quality enums are internal SDK initialization hints.
 // -30 means this input/output pair is unsupported, not that the device lacks the provider.
-API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* commands,
-    int mode, int preset, uint32_t width, uint32_t height, uint32_t inputWidth, uint32_t inputHeight, Context** output) noexcept
+API int ReconstructionCreateV3(ID3D12Device* device, ID3D12GraphicsCommandList* commands,
+    int mode, int preset, uint32_t width, uint32_t height, uint32_t inputWidth, uint32_t inputHeight,
+    uint32_t reactiveMask, Context** output) noexcept
 {
     if (!device || !commands || !output || !inputWidth || !inputHeight || !width || !height || inputWidth > width || inputHeight > height) return -1;
     *output = nullptr;
@@ -227,7 +228,7 @@ API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* 
                 if (distance < best) { best = distance; desc.qualitySetting = quality; }
             }
             if (best == std::numeric_limits<double>::max()) return -30;
-            desc.initFlags = XESS_INIT_FLAG_RESPONSIVE_PIXEL_MASK;
+            desc.initFlags = reactiveMask ? XESS_INIT_FLAG_RESPONSIVE_PIXEL_MASK : 0;
             desc.creationNodeMask = desc.visibleNodeMask = 1;
             if (init(ctx->xess, &desc) < 0) return -5;
         }
@@ -311,6 +312,12 @@ API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* 
         return 0;
     }
     catch (...) { return -100; }
+}
+
+API int ReconstructionCreateV2(ID3D12Device* device, ID3D12GraphicsCommandList* commands,
+    int mode, int preset, uint32_t width, uint32_t height, uint32_t inputWidth, uint32_t inputHeight, Context** output) noexcept
+{
+    return ReconstructionCreateV3(device, commands, mode, preset, width, height, inputWidth, inputHeight, 1, output);
 }
 
 API int ReconstructionExecute(Context* ctx, ID3D12GraphicsCommandList* commands, const Frame* frame) noexcept
