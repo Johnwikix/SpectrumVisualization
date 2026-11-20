@@ -40,30 +40,50 @@ internal sealed unsafe partial class FoliaGpuEffect
     private GpuRenderSize _machiTraceSize;
     private ReconstructionMode _machiSuperResolutionMode;
     private string _machiDlssPreset = "k";
-    private bool _machiRayReconstruction;
+    private MachiDenoisingMode _machiDenoising;
     private (FoliaSong Song, string Scene, string Denoiser)? _failedMachiSelection;
-    private void RecordMachiFailure(in FoliaSceneRequest request) =>
-        _failedMachiSelection = (request.Song, request.MachiScene, AppSettings.FoliaMachiDenoiser);
+    private void RecordMachiFailure(in FoliaSceneRequest request)
+    {
+        string requested = AppSettings.FoliaMachiDenoiser;
+        // A failure in the old mode must not prevent a newly requested mode from starting.
+        if (ResolveMachiDenoising(requested) == MachiDenoisingRequested)
+            _failedMachiSelection = (request.Song, request.MachiScene, requested);
+    }
     public bool MachiHdrOutput { private get; set; }
     public bool UsesMachiReconstruction => _hardwareRaytracing && _failedMachiSelection == null
         && (AppSettings.FoliaLyricMode == "machi" || (_hasScene && _activeRequest.Mode == "machi"));
-    public bool WantsMachiRayReconstruction => _vendorInitializationReady && AppSettings.FoliaMachiDenoiser == "dlss-rr";
+    public MachiDenoisingMode RequestedMachiDenoising => ResolveMachiDenoising(AppSettings.FoliaMachiDenoiser);
+    private MachiDenoisingMode ResolveMachiDenoising(string requested) => requested switch
+    {
+        "none" => MachiDenoisingMode.None,
+        "dlss-rr" when _vendorInitializationReady => MachiDenoisingMode.RayReconstruction,
+        _ => MachiDenoisingMode.Nrd
+    };
     public ReconstructionMode MachiSuperResolution => _machiBackend?.SuperResolutionActive ?? ReconstructionMode.Off;
     public bool MachiUnsupportedScale => _machiBackend?.SuperResolutionResult == -30;
-    public void ConfigureMachi(in GpuRenderSize size, ReconstructionMode mode, string preset, bool rayReconstruction)
+    public void ConfigureMachi(in GpuRenderSize size, ReconstructionMode mode, string preset, MachiDenoisingMode denoising)
     {
         _machiTraceSize = size;
         _machiSuperResolutionMode = mode;
         _machiDlssPreset = preset;
-        _machiRayReconstruction = rayReconstruction;
+        _machiDenoising = denoising;
     }
     public void ResetMachiHistory() => _machiBackend?.ResetHistory();
-    public MachiRenderStatus MachiStatus => _failedMachiSelection != null ? MachiRenderStatus.Unavailable :
-        _machiBackend == null ? MachiRenderStatus.Idle :
-        _machiBackend.RayReconstructionActive ? MachiRenderStatus.RayReconstruction :
-        !_machiBackend.DenoiserAvailable ? MachiRenderStatus.Unavailable :
-        WantsMachiRayReconstruction ? MachiRenderStatus.NrdFallback :
-        MachiSuperResolution >= ReconstructionMode.XeSS ? MachiRenderStatus.NrdSuperResolution : MachiRenderStatus.Nrd;
+    public MachiRenderStatus MachiStatus
+    {
+        get
+        {
+            if (_failedMachiSelection != null) return MachiRenderStatus.Unavailable;
+            if (_machiBackend == null) return MachiRenderStatus.Idle;
+            bool superResolution = MachiSuperResolution >= ReconstructionMode.XeSS;
+            if (_machiBackend.DenoisingDisabled)
+                return superResolution ? MachiRenderStatus.RawSuperResolution : MachiRenderStatus.Raw;
+            if (_machiBackend.RayReconstructionActive) return MachiRenderStatus.RayReconstruction;
+            if (!_machiBackend.DenoiserAvailable) return MachiRenderStatus.Unavailable;
+            if (MachiRayReconstructionRequested) return MachiRenderStatus.NrdFallback;
+            return superResolution ? MachiRenderStatus.NrdSuperResolution : MachiRenderStatus.Nrd;
+        }
+    }
     public void EnableVendorInitialization() => _vendorInitializationReady = true;
 
     internal static FoliaNativeStage NativeStage(ReadOnlySpan<char> mode) => mode switch
@@ -142,14 +162,15 @@ internal sealed unsafe partial class FoliaGpuEffect
                             asset.SignPixels, asset.SignWidth, asset.SignHeight, asset.StaticIndexCount, asset.Actors,
                             preferRayReconstruction: MachiRayReconstructionRequested, lights: asset.Lights,
                             outputWidth: traceSize.OutputWidth, outputHeight: traceSize.OutputHeight,
-                            superResolutionMode: _machiSuperResolutionMode, preset: _machiDlssPreset);
+                            superResolutionMode: _machiSuperResolutionMode, preset: _machiDlssPreset,
+                            disableDenoising: MachiDenoisingRequested == MachiDenoisingMode.None);
                     }
                     else
                     {
                         _machiBackend.ReplaceScene(asset.Mesh, asset.Indices, asset.SignPixels, asset.SignWidth,
                             asset.SignHeight, asset.StaticIndexCount, asset.Actors, asset.Lights);
                     }
-                    if (!_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionAvailable)
+                    if (!_machiBackend.DenoisingDisabled && !_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionAvailable)
                         throw new InvalidOperationException($"Machi NRD initialization failed: {_machiBackend.DenoiserResult}.");
                     _actorTransforms = new Matrix4x4[asset.Actors.Length];
                     SetMachiWeatherLayout(asset.Weather);
@@ -173,7 +194,8 @@ internal sealed unsafe partial class FoliaGpuEffect
     private GpuRenderSize MachiTraceSize(in GpuRenderSize stage) =>
         _machiTraceSize.OutputWidth == stage.Width && _machiTraceSize.OutputHeight == stage.Height
             ? _machiTraceSize : stage with { OutputWidth = stage.Width, OutputHeight = stage.Height };
-    private bool MachiRayReconstructionRequested => _machiTraceSize.OutputWidth != 0 ? _machiRayReconstruction : WantsMachiRayReconstruction;
+    private MachiDenoisingMode MachiDenoisingRequested => _machiTraceSize.OutputWidth != 0 ? _machiDenoising : RequestedMachiDenoising;
+    private bool MachiRayReconstructionRequested => MachiDenoisingRequested == MachiDenoisingMode.RayReconstruction;
 
     private ID3D12PipelineState StagePipeline(string file, string vs, string ps, in BlendDescription blend, Format color, Format geometry = Format.Unknown, bool depth = true)
     {
@@ -419,11 +441,10 @@ internal sealed unsafe partial class FoliaGpuEffect
             AppSettings.FoliaMachiWeather, song, DateTime.Now, (float)_data[1].W, reset, _machiPlan!.SceneId);
         float delta = Math.Clamp(_data[1].W, 0, .1f);
         _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
-        var camera = _machi!.ViewProjection((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
+        var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
         _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _animation);
-        Matrix4x4.Invert(camera, out var inverse);
-        *(Matrix4x4*)_lightData = camera;
-        *(Matrix4x4*)(_lightData + 4) = inverse;
+        *(Matrix4x4*)_lightData = camera.ViewProjection;
+        *(Matrix4x4*)(_lightData + 4) = camera.Inverse;
         _lightData[8] = new(environment.SkyBottom, environment.Mist);
         _lightData[9] = new(environment.Rain, environment.Snow, environment.Haze, environment.Daylight);
         float flash = 0;
@@ -462,22 +483,33 @@ internal sealed unsafe partial class FoliaGpuEffect
         _machiBackend!.Record(commands, _textures[3]!, _panelTexture!, 0, in _machiFrame, _actorTransforms);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.UnorderedAccess, ResourceStates.PixelShaderResource);
         commands.ResourceBarrierTransition(_panelTexture!, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
-        if (!_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionActive)
+        if (!_machiBackend.DenoisingDisabled && !_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionActive)
             RecordMachiFailure(_activeRequest);
 
         var depth = _machiBackend.SurfaceDepth;
-        _lightData[284] = new(_machiBackend.SurfaceDepthUvOffset, 0, 0);
+        _lightData[284] = new(_machiBackend.SurfaceDepthUvOffset,
+            AppSettings.FoliaMachiChromaticAberration ? 1 : 0, AppSettings.FoliaMachiDepthOfField ? 1 : 0);
         SetFoliaState(commands);
         commands.ResourceBarrierTransition(depth, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
-        var atmosphere = _bloom!.Begin(commands);
+        var atmosphere = Rtv(1);
+        var bloom = _bloom;
+        if (bloom != null)
+            atmosphere = bloom.Begin(commands);
+        else
+            commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         RecordFullStage(commands, atmosphere, _machiAtmosphere!, 2);
         commands.SetPipelineState(_machiVolume!);
         SetInstanceOffset(commands, 0);
         commands.DrawInstanced(60, 1, 0, 0);
         SetInstanceOffset(commands, 1);
         commands.DrawInstanced(6, (uint)_machiPuffs, 0, 0);
-        float night = 1 - _lightData[9].W;
-        _bloom.Apply(commands, _textures[4]!, Rtv(1), false, .12f + .38f * night, linearHdr: true, streaks: .55f * night * night);
+        if (bloom != null)
+        {
+            float night = 1 - _lightData[9].W;
+            bloom.Apply(commands, _textures[4]!, Rtv(1), false, .12f + .38f * night, linearHdr: true, streaks: .55f * night * night);
+        }
+        else
+            commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         SetFoliaState(commands);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         RecordFullStage(commands, Rtv(0), _machiLens!, 1);

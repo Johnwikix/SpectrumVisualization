@@ -49,7 +49,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
     private Func<IGpuVisualizerEffect> _effectFactory;
     private readonly bool _hardwareRaytracing;
     private bool _stageOwnsReconstruction;
-    private bool _machiRayReconstruction;
+    private MachiDenoisingMode _machiDenoising;
     private GpuRenderSize _machiRenderSize;
     private bool StageOwnsReconstruction => _effect is IMachiRenderEffect { UsesMachiReconstruction: true };
     internal ReconstructionStatus Reconstruction
@@ -265,18 +265,21 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         DisposeResource(_temporal);
         _temporal = null;
         _stageOwnsReconstruction = StageOwnsReconstruction;
-        _machiRayReconstruction = false;
         _activeMode = options.Mode;
         if (_stageOwnsReconstruction && _effect is IMachiRenderEffect machi)
         {
             var quality = options.ForMachi();
-            _machiRayReconstruction = machi.WantsMachiRayReconstruction;
+            _machiDenoising = machi.RequestedMachiDenoising;
             _machiRenderSize = GpuRenderSize.Create(Width, Height, quality.RenderScalePercent) with { PixelsPerDip = options.PixelsPerDip };
             var stageMode = !_reconstructionDeferred && (_capabilities & (1u << (int)quality.Mode)) != 0
                 ? quality.Mode : ReconstructionMode.Off;
-            machi.ConfigureMachi(_machiRenderSize, stageMode, quality.DlssPreset, _machiRayReconstruction);
+            machi.ConfigureMachi(_machiRenderSize, stageMode, quality.DlssPreset, _machiDenoising);
             size = new GpuRenderSize(Width, Height, Width, Height) with { PixelsPerDip = options.PixelsPerDip };
             _activeMode = quality.Mode >= ReconstructionMode.XeSS ? ReconstructionMode.Fxaa : quality.Mode;
+        }
+        else if (_effect is IMachiRenderEffect inactiveMachi)
+        {
+            inactiveMachi.ConfigureMachi(default, ReconstructionMode.Off, options.DlssPreset, inactiveMachi.RequestedMachiDenoising);
         }
         _unsupportedScale = false;
         if (_activeMode >= ReconstructionMode.XeSS)
@@ -429,7 +432,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         if (_effect is IMachiRenderEffect machi) machi.MachiHdrOutput = _hdr;
         bool ownsReconstruction = StageOwnsReconstruction;
         if (_reconstructionDirty || _stageOwnsReconstruction != ownsReconstruction ||
-            (ownsReconstruction && _effect is IMachiRenderEffect stage && _machiRayReconstruction != stage.WantsMachiRayReconstruction))
+            (ownsReconstruction && _effect is IMachiRenderEffect stage && _machiDenoising != stage.RequestedMachiDenoising))
         {
             WaitForGpu();
             CreateSceneResources(_options);

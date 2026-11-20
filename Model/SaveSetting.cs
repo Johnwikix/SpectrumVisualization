@@ -26,6 +26,9 @@ namespace WinExSpectrumTest.Model
         public string FoliaMachiTimeOfDay { get; set; } = "auto";
         public string FoliaMachiWeather { get; set; } = "auto";
         public string FoliaMachiDenoiser { get; set; } = "nrd";
+        public bool FoliaMachiChromaticAberration { get; set; } = true;
+        public bool FoliaMachiDepthOfField { get; set; } = true;
+        public bool FoliaMachiBloom { get; set; } = true;
         public bool FoliaMachiGpuQualityOverride { get; set; }
         public string FoliaMachiAntiAliasing { get; set; } = "fxaa";
         public int FoliaMachiRenderScalePercent { get; set; } = 100;

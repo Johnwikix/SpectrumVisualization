@@ -78,7 +78,7 @@ internal sealed unsafe partial class MachiDxrBackend
         return RayReconstructionAvailable;
     }
 
-    private bool TryRayReconstruction(ID3D12GraphicsCommandList commands, in Camera camera,
+    private bool TryRayReconstruction(ID3D12GraphicsCommandList commands, in MachiCamera camera,
         ID3D12Resource output, in TemporalFrame temporal, float seconds)
     {
         RayReconstructionFrame frame = new()

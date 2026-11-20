@@ -8,7 +8,7 @@ using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
-internal readonly record struct MachiDxrFrame(Matrix4x4 ViewProjection, Vector3 Sky, Vector3 SunDirection,
+internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, Vector3 SunDirection,
     Vector3 SunRadiance, float Wetness, float DeltaSeconds, bool ResetHistory, bool RequestRayReconstruction)
 {
     internal Vector3? SkyBottom { get; init; }
@@ -31,9 +31,11 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
 {
     private const int FrameSlots = 2;
     private const int TraceOutputs = (int)MachiDxrSignal.Count;
-    private const int ResolveInputs = 14;
+    private const int ResolveDenoiserInputs = 12;
     private const int ResolveStart = TraceOutputs + 2;
-    private const int ResolveProxy = ResolveStart + ResolveInputs;
+    private const int ResolveScaledSource = ResolveStart + ResolveDenoiserInputs;
+    private const int ResolveRawSource = ResolveScaledSource + 1;
+    private const int ResolveProxy = ResolveRawSource + 1;
     private const int ResolveOutput = ResolveProxy + 1;
     private const int DescriptorsPerFrame = ResolveOutput + 1;
     private const int ConstantsStride = 256;
@@ -46,9 +48,6 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         2 => Format.R16G16_Float,
         _ => HdrFormat
     };
-
-    private readonly record struct Camera(Matrix4x4 ViewProjection, Matrix4x4 View, Matrix4x4 Projection,
-        Matrix4x4 Inverse);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constants
@@ -81,13 +80,14 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private readonly ID3D12Resource _constantBuffer, _shaderTable;
     private DispatchRaysDescription _dispatch;
     private byte* _mapped;
-    private Camera _previous;
+    private MachiCamera _previous;
     private Vector2 _previousJitter;
     private bool _sceneBuilt, _historyValid, _sizeReady, _disposed;
     private bool _denoiserAttempted;
     private uint _frameIndex;
 
     internal bool DenoiserAvailable { get; private set; }
+    internal bool DenoisingDisabled { get; private set; }
     internal bool RayReconstructionAvailable { get; private set; }
     internal bool RayReconstructionActive { get; private set; }
     internal ID3D12Resource SurfaceDepth => Signal(MachiDxrSignal.Depth);
@@ -100,7 +100,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         ReadOnlySpan<byte> signPixels = default, int signWidth = 0, int signHeight = 0,
         int staticIndexCount = 0, ReadOnlySpan<FoliaMachi.Actor> actors = default, bool preferRayReconstruction = false,
         ReadOnlySpan<FoliaMachi.Light> lights = default, int outputWidth = 0, int outputHeight = 0,
-        ReconstructionMode superResolutionMode = ReconstructionMode.Off, string preset = "k")
+        ReconstructionMode superResolutionMode = ReconstructionMode.Off, string preset = "k", bool disableDenoising = false)
     {
         _device = device.QueryInterface<ID3D12Device5>();
         try
@@ -154,7 +154,10 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             };
 
             _resolveRoot = Keep(device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
-                [Table(DescriptorRangeType.ShaderResourceView, ResolveInputs, 0), Table(DescriptorRangeType.UnorderedAccessView, 1, 0)])));
+                [Table(DescriptorRangeType.ShaderResourceView, ResolveDenoiserInputs, 0),
+                    Table(DescriptorRangeType.ShaderResourceView, 1, ResolveDenoiserInputs),
+                    Table(DescriptorRangeType.ShaderResourceView, 1, ResolveDenoiserInputs + 1),
+                    Table(DescriptorRangeType.UnorderedAccessView, 1, 0)])));
             string resolveShader = MachiDxrShaders.Resolve;
             _resolve = ResolvePipeline("Resolve");
             _resolveRaw = ResolvePipeline("ResolveRaw");
@@ -163,12 +166,12 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             {
                 RootSignature = _resolveRoot,
                 ComputeShader = ShaderCompiler.Compile(resolveShader, entry, "cs_6_0")
-            }, "Machi/Resolve/root-v2/" + entry));
+            }, "Machi/Resolve/root-v3/" + entry));
             _constantBuffer = Buffer(FrameSlots * 2 * ConstantsStride);
             _mapped = _constantBuffer.Map<byte>(0);
             ReplaceScene(vertices, indices, signPixels, signWidth, signHeight, staticIndexCount, actors, lights);
             Resize(new(outputWidth > 0 ? outputWidth : width, outputHeight > 0 ? outputHeight : height, width, height),
-                superResolutionMode, preset, preferRayReconstruction);
+                superResolutionMode, preset, preferRayReconstruction, disableDenoising);
         }
         catch
         {
@@ -179,20 +182,22 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
 
     /// <summary>Recreates screen-space resources after the caller drains the queue. Scene acceleration structures survive.</summary>
     internal void Resize(int width, int height) =>
-        Resize(new(width, height, width, height), _superResolutionMode, _preset, _preferRayReconstruction);
+        Resize(new(width, height, width, height), _superResolutionMode, _preset, _preferRayReconstruction, DenoisingDisabled);
 
-    internal void Resize(in GpuRenderSize size, ReconstructionMode mode, string preset, bool preferRayReconstruction)
+    internal void Resize(in GpuRenderSize size, ReconstructionMode mode, string preset, bool preferRayReconstruction, bool disableDenoising = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         int width = size.Width, height = size.Height;
         if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(size));
-        if (_renderSize == size && _superResolutionMode == mode && _preset == preset && _preferRayReconstruction == preferRayReconstruction && _sizeReady) return;
+        if (_renderSize == size && _superResolutionMode == mode && _preset == preset &&
+            _preferRayReconstruction == preferRayReconstruction && DenoisingDisabled == disableDenoising && _sizeReady) return;
 
         ReleaseSizeResources();
         _renderSize = size;
         _superResolutionMode = mode;
         _preset = preset;
         _preferRayReconstruction = preferRayReconstruction;
+        DenoisingDisabled = disableDenoising;
         _width = width;
         _height = height;
         _dispatch.Width = (uint)width;
@@ -204,24 +209,33 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         try
         {
             for (int i = 0; i < _signals.Length; i++)
-                if (!IsRayReconstructionGuide(i) || mode == ReconstructionMode.Fsr && i == (int)MachiDxrSignal.ReconstructionDepth)
+                if (AllocateTraceSignal((MachiDxrSignal)i, mode))
                     _signals[i] = Texture(SignalFormat(i));
             if (width != size.OutputWidth || height != size.OutputHeight || mode >= ReconstructionMode.XeSS)
                 _resolveInput = Texture(HdrFormat);
-            ID3D12Resource[] resolveInputs = [Signal(MachiDxrSignal.Diffuse), Signal(MachiDxrSignal.DiffuseSh), Signal(MachiDxrSignal.Specular), Signal(MachiDxrSignal.SpecularSh), Signal(MachiDxrSignal.DiffuseFactor), Signal(MachiDxrSignal.SpecularFactor),
-                Signal(MachiDxrSignal.Deterministic), Signal(MachiDxrSignal.Reflection), Signal(MachiDxrSignal.Transmission), Signal(MachiDxrSignal.ViewZ), Signal(MachiDxrSignal.ReflectionZ), Signal(MachiDxrSignal.TransmissionZ), _resolveInput ?? Signal(MachiDxrSignal.Noisy), Signal(MachiDxrSignal.Noisy)];
+            ReadOnlySpan<MachiDxrSignal> denoiserInputs = [
+                MachiDxrSignal.Diffuse, MachiDxrSignal.DiffuseSh, MachiDxrSignal.Specular, MachiDxrSignal.SpecularSh,
+                MachiDxrSignal.DiffuseFactor, MachiDxrSignal.SpecularFactor, MachiDxrSignal.Deterministic,
+                MachiDxrSignal.Reflection, MachiDxrSignal.Transmission, MachiDxrSignal.ViewZ,
+                MachiDxrSignal.ReflectionZ, MachiDxrSignal.TransmissionZ];
             for (int slot = 0; slot < FrameSlots; slot++)
             {
                 for (int i = 0; i < TraceOutputs; i++)
                     BindTraceOutput(slot, i);
-                for (int i = 0; i < ResolveInputs; i++)
-                    _device.CreateShaderResourceView(resolveInputs[i], null, Cpu(slot, ResolveStart + i));
+                for (int i = 0; i < denoiserInputs.Length; i++)
+                    BindResolveInput(slot, i, denoiserInputs[i]);
+                var noisy = Signal(MachiDxrSignal.Noisy);
+                _device.CreateShaderResourceView(_resolveInput ?? noisy, null, Cpu(slot, ResolveScaledSource));
+                _device.CreateShaderResourceView(noisy, null, Cpu(slot, ResolveRawSource));
                 if (_resolveInput != null)
                     _device.CreateUnorderedAccessView(_resolveInput, null, null, Cpu(slot, ResolveProxy));
             }
-            if (_preferRayReconstruction) InitializeRayReconstruction();
-            if (!_preferRayReconstruction || !RayReconstructionAvailable)
-                InitializeDenoisers();
+            if (!DenoisingDisabled)
+            {
+                if (_preferRayReconstruction) InitializeRayReconstruction();
+                if (!_preferRayReconstruction || !RayReconstructionAvailable)
+                    InitializeDenoisers();
+            }
             _sizeReady = true;
         }
         catch
@@ -229,6 +243,29 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             ReleaseSizeResources();
             throw;
         }
+    }
+
+    private bool AllocateTraceSignal(MachiDxrSignal signal, ReconstructionMode mode)
+    {
+        if (signal == MachiDxrSignal.ReconstructionDepth) return mode == ReconstructionMode.Fsr;
+        if (DenoisingDisabled)
+            return signal is MachiDxrSignal.Noisy or MachiDxrSignal.Depth ||
+                signal == MachiDxrSignal.Motion && mode >= ReconstructionMode.XeSS;
+        return !IsRayReconstructionGuide((int)signal);
+    }
+
+    private void BindResolveInput(int slot, int index, MachiDxrSignal signal)
+    {
+        var descriptor = Cpu(slot, ResolveStart + index);
+        if (_signals[(int)signal] is { } resource)
+            _device.CreateShaderResourceView(resource, null, descriptor);
+        else
+            _device.CreateShaderResourceView(null, new ShaderResourceViewDescription
+            {
+                Format = SignalFormat((int)signal), ViewDimension = ShaderResourceViewDimension.Texture2D,
+                Shader4ComponentMapping = ShaderComponentMapping.Default,
+                Texture2D = new Texture2DShaderResourceView { MipLevels = 1 }
+            }, descriptor);
     }
 
     private void ReleaseSizeResources()
@@ -324,21 +361,6 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             }, Cpu(slot, index));
     }
 
-    private static Camera GetCamera(Matrix4x4 viewProjection)
-    {
-        if (!Matrix4x4.Invert(viewProjection, out var inverse))
-            throw new ArgumentException("Machi camera projection is singular.", nameof(viewProjection));
-
-        var near = Vector3.Transform(Vector3.Zero, inverse);
-        var far = Vector3.Transform(Vector3.UnitZ, inverse);
-        var forward = Vector3.Normalize(far - near);
-        var up = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, inverse));
-        var eye = near - forward * .1f;
-        var view = Matrix4x4.CreateLookAt(eye, eye + forward, up);
-        Matrix4x4.Invert(view, out var inverseView);
-        return new(viewProjection, view, inverseView * viewProjection, inverse);
-    }
-
     internal void Record(ID3D12GraphicsCommandList commands, ID3D12Resource output, ID3D12Resource lyrics,
         int frameSlot, in MachiDxrFrame frame, ReadOnlySpan<Matrix4x4> actorTransforms = default)
     {
@@ -353,7 +375,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         var list = _commandLists[frameSlot]!;
         RecordGeometry(list, frameSlot, actorTransforms);
         bool wasRayReconstruction = RayReconstructionActive;
-        bool requestRayReconstruction = PrepareRayReconstruction(list, frame.RequestRayReconstruction);
+        bool requestRayReconstruction = !DenoisingDisabled && PrepareRayReconstruction(list, frame.RequestRayReconstruction);
         // The Folia host completes the preceding Machi frame before recording the next.
         if (!requestRayReconstruction) DisposeRayReconstruction();
         bool requestSuperResolution = !requestRayReconstruction && PrepareSuperResolution(list);
@@ -366,8 +388,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         var temporal = requestRayReconstruction || requestSuperResolution
             ? TemporalReconstruction.Sample(_renderSize, _jitterIndex, reset) : new TemporalFrame(0, 0, reset);
         var jitter = new Vector2(temporal.JitterX, temporal.JitterY);
-        Camera camera = GetCamera(frame.ViewProjection);
-        Camera previous = reset ? camera : _previous;
+        var camera = frame.Camera;
+        var previous = reset ? camera : _previous;
         Vector3 sun = frame.SunDirection.LengthSquared() > 1e-6f ? Vector3.Normalize(frame.SunDirection) : Vector3.UnitY;
         int offset = frameSlot * 2 * ConstantsStride;
         *(Constants*)(_mapped + offset) = new Constants
@@ -378,7 +400,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),
             Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : needsFsrDepth ? -1 : 0),
             SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, frame.SceneHalf),
-            AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0, 0),
+            AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0,
+                DenoisingDisabled ? requestSuperResolution ? 2 : 1 : 0),
             HemiSkyRain = new(frame.HemiSky ?? frame.Sky, frame.Rain),
             HemiGroundTime = new(frame.HemiGround ?? frame.SkyBottom ?? frame.Sky * .45f, frame.AmbientTime),
             CityGlow = new(frame.CityGlow, 0),
@@ -396,8 +419,9 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             _outputs[frameSlot] = output.NativePointer;
         }
         for (int i = 0; i < _signals.Length; i++)
-            if (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth)
-                list.ResourceBarrierTransition(_signals[i], Read, Write);
+            if (_signals[i] is { } signal &&
+                (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth))
+                list.ResourceBarrierTransition(signal, Read, Write);
         list.SetDescriptorHeaps(_descriptors);
         list.SetComputeRootSignature(_traceRoot);
         list.SetComputeRootConstantBufferView(0, _constantBuffer.GPUVirtualAddress + (uint)offset);
@@ -413,15 +437,16 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         list.SetPipelineState1(_trace);
         list.DispatchRays(_dispatch);
         for (int i = 0; i < _signals.Length; i++)
-            if (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth)
-                list.ResourceBarrierTransition(_signals[i], Write, Read);
+            if (_signals[i] is { } signal &&
+                (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth))
+                list.ResourceBarrierTransition(signal, Write, Read);
 
         SuperResolutionActive = ReconstructionMode.Off;
         RayReconstructionActive = requestRayReconstruction && TryRayReconstruction(list, camera, output, temporal, frame.DeltaSeconds);
         if (!RayReconstructionActive)
         {
             if (requestRayReconstruction) list.ResourceBarrierUnorderedAccessView(output);
-            if (!_denoiserAttempted)
+            if (!DenoisingDisabled && !_denoiserAttempted)
                 InitializeDenoisers();
             bool denoised = DenoiserAvailable &&
                 Denoise(list, frameSlot, camera, previous, reset || wasRayReconstruction, -jitter, frame.DeltaSeconds);
@@ -458,13 +483,19 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     {
         list.SetDescriptorHeaps(_descriptors);
         list.SetComputeRootSignature(_resolveRoot);
-        list.SetComputeRootDescriptorTable(0, Gpu(frameSlot, ResolveStart));
-        list.SetComputeRootDescriptorTable(1, Gpu(frameSlot, output));
+        // The first resolve writes the intermediate as UAV. Bind its SRV only in the scale pass.
+        if (pipeline == _resolveScale)
+            list.SetComputeRootDescriptorTable(1, Gpu(frameSlot, ResolveScaledSource));
+        else if (pipeline == _resolveRaw)
+            list.SetComputeRootDescriptorTable(2, Gpu(frameSlot, ResolveRawSource));
+        else
+            list.SetComputeRootDescriptorTable(0, Gpu(frameSlot, ResolveStart));
+        list.SetComputeRootDescriptorTable(3, Gpu(frameSlot, output));
         list.SetPipelineState(pipeline);
         list.Dispatch((uint)(width + 7) / 8, (uint)(height + 7) / 8, 1);
     }
 
-    private bool Denoise(ID3D12GraphicsCommandList commands, int slot, in Camera camera, in Camera previous,
+    private bool Denoise(ID3D12GraphicsCommandList commands, int slot, in MachiCamera camera, in MachiCamera previous,
         bool reset, Vector2 jitter, float seconds)
     {
         NativeNrd.Frame frame = new()

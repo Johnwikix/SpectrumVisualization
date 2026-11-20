@@ -654,11 +654,29 @@
                                 <controls:SettingsCard x:Uid="FoliaMachiMotion">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMachiMotion, Mode=TwoWay}" />
                                 </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaMachiDenoiser">
-                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiDenoiser, Mode=TwoWay}" SelectedValuePath="Tag">
-                                        <ComboBoxItem Content="NRD" Tag="nrd" />
-                                        <ComboBoxItem Content="DLSS Ray Reconstruction" Tag="dlss-rr" />
+                                <controls:SettingsCard x:Name="FoliaMachiDenoiserCard" x:Uid="FoliaMachiDenoiser">
+                                    <ComboBox
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaMachiDenoiserCard}"
+                                        SelectedIndex="{x:Bind ViewModel.FoliaMachiDenoiserIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="NRD" />
+                                        <ComboBoxItem Content="DLSS Ray Reconstruction" />
+                                        <ComboBoxItem x:Uid="FoliaMachiDenoiserNone" />
                                     </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiChromaticAberrationCard" x:Uid="FoliaMachiChromaticAberration">
+                                    <ToggleSwitch
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaMachiChromaticAberrationCard}"
+                                        IsOn="{x:Bind ViewModel.FoliaMachiChromaticAberration, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiDepthOfFieldCard" x:Uid="FoliaMachiDepthOfField">
+                                    <ToggleSwitch
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaMachiDepthOfFieldCard}"
+                                        IsOn="{x:Bind ViewModel.FoliaMachiDepthOfField, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiBloomCard" x:Uid="FoliaMachiBloom">
+                                    <ToggleSwitch
+                                        AutomationProperties.LabeledBy="{x:Bind FoliaMachiBloomCard}"
+                                        IsOn="{x:Bind ViewModel.FoliaMachiBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaMachiGpuQualityOverride">
                                     <ToggleSwitch

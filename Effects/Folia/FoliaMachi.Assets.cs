@@ -8,6 +8,9 @@ using System.Threading;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
+internal readonly record struct MachiCamera(Matrix4x4 ViewProjection, Matrix4x4 View,
+    Matrix4x4 Projection, Matrix4x4 Inverse);
+
 internal sealed partial class FoliaMachi
 {
     private const uint SceneMagic = 0x3348434D;
@@ -154,7 +157,7 @@ internal sealed partial class FoliaMachi
         return hash;
     }
 
-    internal Matrix4x4 ViewProjection(float aspect, double ambientTime = 0, float motionWeight = 0)
+    internal MachiCamera CreateCamera(float aspect, double ambientTime = 0, float motionWeight = 0)
     {
         float fittedHalfHeight = MathF.Max(_fitHeight, _fitWidth / aspect) / UsableFrustum;
         float overflow = MathF.Max(0, _fitHeight / UsableFrustum - fittedHalfHeight / _zoom);
@@ -177,8 +180,18 @@ internal sealed partial class FoliaMachi
         float halfHeight = fittedHalfHeight / zoom;
         float halfWidth = halfHeight * aspect;
         float shift = fittedHalfHeight * SubtitleReserve;
-        return Matrix4x4.CreateLookAt(eye, target, Vector3.UnitY) *
-            Matrix4x4.CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight - shift, halfHeight - shift, Near, Far);
+        var view = Matrix4x4.CreateLookAt(eye, target, Vector3.UnitY);
+        var viewProjection = view * Matrix4x4.CreateOrthographicOffCenter(
+            -halfWidth, halfWidth, -halfHeight - shift, halfHeight - shift, Near, Far);
+        if (!Matrix4x4.Invert(viewProjection, out var inverse))
+            throw new InvalidOperationException("Machi camera projection is singular.");
+
+        // Move the subtitle framing into view-space Y for the SDKs. RELAX
+        // reconstructs orthographic world positions along the centered frustum
+        // forward axis and classifies the projection by its exact W.
+        view.M42 += shift;
+        var projection = Matrix4x4.CreateOrthographic(halfWidth * 2, halfHeight * 2, Near, Far);
+        return new(viewProjection, view, projection, inverse);
     }
 
     private static Vector3 OrbitDirection(float azimuth, float elevation) =>

@@ -397,11 +397,20 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>布景</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>缓慢运镜</value></data>
   <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>路径追踪降噪</value></data>
+  <data name="FoliaMachiDenoiserNone.Content" xml:space="preserve"><value>无降噪</value></data>
+  <data name="FoliaMachiChromaticAberration.Header" xml:space="preserve"><value>色散</value></data>
+  <data name="FoliaMachiDepthOfField.Header" xml:space="preserve"><value>景深模糊</value></data>
+  <data name="FoliaMachiBloom.Header" xml:space="preserve"><value>泛光</value></data>
+  <data name="FoliaMachiBloom.Description" xml:space="preserve"><value>控制亮部光晕和横向光晕。</value></data>
+  <data name="MachiRawActive" xml:space="preserve"><value>正在使用硬件路径追踪，未启用降噪。</value></data>
+  <data name="MachiRawSuperResolutionActive" xml:space="preserve"><value>正在使用硬件路径追踪和 {0}，未启用降噪。</value></data>
+  <data name="MachiRawFallback" xml:space="preserve"><value>所选重建模式不可用，正在使用 FXAA，未启用降噪。</value></data>
+  <data name="MachiRawScaleUnsupported" xml:space="preserve"><value>所选重建模式不支持当前输入尺寸，正在使用 FXAA，未启用降噪。</value></data>
   <data name="FoliaMachiGpuQualityOverride.Header" xml:space="preserve"><value>使用独立画质设置</value></data>
   <data name="FoliaMachiGpuQualityOverride.Description" xml:space="preserve"><value>单独设置此模式的抗锯齿和渲染比例。关闭时两项均沿用全局 GPU 画质。</value></data>
   <data name="FoliaMachiGpuQualityToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>使用町景独立画质设置</value></data>
   <data name="FoliaMachiAntiAliasing.Header" xml:space="preserve"><value>抗锯齿</value></data>
-  <data name="FoliaMachiAntiAliasing.Description" xml:space="preserve"><value>使用 NRD 时生效，包括光线重建回退到 NRD 时。不支持的抗锯齿模式会回退到 FXAA。</value></data>
+  <data name="FoliaMachiAntiAliasing.Description" xml:space="preserve"><value>使用 NRD 或无降噪时生效，包括光线重建回退到 NRD 时。不支持的抗锯齿模式会回退到 FXAA。</value></data>
   <data name="MachiNrdSuperResolutionActive" xml:space="preserve"><value>正在使用硬件路径追踪、NRD 降噪和 {0}。</value></data>
   <data name="MachiRrFallbackSuperResolution" xml:space="preserve"><value>DLSS 光线重建不可用，正在使用 NRD 和 {0}。</value></data>
   <data name="MachiSceneAuto.Content" xml:space="preserve"><value>按歌曲自动选择</value></data>
