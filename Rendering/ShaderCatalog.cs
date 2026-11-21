@@ -24,7 +24,7 @@ internal static class ShaderCatalog
         compile(FoliaShaderLibrary.Background("Stage"), "MachiPanelPS", "ps_5_0");
         Pair(FoliaShaderLibrary.Background("Machi"), "Fullscreen", "AtmospherePS", "LensPS");
         Pair(FoliaShaderLibrary.Background("Machi"), "WeatherVS", "WeatherPS");
-        Pair(FoliaShaderLibrary.Background("Machi"), "VolumeVS", "VolumePS");
+        Pair(FoliaShaderLibrary.Background("Machi"), "SteamVS", "SteamPS");
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
         Pair(FoliaShaderLibrary.Background("LyricMaterials"), "Fullscreen", "HanabiSkyPS", "InkDevelopPS", "NebbiaFogPS", "NebbiaPS");
         compile(MachiDxrShaders.Trace, "", "lib_6_3");

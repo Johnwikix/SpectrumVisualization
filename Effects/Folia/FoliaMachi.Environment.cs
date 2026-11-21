@@ -11,18 +11,17 @@ internal sealed partial class FoliaMachi
     internal readonly record struct SteamPuff(Vector4 Source, Vector2 Seed);
     internal sealed record WeatherLayout(float Half, float GroundY, float WindYaw, float WindSlant,
         WeatherRoof[] Roofs, WeatherDrip[] Drips, WeatherGlint[] Glints,
-        Vector4 ConeApex, Vector4 ConeTarget, Vector3 ConeColor, Vector4 GlowA, Vector4 GlowB,
-        Vector3 GlowColorA, Vector3 GlowColorB, SteamPuff[] Steam, Vector3 Puddles);
+        SteamPuff[] Steam, Vector3 Puddles);
 
     private const float Dusk = .45f;
-    private static readonly Vector3 NightDirection = Vector3.Normalize(new(-6.5f, 14, -5));
+    private static readonly Vector3 NightDirection = Vector3.Normalize(new(-7, 13, 8));
     private static readonly Vector3 DuskDirection = Vector3.Normalize(new(-11, 5.5f, 6));
     private static readonly Vector3 DayDirection = Vector3.Normalize(new(-6, 16, 8));
     private static readonly Vector3 NightSky = Color(0x0e1524), DuskSky = Color(0x2c2f5c), DaySky = Color(0x4d8bd4);
     private static readonly Vector3 NightHorizon = Color(0x26324a), DuskHorizon = Color(0xe58a62), DayHorizon = Color(0xcde4f2);
     private static readonly Vector3 NightSun = Color(0x9cb3dc), DuskSun = Color(0xffae78), DaySun = Color(0xfff0da);
-    private static readonly Vector3 NightHemiSky = Color(0x3a4b6c), DuskHemiSky = Color(0x8b79a6), DayHemiSky = Color(0xbcd6ee);
-    private static readonly Vector3 NightHemiGround = Color(0x141923), DuskHemiGround = Color(0x30262a), DayHemiGround = Color(0x5f5b52);
+    private static readonly Vector3 NightHemiSky = Color(0x8392ac), DuskHemiSky = Color(0x8b79a6), DayHemiSky = Color(0xbcd6ee);
+    private static readonly Vector3 NightHemiGround = Color(0x434350), DuskHemiGround = Color(0x30262a), DayHemiGround = Color(0x5f5b52);
     private static readonly Vector3 KowloonGlow = Color(0x5a4688);
 
     internal record struct EnvironmentState
