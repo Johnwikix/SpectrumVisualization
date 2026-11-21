@@ -79,7 +79,7 @@ internal static partial class FoliaLyricLayout
             glowWords.Handoff?.Compose(ref painter, output, active, time, glowWords.HandoffTime, timing);
         int firstSubtitle = painter.Count;
         if (mode is not (3 or 4 or 7 or 9))
-            Subtitle(ref painter, atlas, active, anchor, time, primary, secondary);
+            Subtitle(ref painter, atlas, active, primary, secondary);
         if (mode == 10)
             sonnet.SubtitleCount = painter.Count - firstSubtitle;
         return painter.Count;
@@ -104,22 +104,27 @@ internal static partial class FoliaLyricLayout
 
     private static float Progress(in FoliaPreparedGlyph glyph, double time) => Math.Clamp((float)((time - glyph.Start) / Math.Max(.001, glyph.End - glyph.Start)), 0, 1);
 
-    internal static void Subtitle(ref FoliaPainter p, FoliaTextAtlas atlas, int active, int anchor, double time, Vector3 primary, Vector3 secondary)
+    internal static void Subtitle(ref FoliaPainter p, FoliaTextAtlas atlas, int active, Vector3 primary, Vector3 secondary)
     {
-        int selected = active >= 0 ? active : anchor;
-        if (selected < 0) return;
-        var line = atlas.Lines[selected];
+        if (active < 0) return;
+        var line = atlas.Lines[active];
+        var original = line.OriginalBounds;
+        var translation = line.TranslationBounds;
         float font = Math.Clamp(p.Width * .014f, 16, 24);
-        float scale = Math.Min(1, p.Width * .85f / Math.Max(line.TranslationWidth * font, 1));
-        font *= scale;
-        p.Text(line.Translation, (p.Width - line.TranslationWidth * font) * .5f, p.Height * .9f, font, secondary, .85f);
-        int upcoming = selected + 1;
-        if (upcoming < atlas.Lines.Length)
-        {
-            var next = atlas.Lines[upcoming];
-            float nextFont = Math.Min(font * .8f, p.Width * .8f / Math.Max(next.Width, 1));
-            p.Text(next.Glyphs, (p.Width - next.Width * nextFont) * .5f, p.Height * .9f + font * 1.5f, nextFont, secondary, .45f, blur: 1);
-        }
+        float originalFont = Math.Min(font, p.Width * .85f / Math.Max(1, original.Width));
+        float translationFont = Math.Min(font * .82f, p.Width * .85f / Math.Max(1, translation.Width));
+        float margin = Math.Min(24, p.Height * .04f);
+        float gap = line.Glyphs.Length > 0 && line.Translation.Length > 0 ? Math.Min(5, p.Height * .015f) : 0;
+        float textHeight = original.Height * originalFont + translation.Height * translationFont;
+        float scale = Math.Min(1, (p.Height - 2 * margin - gap) / Math.Max(1, textHeight));
+        originalFont *= scale;
+        translationFont *= scale;
+        float bottom = p.Height - margin;
+        float originalBottom = bottom - translation.Height * translationFont - gap;
+        p.Text(line.Glyphs, (p.Width - original.Width * originalFont) * .5f - original.Left * originalFont,
+            originalBottom - original.Bottom * originalFont, originalFont, primary, .9f);
+        p.Text(line.Translation, (p.Width - translation.Width * translationFont) * .5f - translation.Left * translationFont,
+            bottom - translation.Bottom * translationFont, translationFont, secondary, .85f);
     }
 
 }

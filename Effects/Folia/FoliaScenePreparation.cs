@@ -113,7 +113,7 @@ internal sealed class FoliaScenePreparation : IDisposable
     private FoliaSceneRequest _atlasRequest, _planRequest, _italicRequest;
     private bool _hasItalicRequest;
     private FoliaModePlan? _plan;
-    private (string? Id, FoliaMachi? Asset) _machiCache;
+    private (string? Id, WeakReference<FoliaMachi>? Asset) _machiCache;
     private (byte[]? Pixels, int Width, int Height) _cover;
     private Vector3[] _colors = [];
     private readonly FoliaThemeResolver _themes = new();
@@ -238,9 +238,15 @@ internal sealed class FoliaScenePreparation : IDisposable
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
                     string? sceneId = request.Mode == "machi" ? request.ResolveMachiScene() : null;
-                    var plan = new FoliaModePlan(_atlas, request, token, _machiCache.Id == sceneId ? _machiCache.Asset : null);
-                    _machiCache = (sceneId, plan.Machi);
+                    FoliaMachi? machi = null;
+                    if (sceneId != null && _machiCache.Id == sceneId)
+                        _machiCache.Asset?.TryGetTarget(out machi);
+                    var plan = new FoliaModePlan(_atlas, request, token, machi);
                     token.ThrowIfCancellationRequested();
+                    // A quick return can reuse the decoded district. Let the GC reclaim
+                    // its mesh and atlas whenever there is no scene using them.
+                    if (machi == null && plan.Machi is { } asset)
+                        _machiCache = (sceneId, new(asset));
                     _plan = plan;
                 }
                 // These keys describe the retained atlas/plan, but need not retain a

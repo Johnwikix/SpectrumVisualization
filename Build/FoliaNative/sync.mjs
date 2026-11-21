@@ -76,6 +76,25 @@ function add(id) {
     // Budget extra room for the pen width and the handwriting warp.
     const advance = activeNebbiaWidths?.[ch];
     if (!CJK.test(ch) && Number.isFinite(advance) && advance > 0) return Math.max(.3, .9 * advance + .075);`);
+        } else if (id === 'nebbia/nebbiaLayout') {
+            const fallback = `const res = COMPOSITIONS.lines3(ctx) ?? COMPOSITIONS.lines2(ctx) ?? COMPOSITIONS.ribbon(ctx) ;
+            const bb = bboxOf(res.items);
+            const S = Math.min(Smax, (W - mx * 2) / bb.w, (H - my * 2) / bb.h);`;
+            if (!code.includes(fallback)) throw new Error('Missing Nebbia overflow hook.');
+            code = code.replace(fallback, `let res = COMPOSITIONS.lines3(ctx) ?? COMPOSITIONS.lines2(ctx) ?? COMPOSITIONS.ribbon(ctx);
+            let bb = bboxOf(res.items);
+            const fit = box => Math.min(Smax, (W - mx * 2) / box.w, (H - my * 2) / box.h);
+            let S = fit(bb);
+            if (S < Smin * 0.75) {
+                const wrapped = wrapNebbiaRows(ctx, (W - mx * 2) / (Smin * 0.75));
+                const bounds = bboxOf(wrapped.items);
+                const wrappedSize = fit(bounds);
+                if (wrappedSize > S) {
+                    res = wrapped;
+                    bb = bounds;
+                    S = wrappedSize;
+                }
+            }`);
         }
     }
     const exports = [];

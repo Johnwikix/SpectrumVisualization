@@ -167,7 +167,7 @@ internal sealed unsafe partial class FoliaGpuEffect
                             preferRayReconstruction: MachiRayReconstructionRequested, lights: asset.Lights,
                             outputWidth: traceSize.OutputWidth, outputHeight: traceSize.OutputHeight,
                             superResolutionMode: _machiSuperResolutionMode, preset: _machiDlssPreset,
-                            disableDenoising: MachiDenoisingRequested == MachiDenoisingMode.None);
+                            disableDenoising: MachiDenoisingRequested == MachiDenoisingMode.None, tracePipeline: _machiTracePipeline!);
                     }
                     else
                     {
@@ -257,6 +257,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private void DisposeNativeStages()
     {
         ReleaseStageTargets();
+        DisposeMachiPipeline();
         GpuGraphics.DisposeResource(_hanabiSky);
         GpuGraphics.DisposeResource(_inkField);
         GpuGraphics.DisposeResource(_inkDevelop);
@@ -319,18 +320,18 @@ internal sealed unsafe partial class FoliaGpuEffect
                 var subtitles = new FoliaPainter(instances[_nativeForegroundCount..], width, height);
                 // The traced stage is already linear HDR. Use linear white for the final overlay.
                 var subtitleWhite = new Vector3(.807f, .828f, .933f);
-                FoliaLyricLayout.Subtitle(ref subtitles, atlas, active, anchor, position, subtitleWhite, subtitleWhite);
+                FoliaLyricLayout.Subtitle(ref subtitles, atlas, active, subtitleWhite, subtitleWhite);
                 return _nativeForegroundCount + subtitles.Count;
         }
+        // Subtitle sprites follow the native foreground and draw after its compositing pass.
         _nativeForegroundCount = painter.Count;
         if (_nativeStage == FoliaNativeStage.Hanabi && _lyricsVisible)
             _hanabi!.WriteCredits(ref painter, position);
-        if (anchor >= 0 && _nativeStage != FoliaNativeStage.Nebbia)
+        if (anchor >= 0)
         {
             Vector3 textColor = _nativeStage == FoliaNativeStage.Metaphor
                 ? new(_data[5].X, _data[5].Y, _data[5].Z) : new(.91f, .92f, .97f);
-            FoliaLyricLayout.Subtitle(ref painter, atlas, atlas.Timeline.FindActive(anchor, position),
-                anchor, position, textColor, textColor);
+            FoliaLyricLayout.Subtitle(ref painter, atlas, atlas.Timeline.FindActive(anchor, position), textColor, textColor);
         }
         return painter.Count;
     }

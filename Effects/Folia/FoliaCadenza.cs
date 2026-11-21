@@ -29,7 +29,7 @@ internal sealed class FoliaCadenza
     {
         if (_atlasIdentity == atlas.Identity && _width == width && _height == height && _scale == scale)
             return;
-        string json = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileCadenza", token);
+        string json = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, token: token), "compileCadenza", token);
         using var document = JsonDocument.Parse(json);
         var layouts = new LineLayout[atlas.Lines.Length];
         int lineIndex = 0;

@@ -17,6 +17,7 @@ internal sealed partial class FoliaSonnet
     private readonly record struct CameraFrame(Vector2 Focus, Vector2 Offset, float Scale, float Rotation);
     private sealed record Shot(string Kind, double Start, double End, Vector4 Camera, int Ordinal, TextRun[] Text, CameraFrame[] Frames,
         FoliaSonnetGraphics Graphics, double[] Cues, int Paragraph, double ParagraphStart, uint TransitionSeed, Transition? Enter, Transition? Exit);
+    private static readonly FoliaSourcePlanner.ParsedPlanCache<Shot[]> Plans = new("compileSonnet");
     private long _atlasIdentity;
     private float _width, _height, _scale;
     private Shot[] _shots = [];
@@ -47,49 +48,52 @@ internal sealed partial class FoliaSonnet
         _shots = [];
         if (atlas.Lines.Length > 0)
         {
-            string input = FoliaSourcePlanner.CreateInput(atlas, width, height, fontScale, family, weight);
-            string result = FoliaSourcePlanner.Compile(input, "compileSonnet", token);
-            using var document = JsonDocument.Parse(result);
-            var shots = new List<Shot>();
-            foreach (var item in document.RootElement.EnumerateArray())
-            {
-                token.ThrowIfCancellationRequested();
-                var texts = new List<TextRun>();
-                foreach (var text in item.GetProperty("texts").EnumerateArray())
-                {
-                    var glyphs = new List<NativeGlyph>();
-                    foreach (var g in text.GetProperty("glyphs").EnumerateArray())
-                    {
-                        if (!g.TryGetProperty("line", out var sourceLine) || !g.TryGetProperty("index", out var sourceIndex))
-                            continue;
-                        int li = sourceLine.GetInt32(), gi = sourceIndex.GetInt32();
-                        if ((uint)li >= (uint)atlas.Lines.Length || (uint)gi >= (uint)atlas.Lines[li].Glyphs.Length)
-                            continue;
-                        glyphs.Add(new(atlas.Lines[li].Glyphs[gi].Glyph, new(F(g, "baseX"), F(g, "baseY")), new(F(g, "enterX"), F(g, "enterY")),
-                            F(g, "entryRotation"), g.GetProperty("startTime").GetDouble(), g.GetProperty("settleTime").GetDouble(), atlas.Lines[li].Glyphs[gi].ActiveColor));
-                    }
-                    texts.Add(new(F(text, "font"), F(text, "rotation"), text.GetProperty("role").GetString()!, glyphs.ToArray(), new(text.GetProperty("decor")),
-                        text.TryGetProperty("keywordColor", out var keyword) && keyword.ValueKind == JsonValueKind.String ? FoliaThemePlanner.Rgb(keyword.GetString()!) : null));
-                }
-                var frames = new List<CameraFrame>();
-                foreach (var f in item.GetProperty("frames").EnumerateArray())
-                    frames.Add(new(new(f[0].GetSingle(), f[1].GetSingle()), new(f[2].GetSingle(), f[3].GetSingle()), f[4].GetSingle(), f[5].GetSingle()));
-                var camera = item.GetProperty("camera");
-                var cueValues = item.GetProperty("cues");
-                var cues = new double[cueValues.GetArrayLength()];
-                for (int i = 0; i < cues.Length; i++)
-                    cues[i] = cueValues[i].GetDouble();
-                shots.Add(new(item.GetProperty("kind").GetString()!, item.GetProperty("start").GetDouble(), item.GetProperty("end").GetDouble(),
-                    new(F(camera, "x"), F(camera, "y"), F(camera, "zoom"), F(camera, "rotation")), item.GetProperty("ordinal").GetInt32(), texts.ToArray(), frames.ToArray(),
-                    new(item.GetProperty("graphics")), cues, item.GetProperty("paragraph").GetInt32(), item.GetProperty("paragraphStart").GetDouble(),
-                    item.GetProperty("transitionSeed").GetUInt32(), ReadTransition(item.GetProperty("transitionIn")), ReadTransition(item.GetProperty("transitionOut"))));
-            }
-            _shots = shots.ToArray();
+            string input = FoliaSourcePlanner.CreateInput(atlas, width, height, fontScale, family, weight, token: token);
+            _shots = Plans.Read(atlas, input, token, ReadShots);
         }
         _atlasIdentity = atlas.Identity;
         _width = width;
         _height = height;
         _scale = fontScale;
+    }
+
+    private static Shot[] ReadShots(FoliaTextAtlas atlas, JsonElement root, CancellationToken token)
+    {
+        var shots = new List<Shot>();
+        foreach (var item in root.EnumerateArray())
+        {
+            token.ThrowIfCancellationRequested();
+            var texts = new List<TextRun>();
+            foreach (var text in item.GetProperty("texts").EnumerateArray())
+            {
+                var glyphs = new List<NativeGlyph>();
+                foreach (var g in text.GetProperty("glyphs").EnumerateArray())
+                {
+                    if (!g.TryGetProperty("line", out var sourceLine) || !g.TryGetProperty("index", out var sourceIndex))
+                        continue;
+                    int li = sourceLine.GetInt32(), gi = sourceIndex.GetInt32();
+                    if ((uint)li >= (uint)atlas.Lines.Length || (uint)gi >= (uint)atlas.Lines[li].Glyphs.Length)
+                        continue;
+                    glyphs.Add(new(atlas.Lines[li].Glyphs[gi].Glyph, new(F(g, "baseX"), F(g, "baseY")), new(F(g, "enterX"), F(g, "enterY")),
+                        F(g, "entryRotation"), g.GetProperty("startTime").GetDouble(), g.GetProperty("settleTime").GetDouble(), atlas.Lines[li].Glyphs[gi].ActiveColor));
+                }
+                texts.Add(new(F(text, "font"), F(text, "rotation"), text.GetProperty("role").GetString()!, glyphs.ToArray(), new(text.GetProperty("decor")),
+                    text.TryGetProperty("keywordColor", out var keyword) && keyword.ValueKind == JsonValueKind.String ? FoliaThemePlanner.Rgb(keyword.GetString()!) : null));
+            }
+            var frames = new List<CameraFrame>();
+            foreach (var f in item.GetProperty("frames").EnumerateArray())
+                frames.Add(new(new(f[0].GetSingle(), f[1].GetSingle()), new(f[2].GetSingle(), f[3].GetSingle()), f[4].GetSingle(), f[5].GetSingle()));
+            var camera = item.GetProperty("camera");
+            var cueValues = item.GetProperty("cues");
+            var cues = new double[cueValues.GetArrayLength()];
+            for (int i = 0; i < cues.Length; i++)
+                cues[i] = cueValues[i].GetDouble();
+            shots.Add(new(item.GetProperty("kind").GetString()!, item.GetProperty("start").GetDouble(), item.GetProperty("end").GetDouble(),
+                new(F(camera, "x"), F(camera, "y"), F(camera, "zoom"), F(camera, "rotation")), item.GetProperty("ordinal").GetInt32(), texts.ToArray(), frames.ToArray(),
+                new(item.GetProperty("graphics")), cues, item.GetProperty("paragraph").GetInt32(), item.GetProperty("paragraphStart").GetDouble(),
+                item.GetProperty("transitionSeed").GetUInt32(), ReadTransition(item.GetProperty("transitionIn")), ReadTransition(item.GetProperty("transitionOut"))));
+        }
+        return shots.ToArray();
     }
     private static float F(JsonElement value, string name) => value.GetProperty(name).GetSingle();
     internal void Write(ref FoliaPainter p, double time, Vector3 primary, Vector3 secondary, Vector3 accent, bool showLyrics = true)

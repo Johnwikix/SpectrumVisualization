@@ -16,6 +16,7 @@ internal sealed partial class FoliaTempera
         Vector2 Enter, float EnterRotation, float EnterScale, string Style, Vector2 Tracking, Vector3? ActiveColor);
     private sealed record Shot(double Start, double End, double LyricEnd, float Flow, Vector4 Camera, Vector4 CameraEnd, Node[] Nodes, Glyph[] Glyphs, float PostSeed,
         int Paragraph, double ParagraphStart, Transition? Enter, Transition? Exit);
+    private static readonly FoliaSourcePlanner.ParsedPlanCache<Shot[]> Plans = new("compileTempera");
     internal static readonly Vector3 Ink = new(184 / 255f, 214 / 255f, 204 / 255f), Paper = new(14 / 255f, 17 / 255f, 24 / 255f);
     internal Vector3 InkColor { get; private set; } = Ink;
     internal Vector3 PaperColor { get; private set; } = Paper;
@@ -33,12 +34,23 @@ internal sealed partial class FoliaTempera
         GraphicsCount = 0;
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale && ReferenceEquals(_palette, palette))
             return;
-        string input = FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, palette);
-        string output = FoliaSourcePlanner.Compile(input, "compileTempera", token);
-        using var document = JsonDocument.Parse(output);
+        string input = FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, palette, token: token);
+        _shots = Plans.Read(atlas, input, token, ReadShots);
+        _atlasIdentity = atlas.Identity;
+        _width = width;
+        _height = height;
+        _scale = scale;
+        _palette = palette;
+        InkColor = palette is null ? Ink : palette[1];
+        PaperColor = palette is null ? Paper : palette[0];
+    }
+
+    private static Shot[] ReadShots(FoliaTextAtlas atlas, JsonElement root, CancellationToken token)
+    {
         var shots = new List<Shot>();
-        foreach (var item in document.RootElement.EnumerateArray())
+        foreach (var item in root.EnumerateArray())
         {
+            token.ThrowIfCancellationRequested();
             var nodes = new List<Node>();
             foreach (var n in item.GetProperty("nodes").EnumerateArray())
             {
@@ -67,14 +79,7 @@ internal sealed partial class FoliaTempera
             shots.Add(new(F(item, "startTime"), F(item, "endTime"), F(item, "lyricEndTime"), F(item, "flowAngle"), Camera(item.GetProperty("camera")), Camera(item.GetProperty("cameraEnd")), nodes.ToArray(), glyphs.ToArray(), F(item, "postSeed"),
                 item.GetProperty("paragraph").GetInt32(), item.GetProperty("paragraphStart").GetDouble(), ReadTransition(item.GetProperty("transitionIn")), ReadTransition(item.GetProperty("transitionOut"))));
         }
-        _shots = shots.ToArray();
-        _atlasIdentity = atlas.Identity;
-        _width = width;
-        _height = height;
-        _scale = scale;
-        _palette = palette;
-        InkColor = palette is null ? Ink : palette[1];
-        PaperColor = palette is null ? Paper : palette[0];
+        return shots.ToArray();
     }
     private static float F(JsonElement value, string name, float fallback = 0) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.Number ? field.GetSingle() : fallback;
     private static bool B(JsonElement value, string name) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.True;

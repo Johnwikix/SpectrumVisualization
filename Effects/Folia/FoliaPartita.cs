@@ -20,7 +20,7 @@ internal sealed class FoliaPartita
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
-        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compilePartita", token));
+        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, token: token), "compilePartita", token));
         var layouts = new List<Line>();
         int li = 0;
         foreach (var row in document.RootElement.EnumerateArray())

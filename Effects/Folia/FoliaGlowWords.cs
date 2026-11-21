@@ -52,7 +52,7 @@ internal sealed class FoliaGlowWords
         Handoff = new FoliaLineHandoff(handoffCapacity);
         if (mode == "classic")
         {
-            using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, 1, 1, 1, "", 300), "compileClassic", token));
+            using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, 1, 1, 1, "", 300, token: token), "compileClassic", token));
             _classic = new FoliaPreparedLine[atlas.Lines.Length];
             int li = 0;
             foreach (var row in document.RootElement.EnumerateArray())

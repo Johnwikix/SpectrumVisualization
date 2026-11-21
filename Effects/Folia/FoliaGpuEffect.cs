@@ -6,6 +6,7 @@ using Vortice.DXGI;
 using WinExSpectrumTest.Audio;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Rendering;
+using WinExSpectrumTest.Services;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -66,7 +67,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private double _secondsSincePlaying = TrackPauseGraceSeconds;
     private double _lastPosition, _stagePosition;
     private FoliaSceneRequest? _sampledRequest;
-    private FoliaClock? _sampledClock;
+    private MediaPlaybackClock? _sampledClock;
     private double _sampledPosition;
     public bool ResetHistoryRequested
     {
@@ -84,6 +85,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
                     || _metaphorShot >= 0 && shot >= 0 && shot != _metaphorShot;
             }
             return _upload is { Complete: true } upload && upload.Scene.Request.Matches(request) && ChangesSceneTopology(request)
+                && (request.Mode != "machi" || MachiPipelinePrepared)
                 || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
                 || _nativeStage == FoliaNativeStage.Nebbia && NebbiaWindowSetting() != _nebbiaWindowSetting
                 || metaphorCut;
@@ -590,7 +592,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
 
     private void RecordStageOutput(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target)
     {
-        Bind(commands, 2);
+        // Machi has returned its depth to the DXR read state before this copy.
+        Bind(commands, _nativeStage == FoliaNativeStage.Machi ? 3 : 2);
         if (_temporal)
         {
             if (_depthReadable)

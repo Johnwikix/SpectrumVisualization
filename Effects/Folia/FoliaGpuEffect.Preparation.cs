@@ -40,6 +40,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         _glyphAtlas.FinishFrame();
         if (!_hasRequest || !_requested.Matches(request))
         {
+            if (request.Mode == "machi") BeginMachiPipelinePreparation();
             _requested = request;
             _hasRequest = true;
             if (_upload != null && !_upload.CanRetainFor(request))
@@ -103,7 +104,8 @@ internal sealed unsafe partial class FoliaGpuEffect
         }
         // A mode or background replacement still commits on the reset frame. Lyric and
         // artwork updates within a stage use local rejection and can commit immediately.
-        bool canCommit = candidate is { Complete: true }
+        bool pipelineReady = request.Mode != "machi" || FinishMachiPipelinePreparation(request);
+        bool canCommit = pipelineReady && candidate is { Complete: true }
             && (!_temporal || _frame.Reset || !ChangesSceneTopology(request));
         if (canCommit && _transitionPending)
         {
