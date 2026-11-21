@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Sdk Name="PublishWithSatoriGC" Version="10.0.13-satori.38707290103.1" />
+  <Sdk Name="PublishWithSatoriGC" Version="11.0.1-satori.44643583273.1" />
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetFramework>net11.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>WinExSpectrumTest</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -38,10 +38,8 @@
     <EmbeddedResource Include="External\Folia\Cappella\emo\*.png" LogicalName="Spectrum.Folia.Emoji.%(Filename)%(Extension)" />
     <EmbeddedResource Include="External\Folia\noise.png" LogicalName="Spectrum.Folia.noise.png" />
     <EmbeddedResource Include="External\Folia\Nebbia\strokes.bin.gz" LogicalName="Spectrum.Folia.Nebbia.strokes.bin.gz" WithCulture="false" />
-    <Content Include="External\Folia\Nebbia\ARPHICPL.TXT;External\Folia\Nebbia\COPYING.txt;External\Folia\Nebbia\LUCIDE-LICENSE.txt;External\Folia\Nebbia\NOTICE.txt"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Folia\Machi\README.md;External\Lyricify.Lyrics.Helper\LICENSE"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="External\Folia\Nebbia\ARPHICPL.TXT;External\Folia\Nebbia\COPYING.txt;External\Folia\Nebbia\LUCIDE-LICENSE.txt;External\Folia\Nebbia\NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="External\Folia\LICENSE;External\Folia\Paper-LICENSE.txt;External\Folia\Jint-LICENSE.txt;External\Folia\Acornima-LICENSE.txt;External\Folia\Earcut-LICENSE.txt;External\Folia\NOTICE.md;External\Folia\Machi\README.md;External\Lyricify.Lyrics.Helper\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
