@@ -5,11 +5,44 @@ import { MachiColorBlend, MachiMaterials } from './engine/materials';
 import { resolveMachiPalette } from './engine/palette';
 import { createMachiSnowUniforms } from './engine/snow';
 import { MACHI_GLOSS, machiGlossFor } from './engine/sheen';
+import { fitVehicles } from 'spectrum-models';
+import { bakeSurfaces, surfaceRows } from 'spectrum-surfaces';
 
 const atlasWidth = 2048;
 const stride = 32;
 const ignored = new Set(['Steam', 'LightCones', 'ReflectionWindow', 'Hologram/beam', 'HeadlightPool', 'TaxiLamp']);
 const panelHeight = 560;
+const maxSceneTriangles = 500_000;
+
+function modelFactory(batches, materials) {
+    const templates = new Map();
+    return name => {
+        if (!templates.has(name)) {
+            const root = new THREE.Group();
+            for (const { material: surface, vertices, indices } of batches[name]) {
+                const geometry = new THREE.BufferGeometry();
+                const buffer = new THREE.InterleavedBuffer(new Float32Array(Uint8Array.fromBase64(vertices).buffer), 6);
+                geometry.setAttribute('position', new THREE.InterleavedBufferAttribute(buffer, 3, 0));
+                geometry.setAttribute('normal', new THREE.InterleavedBufferAttribute(buffer, 3, 3));
+                geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(Uint8Array.fromBase64(indices).buffer), 1));
+                const material = new THREE.MeshStandardMaterial({color: new THREE.Color().fromArray(surface.color),
+                    roughness: surface.roughness, metalness: surface.metalness});
+                material.name = surface.name;
+                material.userData.machiKind = surface.kind;
+                if (surface.emission) material.userData.rainyCorner = {...surface, baseColor: surface.color};
+                const mesh = new THREE.Mesh(geometry, materials.track(material));
+                mesh.name = name + '/' + surface.name;
+                root.add(mesh);
+            }
+            templates.set(name, root);
+        }
+        return templates.get(name).clone();
+    };
+}
+
+// The original façades join the same tiled material families as the new streets.
+const wallTiles = new Set(['wallA', 'wallB', 'wallC', 'wallD', 'wallE', 'wall']);
+const concrete = new Set(['slab', 'concrete', 'curb', 'apron', 'interiorWall']);
 
 const sceneLabels = {
     konbini: 'KONBINI',
@@ -177,7 +210,7 @@ function collectScene(scene, blend) {
             const texture = material.map?.isCanvasTexture ? material.map : null;
             const alternative = object.name === 'Motel/vacancy' ? scene.signs.vacancyFull.texture : null;
             const name = material.name;
-            let kind = 0;
+            let kind = material.userData.machiKind ?? 0;
             const fixture = material.userData.rainyCorner;
             if (fixture?.emission) kind = 11;
             else if (object.name === 'Motel/bulbs') kind = 12;
@@ -193,6 +226,12 @@ function collectScene(scene, blend) {
             else if (road.has(object)) kind = 4;
             else if (lot.has(object)) kind = 9;
             else if (name.startsWith('machi:glow:') || /^(Headlight|Taillight)$/.test(object.name)) kind = 3;
+            else if (kind === 0 && name.startsWith('machi:')) {
+                const role = name.split(':').at(-1);
+                if (wallTiles.has(role)) kind = 14;
+                else if (concrete.has(role)) kind = 15;
+                else if (role === 'roof') kind = 16;
+            }
 
             if (!material.isShaderMaterial || kind !== 0) {
                 const count = object.isInstancedMesh ? object.count : 1;
@@ -269,7 +308,7 @@ function packSigns(textures) {
     [...textures.keys()].sort((a, b) => b.image.height - a.image.height).forEach(allocate);
     const atlas = document.createElement('canvas');
     atlas.width = atlasWidth;
-    atlas.height = y + rowHeight + 1;
+    atlas.height = y + rowHeight + 1 + surfaceRows;
     const paint = atlas.getContext('2d', { willReadFrequently: true });
     for (const [texture, rect] of textures) {
         const { x, y, width, height } = rect;
@@ -277,7 +316,9 @@ function packSigns(textures) {
         paint.drawImage(texture.image, 0, 0, 1, texture.image.height, x - 1, y, 1, height);
         paint.drawImage(texture.image, texture.image.width - 1, 0, 1, texture.image.height, x + width, y, 1, height);
     }
-    return paint.getImageData(0, 0, atlas.width, atlas.height);
+    const image = paint.getImageData(0, 0, atlas.width, atlas.height);
+    bakeSurfaces(image);
+    return image;
 }
 
 function songSignRects(id, scene) {
@@ -428,7 +469,7 @@ function writeScene(id, scene, data, signs, lights) {
     const signStart = indexStart + 4 * indexCount;
     const bytes = new Uint8Array(signStart + signs.data.length);
     const view = new DataView(bytes.buffer);
-    uint(view, 0, 0x3348434d); // MCH3
+    uint(view, 0, 0x3448434d); // MCH4, with filtered PBR tiles in the atlas.
     uint(view, 4, vertexCount);
     uint(view, 8, indexCount);
     uint(view, 12, signs.width);
@@ -436,7 +477,7 @@ function writeScene(id, scene, data, signs, lights) {
     uint(view, 20, points.length);
     float(view, 24, camera.azimuth);
     float(view, 28, camera.elevation);
-    float(view, 32, camera.zoom);
+    float(view, 32, camera.zoom * (id === 'station' ? .77 : .82));
     float(view, 36, scene.weather.half);
     uint(view, 40, actors.length);
     uint(view, 44, staticIndexCount);
@@ -579,7 +620,7 @@ function compactVertices(bytes, vertexStart, indexStart, signStart, vertexCount,
     return result;
 }
 
-export async function exportScene(id, donor) {
+export async function exportScene(id, donor, batches) {
     Math.random = createVisualizerRng(`spectrum-machi:${id}`);
     const definition = MACHI_SCENES[id];
     const song = { seed: 20261119, title: ' ', artist: ' ', album: sceneLabels[id], lines: [], isInstrumental: false };
@@ -604,30 +645,27 @@ export async function exportScene(id, donor) {
             paint.fillRect(pylon.width * .07, y + rowHeight * .3164, pylon.width * .86, rowHeight * .60);
         }
     }
-    const referenceTriangles = donor ? collectScene(scene, blend).indexCount / 3 : null;
     const donorInstances = donor ? fitRainyCorner(scene, donor, materials, palette) : null;
+    const model = modelFactory(batches, materials);
+    const vehicles = fitVehicles(scene, id, model);
+    if (id === 'station') {
+        const replaced = [];
+        scene.root.traverse(object => {
+            if (object.name === 'Pump/hose' || object.name === 'Pump/nozzle') replaced.push(object);
+        });
+        for (const object of replaced) object.removeFromParent();
+    }
+    scene.root.add(model(id));
+    scene.weather.half = 14;
     const data = collectScene(scene, blend);
     const signs = packSigns(data.textures);
     const { lights, fixtureStats } = transferFixtureLights(id, data, collectLights(scene));
+    if (data.indexCount / 3 > maxSceneTriangles)
+        throw new Error(`${id} exceeds the ${maxSceneTriangles}-triangle budget: ${data.indexCount / 3}`);
     const bytes = writeScene(id, scene, data, signs, lights);
-    // All three upstream sets use a 20-segment open cone and instanced steam quads.
-    const cone = scene.lightCones.mesh.geometry;
-    const ring = cone.getAttribute('position');
-    if (ring.count !== 42) throw new Error('Unexpected Machi lamp cone topology.');
-    const apex = new THREE.Vector3().fromBufferAttribute(ring, 0);
-    const target = new THREE.Vector3();
-    for (let i = 21; i < 41; ++i) target.add(new THREE.Vector3().fromBufferAttribute(ring, i));
-    target.multiplyScalar(1 / 20);
-    const radius = target.distanceTo(new THREE.Vector3().fromBufferAttribute(ring, 21));
     const steam = scene.steam.mesh.geometry;
     const sources = steam.getAttribute('aSource'), seeds = steam.getAttribute('aSeed');
-    const colorKeys = id === 'konbini' ? ['interiorLight', 'streetLight'] :
-        id === 'station' ? ['canopyLight', 'streetLight'] : ['neonPink', 'barLight'];
     const weather = { ...scene.weather, puddles: [...scene.puddles.offset, scene.puddles.amount],
-        coneApex: [...apex.toArray(), radius], coneTarget: [...target.toArray(), cone.getAttribute('aGain').getX(0)],
-        coneColor: scene.lightCones.mesh.material.uniforms.uColor.value.toArray(),
-        glowA: scene.glowA.toArray(), glowB: scene.glowB.toArray(),
-        glowColorA: blend.get(colorKeys[0]).toArray(), glowColorB: blend.get(colorKeys[1]).toArray(),
         steam: Array.from({length: sources.count}, (_, i) => [sources.getX(i), sources.getY(i), sources.getZ(i),
             sources.getW(i), seeds.getX(i), seeds.getY(i)]),
         glints: scene.weather.glints.map(({ position, radius }) => ({ position: position.toArray(), radius })),
@@ -638,7 +676,7 @@ export async function exportScene(id, donor) {
     const binary = compressed.toBase64();
     return { binary, weather, stats: {
         draws: data.draws.length, actors: data.actors.map(actor => actor.kind), vertices: new DataView(bytes.buffer).getUint32(4, true),
-        triangles: data.indexCount / 3, referenceTriangles, donorInstances,
+        triangles: data.indexCount / 3, vehicles, donorInstances,
         lights: lights.length, fixtures: fixtureStats, signs: data.textures.size, atlas: [signs.width, signs.height], unpacked: bytes.length,
     } };
 }

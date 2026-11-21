@@ -13,7 +13,8 @@ internal readonly record struct MachiCamera(Matrix4x4 ViewProjection, Matrix4x4 
 
 internal sealed partial class FoliaMachi
 {
-    private const uint SceneMagic = 0x3348434D;
+    private const uint SceneMagic = 0x3448434D;
+    private const int MaximumIndices = 500_000 * 3;
     private const float SubtitleReserve = .05f;
     private const float UsableFrustum = 1 - 2 * .02f - SubtitleReserve;
 
@@ -45,8 +46,8 @@ internal sealed partial class FoliaMachi
         if (reader.ReadUInt32() != SceneMagic)
             throw new InvalidDataException("Unsupported Machi scene format.");
 
-        int vertexCount = ReadCount(reader, 1_000_000);
-        int indexCount = ReadCount(reader, 3_000_000);
+        int vertexCount = ReadCount(reader, MaximumIndices);
+        int indexCount = ReadCount(reader, MaximumIndices);
         if (indexCount % 3 != 0)
             throw new InvalidDataException("The Machi scene contains an incomplete triangle.");
         SignWidth = ReadCount(reader, 4096);

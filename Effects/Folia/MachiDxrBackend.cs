@@ -16,7 +16,6 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal float SnowCover { get; init; }
     internal float Mist { get; init; }
     internal float Haze { get; init; }
-    internal float SceneHalf { get; init; }
     internal Vector3? HemiSky { get; init; }
     internal Vector3? HemiGround { get; init; }
     internal Vector3 CityGlow { get; init; }
@@ -399,7 +398,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             // Ray origins move opposite to the projection shift passed to the SDKs.
             SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),
             Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : needsFsrDepth ? -1 : 0),
-            SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, frame.SceneHalf),
+            SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, 0),
             AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0,
                 DenoisingDisabled ? requestSuperResolution ? 2 : 1 : 0),
             HemiSkyRain = new(frame.HemiSky ?? frame.Sky, frame.Rain),

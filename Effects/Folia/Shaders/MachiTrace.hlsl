@@ -39,7 +39,7 @@ struct SceneInstance
     row_major float4x4 current;
     row_major float4x4 previous;
     uint firstIndex;
-    uint kind;
+    uint visible;
     uint2 padding;
 };
 struct SceneEmitter { uint instance, primitive, alias; float threshold, areaPdf; };
@@ -156,12 +156,6 @@ void Miss(inout Hit hit) {}
 void AnyHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
 {
     SceneInstance instance = Instances[InstanceID()];
-    if (instance.kind == 5 && SkyBottom.w > 0)
-    {
-        float3 position = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-        if (any(abs(position.xz) > SkyBottom.w)) IgnoreHit();
-        return;
-    }
     uint offset = instance.firstIndex + PrimitiveIndex() * 3;
     Vertex a = Vertices[Indices[offset]];
     if ((uint)a.positionMaterial.w != 8) return;
@@ -174,6 +168,40 @@ void AnyHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
 uint TriangleOffset(Hit hit) { return Instances[hit.instance].firstIndex + hit.primitive * 3; }
 
 bool GroundMaterial(uint material) { return material == 4 || material == 9; }
+
+float4 TileMip(float2 uv, uint tile, uint level, float2 dimensions)
+{
+    uint n = 256u >> level;
+    // Layout shared with Build/FoliaMachi/surface-tiles.mjs.
+    float2 origin = float2(tile * 390 + (level == 0 ? 0 : 258), dimensions.y - 258);
+    if (level > 0) origin.y += 256 - 2 * n + (level - 1) * 2;
+    return Sign.SampleLevel(LinearClamp, (origin + 1 + frac(uv) * n) / dimensions, 0);
+}
+
+void SurfaceTexture(inout Surface s, float3 incident)
+{
+    uint width, height;
+    Sign.GetDimensions(width, height);
+    if (width != 2048 || height < 258) return;
+    uint tile = s.material == 4 ? 0 : s.material == 9 ? 1 : s.material - 12;
+    float3 a = abs(s.face);
+    float3 u = a.x > max(a.y, a.z) ? float3(0,0,1) : float3(1,0,0);
+    float3 v = a.y >= max(a.x, a.z) ? float3(0,0,1) : float3(0,1,0);
+    float period = tile == 0 ? .92 : tile == 1 ? 2 : tile == 2 ? 1.2 : 2.6;
+    float2 uv = float2(dot(s.p, u), dot(s.p, v)) / period;
+    float pixelWidth = 2 * length(InverseViewProjection[0].xyz) / SizeJitter.x;
+    float footprint = pixelWidth * 256 / (period * max(.18, abs(dot(normalize(incident), s.face))));
+    float level = clamp(log2(max(footprint, 1)), 0, 4);
+    uint mip = (uint)level;
+    float4 texel = TileMip(uv, tile, mip, float2(width,height));
+    if (mip < 4)
+        texel = lerp(texel, TileMip(uv, tile, mip + 1, float2(width,height)), frac(level));
+    s.base *= .38 + texel.r;
+    s.roughness = clamp(s.roughness + .36*(texel.a-.5), .04, .98);
+    float3 slope = u*(texel.g-.5) + v*(texel.b-.5);
+    s.n = normalize(s.n - slope);
+    s.previousNormal = normalize(s.previousNormal - slope);
+}
 
 float PuddleHash(float2 cell)
 {
@@ -212,7 +240,9 @@ void WetGround(inout Surface s)
     float n = PuddleNoise(p * .62 + Puddles.xy) * .62 + PuddleNoise(p * 1.7 - Puddles.xy * 1.3) * .38;
     float edge = lerp(.78, .46, Puddles.z) + (s.material == 9 ? .08 : 0);
     float puddle = smoothstep(edge, edge + .05, n) * smoothstep(.15, .85, wetness);
-    s.wetCoverage = wetness;
+    // The binder holds a thin film between protruding grains. Only filled
+    // depressions provide an uninterrupted air/water interface.
+    s.wetCoverage = wetness * lerp(.40 + .27*n, 1, puddle);
     // Rough film follows the pavement relief. Standing water has a narrower
     // microfacet distribution, with resolved waves carried by the normal.
     s.waterRoughness = lerp(.28, .055, puddle);
@@ -310,12 +340,9 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         s.emission = hologram.rgb * float3(.28, 1.05, 1.27) * 2.8;
         s.base = 0;
     }
-    if (GroundMaterial(s.material))
-    {
-        float speckle = ((Hash(asuint(floor(s.p.x * 195)) ^ Hash(asuint(floor(s.p.z * 195)))) >> 8) * (1.0 / 16777216.0));
-        s.base *= .88 + .24 * speckle;
-        WetGround(s);
-    }
+    if (GroundMaterial(s.material) || (s.material >= 14 && s.material <= 16))
+        SurfaceTexture(s, direction);
+    if (GroundMaterial(s.material)) WetGround(s);
     if (s.material == 5 || s.material == 7 || s.material == 10)
     {
         float2 alternateUv = a.v.yz * weights.x + b.v.yz * weights.y + c.v.yz * weights.z;
@@ -336,7 +363,7 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         s.base = s.base * (1 - sign.a) + sign.rgb;
         s.emission = sign.rgb * color.w * Lighting.z;
     }
-    if (s.material == 0 || GroundMaterial(s.material))
+    if (s.material == 0 || GroundMaterial(s.material) || (s.material >= 14 && s.material <= 16))
     {
         float grain = Hash(asuint(floor(s.p.x * 18)) ^ Hash(asuint(floor(s.p.z * 18)))) / 4294967295.0;
         float snow = saturate((Lighting.y - grain * .33) * 3) * smoothstep(.6, .9, s.n.y);
@@ -350,9 +377,15 @@ float3 Offset(Surface s, float3 direction)
 {
     return s.p + s.face * (dot(direction, s.face) >= 0 ? Epsilon * 3 : -Epsilon * 3);
 }
-float3 DryF0(Surface s) { return lerp(.04, s.base, s.metal); }
-float3 F0(Surface s) { return lerp(DryF0(s), WaterF0, s.wetCoverage); }
-float GuideRoughness(Surface s) { return lerp(s.roughness, s.waterRoughness, s.wetCoverage); }
+float3 DryF0(Surface s)
+{
+    // The pigment binder sits under varnish with a similar refractive index.
+    // Its interface is weaker than an exposed dielectric/air boundary.
+    return lerp(s.material == 13 ? .004 : .04, s.base, s.metal);
+}
+static const float CoatRoughness = .09;
+float3 F0(Surface s) { return s.material == 13 ? .04 + (.96 * .96) * DryF0(s) : lerp(DryF0(s), WaterF0, s.wetCoverage); }
+float GuideRoughness(Surface s) { return s.material == 13 ? CoatRoughness : lerp(s.roughness, s.waterRoughness, s.wetCoverage); }
 float3 Fresnel(float3 f0, float cosine) { return f0 + (1 - f0) * pow(1 - saturate(cosine), 5); }
 float3 GlassTint(float3 baseColor) { return lerp(.93, 1, sqrt(max(baseColor, 0))); }
 float GlassFresnel(float cosine, float eta)
@@ -404,6 +437,11 @@ float SpecularProbability(Surface s, float3 view)
     const float3 luminance = float3(.2126, .7152, .0722);
     float dry = saturate(dot(approxSpecularIntegralGGX(DryF0(s), GgxAlpha(s), nv), luminance));
     float reflectance = s.wetCoverage > 0 ? lerp(dry, GlassFresnel(nv, WaterEta), s.wetCoverage) : dry;
+    if (s.material == 13)
+    {
+        float coat = Fresnel(.04, nv).x;
+        reflectance = coat + (1-coat)*(1-coat)*dry;
+    }
     float diffuse = dot(s.base, luminance) * (1 - s.metal) * (1 - reflectance);
     return clamp(reflectance / max(reflectance + diffuse, 1e-6), .06, .94);
 }
@@ -427,6 +465,15 @@ float2 EvaluateGgx(float alpha, float nh, float nv, float nl)
         ndf * evalG1GGX(alpha * alpha, nv) / max(4 * nv, 1e-6));
 }
 
+// A clear dielectric varnish overlays the pigmented, partially metallic base.
+// Sample the same mixture of normal distributions used for the MIS density.
+float CoatProbability(Surface s, float nv)
+{
+    float coat = Fresnel(.04, nv).x;
+    float base = dot(approxSpecularIntegralGGX(DryF0(s), GgxAlpha(s), nv), float3(.2126,.7152,.0722));
+    return coat / max(coat + (1-coat)*(1-coat)*base, 1e-6);
+}
+
 float2 EvaluateBsdf(Surface s, float3 view, float3 l, out float3 diffuse, out float3 specular)
 {
     diffuse = specular = 0;
@@ -447,6 +494,14 @@ float2 EvaluateBsdf(Surface s, float3 view, float3 l, out float3 diffuse, out fl
         dryPdf = dry.y;
     }
     float specularPdf = dryPdf;
+    if (s.material == 13)
+    {
+        float2 coat = EvaluateGgx(CoatRoughness * CoatRoughness, nh, nv, nl);
+        float transmission = (1 - Fresnel(.04, nv).x) * (1 - Fresnel(.04, nl).x);
+        diffuse *= transmission;
+        specular = specular * transmission + Fresnel(.04, vh).x * coat.x;
+        specularPdf = lerp(dryPdf, coat.y, CoatProbability(s, nv));
+    }
     if (s.wetCoverage > 0)
     {
         float2 wet = EvaluateGgx(WaterAlpha(s), nh, nv, nl);
@@ -463,6 +518,8 @@ float2 EvaluateBsdf(Surface s, float3 view, float3 l, out float3 diffuse, out fl
 float3 SampleSpecular(Surface s, float3 view, float2 sample, float layerSample)
 {
     float alpha = layerSample < WaterSpecularProbability(s, saturate(dot(s.n, view))) ? WaterAlpha(s) : GgxAlpha(s);
+    if (s.material == 13 && layerSample < CoatProbability(s, saturate(dot(s.n, view))))
+        alpha = CoatRoughness * CoatRoughness;
     float3 micro = FromLocal(sampleGGX_VNDF(alpha, ToLocal(view, s.n), sample), s.n);
     return reflect(-view, micro);
 }
@@ -586,6 +643,7 @@ void Direct(Surface s, float3 view, float3 lightSample, bool separated, float pr
     if (Lighting.x == 0) return;
 
     SceneEmitter emitter = SelectEmitter((lightSample.x - analyticChance) / max(1 - analyticChance, 1e-6));
+    if (!Instances[emitter.instance].visible) return;
     float radial = sqrt(lightSample.y);
     Hit lightHit = {0, emitter.primitive, radial * float2(1 - lightSample.z, lightSample.z), emitter.instance};
     Surface light = Evaluate(lightHit, s.p);

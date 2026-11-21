@@ -2,6 +2,13 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 町景扩建街区并重做车辆与夜间材质
+
+- `Build/FoliaMachi`、`External/Folia/Machi` 用 Blender 重建街坊、旅馆、九龙后巷和车辆，补入灯具、加油枪、不锈钢水箱和街边设施。完整场景按 50 万三角形封顶。
+- `MachiTrace.hlsl` 为柏油、铺装、墙砖、混凝土和金属屋面读取带粗糙度与凹凸信息的平铺贴图，车漆使用独立清漆反射层。
+- `FoliaMachi.Actors`、`FoliaMachi.Environment` 将车道和降水延伸出原有地块，调整取景及夜间天光，让周边建筑进入画面。
+- `FoliaGpuEffect.NativeStages`、`Machi.hlsl` 删除路灯的叠加光锥和地面补色，街灯由发光网格参与路径追踪，收敛灯牌泛光并保留暗部细节。
+
 ## 2026-11-20 修复町景 NRD 运镜重影，增加降噪和镜头选项
 
 - `FoliaMachi.Assets`、`MachiDxrBackend` 向重建器传递精确的正交投影，并将字幕取景偏移计入视图平移，修复三个布景在运镜时误用透视重投影和丢失降噪历史的问题。

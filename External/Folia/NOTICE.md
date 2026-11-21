@@ -81,7 +81,7 @@ The Nebbia stroke medians, original Arphic license and Lucide doodle icon licens
 The native renderers use Folia's lyric clock and Spectrum's live mixed-band
 transients.
 
-Machi uses the same upstream revision for its three scene geometries, signs, camera and weather. The convenience store incorporates optimized RainyCorner props. Asset provenance and regeneration instructions are in [Machi/README.md](Machi/README.md).
+Machi uses the same upstream revision for its central sets, signs, camera framing points and weather. Spectrum adds Blender-authored street blocks, vehicles, luminaires, service equipment and surface tiles. The convenience store incorporates optimized RainyCorner props. Asset provenance and regeneration instructions are in [Machi/README.md](Machi/README.md).
 
 Earcut (ISC, Mapbox) triangulates the original Tempera polygons, including holes,
 when plans are prepared. The original Cappella emoji PNGs and the 100 Lumiere

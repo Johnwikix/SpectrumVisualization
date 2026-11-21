@@ -34,7 +34,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private MachiDxrBackend? _machiBackend;
     private MachiDxrFrame _machiFrame;
     private Matrix4x4[] _actorTransforms = [];
-    private ID3D12PipelineState? _machiAtmosphere, _machiLens, _machiWeather, _machiVolume;
+    private ID3D12PipelineState? _machiAtmosphere, _machiLens, _machiWeather, _machiSteam;
     private float _machiMotionWeight;
     private bool _hardwareRaytracing, _vendorInitializationReady;
     private GpuRenderSize _machiTraceSize;
@@ -149,7 +149,7 @@ internal sealed unsafe partial class FoliaGpuEffect
                     _machiPanel ??= Pipeline("Stage", "MachiPanelVS", "MachiPanelPS", sprites: true);
                     _machiAtmosphere ??= Pipeline("Machi", "Fullscreen", "AtmospherePS");
                     _machiLens ??= Pipeline("Machi", "Fullscreen", "LensPS");
-                    _machiVolume ??= StagePipeline("Machi", "VolumeVS", "VolumePS",
+                    _machiSteam ??= StagePipeline("Machi", "SteamVS", "SteamPS",
                         new BlendDescription(Blend.One, Blend.One, Blend.One, Blend.One), Format.R16G16B16A16_Float);
                     _machiWeather ??= StagePipeline("Machi", "WeatherVS", "WeatherPS", BlendDescription.AlphaBlend, Format.R16G16B16A16_Float);
                     var asset = _machi!;
@@ -202,6 +202,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         string source = FoliaShaderLibrary.Background(file);
         bool multipleTargets = geometry != Format.Unknown;
         bool mesh = multipleTargets && depth;
+        int pipelineVersion = file == "Machi" ? 12 : 10;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
@@ -215,7 +216,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             SampleMask = uint.MaxValue,
             RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new() { DepthEnable = mesh, DepthWriteMask = DepthWriteMask.All, DepthFunc = ComparisonFunction.LessEqual, StencilEnable = false }
-        }, $"Folia/root-v10-native-stages/{file}/{vs}/{ps}/{color}/{geometry}/{mesh}");
+        }, $"Folia/root-v{pipelineVersion}-native-stages/{file}/{vs}/{ps}/{color}/{geometry}/{mesh}");
     }
 
     private CpuDescriptorHandle NativeRtv(int slot) => _stageRtv!.GetCPUDescriptorHandleForHeapStart() + slot * _rtvStride;
@@ -258,7 +259,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         GpuGraphics.DisposeResource(_windowFogPipeline);
         GpuGraphics.DisposeResource(_machiPanel);
         GpuGraphics.DisposeResource(_machiWeather);
-        GpuGraphics.DisposeResource(_machiVolume);
+        GpuGraphics.DisposeResource(_machiSteam);
         GpuGraphics.DisposeResource(_machiAtmosphere);
         GpuGraphics.DisposeResource(_machiLens);
         _hanabi = null;
@@ -401,19 +402,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         _machiDrips = Math.Min(layout.Drips.Length, 96);
         _lightData[12] = new(layout.GroundY, MathF.Sin(layout.WindYaw) * layout.WindSlant,
             MathF.Cos(layout.WindYaw) * layout.WindSlant, roofs);
-        _lightData[213] = layout.ConeApex;
-        _lightData[214] = layout.ConeTarget;
-        _lightData[215] = new(layout.ConeColor, 0);
-        _lightData[216] = layout.GlowA;
-        _lightData[217] = layout.GlowB;
-        _lightData[218] = new(layout.GlowColorA, 0);
-        _lightData[219] = new(layout.GlowColorB, 0);
         _machiPuffs = layout.Steam.Length;
         if (_machiPuffs > 32) throw new InvalidOperationException("Machi steam layout exceeds its shader capacity.");
         for (int i = 0; i < _machiPuffs; ++i)
         {
-            _lightData[220+2*i] = layout.Steam[i].Source;
-            _lightData[221+2*i] = new(layout.Steam[i].Seed, 0, 0);
+            _lightData[213+2*i] = layout.Steam[i].Source;
+            _lightData[214+2*i] = new(layout.Steam[i].Seed, 0, 0);
         }
         _lightData[13] = default;
         for (int i = 0; i < roofs; ++i)
@@ -465,7 +459,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
             NoVacancy = _machiPlan.UpdateVacancy(position, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
             AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machi.Weather.Puddles,
-            SkyBottom = environment.SkyBottom, Artificial = environment.Artificial, SceneHalf = _machi.SceneHalf,
+            SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,
             SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze
         };
     }
@@ -487,7 +481,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             RecordMachiFailure(_activeRequest);
 
         var depth = _machiBackend.SurfaceDepth;
-        _lightData[284] = new(_machiBackend.SurfaceDepthUvOffset,
+        _lightData[277] = new(_machiBackend.SurfaceDepthUvOffset,
             AppSettings.FoliaMachiChromaticAberration ? 1 : 0, AppSettings.FoliaMachiDepthOfField ? 1 : 0);
         SetFoliaState(commands);
         commands.ResourceBarrierTransition(depth, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
@@ -498,15 +492,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         else
             commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         RecordFullStage(commands, atmosphere, _machiAtmosphere!, 2);
-        commands.SetPipelineState(_machiVolume!);
-        SetInstanceOffset(commands, 0);
-        commands.DrawInstanced(60, 1, 0, 0);
-        SetInstanceOffset(commands, 1);
+        commands.SetPipelineState(_machiSteam!);
         commands.DrawInstanced(6, (uint)_machiPuffs, 0, 0);
         if (bloom != null)
         {
             float night = 1 - _lightData[9].W;
-            bloom.Apply(commands, _textures[4]!, Rtv(1), false, .12f + .38f * night, linearHdr: true, streaks: .55f * night * night);
+            bloom.Apply(commands, _textures[4]!, Rtv(1), false, .06f + .09f * night, linearHdr: true, streaks: .12f * night * night);
         }
         else
             commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
@@ -516,7 +507,8 @@ internal sealed unsafe partial class FoliaGpuEffect
         if (_lightData[9].X + _lightData[9].Y > .001f)
         {
             commands.SetPipelineState(_machiWeather!);
-            commands.DrawInstanced(6, (uint)(2304 + _machiDrips), 0, 0);
+            const int WeatherInstances = 3072 * 2 + 640;
+            commands.DrawInstanced(6, (uint)(WeatherInstances + _machiDrips), 0, 0);
         }
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         commands.ResourceBarrierTransition(depth, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);

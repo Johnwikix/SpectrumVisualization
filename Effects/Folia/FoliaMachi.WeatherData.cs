@@ -6,7 +6,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal sealed partial class FoliaMachi
 {
     private static readonly WeatherLayout KonbiniWeather = new(
-        6f, 0.06f, 0.153090222f, 0.149226974f,
+        14f, 0.06f, 0.153090222f, 0.149226974f,
         [
             new(-5.52f, -5.52f, 0.92f, 0.52f, 3.42f)
         ],
@@ -48,13 +48,6 @@ internal sealed partial class FoliaMachi
             new(new Vector3(-1.9f, 1.5f, 1.3f), 2f),
             new(new Vector3(-0.491219362f, 5.265f, -0.941219362f), 2.1f)
         ],
-        new(4.32000017f, 5.30000019f, -1.20000005f, 1.64999998f),
-        new(4.11999992f, -2.13906169e-7f, -1.19999999f, 1f),
-        new(1f, 0.775822218f, 0.479320183f),
-        new(-1.3f, 0f, 1.3f, 3.4f),
-        new(4.32f, 0f, -1.2f, 2.3f),
-        new(0.97344529f, 0.502886458f, 0.20863687f),
-        new(1f, 0.775822218f, 0.479320183f),
         [
             new(new(-2.4000001f, 0.0199999996f, 4.1500001f, 4.4000001f), new(0f, 0.800000012f)),
             new(new(-2.4000001f, 0.0199999996f, 4.1500001f, 4.4000001f), new(0.142857149f, 0.959999979f)),
@@ -72,7 +65,7 @@ internal sealed partial class FoliaMachi
         new(-38.427085f, -27.0366985f, 0.601537645f));
 
     private static readonly WeatherLayout StationWeather = new(
-        6f, 0.05f, -0.32974119f, 0.0881627426f,
+        14f, 0.05f, -0.32974119f, 0.0881627426f,
         [
             new(1.35f, -5.65f, 5.95f, -1.35f, 4.3f),
             new(-5.85f, -5.7f, -0.7f, -3.6f, 3.4f),
@@ -103,13 +96,6 @@ internal sealed partial class FoliaMachi
             new(new Vector3(3.65f, 2f, -0.8f), 2.2f),
             new(new Vector3(-4.27138281f, 4.35f, 2.05569006f), 1.6f)
         ],
-        new(-0.400000006f, 4.94000006f, 1.39999998f, 1.60000006f),
-        new(-0.799999993f, 2.27149576e-7f, 0.800000009f, 1f),
-        new(1f, 0.775822218f, 0.479320183f),
-        new(3.65f, 0f, -2.5f, 3.6f),
-        new(-0.8f, 0f, 0.8f, 2.3f),
-        new(0.854992608f, 0.904661174f, 1f),
-        new(1f, 0.775822218f, 0.479320183f),
         [
             new(new(-0.649999976f, 3.1500001f, -3.77999997f, 3.20000005f), new(0f, 0.439999998f)),
             new(new(-0.649999976f, 3.1500001f, -3.77999997f, 3.20000005f), new(0.200000003f, 0.527999997f)),
@@ -126,7 +112,7 @@ internal sealed partial class FoliaMachi
         new(-36.4141786f, 13.6573714f, 0.614936912f));
 
     private static readonly WeatherLayout KowloonWeather = new(
-        6f, 0.02f, 0.0516296242f, 0.0861811274f,
+        14f, 0.02f, 0.0516296242f, 0.0861811274f,
         [
             new(-6f, -6f, -3.6f, 1.3f, 6.6f),
             new(-6f, 1.3f, -3.75f, 6f, 4f),
@@ -162,13 +148,6 @@ internal sealed partial class FoliaMachi
             new(new Vector3(2.1f, 1.9f, -0.5f), 2f),
             new(new Vector3(5.25f, 2.6f, 0.2f), 1.6f)
         ],
-        new(5.5f, 5.13000011f, 0.100000001f, 1.29999996f),
-        new(5.25000001f, 0.0200001769f, 0.200000016f, 1f),
-        new(0.760524505f, 0.887923118f, 1f),
-        new(-2f, 0f, 1f, 3.4f),
-        new(2.1f, 0f, -0.7f, 3f),
-        new(1f, 0.0781874218f, 0.434153636f),
-        new(0.991102097f, 0.412542613f, 0.407240212f),
         [
             new(new(4.5999999f, 1.45000005f, 1.875f, 2.5999999f), new(0f, 0.360000014f)),
             new(new(4.5999999f, 1.45000005f, 1.875f, 2.5999999f), new(0.200000003f, 0.432000011f)),

@@ -23,7 +23,7 @@ internal sealed unsafe partial class MachiDxrBackend
     private struct InstanceData
     {
         public Matrix4x4 Current, Previous;
-        public uint FirstIndex, Kind, Padding1, Padding2;
+        public uint FirstIndex, Visible, Padding1, Padding2;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -135,7 +135,7 @@ internal sealed unsafe partial class MachiDxrBackend
             if (actor.FirstIndex != nextIndex || actor.IndexCount == 0 || actor.IndexCount % 3 != 0 ||
                 actor.IndexCount > indices.Length - (long)nextIndex)
                 throw new ArgumentException("Invalid Machi actor triangle range.", nameof(actors));
-            _instances[i + 1] = CreateMesh(actor.FirstIndex, actor.IndexCount, (uint)vertices.Length, actor.Kind, actor.Kind is 5 or 6);
+            _instances[i + 1] = CreateMesh(actor.FirstIndex, actor.IndexCount, (uint)vertices.Length, actor.Kind, actor.Kind == 6);
             nextIndex += actor.IndexCount;
         }
         if (nextIndex != indices.Length) throw new ArgumentException("Machi actor ranges do not cover the index buffer.", nameof(actors));
@@ -268,14 +268,17 @@ internal sealed unsafe partial class MachiDxrBackend
         {
             var mesh = _instances[i];
             Matrix4x4 transform = i > 0 && !actorTransforms.IsEmpty ? actorTransforms[i - 1] : Matrix4x4.Identity;
+            // TrafficPose returns identity between passes. Its headlights must
+            // disappear from direct-light samples as well as intersection rays.
+            bool visible = mesh.Kind != 5 || transform != Matrix4x4.Identity;
             changed |= mesh.Current != transform;
             data[i] = new InstanceData
             {
                 Current = transform, Previous = _sceneBuilt ? mesh.Current : transform,
-                FirstIndex = mesh.FirstIndex, Kind = mesh.Kind
+                FirstIndex = mesh.FirstIndex, Visible = visible ? 1u : 0u
             };
             mesh.Current = transform;
-            WriteInstance(descriptors.Slice(i * 64, 64), i, transform, mesh.Blas.GPUVirtualAddress);
+            WriteInstance(descriptors.Slice(i * 64, 64), i, transform, mesh.Blas.GPUVirtualAddress, visible);
         }
         if (!_sceneBuilt)
         {
@@ -343,11 +346,11 @@ internal sealed unsafe partial class MachiDxrBackend
         _analyticFraction = 0;
     }
 
-    private static void WriteInstance(Span<byte> destination, int index, Matrix4x4 transform, ulong acceleration)
+    private static void WriteInstance(Span<byte> destination, int index, Matrix4x4 transform, ulong acceleration, bool visible)
     {
         Matrix4x4 transposed = Matrix4x4.Transpose(transform);
         MemoryMarshal.CreateReadOnlySpan(ref transposed.M11, 12).CopyTo(MemoryMarshal.Cast<byte, float>(destination[..48]));
-        MemoryMarshal.Write(destination[48..], (uint)index | 0xff000000u);
+        MemoryMarshal.Write(destination[48..], (uint)index | (visible ? 0xff000000u : 0u));
         MemoryMarshal.Write(destination[52..], 0u);
         MemoryMarshal.Write(destination[56..], acceleration);
     }

@@ -33,15 +33,17 @@ internal sealed partial class FoliaMachi
 
     private static Matrix4x4 TrafficPose(Plan plan, double ambientTime)
     {
-        const double Window = 9.5;
+        const double Window = 15;
         const double Speed = 6.5;
-        const float Reach = 8;
+        // Enter and leave beyond the extended streets, even during a wide camera sweep.
+        const float Reach = 34;
+        const double StartSlack = Window - 2 * Reach / Speed;
         bool station = plan.SceneId == "station";
         int latest = (int)Math.Floor(ambientTime / Window);
         for (int window = latest; window >= latest - 1; window--)
         {
             if (Hash01(plan.TrafficSeed, window, 0x11) > .62) continue;
-            double start = window * Window + Hash01(plan.TrafficSeed, window, 0x22) * Window * .5;
+            double start = window * Window + Hash01(plan.TrafficSeed, window, 0x22) * StartSlack;
             float distance = (float)((ambientTime - start) * Speed);
             if (distance < 0 || distance > Reach * 2) continue;
             int lane = (int)(Hash01(plan.TrafficSeed, window, 0x33) * (station ? 2 : 4));
