@@ -28,7 +28,11 @@ internal sealed partial class FoliaMachi
     private static readonly Vector3 DawnHemiSky = Color(0xc2969e), DuskHemiSky = Color(0xba828b);
     private static readonly Vector3 NightHemiGround = Color(0x434350), DayHemiGround = Color(0x5f5b52);
     private static readonly Vector3 TwilightHemiGround = Color(0x6b514b);
-    private static readonly Vector3 KowloonGlow = Color(0x5a4688);
+    private static readonly Vector3 KonbiniNightSky = Color(0x121a36), KonbiniNightHorizon = Color(0x29345c);
+    private static readonly Vector3 StationNightSky = Color(0x18182e), StationNightHorizon = Color(0x443458);
+    private static readonly Vector3 KowloonNightSky = Color(0x1a1734), KowloonNightHorizon = Color(0x423160);
+    private static readonly Vector3 KonbiniGlow = Color(0x3d5785), StationGlow = Color(0x5d467e),
+        KowloonGlow = Color(0x794d9f);
 
     internal record struct EnvironmentState
     {
@@ -156,11 +160,17 @@ internal sealed partial class FoliaMachi
         Vector3 hemiGround = Vector3.Lerp(Vector3.Lerp(NightHemiGround, DayHemiGround, d), TwilightHemiGround, twilight);
         hemiGround = Overcast(hemiGround, overcast * .7f, grayGain);
         hemiGround = Vector3.Lerp(hemiGround, new Vector3(.55f, .60f, .70f) * (.35f + .65f * d), state.SnowCover * .5f);
-        Vector3 cityGlow = sceneId == "kowloon"
-            ? KowloonGlow * (.22f * (1 - .75f * d) * (1 - .85f * d) / MathF.PI) : Vector3.Zero;
+        var (nightSky, nightHorizon, glow) = sceneId switch
+        {
+            "konbini" => (KonbiniNightSky, KonbiniNightHorizon, KonbiniGlow * .14f),
+            "station" => (StationNightSky, StationNightHorizon, StationGlow * .13f),
+            "kowloon" => (KowloonNightSky, KowloonNightHorizon, KowloonGlow * .22f),
+            _ => (NightSky, NightHorizon, Vector3.Zero)
+        };
+        Vector3 cityGlow = glow * ((1 - .75f * d) * (1 - .85f * d) / MathF.PI);
         float skyGain = 1 - night * (.55f + .24f * overcast);
-        Vector3 sky = Vector3.Lerp(Vector3.Lerp(NightSky, DaySky, d), dawn ? DawnSky : DuskSky, .9f * twilight);
-        Vector3 horizon = Vector3.Lerp(Vector3.Lerp(NightHorizon, DayHorizon, d), dawn ? DawnHorizon : DuskHorizon, twilight);
+        Vector3 sky = Vector3.Lerp(Vector3.Lerp(nightSky, DaySky, d), dawn ? DawnSky : DuskSky, .9f * twilight);
+        Vector3 horizon = Vector3.Lerp(Vector3.Lerp(nightHorizon, DayHorizon, d), dawn ? DawnHorizon : DuskHorizon, twilight);
         return new EnvironmentFrame(
             Overcast(sky, overcast * .7f, grayGain) * skyGain,
             Overcast(horizon, overcast * .7f, grayGain) * skyGain,

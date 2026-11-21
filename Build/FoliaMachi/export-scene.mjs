@@ -7,6 +7,7 @@ import { createMachiSnowUniforms } from './engine/snow';
 import { MACHI_GLOSS, machiGlossFor } from './engine/sheen';
 import { fitVehicles } from 'spectrum-models';
 import { bakeSurfaces, surfaceRows } from 'spectrum-surfaces';
+import { sceneColors } from 'spectrum-colors';
 
 const atlasWidth = 2048;
 const stride = 32;
@@ -54,18 +55,19 @@ const sceneLabels = {
 const fixtureGroups = {
     konbini: [
         { mesh: 'CeilingLights', role: 'ceilingLight', count: 9, downward: true, base: .68,
-            lights: ['Lights/interior0', 'Lights/interior1'] },
+            lights: ['Lights/interior0', 'Lights/interior1'], tint: [0xffbd89, 1.04] },
         { mesh: 'Lens', donorMesh: 'RainyCorner/lamp/warm_light', role: 'lampHead', count: 1, downward: true, base: .62,
             lights: ['Lights/street'] },
     ],
     station: [
         { mesh: 'Canopy/light', role: 'canopyLight', count: 6, downward: true, base: .68,
-            lights: ['Lights/canopy0', 'Lights/canopy1'] },
+            lights: ['Lights/canopy0', 'Lights/canopy1'], tint: [0xb4edff, 1.24] },
         { mesh: 'Lens', role: 'lampHead', count: 1, downward: true, base: .62, lights: ['Lights/lotLamp'] },
     ],
     kowloon: [
         { mesh: 'Bulb', role: 'stallBulb', count: 1, downward: false, base: .62, lights: ['Lights/stall'] },
-        { mesh: 'LampLens', role: 'lampHead', count: 1, downward: true, base: .62, lights: ['Lights/lamp'] },
+        { mesh: 'LampLens', role: 'lampHead', count: 1, downward: true, base: .62,
+            lights: ['Lights/lamp'], tint: [0x8dcbff, 1.04] },
     ],
 };
 const theme = {
@@ -182,7 +184,7 @@ function fitRainyCorner(scene, donor, materials, palette) {
     return applied;
 }
 
-function collectScene(scene, blend) {
+function collectScene(id, scene, blend) {
     const road = new Set(scene.surfaces.road);
     const lot = new Set(scene.surfaces.lot);
     const staticDraws = [];
@@ -192,6 +194,7 @@ function collectScene(scene, blend) {
     let indexCount = 0;
     const color = new THREE.Color();
     const matrix = new THREE.Matrix4();
+    const colors = sceneColors[id];
     scene.root.updateMatrixWorld(true);
     const visit = (object, actor = null) => {
         if ((!object.visible && actor?.kind !== 5) || ignored.has(object.name) || object.name.startsWith('Pool/')) return;
@@ -238,6 +241,8 @@ function collectScene(scene, blend) {
                 if (count && texture && !textures.has(texture)) textures.set(texture, null);
                 if (count && alternative && !textures.has(alternative)) textures.set(alternative, null);
                 const surface = packedSurface(material);
+                const paint = name.startsWith(id + ':') ? colors.paint[name.split(':').at(-1)] : undefined;
+                const glow = kind === 3 ? colors.glow[name.split(':').at(-1)] : undefined;
                 for (let i = 0; i < count; i += 1) {
                     const transform = object.matrixWorld.clone();
                     if (object.isInstancedMesh) {
@@ -248,6 +253,8 @@ function collectScene(scene, blend) {
                     color.copy(material.color ?? material.uniforms?.uColor?.value ?? new THREE.Color(1, 1, 1));
                     if (kind === 11) color.fromArray(fixture.baseColor);
                     else if (kind === 12) color.copy(blend.get('streetLight'));
+                    else if (glow) color.setHex(glow[0]).multiplyScalar(glow[1]);
+                    else if (paint !== undefined) color.setHex(paint);
                     if (object.instanceColor) {
                         const instanceColor = new THREE.Color();
                         object.getColorAt(i, instanceColor);
@@ -286,7 +293,7 @@ function collectScene(scene, blend) {
     return { draws: [...staticDraws, ...populated.flatMap(actor => actor.draws)], actors: populated, staticIndexCount, textures, vertexCount, indexCount };
 }
 
-function packSigns(textures) {
+function packSigns(textures, saturation) {
     let x = 1;
     let y = 1;
     let rowHeight = 0;
@@ -317,6 +324,18 @@ function packSigns(textures) {
         paint.drawImage(texture.image, texture.image.width - 1, 0, 1, texture.image.height, x + width, y, 1, height);
     }
     const image = paint.getImageData(0, 0, atlas.width, atlas.height);
+    // Canvas RGB is sRGB. Preserve neutral artwork and keep the expanded
+    // chroma in gamut before the linear-data surface tiles are written.
+    for (let offset = 0; offset < atlasWidth * (atlas.height - surfaceRows) * 4; offset += 4) {
+        const r = image.data[offset], g = image.data[offset + 1], b = image.data[offset + 2];
+        const minimum = Math.min(r, g, b), maximum = Math.max(r, g, b);
+        if (minimum === maximum || image.data[offset + 3] === 0) continue;
+        const gray = .2126 * r + .7152 * g + .0722 * b;
+        const amount = Math.min(saturation, gray / (gray - minimum), (255 - gray) / (maximum - gray));
+        image.data[offset] = gray + (r - gray) * amount;
+        image.data[offset + 1] = gray + (g - gray) * amount;
+        image.data[offset + 2] = gray + (b - gray) * amount;
+    }
     bakeSurfaces(image);
     return image;
 }
@@ -411,6 +430,12 @@ function analyticFlux(light) {
 
 const luminance = ([r, g, b]) => .2126 * r + .7152 * g + .0722 * b;
 
+function tintLight(source, [hex, gain]) {
+    const tint = new THREE.Color(hex).toArray();
+    const scale = luminance(source) * gain / luminance(tint);
+    return tint.map(channel => channel * scale);
+}
+
 function transferFixtureLights(id, data, lights) {
     const replaced = new Map();
     // The path tracer gets vending illumination from the diffusers and window
@@ -437,7 +462,7 @@ function transferFixtureLights(id, data, lights) {
         const donorEmission = group.donorMesh ? draws[0].emission : null;
         // Keep the Blender lamp's chromaticity and use the upstream spotlight
         // only to calibrate its total luminance-weighted flux.
-        const calibrated = donorEmission?.some(channel => channel > 0)
+        const calibrated = group.tint ? tintLight(flux, group.tint) : donorEmission?.some(channel => channel > 0)
             ? donorEmission.map(channel => channel * luminance(flux) / luminance(donorEmission)) : flux;
         const emission = calibrated.map(channel => channel / (Math.PI * area));
         for (let index = 0; index < draws.length; index++) {
@@ -657,9 +682,13 @@ export async function exportScene(id, donor, batches) {
     }
     scene.root.add(model(id));
     scene.weather.half = 14;
-    const data = collectScene(scene, blend);
-    const signs = packSigns(data.textures);
+    const data = collectScene(id, scene, blend);
+    const signs = packSigns(data.textures, sceneColors[id].signSaturation);
     const { lights, fixtureStats } = transferFixtureLights(id, data, collectLights(scene));
+    for (const light of lights) {
+        const tint = sceneColors[id].lights[light.name];
+        if (tint) light.values.splice(6, 3, ...tintLight(light.values.slice(6, 9), tint));
+    }
     if (data.indexCount / 3 > maxSceneTriangles)
         throw new Error(`${id} exceeds the ${maxSceneTriangles}-triangle budget: ${data.indexCount / 3}`);
     const bytes = writeScene(id, scene, data, signs, lights);

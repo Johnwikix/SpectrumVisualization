@@ -28,6 +28,7 @@ internal static class ShaderCatalog
         Pair(FoliaShaderLibrary.Background("Stage"), "ClockworkVS", "ClockworkPS");
         Pair(FoliaShaderLibrary.Background("LyricMaterials"), "Fullscreen", "HanabiSkyPS", "InkDevelopPS", "NebbiaFogPS", "NebbiaPS");
         compile(MachiDxrShaders.Trace, "", "lib_6_3");
+        compile(MachiDxrShaders.InlineTrace, "", "lib_6_5");
         string resolve = MachiDxrShaders.Resolve;
         compile(resolve, "Resolve", "cs_6_0");
         compile(resolve, "ResolveRaw", "cs_6_0");

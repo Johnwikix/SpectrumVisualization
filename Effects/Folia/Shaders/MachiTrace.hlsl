@@ -138,6 +138,18 @@ float3 CosineSample(float3 axis, float2 sample)
     float radius = sqrt(max(1 - z*z, 0));
     return FromLocal(float3(cos(phi) * radius, sin(phi) * radius, z), axis);
 }
+
+bool IsTransparentLyric(uint instanceId, uint primitive, float2 bary)
+{
+    uint offset = Instances[instanceId].firstIndex + primitive * 3;
+    Vertex a = Vertices[Indices[offset]];
+    if ((uint)a.positionMaterial.w != 8) return false;
+    Vertex b = Vertices[Indices[offset + 1]], c = Vertices[Indices[offset + 2]];
+    float2 uv = lerp(float2(a.normalU.w, a.v.x), float2(b.normalU.w, b.v.x), bary.x)
+        + (float2(c.normalU.w, c.v.x) - float2(a.normalU.w, a.v.x)) * bary.y;
+    return Lyrics.SampleLevel(LinearClamp, uv, 0).a < .04;
+}
+
 Hit Trace(float3 origin, float3 direction, float limit)
 {
     RayDesc ray;
@@ -146,7 +158,25 @@ Hit Trace(float3 origin, float3 direction, float limit)
     ray.TMin = Epsilon;
     ray.TMax = limit;
     Hit hit = {0, 0xffffffff, float2(0, 0), 0};
+#if MACHI_INLINE_TRACE
+    // Keep the path state in ray generation while the hardware traverses triangles.
+    RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query;
+    query.TraceRayInline(Scene, RAY_FLAG_NONE, 0xff, ray);
+    while (query.Proceed())
+    {
+        if (!IsTransparentLyric(query.CandidateInstanceID(), query.CandidatePrimitiveIndex(), query.CandidateTriangleBarycentrics()))
+            query.CommitNonOpaqueTriangleHit();
+    }
+    if (query.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+        hit.t = query.CommittedRayT();
+        hit.primitive = query.CommittedPrimitiveIndex();
+        hit.bary = query.CommittedTriangleBarycentrics();
+        hit.instance = query.CommittedInstanceID();
+    }
+#else
     TraceRay(Scene, RAY_FLAG_NONE, 0xff, 0, 0, 0, ray, hit);
+#endif
     return hit;
 }
 bool Occluded(float3 origin, float3 direction, float limit)
@@ -156,11 +186,23 @@ bool Occluded(float3 origin, float3 direction, float limit)
     ray.Direction = direction;
     ray.TMin = Epsilon;
     ray.TMax = limit;
+#if MACHI_INLINE_TRACE
+    // The first accepted blocker is sufficient. Reject transparent lyrics before committing it.
+    RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
+    query.TraceRayInline(Scene, RAY_FLAG_NONE, 0xff, ray);
+    while (query.Proceed())
+    {
+        if (!IsTransparentLyric(query.CandidateInstanceID(), query.CandidatePrimitiveIndex(), query.CandidateTriangleBarycentrics()))
+            query.CommitNonOpaqueTriangleHit();
+    }
+    return query.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+#else
     Hit hit = {0, 0, float2(0, 0), 0};
     // The first accepted blocker is sufficient. Any-hit still rejects transparent hologram texels.
     TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
         0xff, 0, 0, 0, ray, hit);
     return hit.primitive != 0xffffffff;
+#endif
 }
 [shader("closesthit")]
 void ClosestHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
@@ -176,14 +218,7 @@ void Miss(inout Hit hit) { hit.primitive = 0xffffffff; }
 [shader("anyhit")]
 void AnyHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
 {
-    SceneInstance instance = Instances[InstanceID()];
-    uint offset = instance.firstIndex + PrimitiveIndex() * 3;
-    Vertex a = Vertices[Indices[offset]];
-    if ((uint)a.positionMaterial.w != 8) return;
-    Vertex b = Vertices[Indices[offset + 1]], c = Vertices[Indices[offset + 2]];
-    float2 uv = lerp(float2(a.normalU.w, a.v.x), float2(b.normalU.w, b.v.x), attrs.barycentrics.x)
-        + (float2(c.normalU.w, c.v.x) - float2(a.normalU.w, a.v.x)) * attrs.barycentrics.y;
-    if (Lyrics.SampleLevel(LinearClamp, uv, 0).a < .04) IgnoreHit();
+    if (IsTransparentLyric(InstanceID(), PrimitiveIndex(), attrs.barycentrics)) IgnoreHit();
 }
 
 uint TriangleOffset(Hit hit) { return Instances[hit.instance].firstIndex + hit.primitive * 3; }
@@ -935,8 +970,10 @@ void RayGen()
     float4 farPlane = mul(float4(ndc, 1, 1), InverseViewProjection);
     float3 origin = nearPlane.xyz / nearPlane.w;
     float3 primary = normalize(farPlane.xyz / farPlane.w - origin);
-    // 0: denoiser and fallback guides. 1: raw only. 2: raw with temporal AA.
+    // 0: NRD guides. 1: raw only. 2: raw with temporal AA. 3: DLSS Ray Reconstruction guides.
     bool writeDenoiser = TraceGuideMode == 0;
+    bool writeRayReconstruction = TraceGuideMode == 3;
+    bool needsGeometryGuides = writeDenoiser || writeRayReconstruction;
     bool writeMotion = writeDenoiser || TraceGuideMode == 2;
 
     uint firstSample = (uint)SunDirectionFrame.w * SamplesPerPixel;
@@ -960,7 +997,7 @@ void RayGen()
     {
         Surface s = Evaluate(hit, origin);
         deterministic = s.emission;
-        if (writeDenoiser)
+        if (needsGeometryGuides)
         {
             worldNormal = s.n;
             roughness = GuideRoughness(s);
@@ -969,7 +1006,7 @@ void RayGen()
             z = SignedViewZ(s.p);
         }
         depth = DeviceDepth(s.p);
-        if (writeMotion) motion = Reproject(s.p, s.previousP);
+        if (writeMotion || writeRayReconstruction) motion = Reproject(s.p, s.previousP);
         if (s.material == 1)
         {
             float3 reflected = reflect(primary, s.n);
@@ -1069,8 +1106,8 @@ void RayGen()
                 dDirection = momentD / max(1e-8, _NRD_Luminance(d / dFactor));
                 sDirection = momentS / max(1e-8, _NRD_Luminance(r / sFactor));
                 dDistance /= max(1u, diffuseRays);
-                sDistance /= max(1u, specularRays);
             }
+            if (needsGeometryGuides) sDistance /= max(1u, specularRays);
             d *= inverseSpp;
             r *= inverseSpp;
             // Keep the NRD hit distance stable when wet microfacets sample
@@ -1088,7 +1125,18 @@ void RayGen()
     }
 
     bool validR = false, validT = false;
+    float reflectedZ = 0, transmittedZ = 0;
     float2 reflectionMotion = 0, transmissionMotion = 0;
+    if (needsGeometryGuides)
+    {
+        reflectedZ = SignedViewZ(reflection.position);
+        transmittedZ = SignedViewZ(transmission.position);
+        validR = reflection.hitDistance < SunRadianceFar.w && abs(reflectedZ) < SunRadianceFar.w;
+        validT = transmission.hitDistance < SunRadianceFar.w && abs(transmittedZ) < SunRadianceFar.w;
+        reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
+        transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
+        ReflectionMotion[pixel] = reflectionMotion;
+    }
     if (writeDenoiser)
     {
         float4 dSh, sSh;
@@ -1101,18 +1149,12 @@ void RayGen()
         DiffuseFactor[pixel] = float4(dFactor, 1);
         SpecularFactor[pixel] = float4(sFactor, 1);
 
-        float reflectedZ = SignedViewZ(reflection.position), transmittedZ = SignedViewZ(transmission.position);
-        validR = reflection.hitDistance < SunRadianceFar.w && abs(reflectedZ) < SunRadianceFar.w;
-        validT = transmission.hitDistance < SunRadianceFar.w && abs(transmittedZ) < SunRadianceFar.w;
         Reflection[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validR ? reflection.color : 0, reflection.hitDistance, true);
         ReflectionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(reflection.normal, reflection.roughness, 0);
         ReflectionZ[pixel] = validR ? reflectedZ : -1e6;
-        reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
-        ReflectionMotion[pixel] = reflectionMotion;
         Transmission[pixel] = RELAX_FrontEnd_PackRadianceAndHitDist(validT ? transmission.color : 0, transmission.hitDistance, true);
         TransmissionNormal[pixel] = NRD_FrontEnd_PackNormalAndRoughness(transmission.normal, transmission.roughness, 0);
         TransmissionZ[pixel] = validT ? transmittedZ : -1e6;
-        transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
         TransmissionMotion[pixel] = transmissionMotion;
         Deterministic[pixel] = float4(min(NRD_FP16_MAX, deterministic + reflection.deterministic + transmission.deterministic
             + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color)), 1);
@@ -1129,7 +1171,7 @@ void RayGen()
         float viewDistance = lerp(nearPlane, farPlane, depth);
         ReconstructionDepth[pixel] = farPlane * depth / viewDistance;
     }
-    if (Lighting.w > 0)
+    if (writeRayReconstruction)
     {
         // RR has one G-buffer. Choose its optical lobe from the Fresnel
         // weights, independently of the stochastic sample's brightness.

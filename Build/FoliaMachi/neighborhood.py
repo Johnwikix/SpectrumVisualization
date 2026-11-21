@@ -419,6 +419,9 @@ def _kowloon_block(front, width, depth, floors, design, index, materials):
         for slat in range(16):
             front.box("Rolling shutter slat", u, .22 + slat * .115, .109, shutter_width - .085, .043, .045, m["shutter"])
         front.box("Folded metal awning", u, 2.18, .25, shutter_width + .24, .095, .53, m["canopy"], .012)
+        if index % 3 == 1:
+            front.box("Magenta shutter awning tube", u, 2.116, .49, shutter_width * .87, .028, .034,
+                      m["pinkTube"])
     else:
         _door(front, width * .31, .11, .68, 1.93, m["iron"], m["shutter"], m["dark"])
         _window(front, -width * .16, 1.18, width * .54, 1.50, m["iron"], m["slab"], m["shop"], divisions=3)
@@ -497,6 +500,7 @@ def _alley_shop(front, width, depth, m):
     _door(front, width * .32, .16, .67, 1.89, m["iron"], m["shutter"], m["dark"])
     _window(front, -width * .19, 1.23, width * .47, 1.33, m["iron"], m["slab"], m["shop"], divisions=3)
     front.ceiling_light(-width * .17, 2.232, .35, .45, .095, m["iron"], m["tube"])
+    front.box("Cyan shop fascia tube", 0, 2.086, .58, width * .88, .026, .037, m["cyanTube"])
     _flat_roof(front, width, depth, 2.44, m["slab"], m["tar"])
 
 
@@ -533,7 +537,9 @@ def _kowloon(kit, curb, paint):
         "cloth": kit.mat("Lined apartment voile", "#8b8074", .94),
         "window": kit.mat("Dim amber apartment window", "#655447", .56, emission=(.43, .23, .11)),
         "shop": kit.mat("Old shop fluorescent glazing", "#576961", .49, emission=(.18, .32, .25)),
-        "tube": kit.mat("Aged white shop diffuser", "#b1baaa", .42, emission=(1.8, 2.5, 1.75)),
+        "tube": kit.mat("Glazed cyan shop diffuser", "#9cecf2", .42, emission=(1.15, 3.3, 3.6)),
+        "pinkTube": kit.mat("Magenta tube beside closed shop", "#ff6ec2", .38, emission=(4.3, .42, 2.5)),
+        "cyanTube": kit.mat("Cyan tube under shop fascia", "#64efff", .38, emission=(.42, 3.2, 4.2)),
         "banner": kit.mat("Painted red tin shop banner", "#7a4037", .54, .16),
         "soffit": kit.mat("Cream shop name enamel", "#a09679", .64, .16),
     }
@@ -677,6 +683,7 @@ def _station(kit, curb, paint):
         "window": kit.mat("Occupied motel room window", "#78644f", .52, emission=(.40, .25, .14)),
         "porch": kit.mat("Motel warm corridor diffuser", "#bcac8b", .41, emission=(3.1, 2.17, 1.16)),
         "office": kit.mat("Pale office ceiling diffuser", "#b5bcb0", .39, emission=(2.15, 2.61, 2.40)),
+        "officeNeon": kit.mat("Coral reception fascia tube", "#ff6c88", .37, emission=(5.0, .68, 1.35)),
         "soil": kit.mat("Shoulder soil", "#34312a", .96),
         "leaves": kit.mat("Scrubby roadside leaves", "#465440", .84),
     }
@@ -690,6 +697,7 @@ def _station(kit, curb, paint):
     office.box("Porch step", 0, .071, .32, 3.36, .142, .68, m["walk"], .020)
     office.box("Reception overhang", 0, 2.35, .48, 3.49, .139, .96, m["walk"], .019)
     office.box("Enamel reception fascia", 0, 2.37, .98, 3.49, .23, .12, m["teal"], .018)
+    office.box("Reception canopy light strip", 0, 2.234, .95, 3.27, .029, .05, m["officeNeon"])
     _door(office, 1.0, .142, .74, 1.96, m["rail"], m["teal"], m["dark"])
     _window(office, -.49, 1.27, 1.58, 1.24, m["rail"], m["walk"], m["window"], m["curtains"], divisions=3)
     office.ceiling_light(-.09, 2.269, .58, .72, .10, m["rail"], m["office"])

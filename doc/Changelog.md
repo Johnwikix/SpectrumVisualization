@@ -2,6 +2,13 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-22 增强町景的霓虹打光，降低路径追踪帧耗
+
+- `Build/FoliaMachi`、`External/Folia/Machi` 和 `FoliaMachi.Environment` 为便利店增加珊瑚红与青蓝雨棚灯，为加油站加强冷色棚灯与玫红旅馆招牌，为九龙增加粉青巷灯及紫色夜光。静态招牌和部分漆面重新调色，动态歌词仍使用原来的配色。
+- `MachiTrace.hlsl`、`MachiDxrBackend.Pipelines` 和 `ShaderCatalog` 在支持 DXR 1.1 和 Shader Model 6.5 的设备上使用内联射线查询，复用全息歌词透明度测试，并为旧设备保留原追踪管线。
+- `MachiDxrBackend` 和 `MachiTrace.hlsl` 按实际降噪器写入辅助纹理。DLSS 光线重建执行失败时，用相同采样、运动和抖动在该帧补齐 NRD 输入。`Native/Reconstruction/Nrd.cpp` 复用纹理描述符，合并资源屏障并跟踪反射、透射共用纹理的状态。
+- RTX 5070 Ti、1080p 原生分辨率、夜雨、每像素 1 次采样、最多 8 次弹射和 NRD 下，便利店、加油站、九龙离屏场景（含后期与歌词）的 GPU 帧耗分别从 14.91、16.59、17.89 毫秒降至 7.14、7.12、6.93 毫秒。每场景每版本测量两轮，每轮 84 个稳态帧，取两轮中位数的平均值。
+
 ## 2026-11-21 修复在播启动的歌词和双语字幕，加快歌词模式切换
 
 - `MediaInfoService`、`MediaPlaybackClock` 和 `FoliaPlaybackService` 按 SMTC 样本时间、播放状态和倍速定位首帧，时长暂缺时继续走时，同曲补齐时长后可重新匹配此前未找到的歌词。

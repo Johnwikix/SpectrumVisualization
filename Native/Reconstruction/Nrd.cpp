@@ -95,7 +95,7 @@ struct Texture {
     ComPtr<ID3D12Resource> owned;
     ID3D12Resource* resource = nullptr;
     D3D12_RESOURCE_STATES state = readState;
-    void Transition(ID3D12GraphicsCommandList* commands, D3D12_RESOURCE_STATES next) {
+    void Transition(std::vector<D3D12_RESOURCE_BARRIER>& barriers, D3D12_RESOURCE_STATES next) {
         D3D12_RESOURCE_BARRIER barrier{};
         if (state != next) {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -104,8 +104,23 @@ struct Texture {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
             barrier.UAV.pResource = resource;
         } else return;
-        commands->ResourceBarrier(1, &barrier);
+        barriers.push_back(barrier);
         state = next;
+    }
+};
+struct DescriptorBinding {
+    ComPtr<ID3D12Resource> texture;
+    nrd::DescriptorType type = nrd::DescriptorType::TEXTURE;
+
+    void Write(ID3D12Device* device, ID3D12Resource* resource, nrd::DescriptorType next, D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+        if (texture.Get() == resource && type == next) return;
+        if (next == nrd::DescriptorType::STORAGE_TEXTURE)
+            device->CreateUnorderedAccessView(resource, nullptr, nullptr, handle);
+        else
+            device->CreateShaderResourceView(resource, nullptr, handle);
+        // D3D12 descriptors borrow resources. Keep their identities valid across slot reuse.
+        texture = resource;
+        type = next;
     }
 };
 struct Pipeline { ComPtr<ID3D12RootSignature> root; ComPtr<ID3D12PipelineState> state; };
@@ -137,15 +152,17 @@ struct NrdContext {
     NrdApi api;
     nrd::Instance* instance = nullptr;
     ComPtr<ID3D12Device> device;
-    std::vector<Texture> permanent, transient;
+    std::vector<Texture> permanent;
+    std::shared_ptr<std::vector<Texture>> transient;
     std::vector<Pipeline> pipelines;
+    std::vector<DescriptorBinding> descriptors;
+    std::vector<D3D12_RESOURCE_BARRIER> barriers;
     ComPtr<ID3D12DescriptorHeap> heap;
     ComPtr<ID3D12Resource> constants;
     uint8_t* mapped = nullptr;
     uint32_t width = 0, height = 0, stride = 0, descriptorsPerSet = 0, constantStride = 0, maxSets = 0;
     uint32_t dispatchCount = 0, configuredMaxFrames = 0;
     bool sh = false, combined = false, settingsInitialized = false;
-    bool sharedTransientPool = false;
     ~NrdContext() {
         if (mapped) constants->Unmap(0, nullptr);
         if (instance) api.destroy(*instance);
@@ -191,17 +208,20 @@ struct NrdContext {
         const auto& desc = *api.description(*instance);
         Pool(permanent, desc.permanentPool, desc.permanentPoolSize);
         if (opticalPeer) {
-            if (opticalPeer->transient.size() != desc.transientPoolSize || opticalPeer->pipelines.size() != desc.pipelinesNum)
+            if (opticalPeer->transient->size() != desc.transientPoolSize || opticalPeer->pipelines.size() != desc.pipelinesNum)
                 throw std::runtime_error("NRD optical contexts have different dispatch layouts");
+            // Both contexts record on the host's ordered queue. Share the actual resource states.
             transient = opticalPeer->transient;
-            sharedTransientPool = opticalPeer->sharedTransientPool = true;
         } else {
-            Pool(transient, desc.transientPool, desc.transientPoolSize);
+            transient = std::make_shared<std::vector<Texture>>();
+            Pool(*transient, desc.transientPool, desc.transientPoolSize);
         }
         maxSets = desc.descriptorPoolDesc.setsMaxNum;
         descriptorsPerSet = desc.descriptorPoolDesc.perSetTexturesMaxNum + desc.descriptorPoolDesc.perSetStorageTexturesMaxNum;
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc{D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, maxSets * descriptorsPerSet * 2, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 0};
         Check(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)), "Create NRD descriptors");
+        descriptors.resize(heapDesc.NumDescriptors);
+        barriers.reserve(std::max(descriptorsPerSet, uint32_t(nrd::ResourceType::MAX_NUM)));
         stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         constantStride = (desc.constantBufferMaxDataSize + 255) & ~255u;
         D3D12_RESOURCE_DESC buffer{};
@@ -249,6 +269,11 @@ struct NrdContext {
             Check(device->CreateComputePipelineState(&state, IID_PPV_ARGS(&pipeline.state)), "Create NRD compute pipeline");
         }
     }
+    void FlushBarriers(ID3D12GraphicsCommandList* commands) {
+        if (barriers.empty()) return;
+        commands->ResourceBarrier(uint32_t(barriers.size()), barriers.data());
+        barriers.clear();
+    }
     void Execute(ID3D12GraphicsCommandList* commands, const NrdFrame& frame) {
         if (frame.frameSlot >= 2) throw std::runtime_error("Invalid NRD frame slot");
         SetSettings(frame.maxAccumulatedFrames);
@@ -272,9 +297,11 @@ struct NrdContext {
             ID3D12GraphicsCommandList* commands;
             decltype(external)& resources;
             ~RestoreResources() {
-                for (auto& texture : resources) if (texture.resource) texture.Transition(commands, readState);
-                if (context.sharedTransientPool)
-                    for (auto& texture : context.transient) texture.Transition(commands, readState);
+                // Recording may have failed partway through a dispatch's bindings.
+                context.FlushBarriers(commands);
+                for (auto& texture : resources)
+                    if (texture.resource) texture.Transition(context.barriers, readState);
+                context.FlushBarriers(commands);
             }
         } restore{*this, commands, external};
         external[unsigned(sh ? nrd::ResourceType::IN_DIFF_SH0 : nrd::ResourceType::IN_DIFF_RADIANCE_HITDIST)].resource = frame.color;
@@ -291,28 +318,31 @@ struct NrdContext {
             external[unsigned(nrd::ResourceType::OUT_SPEC_SH1)].resource = frame.specularShOutput;
         }
         ID3D12DescriptorHeap* heaps[] = {heap.Get()}; commands->SetDescriptorHeaps(1, heaps);
+        const auto cpuStart = heap->GetCPUDescriptorHandleForHeapStart();
+        const auto gpuStart = heap->GetGPUDescriptorHandleForHeapStart();
+        const auto constantsAddress = constants->GetGPUVirtualAddress();
         for (uint32_t i = 0; i < dispatchCount; i++) {
             const uint32_t slot = frame.frameSlot * maxSets + i;
             const auto& dispatch = dispatches[i]; auto& pipeline = pipelines.at(dispatch.pipelineIndex);
             if (dispatch.resourcesNum > descriptorsPerSet || dispatch.constantBufferDataSize > constantStride)
                 throw std::runtime_error("NRD dispatch exceeds declared limits");
-            auto cpu = heap->GetCPUDescriptorHandleForHeapStart(); cpu.ptr += SIZE_T(slot) * descriptorsPerSet * stride;
+            const auto setStart = size_t(slot) * descriptorsPerSet;
             for (uint32_t j = 0; j < dispatch.resourcesNum; j++) {
                 const auto& resource = dispatch.resources[j];
                 auto& texture = resource.type == nrd::ResourceType::PERMANENT_POOL ? permanent.at(resource.indexInPool) :
-                    resource.type == nrd::ResourceType::TRANSIENT_POOL ? transient.at(resource.indexInPool) : external[unsigned(resource.type)];
+                    resource.type == nrd::ResourceType::TRANSIENT_POOL ? transient->at(resource.indexInPool) : external[unsigned(resource.type)];
                 if (!texture.resource) throw std::runtime_error("NRD requested an unbound input");
                 bool storage = resource.descriptorType == nrd::DescriptorType::STORAGE_TEXTURE;
-                texture.Transition(commands, storage ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : readState);
-                if (storage) device->CreateUnorderedAccessView(texture.resource, nullptr, nullptr, cpu);
-                else device->CreateShaderResourceView(texture.resource, nullptr, cpu);
-                cpu.ptr += stride;
+                texture.Transition(barriers, storage ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : readState);
+                const auto descriptor = setStart + j;
+                descriptors[descriptor].Write(device.Get(), texture.resource, resource.descriptorType,
+                    {cpuStart.ptr + descriptor * stride});
             }
+            FlushBarriers(commands);
             if (dispatch.constantBufferDataSize) memcpy(mapped + size_t(slot) * constantStride, dispatch.constantBufferData, dispatch.constantBufferDataSize);
-            auto gpu = heap->GetGPUDescriptorHandleForHeapStart(); gpu.ptr += UINT64(slot) * descriptorsPerSet * stride;
             commands->SetComputeRootSignature(pipeline.root.Get()); commands->SetPipelineState(pipeline.state.Get());
-            commands->SetComputeRootConstantBufferView(0, constants->GetGPUVirtualAddress() + UINT64(slot) * constantStride);
-            commands->SetComputeRootDescriptorTable(1, gpu);
+            commands->SetComputeRootConstantBufferView(0, constantsAddress + UINT64(slot) * constantStride);
+            commands->SetComputeRootDescriptorTable(1, {gpuStart.ptr + UINT64(setStart) * stride});
             commands->Dispatch(dispatch.gridWidth, dispatch.gridHeight, 1);
         }
     }
