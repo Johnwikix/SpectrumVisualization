@@ -6,6 +6,7 @@ namespace WinExSpectrumTest.Effects;
 internal sealed class RadialSpectrumState
 {
     private float[] _positions = [];
+    private float[] _channelBlend = [];
     private float[] _temporal = [];
     private int _sampleRate;
     private int _bandCount;
@@ -23,16 +24,22 @@ internal sealed class RadialSpectrumState
         Peaks = new float[count];
         _temporal = new float[count];
         FrequencyPositions = new float[count];
-        _positions = new float[count + 1];
         int half = count / 2;
+        _positions = new float[half + 1];
+        _channelBlend = new float[half];
         float nyquist = Math.Max(sampleRate, 8000) * 0.5f;
         float maxFrequency = MathF.Min(16000, nyquist * 0.9f);
-        for (int i = 0; i <= count; i++)
+        for (int i = 0; i <= half; i++)
         {
-            float t = Math.Clamp((float)(i <= half ? i : count - i) / half, 0, 1);
+            float t = (float)i / half;
             _positions[i] = 40 * MathF.Pow(maxFrequency / 40, t) / nyquist * bandCount;
-            if (i < count)
-                FrequencyPositions[i] = ((i < half ? i : count - 1 - i) + 0.5f) / half;
+        }
+        for (int i = 0; i < half; i++)
+        {
+            FrequencyPositions[i] = FrequencyPositions[count - 1 - i] = (i + 0.5f) / half;
+            float distance = Math.Min(i + 0.5f, half - i - 0.5f);
+            float blend = Math.Clamp(distance / Math.Max(4f, half * 0.12f), 0, 1);
+            _channelBlend[i] = blend * blend * (3 - 2 * blend);
         }
     }
 
@@ -40,30 +47,32 @@ internal sealed class RadialSpectrumState
         float gain, float smoothing, float exponent, float dt)
     {
         int count = Levels.Length;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < count / 2; i++)
         {
-            float lo = MathF.Min(_positions[i], _positions[i + 1]);
-            float hi = MathF.Max(_positions[i], _positions[i + 1]);
+            float lo = _positions[i];
+            float hi = _positions[i + 1];
             float l = Peak(left, lo, hi);
             float r = Peak(right, lo, hi);
-            int half = count / 2;
-            float distance = Math.Min(i % half + 0.5f, half - i % half - 0.5f);
-            // Meet at the channel average at both joins, preserving stereo elsewhere.
-            float blend = Math.Clamp(distance / Math.Max(4f, half * 0.12f), 0, 1);
-            blend = blend * blend * (3 - 2 * blend);
-            float own = i < half ? l : r;
-            float value = ((l + r) * 0.5f + (own - (l + r) * 0.5f) * blend) * gain;
-            value *= 0.7f + 0.6f * FrequencyPositions[i];
-            value = MathF.Pow(Math.Clamp(value, 0, 1), exponent);
-            _temporal[i] = _temporal[i] * smoothing + value * (1 - smoothing);
+            // Mirrored bars share a frequency interval and meet at the channel average at both joins.
+            float average = (l + r) * 0.5f;
+            float blend = _channelBlend[i];
+            float weight = 0.7f + 0.6f * FrequencyPositions[i];
+            Smooth(i, (average + (l - average) * blend) * gain * weight, smoothing, exponent);
+            Smooth(count - 1 - i, (average + (r - average) * blend) * gain * weight, smoothing, exponent);
         }
         // Circular convolution reads a separate temporal buffer, including the wrap.
         for (int i = 0; i < count; i++)
         {
-            Levels[i] = _temporal[(i + count - 1) % count] * 0.25f
-                + _temporal[i] * 0.5f + _temporal[(i + 1) % count] * 0.25f;
+            Levels[i] = _temporal[i == 0 ? count - 1 : i - 1] * 0.25f
+                + _temporal[i] * 0.5f + _temporal[i + 1 == count ? 0 : i + 1] * 0.25f;
             Peaks[i] = MathF.Max(Levels[i], Peaks[i] - dt * 0.55f);
         }
+    }
+
+    private void Smooth(int index, float value, float smoothing, float exponent)
+    {
+        value = MathF.Pow(Math.Clamp(value, 0, 1), exponent);
+        _temporal[index] = _temporal[index] * smoothing + value * (1 - smoothing);
     }
 
     private static float Peak(ReadOnlySpan<float> bands, float lo, float hi)

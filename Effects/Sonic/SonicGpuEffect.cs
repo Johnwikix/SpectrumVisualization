@@ -12,6 +12,8 @@ namespace WinExSpectrumTest.Effects.Sonic;
 internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITemporalGpuEffect, IBufferedGpuEffect
 {
     private const int ParticleCapacity = (40 * 2 + 200) * 6;
+    // 29 float4 scene constants, rounded to the 256-byte CBV alignment.
+    private const int ParticleOffset = 512;
     private const float NearPlane = .5f;
     private const float FarPlane = 1000;
     private ID3D12Device _device = null!;
@@ -27,8 +29,7 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
     private int _frameCount = 1;
     private int _srvStride;
     private int _dsvStride;
-    private ID3D12Resource _constants => _buffer.Constants;
-    private float4* _constantData => _buffer.ConstantData;
+    private float4* _constantData => (float4*)_buffer.Mapped;
     private readonly float4[] _previousData = new float4[13];
     private ID3D12Resource? _previousField;
     private ID3D12Resource? _motion { get => _buffer.Motion; set => _buffer.Motion = value; }
@@ -48,26 +49,28 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12Resource? _depth { get => _buffer.Depth; set => _buffer.Depth = value; }
     private ID3D12Resource? _field => _buffer.Field;
     private ReadWriteTexture2D<float4>? _fieldOwner => _buffer.FieldOwner;
-    private ID3D12Resource _vertices => _buffer.Vertices;
-    private ParticleVertex* _mapped => _buffer.Mapped;
     private GpuRenderSize _size;
     private int _vertexCount;
     private bool _disposed;
 
     private sealed class FrameResources : IDisposable
     {
-        internal ID3D12Resource Constants = null!;
-        internal ID3D12Resource Vertices = null!;
-        internal float4* ConstantData;
-        internal ParticleVertex* Mapped;
+        internal ID3D12Resource? Upload;
+        internal byte* Mapped;
         internal ID3D12Resource? Depth, Motion, Reactive, Field;
         internal ReadWriteTexture2D<float4>? FieldOwner;
         internal bool DepthReadable;
 
+        internal void ReleaseUpload()
+        {
+            GpuGraphics.DisposeResource(Upload);
+            Upload = null;
+            Mapped = null;
+        }
+
         public void Dispose()
         {
-            GpuGraphics.DisposeResource(Constants);
-            GpuGraphics.DisposeResource(Vertices);
+            ReleaseUpload();
             GpuGraphics.DisposeResource(Depth);
             GpuGraphics.DisposeResource(Motion);
             GpuGraphics.DisposeResource(Reactive);
@@ -86,14 +89,6 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         _rtvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
         _srvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
         _dsvStride = (int)_device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);
-        foreach (var buffer in _buffers)
-        {
-            buffer.Constants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None, ResourceDescription.Buffer(512), ResourceStates.GenericRead);
-            buffer.ConstantData = buffer.Constants.Map<float4>(0);
-            buffer.Vertices = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
-                ResourceDescription.Buffer((ulong)(ParticleCapacity * sizeof(ParticleVertex))), ResourceStates.GenericRead);
-            buffer.Mapped = buffer.Vertices.Map<ParticleVertex>(0);
-        }
         _root = _device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.AllowInputAssemblerInputLayout,
             [new RootParameter1(RootParameterType.ConstantBufferView, new RootDescriptor1(0, 0), ShaderVisibility.All),
              new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView, 2, 0, 0, 0, DescriptorRangeFlags.None)]), ShaderVisibility.Vertex)]));
@@ -179,7 +174,18 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
             GpuGraphics.DisposeResource(buffer.Field);
             buffer.Field = null;
             buffer.FieldOwner = null;
-            if (i >= count) continue;
+            if (i >= count)
+            {
+                buffer.ReleaseUpload();
+                continue;
+            }
+            if (buffer.Upload == null)
+            {
+                buffer.Upload = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
+                    ResourceDescription.Buffer((ulong)(ParticleOffset + ParticleCapacity * sizeof(ParticleVertex))), ResourceStates.GenericRead);
+                try { buffer.Mapped = buffer.Upload.Map<byte>(0); }
+                catch { buffer.ReleaseUpload(); throw; }
+            }
             buffer.FieldOwner = _simulation.GetHeightField(i);
             Guid iid = new("696442BE-A72E-4059-BC79-5B5C98040FAD");
             void* native = null;
@@ -205,10 +211,12 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         _simulation.Update(elapsedSeconds);
         _simulation.PrepareHeightField(detail, _frameIndex);
         // .NET 10: persistently mapped storage and stack constants avoid per-frame managed buffers.
-        _vertexCount = _simulation.WriteParticles(new Span<ParticleVertex>(_mapped, ParticleCapacity),
+        _vertexCount = _simulation.WriteParticles(new Span<ParticleVertex>(_buffer.Mapped + ParticleOffset, ParticleCapacity),
             _temporal ? _size.OutputWidth : _size.Width, _temporal ? _size.OutputHeight : _size.Height);
-        var current = new Span<float4>(_constantData, 13);
+        // CPU reads from write-combined upload memory can stall even for a few constants.
+        Span<float4> current = stackalloc float4[13];
         _simulation.WriteSceneData(current, (float)_size.OutputWidth / _size.OutputHeight);
+        current.CopyTo(new Span<float4>(_constantData, 13));
         if (_frame.Reset || _copyHistory) current.CopyTo(_previousData);
         _previousData.CopyTo(new Span<float4>(_constantData + 13, 13));
         float reactive = 0;
@@ -250,7 +258,7 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         commands.RSSetScissorRect(_size.Width, _size.Height);
         commands.SetDescriptorHeaps(_srv);
         commands.SetGraphicsRootSignature(_root);
-        commands.SetGraphicsRootConstantBufferView(0, _constants.GPUVirtualAddress);
+        commands.SetGraphicsRootConstantBufferView(0, _buffer.Upload!.GPUVirtualAddress);
         commands.SetGraphicsRootDescriptorTable(1, _srv.GetGPUDescriptorHandleForHeapStart() + _frameIndex * 2 * _srvStride);
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         commands.SetPipelineState(_temporal ? _temporalTerrain! : _terrain);
@@ -287,7 +295,7 @@ internal sealed unsafe partial class SonicGpuEffect : IGpuVisualizerEffect, ITem
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         commands.OMSetRenderTargets(target, null);
         commands.SetPipelineState(_particles);
-        var view = new VertexBufferView(_vertices.GPUVirtualAddress, (uint)(ParticleCapacity * sizeof(ParticleVertex)), (uint)sizeof(ParticleVertex));
+        var view = new VertexBufferView(_buffer.Upload!.GPUVirtualAddress + ParticleOffset, (uint)(ParticleCapacity * sizeof(ParticleVertex)), (uint)sizeof(ParticleVertex));
         commands.IASetVertexBuffers(0, 1, &view);
         commands.DrawInstanced((uint)_vertexCount, 1, 0, 0);
     }

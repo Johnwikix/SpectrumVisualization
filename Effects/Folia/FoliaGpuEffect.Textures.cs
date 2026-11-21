@@ -10,20 +10,23 @@ internal sealed unsafe partial class FoliaGpuEffect
     private readonly int[] _imageWidths = new int[6], _imageHeights = new int[6];
     private readonly Format[] _imageFormats = new Format[6];
     private static int ImagePixelSize(Format format) => format == Format.R16G16B16A16_Float ? 8 : format == Format.R8_UNorm ? 1 : 4;
+    private void ReleaseImage(int slot)
+    {
+        GpuGraphics.DisposeResource(_textures[slot]);
+        GpuGraphics.DisposeResource(_uploads[slot]);
+        _textures[slot] = _uploads[slot] = null;
+        _pending[slot] = false;
+    }
     private void InstallImage(FoliaImageUpload? image)
     {
         if (image == null) return;
         int slot = image.Slot;
-        GpuGraphics.DisposeResource(_textures[slot]);
-        GpuGraphics.DisposeResource(_uploads[slot]);
+        ReleaseImage(slot);
         _textures[slot] = image.Texture;
-        _uploads[slot] = image.Upload;
-        image.Texture = image.Upload = null;
-        _imageWidths[slot] = image.Width;
-        _imageHeights[slot] = image.Height;
-        _imageFormats[slot] = image.Format;
-        // Candidate copies and their final transition completed on the preceding frame's fence.
-        _pending[slot] = false;
+        image.Texture = null;
+        // The preceding frame's fence has already completed the final copy.
+        GpuGraphics.DisposeResource(image.Upload);
+        image.Upload = null;
     }
     private void SetImage(int slot, int width, int height, ReadOnlySpan<byte> pixels, Format format)
     {
@@ -60,7 +63,13 @@ internal sealed unsafe partial class FoliaGpuEffect
             for (int slot = 0; slot < 5; slot++)
             {
                 // Do not bind a private render target as an SRV during its own pass.
-                var texture = slot == 0 && _atlas!.IsShared ? _glyphAtlas.Distance : slot == 3 ? ((table == 2 || table == 3) ? _textures[3] : _textures[1]) : slot == 4 ? ((table == 1 || table == 3) ? _textures[4] : _textures[1]) : _textures[slot];
+                var texture = slot switch
+                {
+                    0 when _atlas!.IsShared => _glyphAtlas.Distance,
+                    3 when table is not (2 or 3) => _textures[1],
+                    4 => (table is 1 or 3 ? _textures[4] : null) ?? _textures[1],
+                    _ => _textures[slot]
+                };
                 if (table == 1 && slot == 3 && _windowFog != null)
                     texture = _windowFog;
                 _device.CreateShaderResourceView(texture!, slot == 0 ? FoliaGpuGlyphAtlas.Srv(texture!) : null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + slot) * _srvStride);

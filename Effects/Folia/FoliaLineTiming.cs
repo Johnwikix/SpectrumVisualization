@@ -28,3 +28,30 @@ internal readonly record struct FoliaLineTiming(double RenderEnd, float Enter, f
     internal double WordEntrance(double start) => start - Lookahead;
     internal double WordEnd(double start, double end) => Mode == 2 ? RenderEnd : Mode == 1 ? Math.Min(RenderEnd, Math.Max(end, start + .12)) : end;
 }
+
+/// <summary>Lets gaps in the timeline skip all earlier lines that have already exited.</summary>
+internal readonly struct FoliaLineTimingIndex
+{
+    private readonly record struct Entry(double End, double LatestEnd);
+    private readonly Entry[] _entries;
+
+    internal FoliaLineTimingIndex(FoliaPreparedLine[] lines)
+    {
+        _entries = lines.Length == 0 ? [] : new Entry[lines.Length];
+        double latest = double.NegativeInfinity;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            double end = lines[i].Source.Timing.RenderEnd;
+            if (end > latest) latest = end;
+            _entries[i] = new(end, latest);
+        }
+    }
+
+    internal int FindActive(int anchor, double time)
+    {
+        for (int i = anchor; i >= 0 && time <= _entries[i].LatestEnd; i--)
+            if (time <= _entries[i].End)
+                return i;
+        return -1;
+    }
+}

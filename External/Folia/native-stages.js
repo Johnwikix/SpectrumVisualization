@@ -8826,6 +8826,10 @@ const advanceOf = (ch        ) => {
     if (ch === ' ') return 0.32;
     if (/[，。、・．]/.test(ch)) return 0.5;
     if (isWideChar(ch)) return 1;
+    // Font skeletons use a .78 em font and the planner enlarges narrow glyphs by 1.15.
+    // Budget extra room for the pen width and the handwriting warp.
+    const advance = activeNebbiaWidths?.[ch];
+    if (!CJK.test(ch) && Number.isFinite(advance) && advance > 0) return Math.max(.3, .9 * advance + .075);
     if (/[il.,'!|:;]/.test(ch)) return 0.3;
     if (/[mwMW]/.test(ch)) return 0.72;
     return 0.5;
@@ -9273,6 +9277,7 @@ exports.SIMPLE_COMPOSITIONS = SIMPLE_COMPOSITIONS;
 };
 const cache = {};
 let activeStrokes = null;
+let activeNebbiaWidths = null;
 function require(id) {
     if (cache[id]) return cache[id];
     const exports = cache[id] = {};
@@ -9581,6 +9586,7 @@ function nebbia(json) {
     const fogAt = i => Math.min(source[i].next, source[i].end + 6) + hold;
     const linger = i => Math.max(fogAt(i), Math.min(fogAt(i) + 16, (source[i + 3]?.t ?? Infinity) + hold));
     activeStrokes = input.strokeCounts;
+    activeNebbiaWidths = input.widths;
     try {
         const layout = layoutNebbiaSong(source, {
             W: input.width, H: input.height, fontScale: input.fontScale, jitter: .6,
@@ -9595,6 +9601,7 @@ function nebbia(json) {
         })));
     } finally {
         activeStrokes = null;
+        activeNebbiaWidths = null;
     }
 }
 

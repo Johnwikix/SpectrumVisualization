@@ -149,6 +149,19 @@ Hit Trace(float3 origin, float3 direction, float limit)
     TraceRay(Scene, RAY_FLAG_NONE, 0xff, 0, 0, 0, ray, hit);
     return hit;
 }
+bool Occluded(float3 origin, float3 direction, float limit)
+{
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = direction;
+    ray.TMin = Epsilon;
+    ray.TMax = limit;
+    Hit hit = {0, 0, float2(0, 0), 0};
+    // The first accepted blocker is sufficient. Any-hit still rejects transparent hologram texels.
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
+        0xff, 0, 0, 0, ray, hit);
+    return hit.primitive != 0xffffffff;
+}
 [shader("closesthit")]
 void ClosestHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
 {
@@ -158,7 +171,7 @@ void ClosestHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
     hit.instance = InstanceID();
 }
 [shader("miss")]
-void Miss(inout Hit hit) {}
+void Miss(inout Hit hit) { hit.primitive = 0xffffffff; }
 
 [shader("anyhit")]
 void AnyHit(inout Hit hit, BuiltInTriangleIntersectionAttributes attrs)
@@ -696,7 +709,7 @@ void DirectEmitters(Surface s, float3 view, float3 lightSample, bool separated, 
     if (!any(ds + rs > 0)) return;
     // A direct connection to an area light has no intervening dielectric.
     // The BSDF path samples refraction and receives full weight after a delta event.
-    if (Trace(Offset(s, l), l, distance - Epsilon * 7).primitive != 0xffffffff) return;
+    if (Occluded(Offset(s, l), l, distance - Epsilon * 7)) return;
     float lightPdf = (1 - analyticChance) * emitter.areaPdf * distance * distance / lightCosine;
     float3 contribution = light.emission * (cosine / max(lightPdf, 1e-6));
     if (separated)

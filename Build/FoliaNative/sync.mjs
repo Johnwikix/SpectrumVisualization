@@ -68,6 +68,15 @@ function add(id) {
         code = 'export const getNebbiaStrokeMedians = char => ({ length: activeStrokes?.[char] ?? 0 });';
     } else {
         code = readTypeScript(id + '.ts');
+        if (id === 'nebbia/nebbiaBlocks') {
+            const wideAdvance = 'if (isWideChar(ch)) return 1;';
+            if (!code.includes(wideAdvance)) throw new Error('Missing Nebbia advance hook.');
+            code = code.replace(wideAdvance, wideAdvance + `
+    // Font skeletons use a .78 em font and the planner enlarges narrow glyphs by 1.15.
+    // Budget extra room for the pen width and the handwriting warp.
+    const advance = activeNebbiaWidths?.[ch];
+    if (!CJK.test(ch) && Number.isFinite(advance) && advance > 0) return Math.max(.3, .9 * advance + .075);`);
+        }
     }
     const exports = [];
     code = code.replace(/import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"];?/g, (_, names, specifier) => {

@@ -121,6 +121,12 @@ internal sealed unsafe partial class FoliaGpuEffect
             InstallImage(upload.Glyphs);
             InstallImage(upload.Cover);
             InstallImage(upload.ModeAtlas);
+            if (atlas.IsShared)
+            {
+                ReleaseImage(0);
+                if (upload.ModeAtlasSource is not FoliaAssets.EmojiAtlas)
+                    ReleaseImage(5);
+            }
             if (textChanged) _preparation.Retire(atlas.DetachDistancePixels());
             _modeAtlasSource = upload.ModeAtlasSource;
             _atlas = atlas;

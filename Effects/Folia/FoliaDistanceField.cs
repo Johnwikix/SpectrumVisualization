@@ -31,12 +31,18 @@ internal static unsafe partial class FoliaDistanceField
     [LibraryImport("Spectrum.FoliaText.dll", EntryPoint = "FoliaGetTextMetrics")]
     private static partial int GetMetrics(nint layout, out float baseline, out float xHeight);
 
-    internal static float CanvasMiddleCenter(CanvasTextLayout layout, float em)
+    internal static (float Baseline, float XHeight) TextMetrics(CanvasTextLayout layout)
     {
         nint pointer = ((WinRT.IWinRTObject)layout).NativeObject.ThisPtr;
         int result = GetMetrics(pointer, out float baseline, out float xHeight);
         GC.KeepAlive(layout);
         Marshal.ThrowExceptionForHR(result);
+        return (baseline, xHeight);
+    }
+
+    internal static float CanvasMiddleCenter(CanvasTextLayout layout, float em)
+    {
+        var (baseline, xHeight) = TextMetrics(layout);
         var bounds = layout.DrawBounds;
         return ((float)(bounds.Y + bounds.Height * .5) - baseline) / em + xHeight * .5f;
     }

@@ -43,21 +43,25 @@ internal sealed partial class FoliaNebbia
             FontFamily = request.Family, FontSize = 96, FontWeight = new FontWeight { Weight = (ushort)request.Weight },
             WordWrapping = CanvasWordWrapping.NoWrap
         };
+        var strokeCounts = new Dictionary<string, int>();
         foreach (var pair in atlas.CharacterGlyphs)
         {
             token.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(pair.Key) || _paths.ContainsKey(pair.Value))
                 continue;
-            var segments = Rune.TryGetRuneAt(pair.Key, 0, out var rune) && rune.Utf16SequenceLength == pair.Key.Length
-                && medians.TryGetValue(rune.Value, out var strokes) ? strokes : FoliaNebbiaStrokes.Estimate(device, format, pair.Key);
+            if (Rune.TryGetRuneAt(pair.Key, 0, out var rune) && rune.Utf16SequenceLength == pair.Key.Length
+                && medians.TryGetValue(rune.Value, out var strokes))
+            {
+                var path = PreparePath(strokes);
+                _paths.Add(pair.Value, path);
+                strokeCounts.Add(pair.Key, path.Strokes.Length);
+                continue;
+            }
+            var segments = FoliaNebbiaStrokes.Estimate(device, format, pair.Key);
             if (segments.Length == 0)
                 continue;
             _paths.Add(pair.Value, PreparePath(segments));
         }
-        var strokeCounts = new Dictionary<string, int>();
-        foreach (var pair in atlas.CharacterGlyphs)
-            if (_paths.TryGetValue(pair.Value, out var path))
-                strokeCounts.Add(pair.Key, path.Strokes.Length);
         using var layout = FoliaSourcePlanner.CompileNativeStage(atlas, request, "nebbia", token, strokeCounts);
         _linePlans = PrepareWriting(layout.RootElement, request.Width, request.Height, token);
         _goneThrough = new double[_linePlans.Length];

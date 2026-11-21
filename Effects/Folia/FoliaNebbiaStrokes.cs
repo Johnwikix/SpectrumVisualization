@@ -15,13 +15,18 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal static class FoliaNebbiaStrokes
 {
     internal readonly record struct Segment(Vector2 Start, Vector2 End, bool StartsStroke = false);
-    private const int Grid = 32;
+    private const int Grid = 64;
+    private static ReadOnlySpan<int> NeighborOffsets => [1, Grid + 1, Grid, Grid - 1, -1, -Grid - 1, -Grid, -Grid + 1];
+    private static ReadOnlySpan<int> DirectionChanges => [0, 1, -1, 2, -2, 3, -3, 4];
 
     internal static Dictionary<int, Segment[]> ReadMedialPaths(HashSet<int> wanted, CancellationToken token)
     {
         var paths = new Dictionary<int, Segment[]>();
         if (wanted.Count == 0)
             return paths;
+        int lastWanted = 0;
+        foreach (int codepoint in wanted)
+            lastWanted = Math.Max(lastWanted, codepoint);
         using var asset = typeof(FoliaNebbiaStrokes).Assembly.GetManifestResourceStream("Spectrum.Folia.Nebbia.strokes.bin.gz")
             ?? throw new InvalidOperationException("Missing Nebbia stroke resource.");
         using var stream = new GZipStream(asset, CompressionMode.Decompress);
@@ -35,6 +40,9 @@ internal static class FoliaNebbiaStrokes
         {
             token.ThrowIfCancellationRequested();
             int codepoint = reader.ReadInt32();
+            // Build/FoliaNebbia/strokes.py writes records in codepoint order.
+            if (codepoint > lastWanted)
+                break;
             int strokeCount = reader.ReadByte();
             bool keep = wanted.Contains(codepoint);
             segments.Clear();
@@ -89,56 +97,211 @@ internal static class FoliaNebbiaStrokes
         var bounds = geometry.ComputeBounds();
         if (bounds.Width < .1 || bounds.Height < .1)
             return [];
+
+        // Match the upstream handwriting square, centered on the advance and aligned to an alphabetic baseline.
+        // Sampling at a uniform scale preserves narrow letters, descenders and diacritics.
+        float scale = .78f / format.FontSize;
+        float originX = .5f - (float)layout.LayoutBoundsIncludingTrailingWhitespace.Width * scale * .5f;
+        // Win2D's projected LineMetrics array requires non-blittable WinRT marshaling.
+        float originY = .8f - FoliaDistanceField.TextMetrics(layout).Baseline * scale;
+        int left = Math.Clamp((int)Math.Floor((originX + bounds.Left * scale) * Grid), 1, Grid - 1);
+        int right = Math.Clamp((int)Math.Ceiling((originX + bounds.Right * scale) * Grid), left, Grid - 1);
+        int top = Math.Clamp((int)Math.Floor((originY + bounds.Top * scale) * Grid), 1, Grid - 1);
+        int bottom = Math.Clamp((int)Math.Ceiling((originY + bounds.Bottom * scale) * Grid), top, Grid - 1);
         Span<byte> grid = stackalloc byte[Grid * Grid];
         Span<int> pending = stackalloc int[Grid * Grid];
         grid.Clear();
-        for (int row = 1; row < Grid - 1; row++)
-            for (int col = 1; col < Grid - 1; col++)
+        for (int row = top; row < bottom; row++)
+            for (int col = left; col < right; col++)
             {
-                float x = (float)(bounds.X + bounds.Width * (col - .5) / (Grid - 2));
-                float y = (float)(bounds.Y + bounds.Height * (row - .5) / (Grid - 2));
+                float x = ((col + .5f) / Grid - originX) / scale;
+                float y = ((row + .5f) / Grid - originY) / scale;
                 grid[row * Grid + col] = geometry.FillContainsPoint(new(x, y)) ? (byte)1 : (byte)0;
             }
+        Span<byte> coverage = stackalloc byte[Grid * Grid];
+        grid.CopyTo(coverage);
         // Zhang–Suen thinning preserves connected paths for fonts without recorded stroke order.
         bool changed;
         do
         {
-            changed = Thin(grid, pending, false);
-            changed |= Thin(grid, pending, true);
+            changed = Thin(grid, pending, left, top, right, bottom, false);
+            changed |= Thin(grid, pending, left, top, right, bottom, true);
         } while (changed);
+
+        RestoreDots(grid, coverage, pending, left, top, right, bottom);
+        return Trace(grid, left, top, right, bottom);
+    }
+
+    private static void RestoreDots(Span<byte> grid, Span<byte> coverage, Span<int> queue, int left, int top, int right, int bottom)
+    {
+        // Thinning can delete all pixels of a tiny component in one pass, leaving punctuation and accents blank.
+        var offsets = NeighborOffsets;
+        for (int row = top; row < bottom; row++)
+            for (int col = left; col < right; col++)
+            {
+                int cell = row * Grid + col;
+                if (coverage[cell] == 0)
+                    continue;
+                queue[0] = cell;
+                coverage[cell] = 0;
+                int count = 1;
+                bool hasSkeleton = false;
+                for (int i = 0; i < count; i++)
+                {
+                    int point = queue[i];
+                    hasSkeleton |= grid[point] != 0;
+                    foreach (int offset in offsets)
+                    {
+                        int next = point + offset;
+                        if (coverage[next] == 0)
+                            continue;
+                        coverage[next] = 0;
+                        queue[count++] = next;
+                    }
+                }
+                if (!hasSkeleton)
+                    grid[cell] = 1;
+            }
+    }
+
+    private static Segment[] Trace(ReadOnlySpan<byte> grid, int left, int top, int right, int bottom)
+    {
+        Span<byte> links = stackalloc byte[Grid * Grid];
+        links.Clear();
+        var offsets = NeighborOffsets;
         var segments = new List<Segment>();
-        for (int col = 1; col < Grid - 1; col++)
-            for (int row = 1; row < Grid - 1; row++)
+        for (int row = top; row < bottom; row++)
+            for (int col = left; col < right; col++)
             {
                 int cell = row * Grid + col;
                 if (grid[cell] == 0)
                     continue;
-                var from = Point(col, row);
-                if (grid[cell + 1] != 0)
-                    segments.Add(new(from, Point(col + 1, row)));
-                if (grid[cell + Grid] != 0)
-                    segments.Add(new(from, Point(col, row + 1)));
-                if (grid[cell + 1] == 0 && grid[cell + Grid] == 0 && grid[cell + Grid + 1] != 0)
-                    segments.Add(new(from, Point(col + 1, row + 1)));
-                if (grid[cell + 1] == 0 && grid[cell - Grid] == 0 && grid[cell - Grid + 1] != 0)
-                    segments.Add(new(from, Point(col + 1, row - 1)));
-                if (IsIsolated(grid, cell))
-                    segments.Add(new(from, from + new Vector2(.012f, 0)));
+                for (int direction = 0; direction < offsets.Length; direction++)
+                {
+                    if (grid[cell + offsets[direction]] == 0)
+                        continue;
+                    // A diagonal is redundant if the same two pixels meet through an orthogonal neighbor.
+                    if ((direction & 1) != 0 && (grid[cell + offsets[direction - 1]] | grid[cell + offsets[(direction + 1) & 7]]) != 0)
+                        continue;
+                    links[cell] |= (byte)(1 << direction);
+                }
             }
+
+        // Trace endpoints first, then close loops and consume any unused branches.
+        // Each emitted stroke is continuous, which the wet-ink warp expects.
+        var points = new List<Vector2>();
+        var simplified = new List<Vector2>();
+        for (int pass = 0; pass < 2; pass++)
+            for (int row = top; row < bottom; row++)
+                for (int col = left; col < right; col++)
+                {
+                    int cell = row * Grid + col;
+                    if (pass == 0 && grid[cell] != 0 && links[cell] == 0 && IsIsolated(grid, cell))
+                    {
+                        var point = Point(cell);
+                        segments.Add(new(point, point + new Vector2(1f / Grid, 0), true));
+                    }
+                    else if (links[cell] != 0 && (pass == 1 || BitOperations.PopCount((uint)links[cell]) == 1))
+                    {
+                        Walk(links, cell, points);
+                        AddStroke(points, simplified, segments);
+                    }
+                }
         return segments.ToArray();
     }
 
-    private static Vector2 Point(int x, int y) => new((x - .5f) / (Grid - 2), (y - .5f) / (Grid - 2));
+    private static void Walk(Span<byte> links, int cell, List<Vector2> points)
+    {
+        points.Clear();
+        points.Add(Point(cell));
+        int heading = 0;
+        var offsets = NeighborOffsets;
+        while (links[cell] != 0)
+        {
+            foreach (int change in DirectionChanges)
+            {
+                int direction = (heading + change) & 7;
+                if ((links[cell] & (1 << direction)) == 0)
+                    continue;
+                links[cell] &= (byte)~(1 << direction);
+                cell += offsets[direction];
+                links[cell] &= (byte)~(1 << (direction ^ 4));
+                points.Add(Point(cell));
+                heading = direction;
+                break;
+            }
+        }
+    }
+
+    private static void AddStroke(List<Vector2> points, List<Vector2> simplified, List<Segment> segments)
+    {
+        // Keep the pen moving from the upper-left end of each traced stroke.
+        Vector2 first = points[0], last = points[^1];
+        if (first.Y + first.X * .6f > last.Y + last.X * .6f)
+            points.Reverse();
+
+        simplified.Clear();
+        simplified.Add(points[0]);
+        Simplify(points, 0, points.Count - 1, simplified);
+        Vector2 previous = simplified[0];
+        bool startsStroke = true;
+        if (simplified.Count > 2)
+            for (int i = 1; i < simplified.Count; i++)
+            {
+                Vector2 a = simplified[i - 1], b = simplified[i];
+                Add(Vector2.Lerp(a, b, .25f));
+                Add(Vector2.Lerp(a, b, .75f));
+            }
+        Add(simplified[^1]);
+
+        void Add(Vector2 point)
+        {
+            if (point == previous)
+                return;
+            segments.Add(new(previous, point, startsStroke));
+            startsStroke = false;
+            previous = point;
+        }
+    }
+
+    // Ramer–Douglas–Peucker simplification keeps per-frame stroke instances bounded by the shape's detail.
+    private static void Simplify(List<Vector2> points, int first, int last, List<Vector2> result)
+    {
+        Vector2 start = points[first], span = points[last] - start;
+        float spanLengthSquared = Math.Max(span.LengthSquared(), 1e-6f);
+        const float Tolerance = .8f / Grid;
+        float furthestDistance = Tolerance * Tolerance;
+        int furthestPoint = first;
+        for (int i = first + 1; i < last; i++)
+        {
+            Vector2 offset = points[i] - start;
+            float along = Math.Clamp(Vector2.Dot(offset, span) / spanLengthSquared, 0, 1);
+            float distance = (offset - span * along).LengthSquared();
+            if (distance <= furthestDistance)
+                continue;
+            furthestDistance = distance;
+            furthestPoint = i;
+        }
+        if (furthestPoint == first)
+        {
+            result.Add(points[last]);
+            return;
+        }
+        Simplify(points, first, furthestPoint, result);
+        Simplify(points, furthestPoint, last, result);
+    }
+
+    private static Vector2 Point(int cell) => new((cell % Grid + .5f) / Grid, (cell / Grid + .5f) / Grid);
 
     private static bool IsIsolated(ReadOnlySpan<byte> grid, int i) => (grid[i - Grid - 1] | grid[i - Grid] | grid[i - Grid + 1]
         | grid[i - 1] | grid[i + 1] | grid[i + Grid - 1] | grid[i + Grid] | grid[i + Grid + 1]) == 0;
 
-    private static bool Thin(Span<byte> grid, Span<int> pending, bool second)
+    private static bool Thin(Span<byte> grid, Span<int> pending, int left, int top, int right, int bottom, bool second)
     {
         Span<int> neighbors = stackalloc int[8];
         int count = 0;
-        for (int y = 1; y < Grid - 1; y++)
-            for (int x = 1; x < Grid - 1; x++)
+        for (int y = top; y < bottom; y++)
+            for (int x = left; x < right; x++)
             {
                 int i = y * Grid + x;
                 if (grid[i] == 0)

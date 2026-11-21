@@ -1,5 +1,6 @@
 const cache = {};
 let activeStrokes = null;
+let activeNebbiaWidths = null;
 function require(id) {
     if (cache[id]) return cache[id];
     const exports = cache[id] = {};
@@ -308,6 +309,7 @@ function nebbia(json) {
     const fogAt = i => Math.min(source[i].next, source[i].end + 6) + hold;
     const linger = i => Math.max(fogAt(i), Math.min(fogAt(i) + 16, (source[i + 3]?.t ?? Infinity) + hold));
     activeStrokes = input.strokeCounts;
+    activeNebbiaWidths = input.widths;
     try {
         const layout = layoutNebbiaSong(source, {
             W: input.width, H: input.height, fontScale: input.fontScale, jitter: .6,
@@ -322,6 +324,7 @@ function nebbia(json) {
         })));
     } finally {
         activeStrokes = null;
+        activeNebbiaWidths = null;
     }
 }
 
