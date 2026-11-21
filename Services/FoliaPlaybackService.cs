@@ -20,6 +20,7 @@ internal sealed class FoliaPlaybackService
     private readonly LyricsOnlineSearch _onlineLyrics;
     private readonly Func<IRandomAccessStreamReference?, CancellationToken, Task<(byte[] Bytes, int Width, int Height)>> _decodeCover;
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _coverDecodeGate = new(1, 1);
     private readonly HashSet<Task> _operations = [];
     private CancellationTokenSource? _request;
     private CancellationTokenSource? _coverRequest;
@@ -28,6 +29,7 @@ internal sealed class FoliaPlaybackService
     private bool _active, _stopped;
     private long _version;
     private string _trackKey = "";
+    private (string? Title, string? Artist, string? Album, string? Source) _trackIdentity;
     private string _songKey = "";
     private string _status = "waiting";
     internal FoliaPlaybackState State { get; } = new();
@@ -118,7 +120,7 @@ internal sealed class FoliaPlaybackService
             if (!_active || _stopped) return;
             State.SetClock(position.TotalSeconds, duration.TotalSeconds, _media.IsPlaying);
             var song = State.Song;
-            if (song.Title.Length != 0 && song.Duration <= 0 && duration > TimeSpan.Zero)
+            if (song.Title.Length != 0 && !song.LyricsPending && song.Duration <= 0 && duration > TimeSpan.Zero)
                 State.Publish(song with { Duration = duration.TotalSeconds });
         }
     }
@@ -129,6 +131,13 @@ internal sealed class FoliaPlaybackService
         {
             if (!_active || _stopped || PreviewEnabled) return;
             var snapshot = _media.CurrentTrack;
+            var identity = (snapshot.Title, snapshot.Artist, snapshot.Album, snapshot.SourceAppId);
+            if (!retry && _trackKey.Length != 0 && _trackIdentity == identity)
+            {
+                if (State.Song.Title.Length != 0) RequestCover(snapshot.Thumbnail, _version);
+                return;
+            }
+            _trackIdentity = identity;
             string title = snapshot.Title?.Trim() ?? "";
             string artist = snapshot.Artist?.Trim() ?? "";
             var track = new LyricsTrack(title, artist, snapshot.Album?.Trim() ?? "", _media.Duration.TotalSeconds);
@@ -144,6 +153,8 @@ internal sealed class FoliaPlaybackService
             var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             _request = cancellation;
             long version = ++_version;
+            if (_songKey != key)
+                State.SetClock(_media.Position.TotalSeconds, track.Duration, _media.IsPlaying);
             // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
             State.Publish(title.Length == 0 ? FoliaSong.Empty : (_songKey == key ? State.Song : FoliaSong.Empty) with
             {
@@ -185,27 +196,32 @@ internal sealed class FoliaPlaybackService
         if (ReferenceEquals(_thumbnail, thumbnail)) return;
         _thumbnail = thumbnail;
         _coverRequest?.Cancel();
-        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var cancellation = new CancellationTokenSource();
         _coverRequest = cancellation;
         long coverVersion = ++_coverVersion;
         TrackOperation(Task.Run(async () =>
         {
+            bool decoding = false;
             try
             {
+                await _coverDecodeGate.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                decoding = true;
+                cancellation.CancelAfter(TimeSpan.FromSeconds(5));
                 var cover = thumbnail is null ? (Bytes: Array.Empty<byte>(), Width: 0, Height: 0)
                     : await _decodeCover(thumbnail, cancellation.Token).ConfigureAwait(false);
                 cancellation.Token.ThrowIfCancellationRequested();
                 bool valid = cover.Width > 0 && cover.Height > 0 && (long)cover.Width * cover.Height * 4 == cover.Bytes.Length;
                 if (!valid) cover = ([], 0, 0);
+                FoliaSong current;
                 lock (_gate)
                 {
                     if (!_active || _stopped || version != _version || coverVersion != _coverVersion) return;
                     // SMTC can supply an equivalent stream object repeatedly. Avoid re-extracting
                     // its identical pixels; a failed decode may be retried on the next update.
                     if (!valid) _thumbnail = null;
-                    var current = State.Song;
-                    if (current.CoverWidth == cover.Width && current.CoverHeight == cover.Height && current.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
+                    current = State.Song;
                 }
+                if (current.CoverWidth == cover.Width && current.CoverHeight == cover.Height && current.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
                 // The cover and both palettes cross the publication boundary together. Never
                 // run Jint or image sampling while holding the service gate or on a frame thread.
                 Vector3[] colors;
@@ -220,7 +236,6 @@ internal sealed class FoliaPlaybackService
                 {
                     if (!_active || _stopped || version != _version || coverVersion != _coverVersion || cancellation.IsCancellationRequested) return;
                     var song = State.Song;
-                    if (song.CoverWidth == cover.Width && song.CoverHeight == cover.Height && song.CoverRgba.AsSpan().SequenceEqual(cover.Bytes)) return;
                     // Theme preparation owns the only composited copy, using the final selected
                     // background. Keeping another full-size copy here would retain unused pixels.
                     State.Publish(song with { CoverRgba = cover.Bytes, CoverWidth = cover.Width, CoverHeight = cover.Height,
@@ -228,11 +243,19 @@ internal sealed class FoliaPlaybackService
                 }
                 Changed?.Invoke();
             }
-            catch (OperationCanceledException caughtException) { AppLog.Caught(caughtException); }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
             catch (Exception ex) { App.WriteCrashLog("Folia cover", ex.Message, ex); }
             finally
             {
-                lock (_gate) if (ReferenceEquals(_coverRequest, cancellation)) _coverRequest = null;
+                if (decoding) _coverDecodeGate.Release();
+                lock (_gate)
+                {
+                    if (ReferenceEquals(_coverRequest, cancellation))
+                    {
+                        _coverRequest = null;
+                        if (cancellation.IsCancellationRequested) _thumbnail = null;
+                    }
+                }
                 cancellation.Dispose();
             }
         }));
@@ -244,9 +267,7 @@ internal sealed class FoliaPlaybackService
         bool published = false;
         try
         {
-            // Read the latest available duration without delaying already-complete metadata.
-            // Metadata bursts cancel by version; no fixed coalescing interval is needed.
-            track = track with { Duration = _media.Duration.TotalSeconds };
+            track = track with { Duration = State.Clock.Duration };
             var player = await _playerLyrics.ReadAsync(track, sourceId, token).ConfigureAwait(false);
             var content = player.Content ?? ((!retry || !player.AllowOnline) && player.AllowCache
                 ? await LyricsDiskCache.ReadAsync(track, token).ConfigureAwait(false) : null);
@@ -279,7 +300,7 @@ internal sealed class FoliaPlaybackService
             {
                 if (!_active || _stopped || version != _version) return;
                 var song = State.Song;
-                State.Publish(song with { Lines = lines, LyricsPending = false, Duration = song.Duration > 0 ? song.Duration : track.Duration });
+                State.Publish(song with { Lines = lines, LyricsPending = false, Duration = song.Duration > 0 ? song.Duration : State.Clock.Duration });
                 _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
                 published = true;
             }
@@ -289,9 +310,8 @@ internal sealed class FoliaPlaybackService
             if (content is not null && player.Content is null && status == LyricsSearchStatus.Found)
                 await LyricsDiskCache.WriteAsync(track, content, token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException caughtException2)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            AppLog.Caught(caughtException2);
             // A deadline is recoverable; an obsolete track never changes the new song's state.
             if (!published) Publish(version, null, "failed");
         }
@@ -312,7 +332,8 @@ internal sealed class FoliaPlaybackService
         lock (_gate)
         {
             if (_stopped || !_active || version != _version) return;
-            State.Publish((song ?? State.Song) with { LyricsPending = false });
+            var current = song ?? State.Song;
+            State.Publish(current with { LyricsPending = false, Duration = current.Duration > 0 ? current.Duration : State.Clock.Duration });
             _status = status;
         }
         Changed?.Invoke();

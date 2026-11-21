@@ -83,13 +83,19 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
     {
         var missing = new List<FoliaCachedGlyph>(12);
         int pixels = 0, requiredPages = Pages;
+        long edgeSamples = 0;
         foreach (var entry in entries)
         {
             if (entry.Resident) continue;
-            if (missing.Count > 0 && (missing.Count == 12 || pixels + entry.Rect.Width * entry.Rect.Height > 240000)) break;
+            int area = entry.Rect.Width * entry.Rect.Height;
+            // GenerateMtsdf traverses the outline for every texel. Dense ideographs cost
+            // much more than equally sized Latin glyphs on the scene's graphics queue.
+            long work = entry.CpuTile == null ? (long)area * entry.Source.Outline.Edges.Length : 0;
+            if (missing.Count > 0 && (missing.Count == 12 || pixels + area > 120000 || edgeSamples + work > 6_000_000)) break;
             if (!_store.GpuEnabled && entry.CpuTile == null) throw new FoliaCpuGlyphsRequiredException();
             missing.Add(entry);
-            pixels += entry.Rect.Width * entry.Rect.Height;
+            pixels += area;
+            edgeSamples += work;
             requiredPages = Math.Max(requiredPages, entry.Rect.Page + 1);
         }
         if (missing.Count == 0) return null;
@@ -178,9 +184,9 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
             _owner = owner;
             _entries = entries;
             var copies = new List<CpuCopy>();
-            var edges = new List<FoliaGpuEdge>();
-            var contours = new List<FoliaGpuContour>();
+            int edgeCount = 0, contourCount = 0;
             var jobs = new List<Job>();
+            var outlines = new List<FoliaGlyphOutline>(entries.Length);
             ulong size = 0;
             try
             {
@@ -198,10 +204,11 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
                     }
                     var source = entry.Source;
                     jobs.Add(new Job { X = (uint)r.X, Y = (uint)r.Y, Width = (uint)r.Width, Height = (uint)r.Height,
-                        Page = (uint)r.Page, FirstContour = (uint)contours.Count, ContourCount = (uint)source.Outline.Contours.Length,
-                        FirstEdge = (uint)edges.Count, Offset = new(source.X, source.Y, source.Outline.Flip ? -1 : 1, 0) });
-                    edges.AddRange(source.Outline.Edges);
-                    contours.AddRange(source.Outline.Contours);
+                        Page = (uint)r.Page, FirstContour = (uint)contourCount, ContourCount = (uint)source.Outline.Contours.Length,
+                        FirstEdge = (uint)edgeCount, Offset = new(source.X, source.Y, source.Outline.Flip ? -1 : 1, 0) });
+                    edgeCount += source.Outline.Edges.Length;
+                    contourCount += source.Outline.Contours.Length;
+                    outlines.Add(source.Outline);
                     _width = Math.Max(_width, (uint)r.Width); _height = Math.Max(_height, (uint)r.Height);
                 }
                 _copies = copies.ToArray();
@@ -224,9 +231,9 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
                 _jobCount = (uint)jobs.Count;
                 if (_jobCount != 0)
                 {
-                    _edges = Buffer<FoliaGpuEdge>(edges.ToArray());
-                    _contours = Buffer<FoliaGpuContour>(contours.ToArray());
-                    _jobs = Buffer<Job>(jobs.ToArray());
+                    _edges = UploadOutlineData(outlines, edgeCount, static outline => outline.Edges);
+                    _contours = UploadOutlineData(outlines, contourCount, static outline => outline.Contours);
+                    _jobs = Buffer<Job>(CollectionsMarshal.AsSpan(jobs));
                     _scratch = owner._device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
                         ResourceDescription.Texture2D(Format.R32_Float, _width, _height, (ushort)_jobCount, 1, 1, 0, ResourceFlags.AllowUnorderedAccess), ResourceStates.UnorderedAccess);
                     _raw = owner._device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None,
@@ -241,13 +248,35 @@ internal sealed unsafe class FoliaGpuGlyphAtlas : IDisposable
                     Uav(owner.Shadow!, handle + step * 4);
                     Uav(_scratch, handle + step * 5);
                     Uav(_raw, handle + step * 6);
-                    owner.OutlineUploadBytes += edges.Count * 80L + contours.Count * 16L + jobs.Count * 48L;
+                    owner.OutlineUploadBytes += edgeCount * 80L + contourCount * 16L + jobs.Count * 48L;
                 }
             }
             catch (global::System.Exception caughtException2) { AppLog.Caught(caughtException2); Dispose(); throw; }
         }
 
         private static ulong Align(ulong value, ulong alignment) => (value + alignment - 1) & ~(alignment - 1);
+        private ID3D12Resource UploadOutlineData<T>(List<FoliaGlyphOutline> outlines, int count, Func<FoliaGlyphOutline, T[]> select) where T : unmanaged
+        {
+            var resource = _owner._device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
+                ResourceDescription.Buffer((ulong)Math.Max(16, count * sizeof(T))), ResourceStates.GenericRead);
+            try
+            {
+                var remaining = new Span<T>(resource.Map<T>(0), count);
+                foreach (var outline in outlines)
+                {
+                    var values = select(outline).AsSpan();
+                    values.CopyTo(remaining);
+                    remaining = remaining[values.Length..];
+                }
+                resource.Unmap(0);
+                return resource;
+            }
+            catch
+            {
+                resource.Dispose();
+                throw;
+            }
+        }
         private ID3D12Resource Buffer<T>(ReadOnlySpan<T> values) where T : unmanaged
         {
             var resource = _owner._device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,

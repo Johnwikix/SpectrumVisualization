@@ -9,6 +9,8 @@ internal sealed partial class FoliaMachi
 {
     private const int BoardHeight = 320;
     private const int TickerHeight = 80;
+    private const float TickerFont = 42;
+    private const double TickerPageSeconds = 3;
     private const int MetadataHeight = 40;
     private const float BoardMargin = .05f;
     private const float LineGap = 1.22f;
@@ -18,6 +20,8 @@ internal sealed partial class FoliaMachi
     {
         private readonly FoliaTextAtlas _atlas;
         private readonly Row[][] _rows;
+        private readonly Vector2[][] _wordSweep;
+        private readonly ReadOnlyMemory<FoliaPreparedGlyph>[][] _tickerPages;
         private readonly int[] _next;
         private readonly Vector3 _lit, _boardInk, _boardAccent, _boardBackground, _waitingInk, _tickerColor;
         private readonly Vector3 _sungInk, _sungAccent, _pendingInk, _pendingCueInk, _sweepInk;
@@ -51,13 +55,15 @@ internal sealed partial class FoliaMachi
             _duration = song.Duration > 0 ? song.Duration : song.Lines.Length == 0 ? 0 : BoardEnd(song.Lines[^1]);
             _atlas = atlas;
             SceneId = sceneId;
-            TrafficSeed = Hash("car:", song.Title, song.Artist);
+            // Ambient actors keep the same trajectories while the track changes.
+            TrafficSeed = Hash("car:", sceneId, "");
+            uint fanSeed = Hash("machi-fan:", sceneId, "");
+            FanSpeed = 1.6f + 1.6f * NextRandom(ref fanSeed);
             uint actorSeed = Hash("machi:", song.Title, song.Artist);
-            // The upstream seed draws these three values after its eleven prop/weather draws.
+            // The upstream seed draws these timings after its eleven prop/weather draws.
             for (int i = 0; i < 11; i++) NextRandom(ref actorSeed);
             DoorPhase = NextRandom(ref actorSeed);
             DoorInterval = 22 + 18 * NextRandom(ref actorSeed);
-            FanSpeed = 1.6f + 1.6f * NextRandom(ref actorSeed);
             DoorEvents = sceneId == "konbini" ? BuildDoorEvents(song.Lines, DoorInterval, DoorPhase) : [];
             _boardHeight = PanelWidth * (sceneId switch
             {
@@ -120,6 +126,11 @@ internal sealed partial class FoliaMachi
             Vector3 oppositeHue = Vector3.Lerp(new(.04f, .64f, 1), opposite / Math.Max(span, .001f), Math.Min(1, span * 2));
             _sweepInk = new Vector3(.005f) + oppositeHue * .048f;
             _rows = new Row[atlas.Lines.Length][];
+            _wordSweep = new Vector2[_rows.Length][];
+            // Slot zero belongs to the song card. Each lyric cue starts its own carousel.
+            _tickerPages = new ReadOnlyMemory<FoliaPreparedGlyph>[atlas.Lines.Length + 1][];
+            atlas.CharacterGlyphs.TryGetValue(" ", out var space);
+            _tickerPages[0] = PaginateTicker(atlas.Title, atlas.Artist, space, token);
             _next = new int[_rows.Length];
             int next = -1;
             for (int i = _rows.Length - 1; i >= 0; i--)
@@ -130,6 +141,11 @@ internal sealed partial class FoliaMachi
                 if (IsLyric(line.Source))
                     next = i;
                 _rows[i] = LayoutRows(line, _boardHeight, token);
+                _wordSweep[i] = PrepareWordSweep(line);
+                var translation = line.Translation;
+                _tickerPages[i + 1] = sceneId != "kowloon" && _next[i] >= 0
+                    ? PaginateTicker(atlas.Lines[_next[i]].Glyphs, translation, space, token)
+                    : translation.Length > 0 ? PaginateTicker(translation, [], space, token) : _tickerPages[0];
             }
         }
 
@@ -165,7 +181,7 @@ internal sealed partial class FoliaMachi
                 output[i].Rect.W *= boardScale;
             }
 
-            WriteTicker(ref painter, target, ambientTime);
+            WriteTicker(ref painter, target, position);
             int endTicker = painter.Count;
             MarkBand(output, endBoard, endTicker, 1);
             bool neon = SceneId == "kowloon";
@@ -215,6 +231,7 @@ internal sealed partial class FoliaMachi
             var line = _atlas.Lines[target];
             var timing = line.Source.Timing;
             var rows = _rows[target].AsSpan();
+            var sweeps = _wordSweep[target];
             float widest = 0;
             foreach (ref readonly Row row in rows)
                 widest = Math.Max(widest, row.Width);
@@ -225,8 +242,9 @@ internal sealed partial class FoliaMachi
             foreach (ref readonly Row row in rows)
             {
                 float x = (PanelWidth - row.Width * font) * .5f;
-                foreach (ref readonly FoliaPreparedGlyph glyph in line.Glyphs.AsSpan(row.Start, row.End - row.Start))
+                for (int i = row.Start; i < row.End; i++)
                 {
+                    ref readonly var glyph = ref line.Glyphs[i];
                     float at = x + (glyph.Offset - row.Offset) * font;
                     float top = y - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f - glyph.Glyph.CanvasCenterY) * font;
                     bool accent = glyph.ActiveColor.HasValue;
@@ -235,7 +253,7 @@ internal sealed partial class FoliaMachi
                         painter.Glyph(glyph.Glyph, at, top, font, accent ? _boardAccent : _boardInk, 1);
                         continue;
                     }
-                    // All graphemes belonging to one authored syllable share its clock.
+                    // All glyphs use the authored interval and the sweep coordinates prepared for this word.
                     var word = line.Source.Words[glyph.Word];
                     float cue = Math.Clamp((float)((position - timing.WordEntrance(word.Start)) / timing.Lookahead), 0, 1);
                     Vector3 sung = accent ? _sungAccent : _sungInk;
@@ -249,11 +267,56 @@ internal sealed partial class FoliaMachi
                     ref FoliaInstance instance = ref output[first];
                     instance.GlyphData.Y = 1;
                     instance.GlyphData.Z = FoliaTextAtlas.GlyphPaddingEm / glyph.Glyph.Width;
+                    Vector2 sweep = sweeps.Length == 0 ? Vector2.UnitY : sweeps[i];
+                    instance.Transform.Y = sweep.X;
+                    instance.Transform.Z = sweep.Y;
                     instance.Effect = new(progress, pending.X, pending.Y, pending.Z);
                     instance.Shape = new(0, _sweepInk.X, _sweepInk.Y, _sweepInk.Z);
                 }
                 y += rowHeight;
             }
+        }
+
+        private static Vector2[] PrepareWordSweep(FoliaPreparedLine line)
+        {
+            if (!line.Source.WordSynced) return [];
+            const float Padding = FoliaTextAtlas.GlyphPaddingEm;
+            var glyphs = line.Glyphs.AsSpan();
+            Vector2[]? sweeps = null;
+            for (int start = 0, end; start < glyphs.Length; start = end)
+            {
+                int word = glyphs[start].Word;
+                end = start + 1;
+                while (end < glyphs.Length && glyphs[end].Word == word)
+                    end++;
+                if (end - start < 2 || !FoliaWordSegmentation.UsesWordSweep(line.Source.Words[word].Text))
+                    continue;
+
+                float left = float.PositiveInfinity, right = float.NegativeInfinity;
+                for (int i = start; i < end; i++)
+                {
+                    ref readonly var glyph = ref glyphs[i];
+                    if (glyph.Glyph.Width <= 2 * Padding) continue;
+                    float tileLeft = glyph.Offset + glyph.Glyph.BearingX;
+                    left = Math.Min(left, tileLeft + Padding);
+                    right = Math.Max(right, tileLeft + glyph.Glyph.Width - Padding);
+                }
+                if (right <= left) continue;
+                if (sweeps == null)
+                {
+                    sweeps = new Vector2[glyphs.Length];
+                    Array.Fill(sweeps, Vector2.UnitY);
+                }
+                float inverseWidth = 1 / (right - left);
+                for (int i = start; i < end; i++)
+                {
+                    ref readonly var glyph = ref glyphs[i];
+                    if (glyph.Glyph.Width <= 2 * Padding) continue;
+                    float inkLeft = glyph.Offset + glyph.Glyph.BearingX + Padding;
+                    sweeps[i] = new((inkLeft - left) * inverseWidth, (glyph.Glyph.Width - 2 * Padding) * inverseWidth);
+                }
+            }
+            return sweeps ?? [];
         }
 
         private static Vector3 LinearInk(Vector3 color) => new(LinearInk(color.X), LinearInk(color.Y), LinearInk(color.Z));
@@ -264,51 +327,53 @@ internal sealed partial class FoliaMachi
 
         private static float EncodeInk(float value) => value <= .0031308f ? value * 12.92f : 1.055f * MathF.Pow(value, 1 / 2.4f) - .055f;
 
-        private void WriteTicker(ref FoliaPainter painter, int target, double ambientTime)
+        private static ReadOnlyMemory<FoliaPreparedGlyph>[] PaginateTicker(FoliaPreparedGlyph[] first,
+            FoliaPreparedGlyph[] second, FoliaGlyph space, CancellationToken token)
         {
-            ReadOnlySpan<FoliaPreparedGlyph> first = _atlas.Title;
-            ReadOnlySpan<FoliaPreparedGlyph> second = _atlas.Artist;
-            float firstWidth = _atlas.TitleWidth;
-            float secondWidth = _atlas.ArtistWidth;
-            if (target >= 0)
-            {
-                var line = _atlas.Lines[target];
-                if (SceneId == "kowloon" && line.Translation.Length > 0)
-                {
-                    first = line.Translation;
-                    firstWidth = line.TranslationWidth;
-                    second = [];
-                    secondWidth = 0;
-                }
-                else if (_next[target] >= 0 && SceneId != "kowloon")
-                {
-                    int next = _next[target];
-                    first = _atlas.Lines[next].Glyphs;
-                    firstWidth = _atlas.Lines[next].Width;
-                    second = line.Translation;
-                    secondWidth = line.TranslationWidth;
-                }
-                else if (line.Translation.Length > 0)
-                {
-                    first = line.Translation;
-                    firstWidth = line.TranslationWidth;
-                    second = [];
-                    secondWidth = 0;
-                }
-            }
-            if (first.Length + second.Length == 0) return;
+            var pages = new List<ReadOnlyMemory<FoliaPreparedGlyph>>();
+            Append(first);
+            Append(second);
+            return pages.ToArray();
 
-            const float Font = 42;
-            const float Gap = 74;
-            float secondOffset = firstWidth * Font + Gap;
-            float pitch = Math.Max(256, secondOffset + secondWidth * Font + Gap);
-            float origin = -(float)(Math.Max(0, ambientTime) * 70 % pitch);
-            float center = BoardHeight + TickerHeight * .5f;
-            for (float x = origin; x < PanelWidth; x += pitch)
+            void Append(FoliaPreparedGlyph[] text)
             {
-                PaintText(ref painter, first, x, center, Font, _tickerColor);
-                PaintText(ref painter, second, x + secondOffset, center, Font, _tickerColor);
+                const float Width = PanelWidth * (1 - 2 * BoardMargin) / TickerFont;
+                int start = 0;
+                while (start < text.Length)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (text[start].Glyph == space) { start++; continue; }
+                    int end = start + 1, lastBreak = start;
+                    while (end < text.Length)
+                    {
+                        if (text[end - 1].Word != text[end].Word || text[end].Glyph == space)
+                            lastBreak = end;
+                        if (text[end].Offset + text[end].Glyph.Advance - text[start].Offset > Width)
+                        {
+                            if (lastBreak > start) end = lastBreak;
+                            break;
+                        }
+                        end++;
+                    }
+                    int visibleEnd = end;
+                    while (visibleEnd > start + 1 && text[visibleEnd - 1].Glyph == space) visibleEnd--;
+                    pages.Add(text.AsMemory(start, visibleEnd - start));
+                    start = end;
+                }
             }
+        }
+
+        private void WriteTicker(ref FoliaPainter painter, int target, double position)
+        {
+            var pages = _tickerPages[target + 1];
+            if (pages.Length == 0) return;
+            double elapsed = target < 0 ? position : position - _atlas.Lines[target].Source.Start;
+            int index = (int)(Math.Floor(Math.Max(0, elapsed) / TickerPageSeconds) % pages.Length);
+            var page = pages[index].Span;
+            float width = page[^1].Offset + page[^1].Glyph.Advance - page[0].Offset;
+            float font = Fit(width, TickerFont);
+            float x = (PanelWidth - width * font) * .5f - page[0].Offset * font;
+            PaintText(ref painter, page, x, BoardHeight + TickerHeight * .5f, font, _tickerColor);
         }
 
         private void WriteMotelTitle(ref FoliaPainter painter, Span<FoliaInstance> output)

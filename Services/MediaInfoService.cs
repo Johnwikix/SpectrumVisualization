@@ -17,7 +17,7 @@ namespace WinExSpectrumTest.Services
     public sealed class MediaInfoService
     {
         private GlobalSystemMediaTransportControlsSessionManager? _manager;
-        private GlobalSystemMediaTransportControlsSession? _session;
+        private volatile GlobalSystemMediaTransportControlsSession? _session;
 
         // 串行化 UpdateSessionAsync（SessionsChanged / PlaybackInfoChanged / 健康检查并发触发）
         private readonly SemaphoreSlim _gate = new(1, 1);
@@ -43,6 +43,9 @@ namespace WinExSpectrumTest.Services
         public string? CurrentSourceAppId => CurrentTrack.SourceAppId;
         public IRandomAccessStreamReference? CurrentThumbnail => CurrentTrack.Thumbnail;
         private long _mediaRequestVersion;
+        private Task? _mediaRefresh;
+        private DateTimeOffset _timelineUpdated;
+        private readonly record struct PlaybackTimeline(bool Playing, TimeSpan Position, TimeSpan Duration, DateTimeOffset Updated);
 
         public event Action<string?, string?, IRandomAccessStreamReference?>? MediaTextChanged;
         public event Action<bool>? PlaybackChanged;
@@ -52,7 +55,11 @@ namespace WinExSpectrumTest.Services
         public TimeSpan Position { get; private set; }
         public TimeSpan Duration { get; private set; }
 
-        public Task InitializeAsync() => _initialization ??= InitializeCoreAsync();
+        public Task InitializeAsync()
+        {
+            lock (_snapshotGate)
+                return _stopping ? Task.CompletedTask : _initialization ??= Task.Run(InitializeCoreAsync);
+        }
 
         private async Task InitializeCoreAsync()
         {
@@ -125,26 +132,20 @@ namespace WinExSpectrumTest.Services
                     {
                         return;
                     }
-                    if (_session != null)
+                    var previous = _session;
+                    if (previous != null)
                     {
-                        App.WriteCrashLog("SMTC", $"session list empty, unbinding (was {_session.SourceAppUserModelId})", null);
-                        _session.MediaPropertiesChanged -= OnMediaPropertiesChanged;
-                        _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
-                        _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
-                        _session = null;
+                        App.WriteCrashLog("SMTC", $"session list empty, unbinding (was {previous.SourceAppUserModelId})", null);
+                        previous.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                        previous.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                        previous.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
                     }
-                    if (CurrentTitle != null || CurrentArtist != null)
+                    lock (_snapshotGate)
                     {
-                        lock (_snapshotGate)
-                        {
-                            Interlocked.Increment(ref _mediaRequestVersion);
-                            Volatile.Write(ref _currentTrack, EmptyTrack);
-                            IsPlaying = false;
-                            Position = Duration = TimeSpan.Zero;
-                            MediaTextChanged?.Invoke(null, null, null);
-                            PlaybackChanged?.Invoke(false);
-                            TimelineChanged?.Invoke(TimeSpan.Zero, TimeSpan.Zero);
-                        }
+                        if (_stopping) return;
+                        _session = null;
+                        _mediaRequestVersion++;
+                        PublishSnapshot(EmptyTrack, default(PlaybackTimeline));
                     }
                     return;
                 }
@@ -211,13 +212,10 @@ namespace WinExSpectrumTest.Services
                 // 跳过重绑与重推，避免把正在显示的信息清掉重闪。
                 if (_session != null && selected.SourceAppUserModelId == _session.SourceAppUserModelId)
                 {
-                // 内容自愈：清空事件与重绑推送乱序时（切歌触发会话短暂重建的典型
-                // 现象），缓存可能停留在空值且再无推送来修复——这里强制补推一次。
-                if (string.IsNullOrEmpty(CurrentTitle) && string.IsNullOrEmpty(CurrentArtist))
-                {
-                    await RefreshMediaPropertiesAsync().ConfigureAwait(false);
-                }
-                return;
+                    // Re-read an empty cache in case the initial media event was missed.
+                    if (string.IsNullOrEmpty(CurrentTitle) && string.IsNullOrEmpty(CurrentArtist))
+                        await RequestMediaRefresh().ConfigureAwait(false);
+                    return;
                 }
 
                 if (_session != null)
@@ -226,13 +224,17 @@ namespace WinExSpectrumTest.Services
                     _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
                     _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
                 }
-                _session = selected;
-                _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
-                _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
-                _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
-                App.WriteCrashLog("SMTC", $"bound session {_session.SourceAppUserModelId}", null);
-                await RefreshMediaPropertiesAsync().ConfigureAwait(false);
-                RefreshPlaybackAndTimeline();
+                lock (_snapshotGate)
+                {
+                    if (_stopping) return;
+                    _session = selected;
+                    _timelineUpdated = default;
+                }
+                selected.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                selected.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                selected.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                App.WriteCrashLog("SMTC", $"bound session {selected.SourceAppUserModelId}", null);
+                await RequestMediaRefresh().ConfigureAwait(false);
             }
             catch (Exception caughtException5)
             {
@@ -244,30 +246,20 @@ namespace WinExSpectrumTest.Services
             }
         }
 
-        private async void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
+        private void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
         {
-            if (!IsCurrentSession(sender)) return;
-            await RefreshMediaPropertiesAsync();
+            if (IsCurrentSession(sender)) _ = RequestMediaRefresh();
         }
 
         private async void OnPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
         {
             if (!IsCurrentSession(sender)) return;
-            RefreshPlaybackAndTimeline();
-            await RefreshMediaPropertiesAsync();
+            bool playbackChanged = RefreshPlaybackAndTimeline();
+            // Some players report metadata on the first playback state change.
+            if (playbackChanged || string.IsNullOrEmpty(CurrentTitle) && string.IsNullOrEmpty(CurrentArtist))
+                _ = RequestMediaRefresh();
             // 当前会话停止/暂停而别的会话可能开始播放：重跑选择策略
-            try
-            {
-                if (_session == null
-                    || _session.GetPlaybackInfo()?.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
-                {
-                    await UpdateSessionAsync();
-                }
-            }
-            catch (Exception caughtException6)
-            {
-                AppLog.Caught(caughtException6);
-            }
+            if (!IsPlaying && playbackChanged) await UpdateSessionAsync().ConfigureAwait(false);
         }
 
         private void OnTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
@@ -279,86 +271,135 @@ namespace WinExSpectrumTest.Services
         private bool IsCurrentSession(GlobalSystemMediaTransportControlsSession sender)
         {
             // WinRT may project another wrapper for the same session. Use the same source identity as selection.
-            try { return !_stopping && _session is { } current && sender.SourceAppUserModelId == current.SourceAppUserModelId; }
+            try { return !_stopping && _session is { } current && (ReferenceEquals(sender, current) || sender.SourceAppUserModelId == current.SourceAppUserModelId); }
             catch (Exception caughtException7) { AppLog.Caught(caughtException7); return false; }
+        }
+
+        private Task RequestMediaRefresh()
+        {
+            lock (_snapshotGate)
+            {
+                if (_stopping || _session == null) return Task.CompletedTask;
+                _mediaRequestVersion++;
+                return _mediaRefresh ??= Task.Run(RefreshMediaPropertiesAsync);
+            }
         }
 
         private async Task RefreshMediaPropertiesAsync()
         {
-            try
+            // One WinRT read at a time. A burst arriving during the read needs only
+            // one follow-up, and the obsolete result cannot update the track or clock.
+            while (true)
             {
-                if (_stopping || _session == null) return;
-                var session = _session;
-                long version = Interlocked.Increment(ref _mediaRequestVersion);
-                var props = await session.TryGetMediaPropertiesAsync();
-                if (_stopping || props == null) return;
-                // 标题与歌手全空视为"无效快照"（切歌瞬间/暂停态可能拿到）——不更新不推送，
-                // 保留旧值等下一次推送；否则空串会把正在显示的信息冲掉（表现为文字消失）。
-                if (string.IsNullOrEmpty(props.Title) && string.IsNullOrEmpty(props.Artist))
-                {
-                    return;
-                }
-                // Refresh the session clock before notifying lyric consumers, so they need
-                // no fixed delay to wait for this service's previous-track duration to update.
-                RefreshPlaybackAndTimeline();
+                GlobalSystemMediaTransportControlsSession session;
+                long version;
                 lock (_snapshotGate)
                 {
-                    if (_stopping || !ReferenceEquals(session, _session) || version != Volatile.Read(ref _mediaRequestVersion)) return;
-                    PublishSnapshot(new(props.Title, props.Artist, props.AlbumTitle, session.SourceAppUserModelId, props.Thumbnail));
+                    if (_stopping || _session is not { } active)
+                    {
+                        _mediaRefresh = null;
+                        return;
+                    }
+                    session = active;
+                    version = _mediaRequestVersion;
                 }
-                App.WriteCrashLog("SMTC", $"push title='{props.Title}' artist='{props.Artist}'", null);
-            }
-            catch (Exception caughtException8)
-            {
-                AppLog.Caught(caughtException8);
+                try
+                {
+                    var props = await session.TryGetMediaPropertiesAsync().AsTask(_lifetime.Token).ConfigureAwait(false);
+                    bool current;
+                    lock (_snapshotGate) current = MatchesMediaRequest(session, version);
+                    if (current)
+                    {
+                        // An empty snapshot can arrive momentarily while a player switches tracks.
+                        TrackSnapshot? track = props == null || string.IsNullOrEmpty(props.Title) && string.IsNullOrEmpty(props.Artist)
+                            ? null : new(props.Title, props.Artist, props.AlbumTitle, session.SourceAppUserModelId, props.Thumbnail);
+                        var timeline = ReadPlaybackTimeline(session);
+                        lock (_snapshotGate)
+                            if (MatchesMediaRequest(session, version)) PublishSnapshot(track, timeline);
+                    }
+                }
+                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+                catch (Exception ex) { AppLog.Caught(ex); }
+
+                lock (_snapshotGate)
+                {
+                    if (!_stopping && version != _mediaRequestVersion) continue;
+                    _mediaRefresh = null;
+                    return;
+                }
             }
         }
 
-        private void PublishSnapshot(TrackSnapshot track)
-        {
-            lock (_snapshotGate)
-            {
-                if (_stopping) return;
-                Volatile.Write(ref _currentTrack, track);
-                MediaTextChanged?.Invoke(track.Title, track.Artist, track.Thumbnail);
-            }
-        }
+        private bool MatchesMediaRequest(GlobalSystemMediaTransportControlsSession session, long version) =>
+            !_stopping && ReferenceEquals(session, _session) && version == _mediaRequestVersion;
 
-        private void RefreshPlaybackAndTimeline()
+        private static PlaybackTimeline? ReadPlaybackTimeline(GlobalSystemMediaTransportControlsSession session)
         {
             try
             {
-                if (_stopping || _session == null) return;
-                var session = _session;
                 var playbackInfo = session.GetPlaybackInfo();
                 bool playing = playbackInfo?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 var timeline = session.GetTimelineProperties();
+                return new(playing, timeline.Position, timeline.EndTime, timeline.LastUpdatedTime);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Caught(ex);
+                return null;
+            }
+        }
+
+        private bool RefreshPlaybackAndTimeline()
+        {
+            if (_stopping || _session is not { } session) return false;
+            var timeline = ReadPlaybackTimeline(session);
+            try
+            {
                 lock (_snapshotGate)
                 {
-                    if (_stopping || !ReferenceEquals(session, _session)) return;
-                    if (playing != IsPlaying)
-                    {
-                        IsPlaying = playing;
-                        PlaybackChanged?.Invoke(playing);
-                    }
-
-                    Position = timeline.Position;
-                    Duration = timeline.EndTime;
-                    TimelineChanged?.Invoke(timeline.Position, timeline.EndTime);
+                    if (_stopping || !ReferenceEquals(session, _session)) return false;
+                    return PublishSnapshot(null, timeline);
                 }
             }
-            catch (Exception caughtException9)
+            catch (Exception ex) { AppLog.Caught(ex); return false; }
+        }
+
+        // _snapshotGate orders reads and callbacks. Both sets of properties are visible
+        // before subscribers are notified, so a new duration cannot amend the old track.
+        private bool PublishSnapshot(TrackSnapshot? track, PlaybackTimeline? timeline)
+        {
+            bool playingChanged = false, timelineChanged = false;
+            if (timeline is { } clock)
             {
-                AppLog.Caught(caughtException9);
+                playingChanged = IsPlaying != clock.Playing;
+                timelineChanged = Position != clock.Position || Duration != clock.Duration || _timelineUpdated != clock.Updated;
+                IsPlaying = clock.Playing;
+                Position = clock.Position;
+                Duration = clock.Duration;
+                _timelineUpdated = clock.Updated;
             }
+            if (track != null && track != CurrentTrack)
+            {
+                Volatile.Write(ref _currentTrack, track);
+                MediaTextChanged?.Invoke(track.Title, track.Artist, track.Thumbnail);
+            }
+            if (playingChanged) PlaybackChanged?.Invoke(IsPlaying);
+            if (timelineChanged) TimelineChanged?.Invoke(Position, Duration);
+            return playingChanged;
         }
 
         public async Task StopAsync()
         {
-            lock (_snapshotGate) _stopping = true;
+            Task? mediaRefresh;
+            lock (_snapshotGate)
+            {
+                _stopping = true;
+                mediaRefresh = _mediaRefresh;
+            }
             _lifetime.Cancel();
             if (_initialization != null) await _initialization;
             if (_watchdog != null) await _watchdog;
+            if (mediaRefresh != null) await mediaRefresh;
             await _gate.WaitAsync();
             try
             {

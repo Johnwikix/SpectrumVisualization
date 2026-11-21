@@ -74,7 +74,8 @@ internal sealed class FoliaModePlan
                 case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
             }
         token.ThrowIfCancellationRequested();
-        GlowWords.Prepare(atlas, request.Mode is "classic" or "partita" or "tilt", request.Mode == "classic", token);
+        if (atlas.Lines.Length != 0 && request.Mode is ("classic" or "partita" or "tilt" or "cappella"))
+            GlowWords.Prepare(atlas, request.Mode, token);
         if (request.Mode == "cappella") _ = FoliaAssets.Emojis;
     }
 }
@@ -103,8 +104,9 @@ internal sealed class FoliaScenePreparation : IDisposable
     private FoliaSceneRequest? _pending;
     private FoliaSceneRequest? _working;
     private FoliaPreparedScene? _ready;
-    private readonly Queue<FoliaPixelBuffer> _retiredPixels = new();
+    private readonly Queue<IDisposable> _retired = new();
     private CancellationTokenSource? _cancellation;
+    private Task? _cancelCallbacks;
     private Task? _work;
     private bool _running, _stopped;
     private FoliaTextAtlas? _atlas;
@@ -131,25 +133,38 @@ internal sealed class FoliaScenePreparation : IDisposable
                 || working.Width != request.Width || working.Height != request.Height || working.Scale != request.Scale
                 || request.Mode == "machi" && (working.MachiScene != request.MachiScene || working.MachiIdleScene != request.MachiIdleScene)
                 || working.Background != request.Background || working.Theme != request.Theme)
-                _cancellation?.Cancel();
-            Interlocked.Exchange(ref _ready, null)?.Dispose();
+                CancelWorker();
+            if (Interlocked.Exchange(ref _ready, null) is { } replaced)
+                _retired.Enqueue(replaced);
             StartWorker();
         }
     }
 
-    internal void RetirePixels(FoliaPixelBuffer? pixels)
+    internal void Retire(IDisposable? resource)
     {
-        if (pixels == null) return;
+        if (resource == null) return;
         lock (_gate)
         {
-            if (_stopped) { pixels.Dispose(); return; }
-            _retiredPixels.Enqueue(pixels);
-            StartWorker();
+            if (!_stopped)
+            {
+                _retired.Enqueue(resource);
+                StartWorker();
+                return;
+            }
         }
+        resource.Dispose();
     }
 
-    // Called only under _gate. Pixel decommit can take milliseconds, so retire it on the
-    // same observed worker rather than moving a large allocation's free into the commit frame.
+    // A token may have callbacks registered by Parallel.For. Mark cancellation now
+    // and run its callbacks off the render thread.
+    private void CancelWorker()
+    {
+        if (_cancellation is { IsCancellationRequested: false } cancellation)
+            _cancelCallbacks = cancellation.CancelAsync();
+    }
+
+    // Called only under _gate. Final atlas leases can decommit pixels or wait for the
+    // glyph store, so both pixel buffers and obsolete scenes retire on the CPU worker.
     private void StartWorker()
     {
         if (_running) return;
@@ -163,10 +178,10 @@ internal sealed class FoliaScenePreparation : IDisposable
         {
             FoliaSceneRequest request = default;
             CancellationTokenSource? cancellation = null;
-            FoliaPixelBuffer? retired;
+            IDisposable? retired;
             lock (_gate)
             {
-                if (!_retiredPixels.TryDequeue(out retired))
+                if (!_retired.TryDequeue(out retired))
                 {
                     if (_stopped || _pending is not { } next)
                     {
@@ -181,7 +196,8 @@ internal sealed class FoliaScenePreparation : IDisposable
             }
             if (retired != null)
             {
-                retired.Dispose();
+                try { retired.Dispose(); }
+                catch (Exception error) { AppLog.Caught(error); }
                 continue;
             }
             var token = cancellation!.Token;
@@ -193,14 +209,19 @@ internal sealed class FoliaScenePreparation : IDisposable
                 token.ThrowIfCancellationRequested();
                 var theme = request.Theme ?? FoliaThemeSettings.Default;
                 request = request with { Song = _themes.Resolve(request.Song, theme, token) };
-                if (_atlas == null || _atlasRequest.Family != request.Family || _atlasRequest.Weight != request.Weight
+                // Shared stages have no track text to rasterize before lyrics arrive,
+                // except for Monet's own cover layout. Reuse the empty atlas across
+                // those notifications instead of queuing title glyphs that never draw.
+                var atlasRequest = request.Song.Lines.Length == 0 && request.Mode is not ("monet" or "machi" or "hanabi" or "metaphor" or "nebbia")
+                    ? request with { Song = FoliaSong.Empty } : request;
+                if (_atlas == null || _atlasRequest.Family != atlasRequest.Family || _atlasRequest.Weight != atlasRequest.Weight
                     || request.Mode == "machi" && !_atlas.HasMachiCard
                     || (request.Mode is "hanabi" or "metaphor") && _atlas.NativeDecor != request.Mode
-                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, request.Song)
-                    || !ReferenceEquals(_atlasRequest.Song.KeywordRanges, request.Song.KeywordRanges))
-                    ReplaceAtlas(CreateAtlas(request, token), request);
-                if (request.Mode == "tilt") PrepareTiltGlyphs(request, token);
-                _atlasRequest = request;
+                    || !FoliaSceneRequest.SameText(_atlasRequest.Song, atlasRequest.Song)
+                    || !ReferenceEquals(_atlasRequest.Song.KeywordRanges, atlasRequest.Song.KeywordRanges))
+                    ReplaceAtlas(CreateAtlas(atlasRequest, token), atlasRequest);
+                if (request.Mode == "tilt" && request.Song.Lines.Length != 0) PrepareTiltGlyphs(request, token);
+                _atlasRequest = atlasRequest;
                 if (_hasItalicRequest) _italicRequest = _italicRequest with { Song = request.Song };
                 if (_atlas.IsShared) Store.PrepareCpuTiles(_atlas.SharedGlyphs, token);
                 if (_plan == null || _planRequest.Mode != request.Mode || _planRequest.Width != request.Width
@@ -254,12 +275,17 @@ internal sealed class FoliaScenePreparation : IDisposable
             }
             finally
             {
+                Task? callbacks;
                 lock (_gate)
                 {
+                    callbacks = _cancelCallbacks;
+                    _cancelCallbacks = null;
                     _cancellation = null;
                     _working = null;
-                    cancellation.Dispose();
                 }
+                try { callbacks?.GetAwaiter().GetResult(); }
+                catch (Exception error) { AppLog.Caught(error); }
+                finally { cancellation.Dispose(); }
             }
         }
     }
@@ -322,7 +348,7 @@ internal sealed class FoliaScenePreparation : IDisposable
         {
             _stopped = true;
             _pending = null;
-            _cancellation?.Cancel();
+            CancelWorker();
             work = _work;
         }
         // The owning render worker calls this after its frame barrier. CPU preparation never

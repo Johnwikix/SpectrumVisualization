@@ -177,6 +177,7 @@ internal sealed unsafe partial class FoliaGpuEffect
                     if (!_machiBackend.DenoisingDisabled && !_machiBackend.DenoiserAvailable && !_machiBackend.RayReconstructionAvailable)
                         throw new InvalidOperationException($"Machi NRD initialization failed: {_machiBackend.DenoiserResult}.");
                     _actorTransforms = new Matrix4x4[asset.Actors.Length];
+                    _machiDoor = null;
                     SetMachiWeatherLayout(asset.Weather);
                     _installedMachiScene = _machiPlan!.SceneId;
                     // Only a successfully installed district selects a new water pattern.
@@ -440,23 +441,23 @@ internal sealed unsafe partial class FoliaGpuEffect
 
     private FoliaMachi.EnvironmentState _machiEnvironment;
     private float _machiChorus, _machiVacancyChorus;
+    private float? _machiDoor;
     private double _machiCycleSeconds;
-    private void UpdateMachiFrame(FoliaSong song, double position, int anchor, int board, bool reset)
+    private void UpdateMachiFrame(FoliaSong song, double position, int anchor, int board, bool resetLyrics)
     {
         bool firstEnvironmentFrame = _machiEnvironment.TimeOfDay == null;
-        reset |= firstEnvironmentFrame;
         float delta = Math.Clamp(_data[1].W, 0, .1f);
         string timeOfDay = AppSettings.FoliaMachiTimeOfDay;
         bool cycling = timeOfDay == "cycle";
         bool startCycle = cycling && _machiEnvironment.TimeOfDay != timeOfDay;
         if (cycling)
             _machiCycleSeconds = startCycle ? 0 : (_machiCycleSeconds + delta) % FoliaMachi.CycleDurationSeconds;
-        // Playback cuts and DXR resets can clear history without snapping the sky or drying the ground.
         var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, timeOfDay,
             AppSettings.FoliaMachiWeather, song, DateTime.Now, delta, firstEnvironmentFrame, _machiPlan!.SceneId, _machiCycleSeconds);
         _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
-        var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
-        _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _animation);
+        // SMTC can briefly stop its clock between tracks. The street keeps its own time.
+        var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _backgroundTime, _machiMotionWeight);
+        _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _backgroundTime, delta, ref _machiDoor);
         *(Matrix4x4*)_lightData = camera.ViewProjection;
         *(Matrix4x4*)(_lightData + 4) = camera.Inverse;
         _lightData[8] = new(environment.SkyBottom, environment.Mist);
@@ -474,13 +475,15 @@ internal sealed unsafe partial class FoliaGpuEffect
         float weatherTime = (float)(_backgroundTime % 3600);
         _lightData[10] = new(_machi.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
         _lightData[11] = new(environment.SkyTop, 0);
+        // Lyrics replace the panel texture in place. World history belongs to the camera,
+        // geometry and reconstruction, whose discontinuities the backend also detects.
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
-            environment.Wetness, (float)_data[1].W, reset || startCycle, MachiRayReconstructionRequested)
+            environment.Wetness, (float)_data[1].W, firstEnvironmentFrame || startCycle, MachiRayReconstructionRequested)
         {
             SamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel, MaxBounces = AppSettings.FoliaMachiMaxBounces,
             HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
-            NoVacancy = _machiPlan.UpdateVacancy(board, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
-            AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machiEnvironment.PuddlePattern,
+            NoVacancy = _machiPlan.UpdateVacancy(board, delta, resetLyrics || firstEnvironmentFrame, ref _machiChorus, ref _machiVacancyChorus),
+            AmbientTime = weatherTime, Rain = environment.Rain, Puddles = _machiEnvironment.PuddlePattern,
             PuddleFill = environment.PuddleFill, RainTime = weatherTime,
             RainShelters = *(Matrix4x4*)(_lightData + 14),
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,

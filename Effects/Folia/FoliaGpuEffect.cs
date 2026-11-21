@@ -61,24 +61,31 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private readonly FoliaRealtimeMotion _realtimeMotion = new();
     private string _lastMode = "", _lastBackground = "", _lastImageEffect = "";
     private bool _lastCoverBackground;
+    private const double TrackPauseGraceSeconds = .25;
+    private double _secondsSincePlaying = TrackPauseGraceSeconds;
     private double _lastPosition, _stagePosition;
+    private FoliaSceneRequest? _sampledRequest;
     private FoliaClock? _sampledClock;
     private double _sampledPosition;
     public bool ResetHistoryRequested
     {
         get
         {
-            var song = playback.Song;
-            bool showsSong = ShowsSong(song);
+            var request = DesiredScene(playback.Song);
+            _sampledRequest = request;
             _sampledClock = playback.Clock;
             _sampledPosition = _sampledClock.Now;
-            return _upload is { Complete: true }
-                || _lyricsVisible != showsSong
+            bool metaphorCut = false;
+            if (_nativeStage == FoliaNativeStage.Metaphor)
+            {
+                int shot = ShowsSong(request.Song) ? _metaphor!.ShotAt(_sampledPosition) : -1;
+                metaphorCut = _negativeInk != AppSettings.FoliaMetaphorNegative
+                    || _metaphorShot >= 0 && shot >= 0 && shot != _metaphorShot;
+            }
+            return _upload is { Complete: true } upload && upload.Scene.Request.Matches(request) && ChangesSceneTopology(request)
                 || _lastImageEffect != AppSettings.FoliaImageEffect || _lastCoverBackground != AppSettings.FoliaCoverBackground
-                || _hasScene && Math.Abs(_sampledPosition - _lastPosition) > .5
                 || _nativeStage == FoliaNativeStage.Nebbia && NebbiaWindowSetting() != _nebbiaWindowSetting
-                || _nativeStage == FoliaNativeStage.Metaphor
-                    && ((showsSong ? _metaphor!.ShotAt(_sampledPosition) : -1) != _metaphorShot || _negativeInk != AppSettings.FoliaMetaphorNegative);
+                || metaphorCut;
         }
     }
 
@@ -173,7 +180,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12PipelineState Pipeline(string file, string vs, string ps, bool sprites = false, bool temporal = false, bool screen = false)
     {
         string shader = FoliaShaderLibrary.Background(file);
-        int pipelineVersion = file == "Machi" ? 12 : ps == "MachiPanelPS" ? 11 : 10;
+        int pipelineVersion = file == "Machi" || ps == "MachiPanelPS" ? 12 : temporal ? 11 : 10;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
@@ -260,7 +267,11 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
                 GpuGraphics.DisposeResource(_uploads[i]);
                 _uploads[i] = null;
             }
-        bool songChanged = UpdatePreparedScene(playback.Song);
+        bool showedSong = _lyricsVisible;
+        var previousScene = _activeScene;
+        var request = _sampledRequest ?? DesiredScene(playback.Song);
+        _sampledRequest = null;
+        bool songChanged = UpdatePreparedScene(request);
         var song = _song!;
         _nativeStage = ActiveNativeStage();
         PrepareStageTargets(_nativeStage);
@@ -268,15 +279,21 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         string mode = _hasScene && (_activeRequest.Mode != "machi" || native) ? _activeRequest.Mode : "classic";
         string backgroundMode = _hasScene && !native ? _activeRequest.Background : "common";
         float fontScale = _hasScene ? _activeRequest.Scale : 1;
-        var clock = playback.Clock;
-        // Select the same shot as the pre-PrepareFrame history check. If a new clock
-        // arrived in between, it is consumed on the next frame of this active stage.
-        double position = _sampledClock != null && (!songChanged && _nativeStage == FoliaNativeStage.Metaphor
-            || ReferenceEquals(clock, _sampledClock)) ? _sampledPosition : clock.Now;
+        // Use the same song and clock samples as the pre-frame hard-cut check.
+        var clock = _sampledClock ?? playback.Clock;
+        double position = _sampledClock != null ? _sampledPosition : clock.Now;
         _sampledClock = null;
+        double delta = Math.Clamp(elapsedSeconds, 0, .1);
+        _secondsSincePlaying = clock.Playing ? 0 : Math.Min(TrackPauseGraceSeconds, _secondsSincePlaying + Math.Max(0, elapsedSeconds));
+        bool awaitingTrack = !_lyricsVisible || request.Song.LyricsPending && request.Song.Lines.Length == 0;
+        // SMTC can briefly report stopped while the next song and its timeline arrive.
+        bool ambientPlaying = clock.Playing || awaitingTrack && _secondsSincePlaying < TrackPauseGraceSeconds;
         bool modeChanged = _lastMode != mode;
         bool backgroundChanged = _lastBackground != backgroundMode;
-        bool motionReset = songChanged || modeChanged || Math.Abs(position - _lastPosition) > .5 || elapsedSeconds > .25;
+        bool seek = Math.Abs(position - _lastPosition) > .5;
+        bool motionReset = songChanged || modeChanged || seek || elapsedSeconds > .25;
+        bool localHistoryCut = showedSong != _lyricsVisible || !ReferenceEquals(previousScene, _activeScene)
+            || _lyricsVisible && seek;
         var motion = _realtimeMotion.Update(_analyzer.LatestFeatures, elapsedSeconds,
             AppSettings.FoliaRealtimeMotion && (native || mode is "sonnet" or "diorama" or "pendolo"), clock.Playing, motionReset);
         _sonnet.Motion = mode == "sonnet" ? motion.Scale(AppSettings.FoliaSonnetMotionStrength) : default;
@@ -289,16 +306,17 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _lastPosition = position;
         if (_lyricsVisible)
             _stagePosition = position;
+        else if (ambientPlaying)
+            _stagePosition += delta;
         float energy = Math.Clamp(_analyzer.LatestFeatures[FeatureIndex.Energy], 0, 1);
         _sonnet.SetAudio(_analyzer.LatestFeatures, elapsedSeconds, clock.Playing && mode == "sonnet");
-        double delta = Math.Clamp(elapsedSeconds, 0, .1);
         if (backgroundChanged)
         {
             _backgroundTime = 0;
             _animation = 0;
         }
         _backgroundTime += delta;
-        if (clock.Playing)
+        if (ambientPlaying)
             _animation += delta;
         int lineIndex = _lyricsVisible ? FoliaLyricLayout.FindLine(_atlas!.Lines, position) : -1;
         if (modeChanged || songChanged || _lineIndex != lineIndex)
@@ -334,7 +352,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _data[1] = new(backgroundMode is "monet" or "nomand" ? (float)_backgroundTime : (float)_animation, (float)position, energy, (float)elapsedSeconds);
         _data[2] = new(FoliaSettings.IndexOf(FoliaSettings.BackgroundModes, backgroundMode), FoliaSettings.IndexOf(FoliaSettings.LyricModes, mode), FoliaSettings.IndexOf(FoliaSettings.ImageEffects, AppSettings.FoliaImageEffect), 1);
         _data[27] = _data[3];
-        _data[3] = new(_temporal ? _frame.JitterX : 0, _temporal ? _frame.JitterY : 0, _frame.Reset ? 1 : 0, 0);
+        _data[3] = new(_temporal ? _frame.JitterX : 0, _temporal ? _frame.JitterY : 0,
+            _frame.Reset ? 1 : 0, localHistoryCut ? 1 : 0);
         for (int i = 0; i < 10; i++)
             _data[4 + i] = new(song.Palette[i % song.Palette.Length], 1);
         _data[14] = new(_atlas!.Width, _atlas.Height, song.CoverWidth, song.CoverHeight);
@@ -351,7 +370,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             if (_latentTarget == null)
                 ResizeLatent();
         }
-        _latent.Update(backgroundMode == "latent", !clock.Playing, elapsedSeconds, _analyzer.LatestFeatures,
+        _latent.Update(backgroundMode == "latent", !ambientPlaying, elapsedSeconds, _analyzer.LatestFeatures,
             new Span<Vector4>(_data + 17, 6), out _data[23], out _data[24], out _data[25]);
         // Upload heaps are write-combined. Layout and camera passes read earlier instances;
         // perform those passes in cached CPU memory, then upload once with the SIMD span copy.
@@ -369,7 +388,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             if (clock.Playing)
                 _nebbiaTime = (_nebbiaTime + delta) % 3600;
         }
-        _backgroundCount = (native && !windowBackdrop) || (mode == "fume" && backgroundMode == "common") ? 0 : _geometry.Write(instances, song, (int)_data[2].X, (float)_animation, energy, layoutWidth, layoutHeight, !clock.Playing, _analyzer.LatestFeatures);
+        _backgroundCount = (native && !windowBackdrop) || (mode == "fume" && backgroundMode == "common") ? 0 : _geometry.Write(instances, song, (int)_data[2].X, (float)_animation, energy, layoutWidth, layoutHeight, !ambientPlaying, _analyzer.LatestFeatures);
         if ((int)_data[2].Y == 12)
         {
             _lumiere.Update(new Span<Vector4>(_lightData, 52), song, _stagePosition, _size.Width, _size.Height, _analyzer.LatestFeatures[FeatureIndex.Bass]);
@@ -394,7 +413,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         if (mode == "pendolo" && _pendolo.Mesh.Length > 0)
         {
             int active = _lyricsVisible ? FoliaLyricLayout.FindActiveLine(_atlas.Lines, position) : -1;
-            _pendolo.Update(elapsedSeconds, position, active, _analyzer.LatestFeatures[FeatureIndex.Bass], clock.Playing, lineIndex, _atlas.Lines.Length);
+            _pendolo.Update(elapsedSeconds, position, active, _analyzer.LatestFeatures[FeatureIndex.Bass], ambientPlaying, lineIndex, _atlas.Lines.Length);
             _pendolo.WriteTransforms(new Span<Vector4>(_clockTransforms, 33));
             if (!ReferenceEquals(_clockMesh, _pendolo.Mesh))
             {
@@ -440,7 +459,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     public void RecordScene(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target)
     {
         _glyphAtlas.RecordGrowth(commands);
-        _upload?.Record(commands);
+        if (_upload is { } upload && upload.Scene.Request.Matches(_requested))
+            upload.Record(commands);
         UploadImages(commands);
         SetFoliaState(commands);
         if (_nativeStage == FoliaNativeStage.None)
