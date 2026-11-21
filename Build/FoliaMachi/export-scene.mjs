@@ -673,6 +673,14 @@ export async function exportScene(id, donor, batches) {
     const donorInstances = donor ? fitRainyCorner(scene, donor, materials, palette) : null;
     const model = modelFactory(batches, materials);
     const vehicles = fitVehicles(scene, id, model);
+    if (id === 'konbini') {
+        const pole = scene.root.getObjectByName('UtilityPole');
+        const wire = materials.toon('wire');
+        const originals = pole?.children.filter(object => object.material === wire || object.name === 'Insulator');
+        if (originals?.length !== 16) throw new Error('Unexpected geometry on the upstream Konbini utility pole.');
+        // The Blender model supplies the insulators, supported spans, and service drop.
+        for (const object of originals) object.removeFromParent();
+    }
     if (id === 'station') {
         const replaced = [];
         scene.root.traverse(object => {

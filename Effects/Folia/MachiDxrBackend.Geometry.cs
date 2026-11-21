@@ -35,6 +35,7 @@ internal sealed unsafe partial class MachiDxrBackend
     private ID3D12Resource _vertices = null!, _indices = null!, _verticesUpload = null!, _indicesUpload = null!;
     private ID3D12Resource _tlas = null!, _tlasScratch = null!, _instanceDescriptions = null!, _instanceData = null!;
     private ID3D12Resource _emitters = null!, _emitterPdf = null!;
+    private ID3D12Resource _emittersUpload = null!, _emitterPdfUpload = null!;
     private ID3D12Resource _sign = null!, _signUpload = null!;
     private PlacedSubresourceFootPrint _signFootprint;
     private byte* _instanceDescriptionsMapped, _instanceDataMapped;
@@ -229,6 +230,14 @@ internal sealed unsafe partial class MachiDxrBackend
         }
         _emitters = Upload<Emitter>(CollectionsMarshal.AsSpan(emitters));
         _emitterPdf = Upload<float>(pdf);
+        if (_tracePipeline.UsesInlineTraversal)
+        {
+            // Keep frequently sampled lighting tables in GPU-local memory on discrete adapters.
+            _emittersUpload = _emitters;
+            _emitterPdfUpload = _emitterPdf;
+            _emitters = SceneBuffer((ulong)emitters.Count * (uint)sizeof(Emitter), HeapType.Default, ResourceStates.CopyDest);
+            _emitterPdf = SceneBuffer((ulong)pdf.Length * sizeof(float), HeapType.Default, ResourceStates.CopyDest);
+        }
     }
 
     private static AliasEntry[] BuildAliasTable(ReadOnlySpan<float> weights, float inverseWeight)
@@ -288,6 +297,13 @@ internal sealed unsafe partial class MachiDxrBackend
             commands.CopyResource(_indices, _indicesUpload);
             commands.ResourceBarrierTransition(_vertices, ResourceStates.CopyDest, Read);
             commands.ResourceBarrierTransition(_indices, ResourceStates.CopyDest, Read);
+            if (_tracePipeline.UsesInlineTraversal)
+            {
+                commands.CopyResource(_emitters, _emittersUpload);
+                commands.CopyResource(_emitterPdf, _emitterPdfUpload);
+                commands.ResourceBarrierTransition(_emitters, ResourceStates.CopyDest, Read);
+                commands.ResourceBarrierTransition(_emitterPdf, ResourceStates.CopyDest, Read);
+            }
             commands.CopyTextureRegion(new TextureCopyLocation(_sign, 0), 0, 0, 0,
                 new TextureCopyLocation(_signUpload, _signFootprint), null);
             commands.ResourceBarrierTransition(_sign, ResourceStates.CopyDest, Read);
@@ -304,6 +320,11 @@ internal sealed unsafe partial class MachiDxrBackend
             // The host has completed this frame slot's first submission before reuse.
             ReleaseUpload(_verticesUpload);
             ReleaseUpload(_indicesUpload);
+            if (_tracePipeline.UsesInlineTraversal)
+            {
+                ReleaseUpload(_emittersUpload);
+                ReleaseUpload(_emitterPdfUpload);
+            }
             ReleaseUpload(_signUpload);
             foreach (var mesh in _instances) ReleaseUpload(mesh.Scratch);
             _initialUploadSlot = -1;
