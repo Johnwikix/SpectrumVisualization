@@ -16,8 +16,10 @@ internal enum MachiDxrSignal
 internal static class MachiDxrShaders
 {
     private static readonly Lazy<string> TraceSource = new(BuildTrace);
+    private static readonly Lazy<string> InlineTraceSource = new(() => "#define MACHI_INLINE_TRACE 1\n" + Trace);
     private static readonly Lazy<string> ResolveSource = new(() => WithNrd(FoliaShaderLibrary.Load("MachiResolve")));
     internal static string Trace => TraceSource.Value;
+    internal static string InlineTrace => InlineTraceSource.Value;
     internal static string Resolve => ResolveSource.Value;
 
     internal static int SignalComponents(MachiDxrSignal signal) => signal switch

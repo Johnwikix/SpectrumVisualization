@@ -21,13 +21,15 @@ The donor extraction culls or decimates repeated hardware details in Blender. Cl
 
 | Scene | Indexed vertices | Triangles | Sign and surface atlas | Analytic lights | Actors | Brotli bytes |
 | --- | ---: | ---: | --- | ---: | ---: | ---: |
-| Convenience store | 200,975 | 158,180 | 2048 × 1215 | 0 | 10 | 2,320,760 |
-| Gas station | 255,589 | 229,754 | 2048 × 1626 | 2 | 4 | 2,760,523 |
-| Kowloon | 246,861 | 206,670 | 2048 × 1022 | 5 | 1 | 2,876,882 |
+| Convenience store | 201,023 | 158,204 | 2048 × 1215 | 0 | 10 | 2,315,924 |
+| Gas station | 255,661 | 229,790 | 2048 × 1626 | 2 | 4 | 2,757,207 |
+| Kowloon | 247,005 | 206,742 | 2048 × 1022 | 5 | 1 | 2,873,048 |
 
 The 500,000-triangle limit includes static geometry and all actors in each packed scene. Street luminaires, occupied windows, under-awning diffusers and vehicle lights contribute through emissive mesh triangles.
 
 Ceiling strips, pole lamps and the Kowloon stall bulb emit from their actual mesh surfaces. The exporter integrates the matched Folia point or spot light over its solid angle and distributes its flux across the emitting area. A one-sided Lambertian fixture with area A and flux Φ has radiance Φ/(πA). The convenience store street lamp preserves the Blender spectrum and matches the luminance-weighted flux of the Folia spotlight. The vending LEDs keep their Blender linear emission, approximately (34.56, 41.76, 48). Indirect paths through the storefront supply the window spill. These are scene-relative light levels. Untextured HDR emitters store three independent linear binary16 channels in the UV slots of material 11, alongside an independent sRGB base color.
+
+Coral and cyan hood strips frame the convenience store's warm interior. Brighter cyan canopy fixtures contrast with the motel's rose-pink light at the gas station. Kowloon pairs stronger pink and cyan alley lights with a warm stall. The scene-specific pigment and chroma adjustments are baked into the material colors and static sign atlas during export. Neutral sign pixels, alpha, PBR tile channels and the separately sampled live text keep their original values.
 
 Printed textures supply diffuse color with zero emission. The motel arrow bulbs use material 12. Its first UV slot at vertex byte offset 18 stores the integer phase 0–3, and the sRGB color bytes store the upstream street-light palette. Both ray hits and sampled lights use the same scene time to switch between the upstream levels 0.18 and 1.9. The emitter distribution uses their time average of 1.04.
 

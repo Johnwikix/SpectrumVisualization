@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using SharpGen.Runtime;
 using Vortice.Direct3D12;
 using WinExSpectrumTest.Rendering;
+using WinExSpectrumTest.Service;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -36,16 +38,7 @@ internal sealed unsafe partial class MachiDxrBackend
                     [new StaticSamplerDescription(0, Filter.MinMagMipLinear, TextureAddressMode.Clamp, TextureAddressMode.Clamp,
                         TextureAddressMode.Clamp, 0, 1, ComparisonFunction.Never, StaticBorderColor.TransparentBlack,
                         0, float.MaxValue, ShaderVisibility.All, 0)])));
-                byte[] library = ShaderCompiler.Compile(MachiDxrShaders.Trace, "", "lib_6_3");
-                Trace = Keep(device.CreateStateObject<ID3D12StateObject>(new StateObjectDescription(StateObjectType.RaytracingPipeline,
-                    [
-                        new(new DxilLibraryDescription(library, [new("RayGen"), new("Miss"), new("ClosestHit"), new("AnyHit")])),
-                        new(new HitGroupDescription("MachiTriangles", HitGroupType.Triangles,
-                            anyHitShaderImport: "AnyHit", closestHitShaderImport: "ClosestHit")),
-                        new(new GlobalRootSignature(TraceRoot)),
-                        new(new RaytracingPipelineConfig(1)),
-                        new(new RaytracingShaderConfig(20, 8))
-                    ])));
+                Trace = Keep(CreateTrace(device));
                 var shaderTable = Keep(device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
                         ResourceDescription.Buffer(192), ResourceStates.GenericRead));
                 using (var properties = Trace.QueryInterface<ID3D12StateObjectProperties>())
@@ -75,6 +68,35 @@ internal sealed unsafe partial class MachiDxrBackend
                 throw;
             }
         }
+
+        private ID3D12StateObject CreateTrace(ID3D12Device5 device)
+        {
+            var options = device.CheckFeatureSupport<FeatureDataD3D12Options5>(Feature.Options5);
+            if (options.RaytracingTier >= RaytracingTier.Tier1_1 &&
+                device.CheckHighestShaderModel(ShaderModel.Model6_5) >= ShaderModel.Model6_5)
+            {
+                byte[] library = ShaderCompiler.Compile(MachiDxrShaders.InlineTrace, "", "lib_6_5");
+                try { return CreateStateObject(device, library); }
+                // Some drivers reject the inline library even when they advertise DXR 1.1.
+                catch (SharpGenException exception) when (exception.HResult is
+                    unchecked((int)0x80070057) or unchecked((int)0x80004001) or unchecked((int)0x887A0004))
+                {
+                    AppLog.Caught(exception);
+                }
+            }
+            return CreateStateObject(device, ShaderCompiler.Compile(MachiDxrShaders.Trace, "", "lib_6_3"));
+        }
+
+        private ID3D12StateObject CreateStateObject(ID3D12Device5 device, byte[] library) =>
+            device.CreateStateObject<ID3D12StateObject>(new StateObjectDescription(StateObjectType.RaytracingPipeline,
+            [
+                new(new DxilLibraryDescription(library, [new("RayGen"), new("Miss"), new("ClosestHit"), new("AnyHit")])),
+                new(new HitGroupDescription("MachiTriangles", HitGroupType.Triangles,
+                    anyHitShaderImport: "AnyHit", closestHitShaderImport: "ClosestHit")),
+                new(new GlobalRootSignature(TraceRoot)),
+                new(new RaytracingPipelineConfig(1)),
+                new(new RaytracingShaderConfig(20, 8))
+            ]));
 
         private T Keep<T>(T item) where T : IDisposable
         {

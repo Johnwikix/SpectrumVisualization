@@ -126,7 +126,9 @@ def _konbini(kit):
     duct = kit.mat("Konbini/Weatherproof enclosure", "#b4b4a7", .48, .34)
     dark = kit.mat("Konbini/Recessed vent", "#263038", .55, .21)
     lens = kit.mat("Konbini/Warm entry diffuser", "#fff0da", .42, emission=(12.0, 9.3, 6.6))
-    cool_lens = kit.mat("Konbini/Service diffuser", "#e4f0ff", .43, emission=(7.4, 8.5, 10.7))
+    cool_lens = kit.mat("Konbini/Cyan service diffuser", "#77ebff", .43, emission=(2.8, 11.5, 15.4))
+    pink_strip = kit.mat("Konbini/Coral rain hood strip", "#ff5d99", .36, emission=(6.0, .55, 1.9))
+    cyan_strip = kit.mat("Konbini/Cyan rain hood strip", "#55e1ff", .36, emission=(.45, 4.6, 6.2))
 
     def front(u, y, depth):
         return (u, y, .4 + depth)
@@ -138,6 +140,10 @@ def _konbini(kit):
             front, lambda u, y, d: (u, y, d), shell, edge, silver)
     _awning(kit, "Konbini/Return rain hood", (-.395, .52, 1.48, 2.62, 3.53, 4.57),
             right, lambda u, y, d: (d, y, u), shell, edge, silver)
+    kit.box("Konbini/Front hood illuminated edge", front(-1.99, 2.435, .538), (6.52, .025, .035),
+            pink_strip)
+    kit.box("Konbini/Return hood illuminated edge", right(2.085, 2.435, .538), (.035, .025, 4.78),
+            cyan_strip)
 
     for x in (-5.04, -3.52, -2.45, -1.37, .72):
         kit.box("Konbini/Canopy wall bracket", (x, 2.45, .415), (.096, .24, .064), edge, bevel=.012)
@@ -374,6 +380,7 @@ def _station(kit):
     nozzle_blue = kit.mat("Station/Super nozzle enamel", "#336580", .34, .38)
     lamp = kit.mat("Station/Payment indicator", "#b7fff4", .38, emission=(.6, 2.2, 1.9))
     yellow = kit.mat("Station/Hazard yellow enamel", "#c99635", .35, .35)
+    trim_light = kit.mat("Station/Cyan canopy edge strip", "#51ddff", .36, emission=(.45, 5.1, 7.4))
     for index in range(8):
         x = 1.41 + index * .559
         kit.box("Station/Standing seam roof sheet", (x + .279, 4.31, -3.50), (.551, .030, 4.15),
@@ -398,6 +405,10 @@ def _station(kit):
         for z in (-4.4, -2.6):
             _downlight(kit, "Station/Canopy panel trim", (x, 3.845, z), (.9, .5),
                        finish, steel, None, backing=False)
+    kit.box("Station/Street-facing canopy light strip", (3.65, 3.819, -1.414), (4.38, .026, .059),
+            trim_light)
+    kit.box("Station/Return canopy light strip", (5.89, 3.819, -3.52), (.059, .026, 4.15),
+            trim_light)
 
     for island, z in enumerate((-4.35, -2.75)):
         for number, x in enumerate((3.05, 4.25)):

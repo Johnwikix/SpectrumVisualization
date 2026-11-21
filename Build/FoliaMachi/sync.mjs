@@ -27,7 +27,8 @@ const bundle = await build({
     logLevel: 'error',
     define: { 'process.env.NODE_ENV': '"production"' },
     resolve: { alias: { three: resolve(upstream, 'node_modules/three'),
-        'spectrum-models': resolve(here, 'fit-vehicles.mjs'), 'spectrum-surfaces': resolve(here, 'surface-tiles.mjs') } },
+        'spectrum-models': resolve(here, 'fit-vehicles.mjs'), 'spectrum-surfaces': resolve(here, 'surface-tiles.mjs'),
+        'spectrum-colors': resolve(here, 'scene-colors.mjs') } },
     plugins: [{
         name: 'spectrum-machi-export',
         enforce: 'pre',
