@@ -17,6 +17,7 @@ internal sealed unsafe partial class MachiDxrBackend
         internal readonly ID3D12RootSignature TraceRoot;
         internal readonly ID3D12StateObject Trace;
         internal readonly DispatchRaysDescription Dispatch;
+        internal readonly bool UsesInlineTraversal;
 
         internal TracePipeline(ID3D12Device5 device)
         {
@@ -38,7 +39,9 @@ internal sealed unsafe partial class MachiDxrBackend
                     [new StaticSamplerDescription(0, Filter.MinMagMipLinear, TextureAddressMode.Clamp, TextureAddressMode.Clamp,
                         TextureAddressMode.Clamp, 0, 1, ComparisonFunction.Never, StaticBorderColor.TransparentBlack,
                         0, float.MaxValue, ShaderVisibility.All, 0)])));
-                Trace = Keep(CreateTrace(device));
+                var (trace, usesInlineTraversal) = CreateTrace(device);
+                Trace = Keep(trace);
+                UsesInlineTraversal = usesInlineTraversal;
                 var shaderTable = Keep(device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
                         ResourceDescription.Buffer(192), ResourceStates.GenericRead));
                 using (var properties = Trace.QueryInterface<ID3D12StateObjectProperties>())
@@ -69,14 +72,14 @@ internal sealed unsafe partial class MachiDxrBackend
             }
         }
 
-        private ID3D12StateObject CreateTrace(ID3D12Device5 device)
+        private (ID3D12StateObject Trace, bool UsesInlineTraversal) CreateTrace(ID3D12Device5 device)
         {
             var options = device.CheckFeatureSupport<FeatureDataD3D12Options5>(Feature.Options5);
             if (options.RaytracingTier >= RaytracingTier.Tier1_1 &&
                 device.CheckHighestShaderModel(ShaderModel.Model6_5) >= ShaderModel.Model6_5)
             {
                 byte[] library = ShaderCompiler.Compile(MachiDxrShaders.InlineTrace, "", "lib_6_5");
-                try { return CreateStateObject(device, library); }
+                try { return (CreateStateObject(device, library), true); }
                 // Some drivers reject the inline library even when they advertise DXR 1.1.
                 catch (SharpGenException exception) when (exception.HResult is
                     unchecked((int)0x80070057) or unchecked((int)0x80004001) or unchecked((int)0x887A0004))
@@ -84,7 +87,7 @@ internal sealed unsafe partial class MachiDxrBackend
                     AppLog.Caught(exception);
                 }
             }
-            return CreateStateObject(device, ShaderCompiler.Compile(MachiDxrShaders.Trace, "", "lib_6_3"));
+            return (CreateStateObject(device, ShaderCompiler.Compile(MachiDxrShaders.Trace, "", "lib_6_3")), false);
         }
 
         private ID3D12StateObject CreateStateObject(ID3D12Device5 device, byte[] library) =>

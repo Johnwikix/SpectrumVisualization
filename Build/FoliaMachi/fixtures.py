@@ -30,15 +30,15 @@ def _unit(v):
     return tuple(x / length for x in v)
 
 
-def _pipe(kit, name, path, radius, material, sides=12):
-    """Sweep a round tube along a path that bends chiefly in the XY plane."""
+def _pipe(kit, name, path, radius, material, sides=12, reference=(0, 0, 1)):
+    """Sweep a round tube with a reference axis transverse to the path."""
     vertices = []
     last = len(path) - 1
     for index, point in enumerate(path):
         before = path[max(0, index - 1)]
         after = path[min(last, index + 1)]
         tangent = _unit(tuple(b - a for a, b in zip(before, after)))
-        axis = _unit(_cross(tangent, (0, 0, 1)))
+        axis = _unit(_cross(tangent, reference))
         other = _cross(tangent, axis)
         for side in range(sides):
             angle = 2 * pi * side / sides
@@ -64,6 +64,76 @@ def _bezier(start, control_a, control_b, end, steps):
         points.append(tuple(s**3 * a + 3 * s**2 * t * b + 3 * s * t**2 * c + t**3 * d
                             for a, b, c, d in zip(start, control_a, control_b, end)))
     return points
+
+
+def _konbini_utility_lines(kit):
+    concrete = kit.mat("Konbini/Utility concrete", "#979ca4", .83)
+    steel = kit.mat("Konbini/Utility crossarm steel", "#383e49", .50, .38)
+    porcelain = kit.mat("Konbini/Utility porcelain", "#dddcdc", .28)
+    cable = kit.mat("Konbini/Utility cable", "#181b20", .68)
+
+    def terminal(name, x, y, z):
+        _lathe(kit, name, x, z, [(y - .008, .039), (y + .036, .039), (y + .059, .029),
+                                 (y + .077, .033), (y + .097, .033), (y + .103, .023)],
+               porcelain, sides=10)
+        return (x, y + .089, z)
+
+    def span(name, start, end, sag):
+        steps = max(12, round(abs(end[2] - start[2]) * 3))
+        path = []
+        for index in range(steps + 1):
+            t = index / steps
+            x, y, z = (a + (b - a) * t for a, b in zip(start, end))
+            path.append((x, y - 4 * sag * t * (1 - t), z))
+        _pipe(kit, name, path, .012, cable, sides=6, reference=(1, 0, 0))
+
+    def pole(label, x, z, top, existing=False):
+        base = .1215
+        if not existing:
+            _lathe(kit, f"{label}/Concrete shaft", x, z,
+                   [(base - .008, .145), (base + .05, .145), (top - .032, .108), (top, .098)],
+                   concrete, sides=14)
+        ends = []
+        for drop, width in ((.70, .90), (.25, 1.20)):
+            y = top - drop
+            if not existing:
+                kit.box(f"{label}/Crossarm", (x, y, z), (width, .10, .12), steel, bevel=.012)
+            for offset in (-width / 2 + .08, width / 2 - .08):
+                ends.append(terminal(f"{label}/Line insulator", x + offset, y + .05, z))
+        # Keep the neutral on a side bracket where its cable clears the shaft.
+        y = top - 1.39
+        kit.box(f"{label}/Neutral bracket", (x + .171, y, z), (.30, .075, .10), steel, bevel=.008)
+        ends.append(terminal(f"{label}/Neutral insulator", x + .25, y + .038, z))
+        return ends
+
+    # Match the pole and crossarms kept from the pinned upstream model.
+    x, z, top = -5.30, 1.96, 7.72
+    center = pole("Konbini/Main utility pole", x, z, top, existing=True)
+    for label, neighbor_z, neighbor_top, sag in (("Front", 6.35, 7.25, .26), ("Rear", -10.48, 7.52, .63)):
+        neighbor = pole(f"Konbini/{label} utility pole", x, neighbor_z, neighbor_top)
+        for index, (start, end) in enumerate(zip(center, neighbor), 1):
+            span(f"Konbini/{label} utility span {index}", start, end, sag)
+
+    # The transformer jumper feeds the supported service drop. The conduit
+    # kicks out under the left roof edge and rises to the store attachment.
+    service_y = top - 2.47
+    kit.box("Konbini/Pole service bracket", (x - .11, service_y, z - .10), (.20, .068, .088), steel, bevel=.008)
+    start = terminal("Konbini/Pole service insulator", x - .17, service_y + .034, z - .14)
+    store_z = .10
+    conduit = [(-5.454, 1.91, store_z), (-5.454, 3.08, store_z), (-5.474, 3.17, store_z),
+               (-5.616, 3.30, store_z), (-5.646, 3.39, store_z), (-5.646, 3.58, store_z)]
+    _pipe(kit, "Konbini/Service entrance conduit", conduit, .027, steel)
+    kit.box("Konbini/Service entrance enclosure", (-5.433, 1.79, store_z), (.095, .27, .22), steel, bevel=.016)
+    for y in (2.18, 2.85, 3.03):
+        kit.box("Konbini/Service conduit clamp", (-5.418, y, store_z), (.115, .031, .086), steel, bevel=.007)
+    end = terminal("Konbini/Store service insulator", -5.646, 3.58, store_z)
+    service_path = [start, *_bezier(start, (start[0] - .04, start[1], start[2] - .47),
+                                    (end[0] - .04, end[1] - .035, end[2] + .42), end, 24)]
+    _pipe(kit, "Konbini/Store service drop", service_path, .010, cable, sides=6, reference=(1, 0, 0))
+    feed = [(x + .30, top - 2.19, z - .09), (x + .30, top - 2.32, z - .18),
+            (x + .22, top - 2.54, z - .23), (x + .02, top - 2.55, z - .26),
+            (x - .12, top - 2.37, z - .24), start]
+    _pipe(kit, "Konbini/Transformer jumper", feed, .010, cable, sides=6)
 
 
 def _downlight(kit, name, center, size, bezel, reflector, lens, backing=True):
@@ -468,4 +538,6 @@ def _street_lamps(scene_id, kit):
 
 def build(scene_id, kit):
     {"konbini": _konbini, "kowloon": _kowloon, "station": _station}[scene_id](kit)
+    if scene_id == "konbini":
+        _konbini_utility_lines(kit)
     _street_lamps(scene_id, kit)
