@@ -396,6 +396,10 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>Machi settings</value></data>
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>Scene</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>Camera drift</value></data>
+  <data name="FoliaMachiSamplesPerPixel.Header" xml:space="preserve"><value>Samples per pixel (SPP)</value></data>
+  <data name="FoliaMachiSamplesPerPixel.Description" xml:space="preserve"><value>Lighting samples per rendered pixel per frame. Higher values reduce noise.</value></data>
+  <data name="FoliaMachiMaxBounces.Header" xml:space="preserve"><value>Maximum bounces</value></data>
+  <data name="FoliaMachiMaxBounces.Description" xml:space="preserve"><value>Reflections or refractions allowed per light path. Higher values capture more indirect light.</value></data>
   <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>Path tracing denoiser</value></data>
   <data name="FoliaMachiDenoiserNone.Content" xml:space="preserve"><value>No denoising</value></data>
   <data name="FoliaMachiChromaticAberration.Header" xml:space="preserve"><value>Chromatic aberration</value></data>

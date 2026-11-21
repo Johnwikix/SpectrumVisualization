@@ -27,6 +27,7 @@ cbuffer Camera : register(b0)
     float2 AnalyticLightControl;
     float NoVacancy, TraceGuideMode;
     float4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
+    uint SamplesPerPixel, MaxBounces;
 }
 
 RaytracingAccelerationStructure Scene : register(t0);
@@ -85,6 +86,9 @@ RWTexture2D<float2> ReconstructionMotion : register(u25);
 static const float WaterEta = 1.0 / 1.333;
 static const float WaterF0 = ((1.333 - 1.0) / (1.333 + 1.0)) * ((1.333 - 1.0) / (1.333 + 1.0));
 static const float Pi = 3.141592653589793;
+// The packed source RGB is normal-incidence irradiance integrated over the disk.
+static const float CelestialRadius = .526 * Pi / 360;
+static const float DiskRadianceScale = 1 / (Pi * sin(CelestialRadius) * sin(CelestialRadius));
 static const float Epsilon = .001;
 static const uint OpticalLightSamples = 4;
 
@@ -98,15 +102,15 @@ uint Hash(uint x)
 }
 uint PathSeed(uint2 pixel, uint vertex, uint effect)
 {
-    return Hash32Combine(Hash32Combine(Hash32(pixel.x + 0x035f9f29u), pixel.y), vertex * 8u + effect);
+    return Hash32Combine(Hash32Combine(Hash32(pixel.x + 0x035f9f29u), pixel.y), Hash32Combine(vertex, effect));
 }
-float3 PathSample(uint2 pixel, uint vertex, uint effect)
+float3 PathSample(uint3 path, uint vertex, uint effect)
 {
-    return burley_shuffled_scrambled_sobol_3D((uint)SunDirectionFrame.w, PathSeed(pixel, vertex, effect));
+    return burley_shuffled_scrambled_sobol_3D(path.z, PathSeed(path.xy, vertex, effect));
 }
-float3 BackgroundSky(float3 direction)
+float3 CelestialDisk(float3 direction)
 {
-    return lerp(SkyBottom.rgb, SkyWetness.rgb, saturate(.5 + .5 * direction.y));
+    return dot(direction, SunDirectionFrame.xyz) >= cos(CelestialRadius) ? SunRadianceFar.rgb * DiskRadianceScale : 0;
 }
 float3 EnvironmentRadiance(float3 direction)
 {
@@ -604,29 +608,34 @@ float3 TotalAnalyticLighting(Surface surface, float3 view)
     return total;
 }
 
-void DirectSun(Surface s, float3 view, out float3 d, out float3 r)
+void DirectSun(Surface s, float3 view, float2 sample, out float3 d, out float3 r)
 {
     d = r = 0;
-    float3 l = SunDirectionFrame.xyz;
+    if (!any(SunRadianceFar.rgb > 0)) return;
+    // Uniform solid angle on the cap. The half-angle form avoids subtracting near-equal cosines.
+    float height = 2 * sin(.5 * CelestialRadius) * sin(.5 * CelestialRadius) * sample.x;
+    float radial = sqrt(height * (2 - height));
+    float phi = 2 * Pi * sample.y;
+    float3 l = FromLocal(float3(radial * cos(phi), radial * sin(phi), 1 - height), SunDirectionFrame.xyz);
     float cosine = dot(s.n, l);
-    if (cosine > 0 && any(SunRadianceFar.rgb > 0))
+    if (cosine > 0)
     {
         float3 ds, rs;
         EvaluateBsdf(s, view, l, ds, rs);
         if (any(ds + rs > 0))
         {
-            float3 energy = SunRadianceFar.rgb * cosine * AnalyticVisibility(s, l, SunRadianceFar.w);
+            float3 energy = SunRadianceFar.rgb * (cosine / (cos(.5 * CelestialRadius) * cos(.5 * CelestialRadius)))
+                * AnalyticVisibility(s, l, SunRadianceFar.w);
             d += ds * energy;
             r += rs * energy;
         }
     }
 }
 
-void Direct(Surface s, float3 view, float3 lightSample, bool separated, float primarySpecularRate,
-    bool allAnalytic, out float3 d, out float3 r, uint emitterSamples = 1, bool includeSun = true)
+void DirectEmitters(Surface s, float3 view, float3 lightSample, bool separated, float primarySpecularRate,
+    bool allAnalytic, out float3 d, out float3 r, uint emitterSamples = 1)
 {
     d = r = 0;
-    if (includeSun) DirectSun(s, view, d, r);
     float3 l;
     float cosine;
     float analyticChance = allAnalytic ? 0 : AnalyticLightControl.y;
@@ -709,28 +718,27 @@ bool Scatter(Surface s, float3 samples, inout float3 direction, inout float3 thr
 }
 
 Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
-    uint2 pixel, uint stream, bool optical)
+    uint3 path, uint stream, uint remaining, uint firstLightSamples)
 {
     Plane result = (Plane)0;
     result.roughness = 1;
     result.normal = -direction;
     result.hitDistance = SunRadianceFar.w;
-    uint bounceLimit = optical ? 2 : 3;
-    const uint interfaceLimit = 7;
-    uint opaqueBounces = 0, interfaces = 0;
     bool priorAnalytic = true;
     [loop]
-    for (uint step = 0; step < bounceLimit + interfaceLimit; step++)
+    for (uint step = 0; step <= remaining; step++)
     {
         Hit hit = Trace(origin, direction, SunRadianceFar.w);
         if (hit.primitive == 0xffffffff)
         {
             result.color += throughput * EnvironmentRadiance(direction);
+            // Non-delta vertices already integrate the disk by direct light sampling.
+            if (bsdfPdf == 0) result.color += throughput * CelestialDisk(direction);
             break;
         }
         Surface s = Evaluate(hit, origin);
         bool firstSurface = result.hitDistance == SunRadianceFar.w;
-        uint vertex = step < bounceLimit ? stream * (optical ? 8 : 4) + step : 512 + stream * 16 + step;
+        uint vertex = stream * 64 + step;
         if (firstSurface)
         {
             result.hitDistance = hit.t;
@@ -744,28 +752,27 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
             float analyticChance = priorAnalytic ? 0 : AnalyticLightControl.y;
             float emitterPdf = (1 - analyticChance) * EmitterPdf[TriangleOffset(hit) / 3]
                 * hit.t * hit.t / max(abs(dot(s.face, direction)), 1e-6);
-            uint lightSamples = optical && step == 0 ? OpticalLightSamples : 1;
+            uint lightSamples = step == 0 ? firstLightSamples : 1;
             float weight = bsdfPdf > 0 ? PowerHeuristic(bsdfPdf, emitterPdf * lightSamples) : 1;
             result.color += throughput * s.emission * weight;
         }
+        // At the budget boundary the last ray may still see a light or the sky.
+        if (step == remaining) break;
         if (s.material != 1)
         {
-            float3 d, r;
-            Direct(s, -direction, PathSample(pixel, vertex, 3), false, 0, false, d, r);
-            result.color += throughput * (d + r);
-            if (++opaqueBounces == bounceLimit) break;
+            float3 d, r, sunD, sunR;
+            DirectEmitters(s, -direction, PathSample(path, vertex, 3), false, 0, false, d, r);
+            DirectSun(s, -direction, PathSample(path, vertex, 4).xy, sunD, sunR);
+            result.color += throughput * (d + r + sunD + sunR);
         }
-        // A finite glass slab needs two delta events before seeing its far side.
-        // Cap chains of interfaces separately from diffuse and GGX scattering.
-        else if (++interfaces > interfaceLimit) break;
         priorAnalytic = false;
-        if (!Scatter(s, PathSample(pixel, vertex, 1), direction, throughput, bsdfPdf)) break;
+        if (!Scatter(s, PathSample(path, vertex, 1), direction, throughput, bsdfPdf)) break;
         // Apply roulette after non-delta scattering. Applying it at each layer
         // of a pane increases variance without sampling any new optical lobe.
-        if (!optical && s.material != 1)
+        if (s.material != 1)
         {
             float survive = clamp(max(throughput.r, max(throughput.g, throughput.b)), .18, .92);
-            if (PathSample(pixel, vertex, 6).x >= survive) break;
+            if (PathSample(path, vertex, 6).x >= survive) break;
             throughput /= survive;
         }
         origin = Offset(s, direction);
@@ -773,24 +780,36 @@ Plane Follow(float3 origin, float3 direction, float3 throughput, float bsdfPdf,
     result.color = min(max(result.color, 0), 320);
     return result;
 }
-Plane FollowOptical(float3 origin, float3 direction, float3 throughput, uint2 pixel, uint stream)
+Plane FollowOptical(float3 origin, float3 direction, float3 throughput, uint3 path, uint stream)
 {
     Plane result = (Plane)0;
     result.hitDistance = SunRadianceFar.w;
     result.roughness = 1;
     result.normal = -direction;
     [loop]
-    for (uint interfaceIndex = 0; interfaceIndex < 7; interfaceIndex++)
+    for (uint depth = 1; depth <= MaxBounces; depth++)
     {
         Hit hit = Trace(origin, direction, SunRadianceFar.w);
         if (hit.primitive == 0xffffffff)
         {
-            result.deterministic = throughput * EnvironmentRadiance(direction);
+            result.deterministic = throughput * (EnvironmentRadiance(direction) + CelestialDisk(direction));
             return result;
         }
         Surface s = Evaluate(hit, origin);
+        uint vertex = stream * 64 + depth;
         if (s.material == 1)
         {
+            if (depth == MaxBounces) return result;
+            // Keep the transmitted guide stable while sampling the secondary interface's reflected energy.
+            float eta = s.entering ? 1 / 1.5 : 1.5;
+            float fresnel = GlassFresnel(saturate(dot(s.n, -direction)), eta);
+            if (fresnel < 1 && PathSample(path, vertex, 7).x < fresnel)
+            {
+                float3 reflected = reflect(direction, s.n);
+                Plane side = Follow(Offset(s, reflected), reflected, throughput, 0, path, stream * 64 + depth,
+                    MaxBounces - depth - 1, 1);
+                result.color += side.color;
+            }
             ContinueOpticalPath(s, direction, throughput);
             origin = Offset(s, direction);
             continue;
@@ -807,26 +826,28 @@ Plane FollowOptical(float3 origin, float3 direction, float3 throughput, uint2 pi
             result.specularAlbedo = F0(s);
         }
         // Preserve camera-visible emission along the ideal glass path.
+        result.deterministic = throughput * s.emission;
+        if (depth == MaxBounces) return result;
+        result.deterministic += throughput * TotalAnalyticLighting(s, -direction);
         float3 sunDiffuse, sunSpecular;
-        DirectSun(s, -direction, sunDiffuse, sunSpecular);
-        result.deterministic = throughput * (s.emission + sunDiffuse + sunSpecular + TotalAnalyticLighting(s, -direction));
-        uint vertex = stream * 32 + interfaceIndex;
+        DirectSun(s, -direction, PathSample(path, vertex, 4).xy, sunDiffuse, sunSpecular);
+        result.color += throughput * (sunDiffuse + sunSpecular);
         // Stratify the triangle alias-table sample. Use the same number of
         // light samples in the matching BSDF-path MIS weight.
         [loop]
         for (uint stratum = 0; stratum < OpticalLightSamples; stratum++)
         {
-            float3 sample = PathSample(pixel, vertex, 3 + 32 * stratum);
+            float3 sample = PathSample(path, vertex, 3 + 32 * stratum);
             sample.x = (sample.x + stratum) / OpticalLightSamples;
             float3 d, r;
-            Direct(s, -direction, sample, true, -1, true, d, r, OpticalLightSamples, false);
+            DirectEmitters(s, -direction, sample, true, -1, true, d, r, OpticalLightSamples);
             result.color += throughput * (d + r) / OpticalLightSamples;
         }
         // Sample each lobe once and use its conditional PDF for MIS.
         [loop]
         for (uint lobe = 0; lobe < 2; lobe++)
         {
-            float3 sample = PathSample(pixel, vertex, 1 + lobe);
+            float3 sample = PathSample(path, vertex, 1 + lobe);
             float3 outgoing = lobe == 0 ? CosineSample(s.n, sample.xy) : SampleSpecular(s, -direction, sample.xy, sample.z);
             float3 diffuse, specular;
             float2 pdf = EvaluateBsdf(s, -direction, outgoing, diffuse, specular);
@@ -834,8 +855,8 @@ Plane FollowOptical(float3 origin, float3 direction, float3 throughput, uint2 pi
             if (probability <= 0) continue;
             float3 bsdf = lobe == 0 ? diffuse : specular;
             float3 weight = throughput * bsdf * (saturate(dot(s.n, outgoing)) / probability);
-            Plane samplePath = Follow(Offset(s, outgoing), outgoing, weight, probability, pixel,
-                stream * 2 + lobe + 9, true);
+            Plane samplePath = Follow(Offset(s, outgoing), outgoing, weight, probability, path,
+                stream * 2 + lobe + 9, MaxBounces - depth - 1, OpticalLightSamples);
             result.color += samplePath.color;
         }
         result.color = min(max(result.color, 0), 320);
@@ -877,7 +898,11 @@ void RayGen()
     bool writeDenoiser = TraceGuideMode == 0;
     bool writeMotion = writeDenoiser || TraceGuideMode == 2;
 
-    float3 d = 0, r = 0, dFactor = 1, sFactor = 1, deterministic = BackgroundSky(primary);
+    uint firstSample = (uint)SunDirectionFrame.w * SamplesPerPixel;
+    float inverseSpp = rcp((float)SamplesPerPixel);
+    float skyY = (pixel.y + .5) / SizeJitter.y;
+    float3 d = 0, r = 0, dFactor = 1, sFactor = 1;
+    float3 deterministic = lerp(SkyWetness.rgb, SkyBottom.rgb, skyY * skyY) + CelestialDisk(primary);
     float3 dDirection = -primary, sDirection = -primary;
     float dDistance = 0, sDistance = 0;
     float3 worldNormal = -primary;
@@ -913,27 +938,6 @@ void RayGen()
             float3 transmissionOrigin = Offset(s, transmissionDirection);
             float3 transmissionWeight = (1 - fresnel) * GlassTint(s.base);
             float3 reflectionWeight = fresnel;
-            if (s.entering && fresnel < 1)
-            {
-                // The exported panes are thin closed slabs. Sum internal
-                // reflections for a parallel rear interface and preserve the
-                // actual exit position for refraction and reprojection.
-                Hit rearHit = Trace(transmissionOrigin, transmissionDirection, .08);
-                if (rearHit.primitive != 0xffffffff && rearHit.instance == hit.instance &&
-                    (uint)Vertices[Indices[TriangleOffset(rearHit)]].positionMaterial.w == 1)
-                {
-                    Surface rear = Evaluate(rearHit, transmissionOrigin);
-                    if (!rear.entering && dot(rear.n, s.n) > .999)
-                    {
-                        float3 tint = GlassTint(s.base) * GlassTint(rear.base);
-                        transmissionWeight = (1 - fresnel) * (1 - fresnel) * tint /
-                            max(1 - fresnel * fresnel * tint, 1e-5);
-                        reflectionWeight += fresnel * transmissionWeight;
-                        transmissionDirection = primary;
-                        transmissionOrigin = Offset(rear, primary);
-                    }
-                }
-            }
             const float3 luma = float3(.2126, .7152, .0722);
             reflectionDominance = dot(reflectionWeight - transmissionWeight, luma);
             [loop]
@@ -942,7 +946,17 @@ void RayGen()
                 float3 direction = optical == 0 ? reflected : transmissionDirection;
                 float3 originOnPane = optical == 0 ? Offset(s, direction) : transmissionOrigin;
                 float3 throughput = optical == 0 ? reflectionWeight : transmissionWeight;
-                Plane branch = FollowOptical(originOnPane, direction, throughput, pixel, optical + 1);
+                Plane branch = (Plane)0;
+                float3 radiance = 0;
+                [loop]
+                for (uint i = 0; i < SamplesPerPixel; i++)
+                {
+                    Plane sample = FollowOptical(originOnPane, direction, throughput, uint3(pixel, firstSample + i), optical + 1);
+                    // Ideal transmission/reflection geometry is shared by all samples.
+                    if (i == 0) branch = sample;
+                    radiance += sample.color;
+                }
+                branch.color = radiance * inverseSpp;
                 if (optical == 0) reflection = branch;
                 else transmission = branch;
             }
@@ -955,41 +969,69 @@ void RayGen()
             float3 view = -primary;
             bool wetRoad = s.wetCoverage > .02;
             float specularRate = clamp(SpecularProbability(s, view), .25, .75);
-            Direct(s, view, PathSample(pixel, 0, 3), true, wetRoad ? -1 : specularRate, true, d, r);
             deterministic += TotalAnalyticLighting(s, view);
             if (writeDenoiser) NRD_MaterialFactors(s.n, view, rawAlbedo, rawSpecular, roughness, dFactor, sFactor);
-            // The wet road always traces the diffuse and specular paths.
-            // Use the ground's normal, depth and motion for both sides of the
-            // puddle transition. Its rough reflection has no single virtual surface.
-            bool selectSpecular = PathSample(pixel, 0, 5).x < specularRate;
+            float3 momentD = 0, momentS = 0;
+            uint diffuseRays = 0, specularRays = 0;
             [loop]
-            for (uint lobe = 0; lobe < (wetRoad ? 2 : 1); lobe++)
+            for (uint i = 0; i < SamplesPerPixel; i++)
             {
-                bool specular = wetRoad ? lobe == 1 : selectSpecular;
-                float3 samples = PathSample(pixel, 0, specular ? 2 : 1);
-                float3 direction = specular ? SampleSpecular(s, view, samples.xy, samples.z) : CosineSample(s.n, samples.xy);
-                float probability = wetRoad ? 1 : specular ? specularRate : 1 - specularRate;
-                float3 sampledDiffuse, sampledSpecular;
-                float2 conditionalPdf = EvaluateBsdf(s, view, direction, sampledDiffuse, sampledSpecular);
-                float pdf = (specular ? conditionalPdf.y : conditionalPdf.x) * probability;
-                if (pdf <= 0) continue;
-                float3 value = specular ? sampledSpecular : sampledDiffuse;
-                float3 weight = value * saturate(dot(s.n, direction)) / pdf;
-                Plane sample = Follow(Offset(s, direction), direction, weight, pdf, pixel, specular ? 4 : 3,
-                    false);
-                if (!specular)
+                uint3 path = uint3(pixel, firstSample + i);
+                float3 sampleD, sampleS, sunD, sunS;
+                DirectEmitters(s, view, PathSample(path, 0, 3), true, wetRoad ? -1 : specularRate, true, sampleD, sampleS);
+                DirectSun(s, view, PathSample(path, 0, 4).xy, sunD, sunS);
+                sampleD += sunD;
+                sampleS += sunS;
+                float3 outgoingD = -primary, outgoingS = -primary;
+                bool selectSpecular = PathSample(path, 0, 5).x < specularRate;
+                // Wet surfaces sample both lobes. Other surfaces importance-sample one.
+                [loop]
+                for (uint lobe = 0; lobe < (wetRoad ? 2 : 1); lobe++)
                 {
-                    d += sample.color;
-                    dDirection = direction;
-                    dDistance = sample.hitDistance;
+                    bool specular = wetRoad ? lobe == 1 : selectSpecular;
+                    float3 samples = PathSample(path, 0, specular ? 2 : 1);
+                    float3 direction = specular ? SampleSpecular(s, view, samples.xy, samples.z) : CosineSample(s.n, samples.xy);
+                    float probability = wetRoad ? 1 : specular ? specularRate : 1 - specularRate;
+                    float3 sampledDiffuse, sampledSpecular;
+                    float2 conditionalPdf = EvaluateBsdf(s, view, direction, sampledDiffuse, sampledSpecular);
+                    float pdf = (specular ? conditionalPdf.y : conditionalPdf.x) * probability;
+                    if (pdf <= 0) continue;
+                    float3 value = specular ? sampledSpecular : sampledDiffuse;
+                    float3 weight = value * saturate(dot(s.n, direction)) / pdf;
+                    Plane sample = Follow(Offset(s, direction), direction, weight, pdf, path, specular ? 4 : 3, MaxBounces - 1, 1);
+                    if (specular)
+                    {
+                        sampleS += sample.color;
+                        outgoingS = direction;
+                        sDistance += sample.hitDistance;
+                        specularRays++;
+                    }
+                    else
+                    {
+                        sampleD += sample.color;
+                        outgoingD = direction;
+                        dDistance += sample.hitDistance;
+                        diffuseRays++;
+                    }
                 }
-                else
+                d += sampleD;
+                r += sampleS;
+                if (writeDenoiser)
                 {
-                    r += sample.color;
-                    sDirection = direction;
-                    sDistance = sample.hitDistance;
+                    momentD += outgoingD * _NRD_Luminance(sampleD / dFactor);
+                    momentS += outgoingS * _NRD_Luminance(sampleS / sFactor);
                 }
             }
+            if (writeDenoiser)
+            {
+                // RELAX stores the luminance-weighted first moment in SH1.
+                dDirection = momentD / max(1e-8, _NRD_Luminance(d / dFactor));
+                sDirection = momentS / max(1e-8, _NRD_Luminance(r / sFactor));
+                dDistance /= max(1u, diffuseRays);
+                sDistance /= max(1u, specularRays);
+            }
+            d *= inverseSpp;
+            r *= inverseSpp;
             // Keep the NRD hit distance stable when wet microfacets sample
             // different geometry. This ray supplies a guide, never radiance.
             if (writeDenoiser && Lighting.w == 0 && s.wetCoverage > .45)
@@ -1031,12 +1073,12 @@ void RayGen()
         TransmissionZ[pixel] = validT ? transmittedZ : -1e6;
         transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
         TransmissionMotion[pixel] = transmissionMotion;
-        Deterministic[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
-            + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color), 1);
+        Deterministic[pixel] = float4(min(NRD_FP16_MAX, deterministic + reflection.deterministic + transmission.deterministic
+            + (validR ? 0 : reflection.color) + (validT ? 0 : transmission.color)), 1);
     }
     if (writeMotion) Motion[pixel] = motion;
-    Noisy[pixel] = float4(deterministic + reflection.deterministic + transmission.deterministic
-        + d + r + reflection.color + transmission.color, 1);
+    Noisy[pixel] = float4(min(NRD_FP16_MAX, deterministic + reflection.deterministic + transmission.deterministic
+        + d + r + reflection.color + transmission.color), 1);
     Depth[pixel] = depth;
     if (Lighting.w < 0)
     {

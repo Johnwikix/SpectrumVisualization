@@ -159,6 +159,18 @@ public partial class SettingViewModel
         set => AppSettings.FoliaMachiChromaticAberration = value;
     }
 
+    public double FoliaMachiSamplesPerPixel
+    {
+        get => AppSettings.FoliaMachiSamplesPerPixel;
+        set { if (_isInitialized && double.IsFinite(value)) AppSettings.FoliaMachiSamplesPerPixel = (int)Math.Round(value); }
+    }
+
+    public double FoliaMachiMaxBounces
+    {
+        get => AppSettings.FoliaMachiMaxBounces;
+        set { if (_isInitialized && double.IsFinite(value)) AppSettings.FoliaMachiMaxBounces = (int)Math.Round(value); }
+    }
+
     public bool FoliaMachiDepthOfField
     {
         get => AppSettings.FoliaMachiDepthOfField;
@@ -317,6 +329,8 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaMachiScene));
         OnPropertyChanged(nameof(FoliaMachiMotion));
         OnPropertyChanged(nameof(FoliaMachiDenoiserIndex));
+        OnPropertyChanged(nameof(FoliaMachiSamplesPerPixel));
+        OnPropertyChanged(nameof(FoliaMachiMaxBounces));
         OnPropertyChanged(nameof(FoliaMachiChromaticAberration));
         OnPropertyChanged(nameof(FoliaMachiDepthOfField));
         OnPropertyChanged(nameof(FoliaMachiBloom));
