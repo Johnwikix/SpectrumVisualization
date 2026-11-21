@@ -53,7 +53,7 @@ namespace WinExSpectrumTest.Model
         private static string _foliaMachiScene = "auto";
         private static bool _foliaMachiMotion;
         private static string _foliaMachiTimeOfDay = "auto";
-        public static string FoliaMachiTimeOfDay { get => _foliaMachiTimeOfDay; set => Set(ref _foliaMachiTimeOfDay, value is "day" or "dusk" or "night" ? value : "auto"); }
+        public static string FoliaMachiTimeOfDay { get => _foliaMachiTimeOfDay; set => Set(ref _foliaMachiTimeOfDay, value is "day" or "dusk" or "night" or "cycle" ? value : "auto"); }
         private static string _foliaMachiWeather = "auto";
         public static string FoliaMachiWeather { get => _foliaMachiWeather; set => Set(ref _foliaMachiWeather, value is "clear" or "rain" or "snow" or "fog" ? value : "auto"); }
         private static string _foliaMachiDenoiser = "nrd";

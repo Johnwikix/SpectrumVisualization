@@ -14,6 +14,7 @@ internal sealed partial class FoliaMachi
         SteamPuff[] Steam, Vector3 Puddles);
 
     private const float Dusk = .45f;
+    internal const double CycleDurationSeconds = 240;
     private static readonly Vector3 NightDirection = Vector3.Normalize(new(-7, 13, 8));
     private static readonly Vector3 DuskDirection = Vector3.Normalize(new(-11, 5.5f, 6));
     private static readonly Vector3 DayDirection = Vector3.Normalize(new(-6, 16, 8));
@@ -28,24 +29,35 @@ internal sealed partial class FoliaMachi
     {
         internal FoliaSong? Song;
         internal string? AutomaticWeather;
-        internal float Daylight, Rain, Snow, Fog, CloudCover, Wetness, SnowCover;
+        internal float Daylight, Rain, Snow, Fog, CloudCover, Wetness, PuddleFill, SnowCover;
     }
 
     internal readonly record struct EnvironmentFrame(Vector3 SkyTop, Vector3 SkyBottom, Vector3 SunDirection, Vector3 SunRadiance,
-        float Artificial, float Wetness, float SnowCover, float Rain, float Snow, float Mist, float Haze, float Daylight,
+        float Artificial, float Wetness, float PuddleFill, float SnowCover, float Rain, float Snow, float Mist, float Haze, float Daylight,
         Vector3 HemiSky, Vector3 HemiGround, Vector3 CityGlow);
 
     internal static EnvironmentFrame UpdateEnvironment(ref EnvironmentState state, string timeOfDay, string weather,
-        FoliaSong song, DateTime now, float delta, bool reset, string? sceneId = null)
+        FoliaSong song, DateTime now, float delta, bool reset, string? sceneId = null, double cycleSeconds = 0)
     {
+        bool freshGround = state.Song == null;
         if (!ReferenceEquals(state.Song, song))
         {
             state.Song = song;
             double roll = Hash01(Hash("machi-weather:", song.Title, song.Artist), 0, 0x3d);
             state.AutomaticWeather = roll < .35 ? "rain" : roll < .65 ? "clear" : roll < .85 ? "fog" : "snow";
         }
+        bool cycling = timeOfDay == "cycle";
+        Vector3 solarDirection = default;
+        if (cycling)
+        {
+            // Start in the morning. Two orthogonal vectors define the tilted east-to-west orbit.
+            float phase = (float)((cycleSeconds % CycleDurationSeconds) / CycleDurationSeconds * Math.Tau + Math.PI / 4);
+            (float height, float east) = MathF.SinCos(phase);
+            solarDirection = new Vector3(.8f, 0, .6f) * east + new Vector3(-.3f, .8660254f, .4f) * height;
+        }
         float daylight = timeOfDay switch
         {
+            "cycle" => Smooth(-.14f, .55f, solarDirection.Y),
             "day" => 1,
             "dusk" => Dusk,
             "night" => 0,
@@ -63,7 +75,6 @@ internal sealed partial class FoliaMachi
             state.Snow = snow;
             state.Fog = fog;
             state.CloudCover = clouds;
-            state.Wetness = Math.Max(rain, fog * .35f);
             state.SnowCover = snow;
         }
         else if (delta > 0)
@@ -73,9 +84,19 @@ internal sealed partial class FoliaMachi
             state.Snow = Approach(state.Snow, snow, 1.4f, delta);
             state.Fog = Approach(state.Fog, fog, 2.2f, delta);
             state.CloudCover = Approach(state.CloudCover, clouds, 1.4f, delta);
-            float wet = Math.Max(state.Rain, state.Fog * .35f);
-            state.Wetness = Approach(state.Wetness, wet, wet > state.Wetness ? 3 : 20, delta);
             state.SnowCover = Approach(state.SnowCover, state.Snow, state.Snow > state.SnowCover ? 8 : 12, delta);
+        }
+        // A playback seek resets temporal rendering history, but does not drain the street.
+        float wet = Math.Max(state.Rain, state.Fog * .35f);
+        if (freshGround)
+        {
+            state.Wetness = wet;
+            state.PuddleFill = .18f * state.Rain;
+        }
+        else if (delta > 0)
+        {
+            state.Wetness = Approach(state.Wetness, wet, wet > state.Wetness ? 3 : 20, delta);
+            state.PuddleFill = Approach(state.PuddleFill, state.Rain, state.Rain > state.PuddleFill ? 14 : 35, delta);
         }
         float d = state.Daylight;
         float overcast = state.CloudCover;
@@ -83,6 +104,16 @@ internal sealed partial class FoliaMachi
         float clear = 1 - overcast;
         float moon = .035f * night * clear;
         float sun = (1.9f * Smooth(0, Dusk, d) + 3.2f * Smooth(Dusk, 1, d)) * (1 - .80f * overcast);
+        Vector3 direction;
+        if (cycling)
+        {
+            // Each disk fades to zero at its own horizon before the other one rises.
+            sun *= Smooth(0, .10f, solarDirection.Y);
+            moon *= Smooth(0, .10f, -solarDirection.Y);
+            direction = solarDirection.Y >= 0 ? solarDirection : -solarDirection;
+        }
+        else
+            direction = Vector3.Normalize(LerpDay(NightDirection, DuskDirection, DayDirection, d));
         float mist = .16f * (1 - .4f * d) + .1f * state.Rain + .45f * state.Fog + .06f * state.Snow;
         float haze = .42f * state.Fog + .08f * state.Snow;
         float grayGain = .9f + .35f * d;
@@ -99,10 +130,10 @@ internal sealed partial class FoliaMachi
         return new EnvironmentFrame(
             Overcast(LerpDay(NightSky, DuskSky, DaySky, d), overcast * .7f, grayGain) * skyGain,
             Overcast(LerpDay(NightHorizon, DuskHorizon, DayHorizon, d), overcast * .7f, grayGain) * skyGain,
-            Vector3.Normalize(LerpDay(NightDirection, DuskDirection, DayDirection, d)),
+            direction,
             NightSun * moon + Overcast(LerpDay(NightSun, DuskSun, DaySun, d), overcast * .45f, 1) * sun,
             .55f + .45f * Smooth(.85f, .2f, d) + night * (.45f + .20f * overcast),
-            state.Wetness, state.SnowCover, state.Rain, state.Snow, mist, haze, d,
+            state.Wetness, state.PuddleFill, state.SnowCover, state.Rain, state.Snow, mist, haze, d,
             hemiSky * hemisphere, hemiGround * hemisphere, cityGlow);
     }
 

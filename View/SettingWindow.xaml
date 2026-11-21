@@ -637,6 +637,7 @@
                                 <controls:SettingsCard x:Uid="FoliaMachiTimeOfDay">
                                     <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiTimeOfDay, Mode=TwoWay}" SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_auto" Tag="auto" />
+                                        <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_cycle" Tag="cycle" />
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_day" Tag="day" />
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_dusk" Tag="dusk" />
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_night" Tag="night" />

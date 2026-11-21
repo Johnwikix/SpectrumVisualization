@@ -470,7 +470,10 @@ float4 MachiPanelPS(SpriteOutput input) : SV_Target {
     float lower=band==0 ? 0 : (band==1 ? 320 : 320+40*band);
     float upper=band==0 ? 320 : (band==1 ? 400 : (band==4 ? 560 : lower+40));
     clip(min(input.position.y-lower,upper-input.position.y));
-    return SpritePS(input);
+    float4 ink=SpritePS(input);
+    // The main LED face feeds DXR in linear light. Preserve MSDF coverage when decoding palette colors.
+    if (band==0 && ink.a>0) ink.rgb=ToLinear(saturate(ink.rgb/ink.a))*ink.a;
+    return ink;
 }
 
 // Pendolo keeps the original static triangle mesh on the GPU. Only 32 part transforms change each frame.

@@ -25,5 +25,6 @@ internal readonly record struct FoliaLineTiming(double RenderEnd, float Enter, f
     }
 
     internal float Lookahead => Mode == 2 ? .03f : Mode == 1 ? .08f : .15f;
+    internal double WordEntrance(double start) => start - Lookahead;
     internal double WordEnd(double start, double end) => Mode == 2 ? RenderEnd : Mode == 1 ? Math.Min(RenderEnd, Math.Max(end, start + .12)) : end;
 }

@@ -192,7 +192,9 @@ internal sealed unsafe partial class MachiDxrBackend
                 // The dynamic board remains sampleable when its current frame is black. The shader reads its actual radiance.
                 float estimate = material switch
                 {
-                    2 or 6 or 8 => 1.1f,
+                    // Estimate average lit coverage; actual text and color come from the live atlas.
+                    2 => FoliaMachi.BoardWhiteRadiance * .08f,
+                    6 or 8 => 1.1f,
                     11 => .2126f * a.NormalUvX.W + .7152f * a.UvY.X + .0722f * a.UvY.Y,
                     // The bulb alternates between .18 and 1.9 at equal duty cycle.
                     12 => 1.04f * (.2126f * a.Color.X + .7152f * a.Color.Y + .0722f * a.Color.Z),
