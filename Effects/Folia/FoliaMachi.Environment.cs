@@ -28,7 +28,7 @@ internal sealed partial class FoliaMachi
     {
         internal FoliaSong? Song;
         internal string? AutomaticWeather;
-        internal float Daylight, Rain, Snow, Fog, Wetness, SnowCover;
+        internal float Daylight, Rain, Snow, Fog, CloudCover, Wetness, SnowCover;
     }
 
     internal readonly record struct EnvironmentFrame(Vector3 SkyTop, Vector3 SkyBottom, Vector3 SunDirection, Vector3 SunRadiance,
@@ -55,12 +55,14 @@ internal sealed partial class FoliaMachi
         float rain = kind == "rain" ? 1 : 0;
         float snow = kind == "snow" ? 1 : 0;
         float fog = kind == "fog" ? 1 : 0;
+        float clouds = rain + snow + fog;
         if (reset)
         {
             state.Daylight = daylight;
             state.Rain = rain;
             state.Snow = snow;
             state.Fog = fog;
+            state.CloudCover = clouds;
             state.Wetness = Math.Max(rain, fog * .35f);
             state.SnowCover = snow;
         }
@@ -70,30 +72,37 @@ internal sealed partial class FoliaMachi
             state.Rain = Approach(state.Rain, rain, 1.4f, delta);
             state.Snow = Approach(state.Snow, snow, 1.4f, delta);
             state.Fog = Approach(state.Fog, fog, 2.2f, delta);
+            state.CloudCover = Approach(state.CloudCover, clouds, 1.4f, delta);
             float wet = Math.Max(state.Rain, state.Fog * .35f);
             state.Wetness = Approach(state.Wetness, wet, wet > state.Wetness ? 3 : 20, delta);
             state.SnowCover = Approach(state.SnowCover, state.Snow, state.Snow > state.SnowCover ? 8 : 12, delta);
         }
         float d = state.Daylight;
-        float overcast = Math.Max(state.Rain, Math.Max(state.Fog, state.Snow * .8f));
-        float sun = (1.35f + (3 - 1.35f) * d) * (1 - .55f * overcast * d) * (1 - .25f * state.Fog);
+        float overcast = state.CloudCover;
+        float night = 1 - Smooth(0, Dusk, d);
+        float clear = 1 - overcast;
+        float moon = .035f * night * clear;
+        float sun = (1.9f * Smooth(0, Dusk, d) + 3.2f * Smooth(Dusk, 1, d)) * (1 - .80f * overcast);
         float mist = .16f * (1 - .4f * d) + .1f * state.Rain + .45f * state.Fog + .06f * state.Snow;
         float haze = .42f * state.Fog + .08f * state.Snow;
         float grayGain = .9f + .35f * d;
         // Three's hemisphere and ambient lights supply irradiance. A constant
         // environment emits radiance E / pi to deliver that same irradiance.
-        float hemisphere = (2.1f + .35f * d + .25f * overcast * d) / MathF.PI;
+        float hemisphere = ((2.1f + .35f * d + .25f * overcast * d) * (1 - night)
+            + (.10f + .24f * clear) * night) / MathF.PI;
         Vector3 hemiSky = Overcast(LerpDay(NightHemiSky, DuskHemiSky, DayHemiSky, d), overcast * .7f, grayGain);
         Vector3 hemiGround = Overcast(LerpDay(NightHemiGround, DuskHemiGround, DayHemiGround, d), overcast * .7f, grayGain);
         hemiGround = Vector3.Lerp(hemiGround, new Vector3(.55f, .60f, .70f) * (.35f + .65f * d), state.SnowCover * .5f);
         Vector3 cityGlow = sceneId == "kowloon"
-            ? KowloonGlow * (1.1f * (1 - .75f * d) * (1 - .85f * d) / MathF.PI) : Vector3.Zero;
+            ? KowloonGlow * (.22f * (1 - .75f * d) * (1 - .85f * d) / MathF.PI) : Vector3.Zero;
+        float skyGain = 1 - night * (.55f + .24f * overcast);
         return new EnvironmentFrame(
-            Overcast(LerpDay(NightSky, DuskSky, DaySky, d), overcast * .7f, grayGain),
-            Overcast(LerpDay(NightHorizon, DuskHorizon, DayHorizon, d), overcast * .7f, grayGain),
+            Overcast(LerpDay(NightSky, DuskSky, DaySky, d), overcast * .7f, grayGain) * skyGain,
+            Overcast(LerpDay(NightHorizon, DuskHorizon, DayHorizon, d), overcast * .7f, grayGain) * skyGain,
             Vector3.Normalize(LerpDay(NightDirection, DuskDirection, DayDirection, d)),
-            Overcast(LerpDay(NightSun, DuskSun, DaySun, d), overcast * .45f, 1) * sun,
-            .55f + .45f * Smooth(.85f, .2f, d), state.Wetness, state.SnowCover, state.Rain, state.Snow, mist, haze, d,
+            NightSun * moon + Overcast(LerpDay(NightSun, DuskSun, DaySun, d), overcast * .45f, 1) * sun,
+            .55f + .45f * Smooth(.85f, .2f, d) + night * (.45f + .20f * overcast),
+            state.Wetness, state.SnowCover, state.Rain, state.Snow, mist, haze, d,
             hemiSky * hemisphere, hemiGround * hemisphere, cityGlow);
     }
 

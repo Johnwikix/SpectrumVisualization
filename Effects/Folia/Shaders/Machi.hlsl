@@ -31,7 +31,7 @@ float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float3 rgb=BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb;
     float d=MetricDepth(uv);
     if (d>199.88) {
-        rgb=lerp(SkyTop.rgb,HorizonMist.rgb,uv.y*uv.y);
+        // DXR supplies the sky gradient and the finite solar or lunar disk.
         float2 p=float2(uv.x*Screen.x/Screen.y,1-uv.y)*2.4+float2(Scene.y*.012,0);
         float overcast=max(Weather.x,max(Weather.y,Weather.z));
         float cloud=smoothstep(lerp(.62,.38,overcast),.85,Fbm(p))*smoothstep(0,.55,1-uv.y)*(.35+.65*overcast);

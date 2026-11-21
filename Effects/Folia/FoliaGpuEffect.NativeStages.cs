@@ -456,6 +456,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
             environment.Wetness, (float)_data[1].W, reset, MachiRayReconstructionRequested)
         {
+            SamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel, MaxBounces = AppSettings.FoliaMachiMaxBounces,
             HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
             NoVacancy = _machiPlan.UpdateVacancy(position, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
             AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machi.Weather.Puddles,

@@ -396,6 +396,10 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>町景设置</value></data>
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>布景</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>缓慢运镜</value></data>
+  <data name="FoliaMachiSamplesPerPixel.Header" xml:space="preserve"><value>每像素采样数（SPP）</value></data>
+  <data name="FoliaMachiSamplesPerPixel.Description" xml:space="preserve"><value>每帧每个渲染像素的光照采样次数。提高可减少噪点。</value></data>
+  <data name="FoliaMachiMaxBounces.Header" xml:space="preserve"><value>最大反弹次数</value></data>
+  <data name="FoliaMachiMaxBounces.Description" xml:space="preserve"><value>单条光路允许的反射或折射次数。提高可保留更多间接光。</value></data>
   <data name="FoliaMachiDenoiser.Header" xml:space="preserve"><value>路径追踪降噪</value></data>
   <data name="FoliaMachiDenoiserNone.Content" xml:space="preserve"><value>无降噪</value></data>
   <data name="FoliaMachiChromaticAberration.Header" xml:space="preserve"><value>色散</value></data>

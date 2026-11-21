@@ -57,6 +57,10 @@ namespace WinExSpectrumTest.Model
         private static string _foliaMachiWeather = "auto";
         public static string FoliaMachiWeather { get => _foliaMachiWeather; set => Set(ref _foliaMachiWeather, value is "clear" or "rain" or "snow" or "fog" ? value : "auto"); }
         private static string _foliaMachiDenoiser = "nrd";
+        public const int MachiSamplesPerPixelLimit = 16, MachiBounceLimit = 32;
+        private static int _foliaMachiSamplesPerPixel = 1, _foliaMachiMaxBounces = 8;
+        public static int FoliaMachiSamplesPerPixel { get => _foliaMachiSamplesPerPixel; set => Set(ref _foliaMachiSamplesPerPixel, Math.Clamp(value, 1, MachiSamplesPerPixelLimit)); }
+        public static int FoliaMachiMaxBounces { get => _foliaMachiMaxBounces; set => Set(ref _foliaMachiMaxBounces, Math.Clamp(value, 1, MachiBounceLimit)); }
         public static string FoliaMachiScene { get => _foliaMachiScene; set => Set(ref _foliaMachiScene, value is "konbini" or "station" or "kowloon" ? value : "auto"); }
         public static bool FoliaMachiMotion { get => _foliaMachiMotion; set => Set(ref _foliaMachiMotion, value); }
         public static string FoliaMachiDenoiser { get => _foliaMachiDenoiser; set => Set(ref _foliaMachiDenoiser, value is "dlss-rr" or "none" ? value : "nrd"); }

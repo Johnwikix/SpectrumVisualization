@@ -663,6 +663,24 @@
                                         <ComboBoxItem x:Uid="FoliaMachiDenoiserNone" />
                                     </ComboBox>
                                 </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiSamplesPerPixelCard" x:Uid="FoliaMachiSamplesPerPixel">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Slider Width="160" Minimum="1" Maximum="{x:Bind model:AppSettings.MachiSamplesPerPixelLimit}"
+                                            SmallChange="1" LargeChange="4" StepFrequency="1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaMachiSamplesPerPixelCard}"
+                                            Value="{x:Bind ViewModel.FoliaMachiSamplesPerPixel, Mode=TwoWay}" />
+                                        <TextBlock Width="28" VerticalAlignment="Center" Text="{x:Bind ViewModel.FoliaMachiSamplesPerPixel, Mode=OneWay}" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiMaxBouncesCard" x:Uid="FoliaMachiMaxBounces">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Slider Width="160" Minimum="1" Maximum="{x:Bind model:AppSettings.MachiBounceLimit}"
+                                            SmallChange="1" LargeChange="4" StepFrequency="1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaMachiMaxBouncesCard}"
+                                            Value="{x:Bind ViewModel.FoliaMachiMaxBounces, Mode=TwoWay}" />
+                                        <TextBlock Width="28" VerticalAlignment="Center" Text="{x:Bind ViewModel.FoliaMachiMaxBounces, Mode=OneWay}" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaMachiChromaticAberrationCard" x:Uid="FoliaMachiChromaticAberration">
                                     <ToggleSwitch
                                         AutomationProperties.LabeledBy="{x:Bind FoliaMachiChromaticAberrationCard}"

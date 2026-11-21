@@ -23,6 +23,8 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal float AmbientTime { get; init; }
     internal float Rain { get; init; }
     internal bool NoVacancy { get; init; }
+    internal int SamplesPerPixel { get; init; } = 1;
+    internal int MaxBounces { get; init; } = 8;
 }
 
 /// <summary>Records orthographic path tracing and reconstruction on the caller's ordered direct queue.</summary>
@@ -54,6 +56,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         public Matrix4x4 Inverse, ViewProjection, PreviousViewProjection, View;
         public Vector4 SkyWetness, SunDirectionFrame, SunRadianceFar, SizeJitter, Lighting, SkyBottom, AnalyticLightControl;
         public Vector4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
+        public uint SamplesPerPixel, MaxBounces;
     }
 
     private int _width, _height;
@@ -84,6 +87,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private bool _sceneBuilt, _historyValid, _sizeReady, _disposed;
     private bool _denoiserAttempted;
     private uint _frameIndex;
+    private int _previousSamplesPerPixel, _previousMaxBounces;
 
     internal bool DenoiserAvailable { get; private set; }
     internal bool DenoisingDisabled { get; private set; }
@@ -381,6 +385,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         bool needsFsrDepth = requestSuperResolution && _superResolutionMode == ReconstructionMode.Fsr;
 
         bool reset = frame.ResetHistory || !_historyValid || frame.DeltaSeconds is <= 0 or > .25f
+            || _previousSamplesPerPixel != frame.SamplesPerPixel || _previousMaxBounces != frame.MaxBounces
             || requestRayReconstruction != wasRayReconstruction
             || requestSuperResolution && SuperResolutionActive != _superResolutionMode;
         if (reset) _jitterIndex = 0;
@@ -404,7 +409,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             HemiSkyRain = new(frame.HemiSky ?? frame.Sky, frame.Rain),
             HemiGroundTime = new(frame.HemiGround ?? frame.SkyBottom ?? frame.Sky * .45f, frame.AmbientTime),
             CityGlow = new(frame.CityGlow, 0),
-            Puddles = new(frame.Puddles, 0)
+            Puddles = new(frame.Puddles, 0),
+            SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces
         };
 
         if (_lyrics[frameSlot] != lyrics.NativePointer)
@@ -472,6 +478,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             }
         }
         _historyValid = true;
+        _previousSamplesPerPixel = frame.SamplesPerPixel;
+        _previousMaxBounces = frame.MaxBounces;
         _previous = camera;
         _previousJitter = -jitter;
         _jitterIndex++;

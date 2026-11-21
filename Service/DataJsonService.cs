@@ -108,6 +108,8 @@ namespace WinExSpectrumTest.Service
             AppSettings.FoliaMachiScene = settings.FoliaMachiScene;
             AppSettings.FoliaMachiMotion = settings.FoliaMachiMotion;
             AppSettings.FoliaMachiDenoiser = settings.FoliaMachiDenoiser;
+            AppSettings.FoliaMachiSamplesPerPixel = settings.FoliaMachiSamplesPerPixel;
+            AppSettings.FoliaMachiMaxBounces = settings.FoliaMachiMaxBounces;
             AppSettings.FoliaMachiChromaticAberration = settings.FoliaMachiChromaticAberration;
             AppSettings.FoliaMachiDepthOfField = settings.FoliaMachiDepthOfField;
             AppSettings.FoliaMachiBloom = settings.FoliaMachiBloom;
@@ -260,6 +262,8 @@ namespace WinExSpectrumTest.Service
                 FoliaMachiScene = AppSettings.FoliaMachiScene,
                 FoliaMachiMotion = AppSettings.FoliaMachiMotion,
                 FoliaMachiDenoiser = AppSettings.FoliaMachiDenoiser,
+                FoliaMachiSamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel,
+                FoliaMachiMaxBounces = AppSettings.FoliaMachiMaxBounces,
                 FoliaMachiChromaticAberration = AppSettings.FoliaMachiChromaticAberration,
                 FoliaMachiDepthOfField = AppSettings.FoliaMachiDepthOfField,
                 FoliaMachiBloom = AppSettings.FoliaMachiBloom,
