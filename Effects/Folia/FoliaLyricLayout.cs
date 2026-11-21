@@ -7,17 +7,25 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal static partial class FoliaLyricLayout
 {
     internal static int Write(Span<FoliaInstance> output, FoliaTextAtlas atlas, FoliaSong song,
-        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita, FoliaMonet monet)
+        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita, FoliaMonet monet, bool showSong = true)
     {
         var painter = new FoliaPainter(output, width, height);
         var palette = song.Palette;
         Vector3 primary = palette[1], secondary = palette[2], accent = palette[3];
+        if (!showSong || atlas.Lines.Length == 0)
+        {
+            switch (mode)
+            {
+                case 7 when showSong: monet.Write(ref painter, atlas, song, 0, time); break;
+                case 9: pendolo.Write(ref painter, atlas, -1, time, primary, secondary); break;
+                case 10: sonnet.Write(ref painter, time, primary, secondary, accent, showLyrics: false); break;
+                case 11: tempera.Write(ref painter, atlas, -1, time, fontScale, showLyrics: false); break;
+                case 12: lumiere.Write(ref painter, atlas, time, fontScale, showLyrics: false); break;
+            }
+            return painter.Count;
+        }
         int anchor = FindLine(atlas.Lines, time);
         int active = FindActiveLine(atlas.Lines, time);
-        if (atlas.Lines.Length == 0)
-        {
-            return WriteMetadata(output, atlas, song, width, height, fontScale);
-        }
         int index = Math.Clamp(anchor, 0, atlas.Lines.Length - 1);
         bool timed = mode is 0 or 1 or 2 or 5;
         if (timed && active >= 0)
@@ -74,22 +82,6 @@ internal static partial class FoliaLyricLayout
             Subtitle(ref painter, atlas, active, anchor, time, primary, secondary);
         if (mode == 10)
             sonnet.SubtitleCount = painter.Count - firstSubtitle;
-        return painter.Count;
-    }
-
-    internal static int WriteMetadata(Span<FoliaInstance> output, FoliaTextAtlas atlas, FoliaSong song, float width, float height, float scale)
-    {
-        var painter = new FoliaPainter(output, width, height);
-        float font = Math.Min(Math.Min(width * .045f, 42) * scale, width * .84f / Math.Max(atlas.TitleWidth, 1));
-        float artist = Math.Min(18, width * .8f / Math.Max(atlas.ArtistWidth, 1));
-        float top = height * .44f;
-        if (song.CoverWidth > 0)
-        {
-            float cover = Math.Min(160, Math.Min(width * .28f, height * .28f));
-            painter.Shape(10, (width - cover) * .5f, top - cover - 28, cover, cover, Vector3.One, 1, radius: 12, uv: new(0, 0, 1, 1));
-        }
-        painter.Text(atlas.Title, (width - atlas.TitleWidth * font) * .5f, top, font, song.Palette[1], .95f);
-        painter.Text(atlas.Artist, (width - atlas.ArtistWidth * artist) * .5f, top + font * 1.45f + 8, artist, song.Palette[1], .65f);
         return painter.Count;
     }
 

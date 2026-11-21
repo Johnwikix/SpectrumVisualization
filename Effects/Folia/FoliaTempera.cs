@@ -79,7 +79,7 @@ internal sealed partial class FoliaTempera
     private static float F(JsonElement value, string name, float fallback = 0) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.Number ? field.GetSingle() : fallback;
     private static bool B(JsonElement value, string name) => value.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.True;
     private static Vector4 Camera(JsonElement value) => new(F(value, "x"), F(value, "y"), F(value, "zoom", 1), F(value, "rotation"));
-    internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float scale)
+    internal void Write(ref FoliaPainter p, FoliaTextAtlas atlas, int index, double time, float scale, bool showLyrics = true)
     {
         GraphicsCount = 0;
         if (_shots.Length == 0)
@@ -95,8 +95,9 @@ internal sealed partial class FoliaTempera
         for (int i = Math.Max(0, current - 1); i <= last; i++)
             if (AppSettings.FoliaTemperaBlocks) DrawGraphics(ref p, _shots[i], time);
         GraphicsCount = p.Count;
-        for (int i = Math.Max(0, current - 1); i <= last; i++)
-            DrawGlyphs(ref p, _shots[i], time);
+        if (showLyrics)
+            for (int i = Math.Max(0, current - 1); i <= last; i++)
+                DrawGlyphs(ref p, _shots[i], time);
         WriteWipe(ref p, _shots[current], time);
     }
     private readonly record struct Pose(Matrix3x2 Matrix, float Alpha, float Duration, float Carry, Vector2 Flow, float Blur);

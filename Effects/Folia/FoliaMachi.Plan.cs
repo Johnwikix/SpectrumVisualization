@@ -20,6 +20,7 @@ internal sealed partial class FoliaMachi
         private readonly Row[][] _rows;
         private readonly int[] _next;
         private readonly Vector3 _lit, _boardInk, _boardAccent, _boardBackground, _waitingInk, _tickerColor;
+        private readonly Vector3 _sungInk, _sungAccent, _pendingInk, _pendingCueInk, _sweepInk;
         private readonly float _boardHeight;
         private readonly double _duration;
         internal string SceneId { get; }
@@ -65,24 +66,59 @@ internal sealed partial class FoliaMachi
                 _ => 2.18f / 5.46f
             });
             var swatches = song.CoverColors ?? FoliaCoverPalette.Extract(song.CoverRgba, song.CoverWidth, song.CoverHeight, token);
+            Vector3 ink, accent, waiting, background;
             if (swatches.Length > 0)
             {
                 Vector3[] cover = FoliaCoverPalette.CreateTheme(swatches);
-                _boardInk = cover[3] / Math.Max(cover[3].X, Math.Max(cover[3].Y, cover[3].Z));
-                _boardAccent = Vector3.Lerp(_boardInk, cover[1], .55f);
-                _waitingInk = Vector3.Lerp(cover[2], _boardInk, .35f) * .25f;
-                _boardBackground = Vector3.Lerp(_boardInk, swatches[0], .45f) * .13f;
+                ink = cover[3] / Math.Max(cover[3].X, Math.Max(cover[3].Y, cover[3].Z));
+                accent = Vector3.Lerp(ink, cover[1], .55f);
+                waiting = Vector3.Lerp(cover[2], ink, .35f) * .25f;
+                background = Vector3.Lerp(ink, swatches[0], .45f) * .13f;
             }
             else
             {
-                _boardInk = new(1, .58f, .27f);
-                _boardAccent = new(1, .81f, .53f);
-                _waitingInk = new(.14f, .17f, .23f);
-                _boardBackground = new(.072f, .055f, .047f);
+                ink = new(1, .58f, .27f);
+                accent = new(1, .81f, .53f);
+                waiting = new(.14f, .17f, .23f);
+                background = new(.072f, .055f, .047f);
             }
             _lit = song.IsLightTheme ? Vector3.Lerp(new(.16f, .06f, .03f), song.Palette[3], .30f)
                 : Vector3.Lerp(new(1, .37f, .09f), song.Palette[3], .20f);
-            _tickerColor = _boardAccent;
+            _tickerColor = accent;
+            var lumaWeights = new Vector3(.2126f, .7152f, .0722f);
+            Vector3 hue = LinearInk(ink);
+            Vector3 accentHue = LinearInk(accent);
+            _sungInk = new Vector3(.007f) + hue * .090f;
+            _sungAccent = new Vector3(.007f) + accentHue * .090f;
+            // Untimed lettering still supplies more light, with headroom for pale covers.
+            float steadyGain = 1 - .75f * FoliaPainter.Ease((Vector3.Dot(hue, lumaWeights) - .45f) / .50f);
+            _boardInk = EncodeInk(hue * steadyGain);
+            _boardAccent = EncodeInk(accentHue * steadyGain);
+            _waitingInk = waiting;
+
+            // Limit the diffuse LED field before DXR and bloom while preserving its cover hue.
+            Vector3 boardSurface = LinearInk(background);
+            float luminance = Vector3.Dot(boardSurface, lumaWeights);
+            const float Knee = .003f;
+            if (luminance > Knee)
+            {
+                float excess = luminance - Knee;
+                boardSurface *= (Knee + excess / (1 + excess / .004f)) / luminance;
+                _pendingInk = boardSurface * .19f;
+                _pendingCueInk = boardSurface * .33f;
+            }
+            else
+            {
+                _pendingInk = new Vector3(.008f) + hue * .006f;
+                _pendingCueInk = _pendingInk + hue * .004f;
+            }
+            _boardBackground = EncodeInk(boardSurface);
+
+            // Lift the complementary stroke through the LED diffuser without bleaching its hue.
+            Vector3 opposite = Vector3.One - hue;
+            float span = Math.Max(opposite.X, Math.Max(opposite.Y, opposite.Z));
+            Vector3 oppositeHue = Vector3.Lerp(new(.04f, .64f, 1), opposite / Math.Max(span, .001f), Math.Min(1, span * 2));
+            _sweepInk = new Vector3(.005f) + oppositeHue * .048f;
             _rows = new Row[atlas.Lines.Length][];
             _next = new int[_rows.Length];
             int next = -1;
@@ -100,16 +136,17 @@ internal sealed partial class FoliaMachi
         internal int LyricTarget(int activeLine) =>
             activeLine >= 0 && IsLyric(_atlas.Lines[activeLine].Source) ? activeLine : -1;
 
-        internal int WritePanel(Span<FoliaInstance> output, int target, double position, double ambientTime, float scale)
+        internal int WritePanel(Span<FoliaInstance> output, int target, double position, double ambientTime, float scale, bool showContent = true)
         {
             var painter = new FoliaPainter(output, PanelWidth, PanelHeight);
             painter.Shape(3, 0, 0, PanelWidth, BoardHeight, _boardBackground, 1);
+            if (!showContent) return painter.Count;
             int firstGlyph = painter.Count;
             double switched = target >= 0 ? (position - _atlas.Lines[target].Source.Start) / .3 : 1;
             if (target < 0)
                 WriteCard(ref painter, scale);
             else
-                WriteLine(ref painter, target, position, scale);
+                WriteLine(ref painter, output, target, position, scale);
 
             int endBoard = painter.Count;
             float boardScale = BoardHeight / _boardHeight;
@@ -173,7 +210,7 @@ internal sealed partial class FoliaMachi
             PaintCentered(ref painter, artist, artistWidth, top + titleHeight + artistHeight * .5f, artistFont, _waitingInk);
         }
 
-        private void WriteLine(ref FoliaPainter painter, int target, double position, float scale)
+        private void WriteLine(ref FoliaPainter painter, Span<FoliaInstance> output, int target, double position, float scale)
         {
             var line = _atlas.Lines[target];
             var timing = line.Source.Timing;
@@ -192,22 +229,40 @@ internal sealed partial class FoliaMachi
                 {
                     float at = x + (glyph.Offset - row.Offset) * font;
                     float top = y - (glyph.Glyph.BearingY + glyph.Glyph.Height * .5f - glyph.Glyph.CanvasCenterY) * font;
-                    Vector3 ink = glyph.ActiveColor.HasValue ? _boardAccent : _boardInk;
+                    bool accent = glyph.ActiveColor.HasValue;
                     if (!line.Source.WordSynced)
                     {
-                        painter.Glyph(glyph.Glyph, at, top, font, ink, 1);
+                        painter.Glyph(glyph.Glyph, at, top, font, accent ? _boardAccent : _boardInk, 1);
                         continue;
                     }
                     // All graphemes belonging to one authored syllable share its clock.
                     var word = line.Source.Words[glyph.Word];
                     float cue = Math.Clamp((float)((position - timing.WordEntrance(word.Start)) / timing.Lookahead), 0, 1);
-                    painter.Glyph(glyph.Glyph, at, top, font, Vector3.Lerp(_waitingInk, ink, .16f * cue), 1);
-                    float reveal = Math.Clamp((float)((position - word.Start) / Math.Max(.001, word.End - word.Start)), 0, 1);
-                    painter.Glyph(glyph.Glyph, at, top, font, ink, 1, reveal: reveal, revealSoftness: .022f);
+                    Vector3 sung = accent ? _sungAccent : _sungInk;
+                    Vector3 pending = Vector3.Lerp(_pendingInk, _pendingCueInk, cue);
+                    float progress = position < word.Start ? -1 :
+                        Math.Clamp((float)((position - word.Start) / Math.Max(.001, word.End - word.Start)), 0, 1);
+                    int first = painter.Count;
+                    painter.Glyph(glyph.Glyph, at, top, font, sung, 1);
+                    if (painter.Count == first) continue;
+                    // MachiPanelPS shades all three LED states under one MSDF coverage.
+                    ref FoliaInstance instance = ref output[first];
+                    instance.GlyphData.Y = 1;
+                    instance.GlyphData.Z = FoliaTextAtlas.GlyphPaddingEm / glyph.Glyph.Width;
+                    instance.Effect = new(progress, pending.X, pending.Y, pending.Z);
+                    instance.Shape = new(0, _sweepInk.X, _sweepInk.Y, _sweepInk.Z);
                 }
                 y += rowHeight;
             }
         }
+
+        private static Vector3 LinearInk(Vector3 color) => new(LinearInk(color.X), LinearInk(color.Y), LinearInk(color.Z));
+
+        private static float LinearInk(float value) => value <= .04045f ? value / 12.92f : MathF.Pow((value + .055f) / 1.055f, 2.4f);
+
+        private static Vector3 EncodeInk(Vector3 color) => new(EncodeInk(color.X), EncodeInk(color.Y), EncodeInk(color.Z));
+
+        private static float EncodeInk(float value) => value <= .0031308f ? value * 12.92f : 1.055f * MathF.Pow(value, 1 / 2.4f) - .055f;
 
         private void WriteTicker(ref FoliaPainter painter, int target, double ambientTime)
         {

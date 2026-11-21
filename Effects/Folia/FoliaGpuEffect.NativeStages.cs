@@ -29,7 +29,8 @@ internal sealed unsafe partial class FoliaGpuEffect
     private bool _negativeInk;
     private int _nebbiaWindowSetting;
     private double _nebbiaTime;
-    private FoliaMachi? _machi, _installedMachi;
+    private FoliaMachi? _machi;
+    private string? _installedMachiScene;
     private FoliaMachi.Plan? _machiPlan;
     private MachiDxrBackend? _machiBackend;
     private MachiDxrFrame _machiFrame;
@@ -104,7 +105,7 @@ internal sealed unsafe partial class FoliaGpuEffect
 
     private FoliaNativeStage ActiveNativeStage()
     {
-        if (!_lyricsVisible || (_atlas!.Lines.Length == 0 && _song!.LyricsPending))
+        if (!_hasScene)
             return FoliaNativeStage.None;
         if (_activeRequest.Mode == "machi" && (_temporal || _failedMachiSelection != null || _machi == null))
             return FoliaNativeStage.None;
@@ -113,7 +114,10 @@ internal sealed unsafe partial class FoliaGpuEffect
 
     private void PrepareStageTargets(FoliaNativeStage stage)
     {
-        if (stage == _targetStage && (stage != FoliaNativeStage.Machi || ReferenceEquals(_machi, _installedMachi)))
+        if (stage != FoliaNativeStage.Machi && _machiEnvironment.TimeOfDay != null
+            && _activeRequest.Mode != "machi" && AppSettings.FoliaLyricMode != "machi")
+            _machiEnvironment = default;
+        if (stage == _targetStage && (stage != FoliaNativeStage.Machi || _machiPlan!.SceneId == _installedMachiScene))
             return;
         if (stage != FoliaNativeStage.Machi || _targetStage != stage) ReleaseStageTargets();
         switch (stage)
@@ -174,7 +178,9 @@ internal sealed unsafe partial class FoliaGpuEffect
                         throw new InvalidOperationException($"Machi NRD initialization failed: {_machiBackend.DenoiserResult}.");
                     _actorTransforms = new Matrix4x4[asset.Actors.Length];
                     SetMachiWeatherLayout(asset.Weather);
-                    _installedMachi = asset;
+                    _installedMachiScene = _machiPlan!.SceneId;
+                    // Only a successfully installed district selects a new water pattern.
+                    _machiEnvironment.SetPuddleScene(_installedMachiScene);
                 }
                 catch (Exception ex)
                 {
@@ -239,8 +245,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         GpuGraphics.DisposeResource(_panelTexture);
         GpuGraphics.DisposeResource(_machiBackend);
         _machiBackend = null;
-        _installedMachi = null;
-        _machiEnvironment = default;
+        _installedMachiScene = null;
         _actorTransforms = [];
         GpuGraphics.DisposeResource(_stageRtv);
         _windowTexture = _panelTexture = null;
@@ -265,6 +270,8 @@ internal sealed unsafe partial class FoliaGpuEffect
         _hanabi = null;
         _metaphor = null;
         _nebbia = null;
+        _machi = null;
+        _machiPlan = null;
     }
 
     private int WriteNativeStage(Span<FoliaInstance> instances, double position, float width, float height, float scale,
@@ -280,13 +287,16 @@ internal sealed unsafe partial class FoliaGpuEffect
         switch (_nativeStage)
         {
             case FoliaNativeStage.Hanabi:
-                _hanabi!.Write(ref painter, position, motion);
-                _hanabiBloom = _hanabi.Bloom(position);
+                if (_lyricsVisible)
+                    _hanabi!.Write(ref painter, position, motion);
+                _hanabiBloom = _lyricsVisible ? _hanabi!.Bloom(position) : .36f;
                 break;
             case FoliaNativeStage.Metaphor:
-                _metaphorShot = _metaphor!.Write(ref painter, position, scale, motion, out var development);
+                Vector4 development = default;
+                if (_lyricsVisible)
+                    _metaphorShot = _metaphor!.Write(ref painter, position, scale, motion, out development);
                 _data[39] = development;
-                var inkPalette = _metaphor.Palette(development.W > .5f, _negativeInk);
+                var inkPalette = _metaphor!.Palette(development.W > .5f, _negativeInk);
                 _data[4] = new(inkPalette.Paper, 1);
                 _data[5] = new(inkPalette.Ink, 1);
                 _data[6] = new(inkPalette.Tone, 1);
@@ -300,10 +310,10 @@ internal sealed unsafe partial class FoliaGpuEffect
                 _data[39] = new(focus, (float)_nebbiaTime, 0);
                 break;
             case FoliaNativeStage.Machi:
-                int active = FoliaLyricLayout.FindActiveLine(atlas.Lines, position);
+                int active = _lyricsVisible ? FoliaLyricLayout.FindActiveLine(atlas.Lines, position) : -1;
                 int board = _machiPlan!.LyricTarget(active);
                 UpdateMachiFrame(song, position, anchor, board, reset);
-                _nativeForegroundCount = _machiPlan.WritePanel(instances, board, position, _animation, scale);
+                _nativeForegroundCount = _machiPlan.WritePanel(instances, board, position, _animation, scale, _lyricsVisible);
                 if (anchor < 0) return _nativeForegroundCount;
                 var subtitles = new FoliaPainter(instances[_nativeForegroundCount..], width, height);
                 // The traced stage is already linear HDR. Use linear white for the final overlay.
@@ -312,7 +322,7 @@ internal sealed unsafe partial class FoliaGpuEffect
                 return _nativeForegroundCount + subtitles.Count;
         }
         _nativeForegroundCount = painter.Count;
-        if (_nativeStage == FoliaNativeStage.Hanabi)
+        if (_nativeStage == FoliaNativeStage.Hanabi && _lyricsVisible)
             _hanabi!.WriteCredits(ref painter, position);
         if (anchor >= 0 && _nativeStage != FoliaNativeStage.Nebbia)
         {
@@ -433,13 +443,17 @@ internal sealed unsafe partial class FoliaGpuEffect
     private double _machiCycleSeconds;
     private void UpdateMachiFrame(FoliaSong song, double position, int anchor, int board, bool reset)
     {
-        reset |= _machiEnvironment.Song == null;
-        string timeOfDay = AppSettings.FoliaMachiTimeOfDay;
-        if (timeOfDay == "cycle")
-            _machiCycleSeconds = (_machiCycleSeconds + Math.Max(0, _data[1].W)) % FoliaMachi.CycleDurationSeconds;
-        var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, timeOfDay,
-            AppSettings.FoliaMachiWeather, song, DateTime.Now, _data[1].W, reset, _machiPlan!.SceneId, _machiCycleSeconds);
+        bool firstEnvironmentFrame = _machiEnvironment.TimeOfDay == null;
+        reset |= firstEnvironmentFrame;
         float delta = Math.Clamp(_data[1].W, 0, .1f);
+        string timeOfDay = AppSettings.FoliaMachiTimeOfDay;
+        bool cycling = timeOfDay == "cycle";
+        bool startCycle = cycling && _machiEnvironment.TimeOfDay != timeOfDay;
+        if (cycling)
+            _machiCycleSeconds = startCycle ? 0 : (_machiCycleSeconds + delta) % FoliaMachi.CycleDurationSeconds;
+        // Playback cuts and DXR resets can clear history without snapping the sky or drying the ground.
+        var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, timeOfDay,
+            AppSettings.FoliaMachiWeather, song, DateTime.Now, delta, firstEnvironmentFrame, _machiPlan!.SceneId, _machiCycleSeconds);
         _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
         var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
         _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _animation);
@@ -461,12 +475,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         _lightData[10] = new(_machi.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
         _lightData[11] = new(environment.SkyTop, 0);
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
-            environment.Wetness, (float)_data[1].W, reset, MachiRayReconstructionRequested)
+            environment.Wetness, (float)_data[1].W, reset || startCycle, MachiRayReconstructionRequested)
         {
             SamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel, MaxBounces = AppSettings.FoliaMachiMaxBounces,
             HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
             NoVacancy = _machiPlan.UpdateVacancy(board, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
-            AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machi.Weather.Puddles,
+            AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machiEnvironment.PuddlePattern,
             PuddleFill = environment.PuddleFill, RainTime = weatherTime,
             RainShelters = *(Matrix4x4*)(_lightData + 14),
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,

@@ -627,7 +627,7 @@
                             Description="{x:Bind ViewModel.MachiRendererStatus, Mode=OneWay}">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaMachiScene">
-                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiScene, Mode=TwoWay}" SelectedValuePath="Tag">
+                                    <ComboBox Width="220" SelectedValue="{x:Bind ViewModel.FoliaMachiScene, Mode=TwoWay}" SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="MachiSceneAuto" Tag="auto" />
                                         <ComboBoxItem x:Uid="MachiSceneKonbini" Tag="konbini" />
                                         <ComboBoxItem x:Uid="MachiSceneStation" Tag="station" />
@@ -635,7 +635,7 @@
                                     </ComboBox>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaMachiTimeOfDay">
-                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiTimeOfDay, Mode=TwoWay}" SelectedValuePath="Tag">
+                                    <ComboBox Width="220" SelectedValue="{x:Bind ViewModel.FoliaMachiTimeOfDay, Mode=TwoWay}" SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_auto" Tag="auto" />
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_cycle" Tag="cycle" />
                                         <ComboBoxItem x:Uid="FoliaMachiTimeOfDay_day" Tag="day" />
@@ -644,7 +644,7 @@
                                     </ComboBox>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaMachiWeather">
-                                    <ComboBox SelectedValue="{x:Bind ViewModel.FoliaMachiWeather, Mode=TwoWay}" SelectedValuePath="Tag">
+                                    <ComboBox Width="220" SelectedValue="{x:Bind ViewModel.FoliaMachiWeather, Mode=TwoWay}" SelectedValuePath="Tag">
                                         <ComboBoxItem x:Uid="FoliaMachiWeather_auto" Tag="auto" />
                                         <ComboBoxItem x:Uid="FoliaMachiWeather_clear" Tag="clear" />
                                         <ComboBoxItem x:Uid="FoliaMachiWeather_rain" Tag="rain" />
@@ -657,6 +657,7 @@
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaMachiDenoiserCard" x:Uid="FoliaMachiDenoiser">
                                     <ComboBox
+                                        Width="220"
                                         AutomationProperties.LabeledBy="{x:Bind FoliaMachiDenoiserCard}"
                                         SelectedIndex="{x:Bind ViewModel.FoliaMachiDenoiserIndex, Mode=TwoWay}">
                                         <ComboBoxItem Content="NRD" />
@@ -751,14 +752,14 @@
                         <controls:SettingsExpander x:Uid="FoliaNebbiaSettings" Margin="10,0,10,0" IsExpanded="False">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaNebbiaBehind">
-                                    <ComboBox SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaBehind, Mode=TwoWay}">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaBehind, Mode=TwoWay}">
                                         <ComboBoxItem x:Uid="FoliaNebbiaBehind_night" Tag="night" />
                                         <ComboBoxItem x:Uid="FoliaNebbiaBehind_aquarium" Tag="aquarium" />
                                         <ComboBoxItem x:Uid="FoliaNebbiaBehind_backdrop" Tag="backdrop" />
                                     </ComboBox>
                                 </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaNebbiaGlass">
-                                    <ComboBox SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaGlass, Mode=TwoWay}">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaGlass, Mode=TwoWay}">
                                         <ComboBoxItem x:Uid="FoliaNebbiaGlass_rain" Tag="rain" />
                                         <ComboBoxItem x:Uid="FoliaNebbiaGlass_dew" Tag="dew" />
                                         <ComboBoxItem x:Uid="FoliaNebbiaGlass_snow" Tag="snow" />

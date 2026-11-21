@@ -105,5 +105,5 @@ function writeWeather(id, weather) {
     const glint = ({ position, radius }) => `new(new Vector3(${entries(position)}), ${entries([radius])})`;
     const puff = values => `new(new(${entries(values.slice(0,4))}), new(${entries(values.slice(4))}))`;
     const name = id[0].toUpperCase() + id.slice(1) + 'Weather';
-    return `    private static readonly WeatherLayout ${name} = new(\n        ${entries([weather.half, weather.groundY, weather.windYaw, weather.windSlant])},\n        [\n${rows(weather.roofs, roof)}\n        ],\n        [\n${rows(weather.drips, drip)}\n        ],\n        [\n${rows(weather.glints, glint)}\n        ],\n        [\n${rows(weather.steam, puff)}\n        ],\n        new(${entries(weather.puddles)}));`;
+    return `    private static readonly WeatherLayout ${name} = new(\n        ${entries([weather.half, weather.groundY, weather.windYaw, weather.windSlant])},\n        [\n${rows(weather.roofs, roof)}\n        ],\n        [\n${rows(weather.drips, drip)}\n        ],\n        [\n${rows(weather.glints, glint)}\n        ],\n        [\n${rows(weather.steam, puff)}\n        ]);`;
 }

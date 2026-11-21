@@ -2,6 +2,13 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 切歌保留歌词舞台，町景随机积水并增强逐字扫光
+
+- `FoliaGpuEffect`、`FoliaScenePreparation`、`FoliaLyricLayout` 和 `FoliaPlaybackService` 在切歌、等待歌词和无歌词时保留选中的舞台，收到新曲目后收起旧词，移除通用居中封面卡。
+- `FoliaMachi.Plan` 和 `Stage.hlsl` 为正唱音节加入与歌曲封面配色形成对比的扫光，沿字形笔画移动，同一音节内的字共用原始时间戳。
+- `FoliaMachi.Environment` 和 `FoliaGpuEffect.NativeStages` 在实际进入布景时随机生成水洼位置，同场景切歌和缩放保留水洼。昼夜循环从夜晚开始，低角度的朝阳和夕阳同时染暖直射光与环境光。
+- `AppSettings`、`SaveSetting` 默认使用四分钟昼夜循环，沿用已保存的时段选择。`SettingWindow.xaml` 将町景与雾笺设置的下拉框统一为 220 DIP。
+
 ## 2026-11-21 町景积水随雨势扩张，歌词屏跟随封面配色，新增昼夜循环并校准歌词时间轴
 
 - `MachiTrace.hlsl`、`Stage.hlsl` 和 `MachiDxrBackend` 提高三块主歌词屏的发光强度，按实时字色从屏幕正面照亮街区，同步调整面积光源采样权重。

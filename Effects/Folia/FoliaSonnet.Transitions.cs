@@ -118,7 +118,7 @@ internal sealed partial class FoliaSonnet
     internal void WriteOverlay(ref FoliaPainter painter, Vector3 color)
     {
         int first = painter.Count;
-        if (AppSettings.FoliaSonnetFrame && _shots.Length > 0)
+        if (AppSettings.FoliaSonnetFrame)
         {
             float w = painter.Width, h = painter.Height;
             float x = Math.Max(30, w * .05f), y = Math.Max(30, h * .05f);

@@ -92,9 +92,9 @@ internal sealed partial class FoliaSonnet
         _scale = fontScale;
     }
     private static float F(JsonElement value, string name) => value.GetProperty(name).GetSingle();
-    internal void Write(ref FoliaPainter p, double time, Vector3 primary, Vector3 secondary, Vector3 accent)
+    internal void Write(ref FoliaPainter p, double time, Vector3 primary, Vector3 secondary, Vector3 accent, bool showLyrics = true)
     {
-        ChromaticCount = GraphicsCount = OverlayCount = 0;
+        ChromaticCount = GraphicsCount = OverlayCount = SubtitleCount = 0;
         PostProcess = new(0, 0, 1, 0);
         if (_shots.Length == 0)
             return;
@@ -140,8 +140,8 @@ internal sealed partial class FoliaSonnet
         float iconResponse = Motion.Active ? (float)Math.Exp(-(time - lastOnset) / .3 * 2.3) : _iconAudio;
         shot.Graphics.Write(ref p, time, shot.Start, shot.End, lastCue, focus, anchor,
             new(offset.X * p.Width, offset.Y * p.Height), cameraScale, angle, frameScale, primary, secondary, Motion, iconResponse);
-        WriteGuides(ref p, shot, time, focus, anchor, cameraScale, angle, secondary);
-        if (AppSettings.FoliaSonnetFixedGeometry)
+        if (showLyrics) WriteGuides(ref p, shot, time, focus, anchor, cameraScale, angle, secondary);
+        if (showLyrics && AppSettings.FoliaSonnetFixedGeometry)
         {
             var cameraMatrix = Matrix3x2.CreateTranslation(-focus) * Matrix3x2.CreateScale(cameraScale) * Matrix3x2.CreateRotation(angle) * Matrix3x2.CreateTranslation(anchor);
             foreach (var text in shot.Text)
@@ -149,6 +149,7 @@ internal sealed partial class FoliaSonnet
                     text.Decor.Write(ref p, time, text.Glyphs[0].Start, text.Glyphs[0].Settle, shot.Start, shot.End, text.Font, text.Rotation, cameraMatrix, primary, secondary, text.KeywordColor ?? accent);
         }
         GraphicsCount = p.Count - firstGraphics;
+        if (!showLyrics) return;
         int firstInstance = p.Count;
         for (int layer = 0; layer < 2; layer++)
         {

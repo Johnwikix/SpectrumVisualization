@@ -23,7 +23,7 @@ namespace WinExSpectrumTest.Model
         /// <summary>Whether Metaphor uses light ink on dark paper.</summary>
         public string FoliaMachiScene { get; set; } = "auto";
         public bool FoliaMachiMotion { get; set; }
-        public string FoliaMachiTimeOfDay { get; set; } = "auto";
+        public string FoliaMachiTimeOfDay { get; set; } = "cycle";
         public string FoliaMachiWeather { get; set; } = "auto";
         public string FoliaMachiDenoiser { get; set; } = "nrd";
         public int FoliaMachiSamplesPerPixel { get; set; } = 1;

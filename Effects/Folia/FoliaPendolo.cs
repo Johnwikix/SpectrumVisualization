@@ -12,7 +12,6 @@ internal sealed class FoliaPendolo
     private long _atlasIdentity;
     private Part[] _parts = [];
     internal float[] Mesh { get; private set; } = [];
-    internal int MeshVersion { get; private set; }
     private float[] _heights = [];
     private float _width, _height, _scale, _tick, _velocity, _phase, _bass = .15f;
     private float _secondElapsed, _secondAngle, _secondVelocity;
@@ -49,7 +48,6 @@ internal sealed class FoliaPendolo
         if (_parts.Length > 32)
             throw new InvalidOperationException("Pendolo source exceeds its 32-part transform table.");
         Mesh = source.Mesh;
-        MeshVersion++;
         _atlasIdentity = atlas.Identity;
         _width = width;
         _height = height;
@@ -66,6 +64,16 @@ internal sealed class FoliaPendolo
         _index = -1;
         _palette = palette;
         _background = palette is null ? FoliaSong.Empty.Palette[0] : palette[0];
+    }
+
+    internal void ContinueClockFrom(FoliaPendolo previous)
+    {
+        _phase = previous._phase;
+        _bass = previous._bass;
+        _secondElapsed = previous._secondElapsed;
+        _secondStep = previous._secondStep;
+        _secondAngle = previous._secondAngle;
+        _secondVelocity = previous._secondVelocity;
     }
 
     internal void Update(double elapsed, double position, int index, float bass, bool playing, int preceding, int lineCount)
@@ -114,7 +122,7 @@ internal sealed class FoliaPendolo
             p.Shape(15, cx - radius, cy - radius, radius * 2, radius * 2, secondary, Math.Min(.35f, Motion.Onset * .18f + Motion.Low * .22f));
         }
         GraphicsCount = p.Count - firstGraphic;
-        if (atlas.Lines.Length == 0)
+        if (index < 0 || atlas.Lines.Length == 0)
             return;
         Span<float> angles = stackalloc float[17];
         int first = Math.Max(0, index - 8), last = Math.Min(atlas.Lines.Length - 1, index + 8);
