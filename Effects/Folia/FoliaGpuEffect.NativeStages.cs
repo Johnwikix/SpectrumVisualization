@@ -311,7 +311,7 @@ internal sealed unsafe partial class FoliaGpuEffect
                 _data[39] = new(focus, (float)_nebbiaTime, 0);
                 break;
             case FoliaNativeStage.Machi:
-                int active = _lyricsVisible ? FoliaLyricLayout.FindActiveLine(atlas.Lines, position) : -1;
+                int active = atlas.Timeline.FindActive(anchor, position);
                 int board = _machiPlan!.LyricTarget(active);
                 UpdateMachiFrame(song, position, anchor, board, reset);
                 _nativeForegroundCount = _machiPlan.WritePanel(instances, board, position, _animation, scale, _lyricsVisible);
@@ -329,7 +329,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         {
             Vector3 textColor = _nativeStage == FoliaNativeStage.Metaphor
                 ? new(_data[5].X, _data[5].Y, _data[5].Z) : new(.91f, .92f, .97f);
-            FoliaLyricLayout.Subtitle(ref painter, atlas, FoliaLyricLayout.FindActiveLine(atlas.Lines, position),
+            FoliaLyricLayout.Subtitle(ref painter, atlas, atlas.Timeline.FindActive(anchor, position),
                 anchor, position, textColor, textColor);
         }
         return painter.Count;

@@ -63,6 +63,12 @@ internal sealed unsafe partial class GpuGraphics
                 _frames[i]!.RetireFenceValue = 0;
             }
         }
+        else if (_sceneQueue != null)
+        {
+            // Reconfiguration runs after both queues drain. Single-slot effects no longer need
+            // the second queue or the command allocator memory retained by the two frame slots.
+            DisposePipeline();
+        }
         if (_effect is IBufferedGpuEffect buffered)
         {
             buffered.ConfigureFrames(PipelineEnabled ? PipelineDepth : 1, detail);
@@ -137,8 +143,16 @@ internal sealed unsafe partial class GpuGraphics
 
     private void DisposePipeline()
     {
-        foreach (var slot in _frames) DisposeResource(slot);
+        for (int i = 0; i < _frames.Length; i++)
+        {
+            DisposeResource(_frames[i]);
+            _frames[i] = null;
+        }
         DisposeResource(_sceneFence);
+        _sceneFence = null;
+        _sceneFenceValue = 0;
         DisposeResource(_sceneQueue);
+        _sceneQueue = null;
+        _commands = _maintenanceCommands;
     }
 }

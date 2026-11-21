@@ -93,8 +93,6 @@ namespace WinExSpectrumTest.Audio
         private RealtimeLoopbackCapture? _capture;
         private readonly FftProcessor _fft = new(FftSize, FftWindowType.Hann);
         private readonly Complex[] _spectrum = new Complex[SpectrumLength];
-        private readonly Complex[] _spectrumL = new Complex[SpectrumLength];
-        private readonly Complex[] _spectrumR = new Complex[SpectrumLength];
         private readonly float[] _mono = new float[FftSize];
         private readonly float[] _left = new float[FftSize];
         private readonly float[] _right = new float[FftSize];
@@ -345,48 +343,41 @@ namespace WinExSpectrumTest.Audio
                 _ringL.AsSpan(0, oldest).CopyTo(_left.AsSpan(contiguous));
                 _ringR.AsSpan(0, oldest).CopyTo(_right.AsSpan(contiguous));
             }
-            if (_ringFilled < FftSize)
-            {
-                _left.AsSpan(_ringFilled, FftSize - _ringFilled).Clear();
-                _right.AsSpan(_ringFilled, FftSize - _ringFilled).Clear();
-            }
             // mono = 双声道平均（时域），频谱语义与改造前逐位一致。
             for (int i = 0; i < FftSize; i++)
             {
                 _mono[i] = (_left[i] + _right[i]) * 0.5f;
             }
 
-            _fft.RealForward(_mono, _spectrum);
-            _fft.RealForward(_left, _spectrumL);
-            _fft.RealForward(_right, _spectrumR);
-
             float[] bands = _bandsBack;
-            AggregateBands(_spectrum, bands);
-            AggregateBands(_spectrumL, _bandsLBack);
-            AggregateBands(_spectrumR, _bandsRBack);
+            TransformBands(_mono, bands);
+            TransformBands(_left, _bandsLBack);
+            TransformBands(_right, _bandsRBack);
 
             Analyze(bands, (float)bytesRecorded / capture.WaveFormat.AverageBytesPerSecond);
             Interlocked.Increment(ref _publicationCount);
         }
 
         /// <summary>RealForward 带 1/N 缩放（满幅正弦峰值 0.5），聚合到 512 段取段内峰值。</summary>
-        private void AggregateBands(Complex[] spectrum, float[] bands)
+        private void TransformBands(float[] samples, float[] bands)
         {
+            _fft.RealForward(samples, _spectrum);
             float binScale = InputGain * 16f;
             int binsPerBand = (SpectrumLength - 1) / BandCount;
             for (int i = 0; i < BandCount; i++)
             {
                 int start = i * binsPerBand;
                 int end = start + binsPerBand;
-                float m = 0f;
+                float peakPower = 0f;
                 for (int b = start; b < end; b++)
                 {
-                    float re = spectrum[b].X;
-                    float im = spectrum[b].Y;
-                    float mag = MathF.Sqrt(re * re + im * im) * binScale;
-                    if (mag > m) m = mag;
+                    float re = _spectrum[b].X;
+                    float im = _spectrum[b].Y;
+                    float power = re * re + im * im;
+                    if (power > peakPower) peakPower = power;
                 }
-                bands[i] = m > 1f ? 1f : m;
+                float magnitude = MathF.Sqrt(peakPower) * binScale;
+                bands[i] = magnitude > 0f ? MathF.Min(magnitude, 1f) : 0f;
             }
         }
 
@@ -397,7 +388,7 @@ namespace WinExSpectrumTest.Audio
                 int o = f * channels;
                 float l = samples[o];
                 float r = channels > 1 ? samples[o + 1] : l;
-                int idx = (ringOffset + f) % FftSize;
+                int idx = ringOffset + f; // The caller splits writes at the ring boundary.
                 _ringL[idx] = l;
                 _ringR[idx] = r;
             }

@@ -427,10 +427,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             _device.CreateUnorderedAccessView(output, null, null, Cpu(frameSlot, ResolveOutput));
             _outputs[frameSlot] = output.NativePointer;
         }
-        for (int i = 0; i < _signals.Length; i++)
-            if (_signals[i] is { } signal &&
-                (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth))
-                list.ResourceBarrierTransition(signal, Read, Write);
+        TransitionTraceSignals(list, Read, Write, requestRayReconstruction, needsFsrDepth);
         list.SetDescriptorHeaps(_descriptors);
         list.SetComputeRootSignature(_traceRoot);
         list.SetComputeRootConstantBufferView(0, _constantBuffer.GPUVirtualAddress + (uint)offset);
@@ -445,10 +442,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         list.SetComputeRootShaderResourceView(9, _analyticLights.GPUVirtualAddress);
         list.SetPipelineState1(_trace);
         list.DispatchRays(_dispatch);
-        for (int i = 0; i < _signals.Length; i++)
-            if (_signals[i] is { } signal &&
-                (requestRayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth))
-                list.ResourceBarrierTransition(signal, Write, Read);
+        TransitionTraceSignals(list, Write, Read, requestRayReconstruction, needsFsrDepth);
 
         SuperResolutionActive = ReconstructionMode.Off;
         RayReconstructionActive = requestRayReconstruction && TryRayReconstruction(list, camera, output, temporal, frame.DeltaSeconds);
@@ -488,6 +482,20 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         _previousJitter = -jitter;
         _jitterIndex++;
         _frameIndex++;
+    }
+
+    private void TransitionTraceSignals(ID3D12GraphicsCommandList4 list, ResourceStates before, ResourceStates after,
+        bool rayReconstruction, bool needsFsrDepth)
+    {
+        Span<ResourceBarrier> barriers = stackalloc ResourceBarrier[TraceOutputs];
+        int count = 0;
+        for (int i = 0; i < _signals.Length; i++)
+        {
+            if (_signals[i] is { } signal &&
+                (rayReconstruction || !IsRayReconstructionGuide(i) || needsFsrDepth && i == (int)MachiDxrSignal.ReconstructionDepth))
+                barriers[count++] = ResourceBarrier.BarrierTransition(signal, before, after);
+        }
+        list.ResourceBarrier(barriers[..count]);
     }
 
     private void Resolve(ID3D12GraphicsCommandList4 list, int frameSlot, ID3D12PipelineState pipeline, int output, int width, int height)

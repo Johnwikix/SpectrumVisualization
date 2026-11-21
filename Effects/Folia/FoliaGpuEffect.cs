@@ -32,7 +32,9 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12RootSignature _root = null!;
     private ID3D12DescriptorHeap _srv = null!, _rtv = null!, _dsv = null!;
     private ID3D12Resource _constants = null!, _instances = null!;
-    private ID3D12Resource _lightConstants = null!;
+    // Root CBV addresses in the shared upload buffer must be 256-byte aligned.
+    private const int LightConstantsOffset = 768;
+    private const int ClockConstantsOffset = LightConstantsOffset + 4608;
     private Vector4* _lightData;
     private FoliaLumiere _lumiere = new();
     private FoliaCadenza _cadenza = new();
@@ -47,7 +49,6 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private FoliaMonet _monet = new();
     private int _stageGraphicsCount;
     private ID3D12PipelineState _clockwork = null!;
-    private ID3D12Resource _clockConstants = null!;
     private ID3D12Resource? _clockVertices;
     private Vector4* _clockTransforms;
     private float[]? _clockMesh;
@@ -89,7 +90,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         }
     }
 
-    private Vector4* _data;
+    private readonly Vector4[] _data = new Vector4[40]; // Frame cbuffer in Shared.hlsl
+    private Vector4* _mappedFrame;
     private FoliaInstance* _mapped;
     private FoliaInstance[] _prepared = null!;
     private readonly ID3D12PipelineState?[] _backgrounds = new ID3D12PipelineState?[8];
@@ -131,14 +133,12 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _srv = _device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 36, DescriptorHeapFlags.ShaderVisible));
         _rtv = _device.CreateDescriptorHeap(new(DescriptorHeapType.RenderTargetView, 6));
         _dsv = _device.CreateDescriptorHeap(new(DescriptorHeapType.DepthStencilView, 1));
-        _constants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None, ResourceDescription.Buffer(768), ResourceStates.GenericRead);
-        _data = _constants.Map<Vector4>(0);
-        _lightConstants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
-            ResourceDescription.Buffer(4608), ResourceStates.GenericRead);
-        _lightData = _lightConstants.Map<Vector4>(0);
-        _clockConstants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
-            ResourceDescription.Buffer(768), ResourceStates.GenericRead);
-        _clockTransforms = _clockConstants.Map<Vector4>(0);
+        _constants = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None,
+            ResourceDescription.Buffer(ClockConstantsOffset + 768), ResourceStates.GenericRead);
+        byte* constants = _constants.Map<byte>(0);
+        _mappedFrame = (Vector4*)constants;
+        _lightData = (Vector4*)(constants + LightConstantsOffset);
+        _clockTransforms = (Vector4*)(constants + ClockConstantsOffset);
         _instances = _device.CreateCommittedResource(new HeapProperties(HeapType.Upload), HeapFlags.None, ResourceDescription.Buffer((ulong)(Capacity * sizeof(FoliaInstance))), ResourceStates.GenericRead);
         _mapped = _instances.Map<FoliaInstance>(0);
         _prepared = new FoliaInstance[Capacity];
@@ -180,7 +180,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12PipelineState Pipeline(string file, string vs, string ps, bool sprites = false, bool temporal = false, bool screen = false)
     {
         string shader = FoliaShaderLibrary.Background(file);
-        int pipelineVersion = file == "Machi" || ps == "MachiPanelPS" ? 12 : temporal ? 11 : 10;
+        int pipelineVersion = file == "Print" ? 13 : file == "Machi" || ps == "MachiPanelPS" ? 12 : temporal ? 11 : 10;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
@@ -224,12 +224,15 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         }
         else ReleaseStageTargets();
         _size = size;
-        for (int i = 3; i < 5; i++)
+        GpuGraphics.DisposeResource(_textures[3]);
+        _textures[3] = Texture(Format.R16G16B16A16_Float, ResourceStates.PixelShaderResource,
+            _hardwareRaytracing ? ResourceFlags.AllowRenderTarget | ResourceFlags.AllowUnorderedAccess : ResourceFlags.AllowRenderTarget);
+        _device.CreateRenderTargetView(_textures[3]!, null, Rtv(0));
+        if (_textures[4] != null)
         {
-            GpuGraphics.DisposeResource(_textures[i]);
-            _textures[i] = Texture(Format.R16G16B16A16_Float, ResourceStates.PixelShaderResource,
-                i == 3 && _hardwareRaytracing ? ResourceFlags.AllowRenderTarget | ResourceFlags.AllowUnorderedAccess : ResourceFlags.AllowRenderTarget);
-            _device.CreateRenderTargetView(_textures[i]!, null, Rtv(i - 3));
+            GpuGraphics.DisposeResource(_textures[4]);
+            _textures[4] = null;
+            CreateStageLayer();
         }
         _bloom?.Resize(size.Width, size.Height, _textures[4]!);
         if (_latentTarget != null)
@@ -257,6 +260,11 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     }
     private ID3D12Resource Texture(Format format, ResourceStates state, ResourceFlags flags) => _device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, ResourceDescription.Texture2D(format, (uint)_size.Width, (uint)_size.Height, 1, 1, 1, 0, flags), state);
     private CpuDescriptorHandle Rtv(int slot) => _rtv.GetCPUDescriptorHandleForHeapStart() + slot * _rtvStride;
+    private void CreateStageLayer()
+    {
+        _textures[4] = Texture(Format.R16G16B16A16_Float, ResourceStates.PixelShaderResource, ResourceFlags.AllowRenderTarget);
+        _device.CreateRenderTargetView(_textures[4]!, null, Rtv(1));
+    }
 
     public void PrepareFrame(double elapsedSeconds, int detail)
     {
@@ -324,6 +332,10 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         else
             _lineAmbient += delta;
         _lineIndex = lineIndex;
+        bool nebbia = _nativeStage == FoliaNativeStage.Nebbia;
+        if (nebbia)
+            _nebbiaWindowSetting = NebbiaWindowSetting();
+        bool windowBackdrop = nebbia && _nebbiaWindowSetting % 3 == 2;
         // PrepareFrame follows the preceding-frame fence. Exclusive mode resources can
         // be released here instead of retaining the largest visited mode until shutdown.
         bool needsBloom = mode is "lumiere" or "hanabi" || mode == "machi" && AppSettings.FoliaMachiBloom;
@@ -331,6 +343,19 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         {
             _bloom.Dispose();
             _bloom = null;
+        }
+        bool needsLayer = windowBackdrop || _nativeStage is not (FoliaNativeStage.None or FoliaNativeStage.Nebbia)
+            || mode is "sonnet" or "tempera" or "lumiere" || backgroundMode == "latent";
+        if (needsLayer && _textures[4] == null)
+        {
+            CreateStageLayer();
+            Descriptors();
+        }
+        else if (!needsLayer && _textures[4] != null)
+        {
+            GpuGraphics.DisposeResource(_textures[4]);
+            _textures[4] = null;
+            Descriptors();
         }
         if (needsBloom && _bloom == null)
         {
@@ -371,18 +396,15 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
                 ResizeLatent();
         }
         _latent.Update(backgroundMode == "latent", !ambientPlaying, elapsedSeconds, _analyzer.LatestFeatures,
-            new Span<Vector4>(_data + 17, 6), out _data[23], out _data[24], out _data[25]);
+            _data.AsSpan(17, 6), out _data[23], out _data[24], out _data[25]);
         // Upload heaps are write-combined. Layout and camera passes read earlier instances;
         // perform those passes in cached CPU memory, then upload once with the SIMD span copy.
         var instances = _prepared.AsSpan();
         float dpi = _size.PixelsPerDip;
         float layoutWidth = _hasScene ? _activeRequest.Width : _size.OutputWidth / dpi;
         float layoutHeight = _hasScene ? _activeRequest.Height : _size.OutputHeight / dpi;
-        bool windowBackdrop = false;
-        if (_nativeStage == FoliaNativeStage.Nebbia)
+        if (nebbia)
         {
-            _nebbiaWindowSetting = NebbiaWindowSetting();
-            windowBackdrop = _nebbiaWindowSetting % 3 == 2;
             if (songChanged && _nebbiaTime > 1000)
                 _nebbiaTime = 0;
             if (clock.Playing)
@@ -412,7 +434,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         }
         if (mode == "pendolo" && _pendolo.Mesh.Length > 0)
         {
-            int active = _lyricsVisible ? FoliaLyricLayout.FindActiveLine(_atlas.Lines, position) : -1;
+            int active = _atlas.Timeline.FindActive(lineIndex, position);
             _pendolo.Update(elapsedSeconds, position, active, _analyzer.LatestFeatures[FeatureIndex.Bass], ambientPlaying, lineIndex, _atlas.Lines.Length);
             _pendolo.WriteTransforms(new Span<Vector4>(_clockTransforms, 33));
             if (!ReferenceEquals(_clockMesh, _pendolo.Mesh))
@@ -438,7 +460,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         _glowWords.Begin(lineIndex, (int)_data[2].Y, position);
         _data[38] = _data[39] = default;
         _count = native ? WriteNativeStage(instances[_backgroundCount..], _stagePosition, layoutWidth, layoutHeight, fontScale, lineIndex, motion, motionReset)
-            : FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, _stagePosition, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet, _lyricsVisible);
+            : FoliaLyricLayout.Write(instances[_backgroundCount..], _atlas, song, _stagePosition, (float)_lineAmbient, (int)_data[2].Y, layoutWidth, layoutHeight, fontScale, _lumiere, _cadenza, _tempera, _sonnet, _diorama, _fume, _tilt, _pendolo, _glowWords, _partita, _monet, _lyricsVisible, lineIndex);
         if (mode == "sonnet")
         {
             var overlay = new FoliaPainter(instances[(_backgroundCount + _count)..], layoutWidth, layoutHeight);
@@ -453,6 +475,8 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
             "pendolo" => _pendolo.GraphicsCount, _ => 0 };
         _data[8] = new(mode == "tempera" && _atlas.Lines.Length == 0 ? song.Palette[1] : _tempera.InkColor, 1);
         _data[9] = new(mode == "tempera" && _atlas.Lines.Length == 0 ? song.Palette[0] : _tempera.PaperColor, 1);
+        // Assemble and read frame state in cached CPU memory. Write-combined GPU memory is write-only here.
+        _data.AsSpan().CopyTo(new Span<Vector4>(_mappedFrame, _data.Length));
         instances[..(_backgroundCount + _count)].CopyTo(new Span<FoliaInstance>(_mapped, Capacity));
     }
 
@@ -514,47 +538,53 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         int mode = (int)_data[2].Y;
         if (_count == 0 && mode is not (11 or 12)) return;
         if (mode == 12)
-            RenderLumiere(commands);
-        else if (mode == 10)
-            RenderSonnet(commands);
-        else
         {
-            if (_stageGraphicsCount > 0)
-            {
-                commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-                commands.OMSetRenderTargets(Rtv(0));
-                Bind(commands, 0);
-                commands.SetPipelineState(_sprites);
-                SetInstanceOffset(commands, (uint)_backgroundCount);
-                commands.DrawInstanced(6, (uint)_stageGraphicsCount, 0, 0);
-                commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-            }
+            RenderLumiere(commands);
+            return;
+        }
+        if (mode == 10)
+        {
+            RenderSonnet(commands);
+            return;
+        }
+
+        bool tempera = mode == 11;
+        if (!tempera || _stageGraphicsCount > 0)
+        {
+            commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+            commands.OMSetRenderTargets(Rtv(0));
+            Bind(commands, 0);
             if (mode == 9 && _clockVertices != null)
             {
-                commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-                commands.OMSetRenderTargets(Rtv(0));
+                DrawSprites(commands, _backgroundCount, _stageGraphicsCount);
                 commands.SetPipelineState(_clockwork);
-                commands.SetGraphicsRootConstantBufferView(5, _clockConstants.GPUVirtualAddress);
+                commands.SetGraphicsRootConstantBufferView(5, _constants.GPUVirtualAddress + ClockConstantsOffset);
                 commands.SetGraphicsRootShaderResourceView(6, _clockVertices.GPUVirtualAddress);
                 commands.DrawInstanced((uint)(_clockMesh!.Length / 7), 1, 0, 0);
-                commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+                DrawSprites(commands, _backgroundCount + _stageGraphicsCount, _count - _stageGraphicsCount);
             }
-            // Preserve the original browser's perceptual alpha compositing in private FP16 scratch.
-            // Only the final copy converts to the host's linear scene, before every AA / reconstruction mode.
-            CopyScratch(commands, 3, 4, ResourceStates.RenderTarget);
-            DrawLyrics(commands, Rtv(1), _size.Width, _size.Height);
-            commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+            else
+                DrawSprites(commands, _backgroundCount, tempera ? _stageGraphicsCount : _count);
+            commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        }
+        if (!tempera) return;
+
+        // Tempera's inverse ink samples the composed backdrop while drawing into a separate target.
+        CopyScratch(commands, 3, 4, ResourceStates.RenderTarget);
+        commands.OMSetRenderTargets(Rtv(1));
+        Bind(commands, 2);
+        DrawSprites(commands, _backgroundCount + _stageGraphicsCount, _count - _stageGraphicsCount);
+        commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
+        if (!AppSettings.FoliaTemperaPostProcess)
             CopyScratch(commands, 4, 3, ResourceStates.PixelShaderResource);
-            if (mode == 11 && AppSettings.FoliaTemperaPostProcess)
-            {
-                commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
-                commands.OMSetRenderTargets(Rtv(1));
-                Bind(commands, 2);
-                commands.SetPipelineState(_print);
-                commands.DrawInstanced(3, 1, 0, 0);
-                commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-                CopyScratch(commands, 4, 3, ResourceStates.PixelShaderResource);
-            }
+        else
+        {
+            commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+            commands.OMSetRenderTargets(Rtv(0));
+            Bind(commands, 1);
+            commands.SetPipelineState(_print);
+            commands.DrawInstanced(3, 1, 0, 0);
+            commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         }
     }
 
@@ -613,27 +643,12 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     }
     private static void SetInstanceOffset(ID3D12GraphicsCommandList commands, uint offset)
         => commands.SetGraphicsRoot32BitConstants(3, 1, &offset, 0);
-    private void DrawLyrics(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target, int width, int height)
+    private void DrawSprites(ID3D12GraphicsCommandList commands, int first, int count)
     {
-        commands.SetDescriptorHeaps(_srv);
-        commands.SetGraphicsRootSignature(_root);
-        commands.SetGraphicsRootConstantBufferView(0, _constants.GPUVirtualAddress);
-        commands.SetGraphicsRootConstantBufferView(2, _lightConstants.GPUVirtualAddress);
-        Bind(commands, 2);
-        commands.RSSetViewport(0, 0, width, height, 0, 1);
-        commands.RSSetScissorRect(width, height);
-        commands.OMSetRenderTargets(target);
-        commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        int chromatic = (int)_data[2].Y == 10 ? _sonnet.ChromaticCount : 0;
-        if (chromatic > 0)
-        {
-            commands.SetPipelineState(_screenSprites);
-            SetInstanceOffset(commands, (uint)(_backgroundCount + _stageGraphicsCount));
-            commands.DrawInstanced(6, (uint)chromatic, 0, 0);
-        }
+        if (count <= 0) return;
         commands.SetPipelineState(_sprites);
-        SetInstanceOffset(commands, (uint)(_backgroundCount + _stageGraphicsCount + chromatic));
-        commands.DrawInstanced(6, (uint)(_count - _stageGraphicsCount - chromatic), 0, 0);
+        SetInstanceOffset(commands, (uint)first);
+        commands.DrawInstanced(6, (uint)count, 0, 0);
     }
     public void Dispose()
     {
@@ -686,7 +701,6 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         GpuGraphics.DisposeResource(_dsv);
         GpuGraphics.DisposeResource(_instances);
         GpuGraphics.DisposeResource(_constants);
-        GpuGraphics.DisposeResource(_lightConstants);
         GpuGraphics.DisposeResource(_lightField);
         _bloom?.Dispose();
         GpuGraphics.DisposeResource(_vignette);
@@ -699,7 +713,6 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
         GpuGraphics.DisposeResource(_latentTarget);
         GpuGraphics.DisposeResource(_latentComposite);
         GpuGraphics.DisposeResource(_clockwork);
-        GpuGraphics.DisposeResource(_clockConstants);
         GpuGraphics.DisposeResource(_clockVertices);
     }
 }

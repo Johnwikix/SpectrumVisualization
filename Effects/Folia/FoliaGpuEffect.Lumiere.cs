@@ -9,10 +9,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     {
         if (!_lumiere.HasScene)
         {
-            CopyScratch(commands, 3, 4, ResourceStates.RenderTarget);
-            DrawRange(commands, Rtv(1), _backgroundCount, _count);
-            commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-            CopyScratch(commands, 4, 3, ResourceStates.PixelShaderResource);
+            DrawLumiereForeground(commands, _backgroundCount, _count);
             return;
         }
         // Graphics and text have independent bloom. The shared background is composed afterwards.
@@ -41,18 +38,26 @@ internal sealed unsafe partial class FoliaGpuEffect
         _bloom.Apply(commands, _textures[3]!, Rtv(0), true);
 
         // Front bokeh and the optical frame sit outside both filters in the original.
-        CopyScratch(commands, 3, 4, ResourceStates.RenderTarget);
         int filtered = _lumiere.GraphicsCount + _lumiere.TextCount;
-        DrawRange(commands, Rtv(1), _backgroundCount + filtered, _count - filtered);
-        commands.ResourceBarrierTransition(_textures[4]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
-        CopyScratch(commands, 4, 3, ResourceStates.PixelShaderResource);
+        DrawLumiereForeground(commands, _backgroundCount + filtered, _count - filtered);
+    }
+    private void DrawLumiereForeground(ID3D12GraphicsCommandList commands, int first, int count)
+    {
+        // The output copy needs the stage root signature even when the foreground is empty.
+        SetFoliaState(commands);
+        if (count <= 0) return;
+        commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
+        Bind(commands, 0);
+        commands.OMSetRenderTargets(Rtv(0));
+        DrawSprites(commands, first, count);
+        commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
     }
     private void SetFoliaState(ID3D12GraphicsCommandList commands)
     {
         commands.SetDescriptorHeaps(_srv);
         commands.SetGraphicsRootSignature(_root);
         commands.SetGraphicsRootConstantBufferView(0, _constants.GPUVirtualAddress);
-        commands.SetGraphicsRootConstantBufferView(2, _lightConstants.GPUVirtualAddress);
+        commands.SetGraphicsRootConstantBufferView(2, _constants.GPUVirtualAddress + LightConstantsOffset);
         commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         commands.RSSetViewport(0, 0, _size.Width, _size.Height, 0, 1);
         commands.RSSetScissorRect(_size.Width, _size.Height);
@@ -62,8 +67,6 @@ internal sealed unsafe partial class FoliaGpuEffect
         SetFoliaState(commands);
         Bind(commands, 0);
         commands.OMSetRenderTargets(target);
-        commands.SetPipelineState(_sprites);
-        SetInstanceOffset(commands, (uint)first);
-        commands.DrawInstanced(6, (uint)count, 0, 0);
+        DrawSprites(commands, first, count);
     }
 }

@@ -1,7 +1,7 @@
 // Folia Tempera's default lens -> noise -> vignette chain, composed before linear output conversion.
 float4 SampleScene(float2 uv) {
     if(any(uv<0)||any(uv>1))return 0;
-    return BackdropTexture.SampleLevel(LinearClamp,uv+Jitter.xy/Screen.xy,0);
+    return LayerTexture.SampleLevel(LinearClamp,uv+Jitter.xy/Screen.xy,0);
 }
 float4 PS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     // Evaluate the lens in scene coordinates, then sample its already jittered source.

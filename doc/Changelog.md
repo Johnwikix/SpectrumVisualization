@@ -2,6 +2,16 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 修复雾笺英俄歌词，降低歌词合成、路径追踪和频谱显示开销
+
+- `FoliaNebbiaStrokes`、`FoliaNebbia` 和 `Build/FoliaNative` 按字体字宽、基线和连续笔画绘制雾笺的回退字形，保留字腔、附加符号和标点。`FoliaDistanceField` 复用 DirectWrite 接口读取 NativeAOT 所需的基线，纯俄文可提前结束汉字笔顺表的扫描。
+- `FoliaGpuEffect` 和 `Print.hlsl` 让普通歌词直接在背景上混合，按模式分配第二张全屏 FP16 纹理，提交新图集后释放闲置字图和上传缓冲。
+- `FoliaGpuEffect` 和 `FoliaLineTiming` 合并三块常量上传资源，用 CPU 缓存准备帧参数，复用当前行索引并跳过已退场的歌词。
+- `MachiTrace.hlsl` 在区域光源的阴影射线找到首个有效遮挡后结束遍历，保留透明招牌的可见性判定。`MachiDxrBackend` 将追踪前后的纹理状态转换分别合并成一次提交。
+- `SpectrumAnalyzer` 和 `RadialSpectrumState` 复用单声道混音和左右声道的 FFT 工作缓冲，按频段求幅值，极光之环的左右镜像频段共用一次峰值查找。
+- `SonicGpuEffect` 和 `GpuGraphics.Pipeline` 为活跃帧槽合并常量和粒子上传缓冲，退出双帧渲染后释放附加队列和命令分配器。
+- 离屏验证覆盖 16 个歌词模式的 114 组同帧 FP16 合成对照、町景 232 帧的 3,872 张输出与辅助纹理，以及含「霧」的中文手写蒙版，以上回读均与改动前一致。
+
 ## 2026-11-21 修复町景俄文等文字的词内扫光
 
 - `FoliaMachi.Plan`、`FoliaWordSegmentation` 移除拉丁字母白名单，让俄文、希腊文和其他字母文字在原词时间内按实际字宽连续扫光。汉字、假名、韩文沿用原有音节效果。

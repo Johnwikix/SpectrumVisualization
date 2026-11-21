@@ -41,6 +41,7 @@ internal sealed class FoliaTextAtlas : IDisposable
         _shadowPixels = new(1);
         CharacterGlyphs = new Dictionary<string, FoliaGlyph>();
         Lines = [];
+        Timeline = new(Lines);
         Title = Artist = MonetTitle = [];
         ChatTimestamps = [];
         ChatTimestampWidths = [];
@@ -113,6 +114,7 @@ internal sealed class FoliaTextAtlas : IDisposable
     {
         get;
     }
+    internal FoliaLineTimingIndex Timeline { get; }
     internal FoliaPreparedGlyph[] Title
     {
         get;
@@ -377,6 +379,7 @@ internal sealed class FoliaTextAtlas : IDisposable
                 var translation = PrepareText(line.Translation, glyphs, out float translationWidth);
                 Lines[i] = new(line, prepared.ToArray(), offset, translation, translationWidth) { TiltItalic = italics.ToArray() };
             }
+            Timeline = new(Lines);
             MonetTitle = PrepareText(song.Title, titleGlyphs, out float monetTitleWidth);
             MonetTitleWidth = monetTitleWidth;
             ChatTimestamps = new FoliaPreparedGlyph[song.Lines.Length][];

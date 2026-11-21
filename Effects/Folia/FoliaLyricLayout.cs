@@ -7,7 +7,7 @@ namespace WinExSpectrumTest.Effects.Folia;
 internal static partial class FoliaLyricLayout
 {
     internal static int Write(Span<FoliaInstance> output, FoliaTextAtlas atlas, FoliaSong song,
-        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita, FoliaMonet monet, bool showSong = true)
+        double time, float animationTime, int mode, float width, float height, float fontScale, FoliaLumiere lumiere, FoliaCadenza cadenza, FoliaTempera tempera, FoliaSonnet sonnet, FoliaDiorama diorama, FoliaFume fume, FoliaTilt tilt, FoliaPendolo pendolo, FoliaGlowWords glowWords, FoliaPartita partita, FoliaMonet monet, bool showSong = true, int? lineAnchor = null)
     {
         var painter = new FoliaPainter(output, width, height);
         var palette = song.Palette;
@@ -24,8 +24,8 @@ internal static partial class FoliaLyricLayout
             }
             return painter.Count;
         }
-        int anchor = FindLine(atlas.Lines, time);
-        int active = FindActiveLine(atlas.Lines, time);
+        int anchor = lineAnchor ?? FindLine(atlas.Lines, time);
+        int active = mode is 3 or 4 or 7 or 9 ? -1 : atlas.Timeline.FindActive(anchor, time);
         int index = Math.Clamp(anchor, 0, atlas.Lines.Length - 1);
         bool timed = mode is 0 or 1 or 2 or 5;
         if (timed && active >= 0)
@@ -100,14 +100,6 @@ internal static partial class FoliaLyricLayout
                 hi = mid - 1;
         }
         return answer;
-    }
-
-    internal static int FindActiveLine(FoliaPreparedLine[] lines, double time)
-    {
-        for (int i = FindLine(lines, time); i >= 0; i--)
-            if (time <= lines[i].Source.Timing.RenderEnd)
-                return i;
-        return -1;
     }
 
     private static float Progress(in FoliaPreparedGlyph glyph, double time) => Math.Clamp((float)((time - glyph.Start) / Math.Max(.001, glyph.End - glyph.Start)), 0, 1);
