@@ -19,6 +19,8 @@ internal sealed record FoliaLine(string Text, string Translation, double Start, 
 /// <summary>Immutable CPU data; published atomically. GPU resources remain owned by the render thread.</summary>
 internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines, byte[] CoverRgba, int CoverWidth, int CoverHeight, Vector3[] Palette)
 {
+    // SMTC source, title, artist and album identify the track across asynchronous updates.
+    internal string TrackKey { get; init; } = "";
     // A metadata-only snapshot is provisional until lookup succeeds, finds nothing, or fails.
     internal bool LyricsPending { get; init; }
     internal double Duration { get; init; }
@@ -35,6 +37,13 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
         get;
     } = new("", "", [], [], 0, 0,
         [new(14 / 255f, 17 / 255f, 24 / 255f), new(184 / 255f, 214 / 255f, 204 / 255f), new(79 / 255f, 105 / 255f, 130 / 255f), new(196 / 255f, 122 / 255f, 156 / 255f)]);
+
+    internal static bool SameTrack(FoliaSong a, FoliaSong b) => a.TrackKey.Length != 0 || b.TrackKey.Length != 0
+        ? a.TrackKey == b.TrackKey : a.Title == b.Title && a.Artist == b.Artist;
+
+    internal static bool SameCoverImage(FoliaSong a, FoliaSong b) => a.CoverWidth == b.CoverWidth
+        && a.CoverHeight == b.CoverHeight
+        && ReferenceEquals(a.DisplayCoverRgba ?? a.CoverRgba, b.DisplayCoverRgba ?? b.CoverRgba);
 
     internal static FoliaLine[] Parse(string lyrics, string? translation, double duration)
     {

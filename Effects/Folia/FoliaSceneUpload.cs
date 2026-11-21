@@ -108,10 +108,10 @@ internal sealed class FoliaSceneUpload : IDisposable
         var atlas = scene.Atlas!;
         _resident = resident;
         if (!atlas.IsShared && !ReferenceEquals(atlas, activeAtlas)) Glyphs = new(0, atlas.Width, atlas.Height, Format.R16G16B16A16_Float);
-        if (!ReferenceEquals(scene.Song.CoverRgba, activeSong.CoverRgba)
-            || !ReferenceEquals(scene.Song.DisplayCoverRgba, activeSong.DisplayCoverRgba))
-            Cover = new(1, Math.Max(1, scene.Request.Song.CoverWidth), Math.Max(1, scene.Request.Song.CoverHeight), Format.R8G8B8A8_UNorm);
-        bool emoji = scene.Request.Mode == "cappella" && atlas.Lines.Length > 0;
+        if (!FoliaSong.SameCoverImage(scene.Song, activeSong))
+            Cover = new(1, Math.Max(1, scene.Song.CoverWidth), Math.Max(1, scene.Song.CoverHeight), Format.R8G8B8A8_UNorm);
+        // Dialogue bubbles share this static atlas across songs, including empty handoffs.
+        bool emoji = scene.Request.Mode == "cappella";
         ModeAtlasSource = emoji ? FoliaAssets.Emojis : atlas;
         if (!ReferenceEquals(modeSource, ModeAtlasSource) && (emoji || !atlas.IsShared))
             ModeAtlas = emoji ? new(5, FoliaAssets.Emojis.Width, FoliaAssets.Emojis.Height, Format.B8G8R8A8_UNorm)

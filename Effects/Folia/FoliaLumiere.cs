@@ -45,6 +45,7 @@ internal sealed partial class FoliaLumiere
         {
             data.Clear();
             GraphicsCount = TextCount = DarkCount = 0;
+            _light = song.Palette[1];
             return;
         }
         int shotIndex = 0;
@@ -130,7 +131,7 @@ internal sealed partial class FoliaLumiere
     private static float Oscillate(Vector4 oscillation, float time)
         => oscillation.X * MathF.Sin((time / Math.Max(.001f, oscillation.Y) + oscillation.Z) * MathF.Tau);
 
-    internal void Write(ref FoliaPainter painter, FoliaTextAtlas atlas, double time, float fontScale)
+    internal void Write(ref FoliaPainter painter, FoliaTextAtlas atlas, double time, float fontScale, bool showLyrics = true)
     {
         int firstInstance = painter.Count;
         float h = painter.Height, w = painter.Width;
@@ -139,7 +140,7 @@ internal sealed partial class FoliaLumiere
         float dark = brightness > .18f ? Math.Max(.94f, AppSettings.FoliaLumiereDarkField) : AppSettings.FoliaLumiereDarkField;
         painter.Shape(1, 0, 0, w, h, background * .06f, dark);
         DarkCount = painter.Count - firstInstance;
-        if (!AppSettings.FoliaLumiereTextOnly && AppSettings.FoliaLumiereEcho > 0)
+        if (showLyrics && !AppSettings.FoliaLumiereTextOnly && AppSettings.FoliaLumiereEcho > 0)
         {
             int firstEcho = painter.Count;
             WriteEchoes(ref painter, atlas, time);
@@ -194,7 +195,7 @@ internal sealed partial class FoliaLumiere
         WriteMotes(ref painter, _motes, time, false);
         GraphicsCount = painter.Count - firstInstance;
         int textFirst = painter.Count;
-        WriteWindow(ref painter, atlas, time);
+        if (showLyrics) WriteWindow(ref painter, atlas, time);
         TextCount = painter.Count - textFirst;
         if (AppSettings.FoliaLumiereFrontBokeh) WriteMotes(ref painter, _front, time, true);
         painter.TransformFrom(firstInstance + DarkCount, new(w * .5f, h * .5f), new(_camera.X * w, _camera.Y * h), _camera.Z, _camera.W);

@@ -1,6 +1,7 @@
 using System;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
+using WinExSpectrumTest.Model;
 using WinExSpectrumTest.Rendering;
 
 namespace WinExSpectrumTest.Effects.Folia;
@@ -26,10 +27,20 @@ internal sealed unsafe partial class FoliaGpuEffect
             return;
         }
         if (!_hasScene || request.Song.Title.Length == 0) return;
-        if (_activeRequest.Song.Title == request.Song.Title && _activeRequest.Song.Artist == request.Song.Artist
-            && ReferenceEquals(_activeRequest.Song.CoverRgba, request.Song.CoverRgba)
-            && _activeRequest.Background == request.Background && _activeRequest.Theme == request.Theme) return;
         _transitionPending = true;
+    }
+
+    private bool BackgroundChanges(FoliaPreparedScene incoming)
+    {
+        string background = incoming.Request.Background;
+        var previous = _song!;
+        var next = incoming.Song;
+        if (_activeRequest.Background != background || !previous.Palette.AsSpan().SequenceEqual(next.Palette))
+            return true;
+        if (background == "latent")
+            return !_activeScene!.Scene.Colors.AsSpan().SequenceEqual(incoming.Colors);
+        bool usesCover = background is "monet" or "nomand" || background == "common" && AppSettings.FoliaCoverBackground;
+        return usesCover && !FoliaSong.SameCoverImage(previous, next);
     }
 
     private void CaptureBackgroundTransition()
@@ -50,7 +61,6 @@ internal sealed unsafe partial class FoliaGpuEffect
         }
         // Capture only at the completed upload boundary. The outgoing background keeps
         // animating throughout CPU preparation and staging, including interrupted blends.
-        _transitionPending = false;
         _captureBackground = true;
     }
 

@@ -11,17 +11,19 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaSceneRequest(FoliaSong Song, string Family, int Weight,
     string Mode, string Background, float Width, float Height, float Scale, bool TemperaDecor = true, FoliaThemeSettings? Theme = null,
-    string MachiScene = "auto")
+    string MachiScene = "auto", string? MachiIdleScene = null)
 {
     internal bool Matches(in FoliaSceneRequest other) => ReferenceEquals(Song, other.Song)
         && Family == other.Family && Weight == other.Weight && Mode == other.Mode && Background == other.Background
         && Width == other.Width && Height == other.Height && Scale == other.Scale
-        && (Mode != "machi" || MachiScene == other.MachiScene)
+        && (Mode != "machi" || MachiScene == other.MachiScene && MachiIdleScene == other.MachiIdleScene)
         && (Mode != "tempera" || TemperaDecor == other.TemperaDecor)
         && (Theme ?? FoliaThemeSettings.Default) == (other.Theme ?? FoliaThemeSettings.Default);
 
     internal static bool SameText(FoliaSong a, FoliaSong b) => a.Title == b.Title && a.Artist == b.Artist
         && ReferenceEquals(a.Lines, b.Lines);
+
+    internal string ResolveMachiScene() => MachiIdleScene ?? FoliaMachi.ResolveSceneId(MachiScene, Song);
 }
 
 /// <summary>Prepared off-thread, then transferred exclusively to the render worker. No GPU resources.</summary>
@@ -51,8 +53,10 @@ internal sealed class FoliaModePlan
             case "hanabi": Hanabi = new(atlas, request, token); break;
             case "metaphor": Metaphor = new(atlas, request, token); break;
             case "nebbia": Nebbia = new(atlas, request, token); break;
+            case "monet": Monet.Prepare(atlas, request, token); break;
+            case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
             case "machi":
-                string sceneId = FoliaMachi.ResolveSceneId(request.MachiScene, request.Song);
+                string sceneId = request.ResolveMachiScene();
                 Machi = machi ?? FoliaMachi.Load(sceneId, token);
                 MachiPlan = FoliaMachi.Prepare(atlas, request.Song, sceneId, token);
                 break;
@@ -67,9 +71,7 @@ internal sealed class FoliaModePlan
                 case "fume": Fume.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
                 case "diorama": Diorama.Prepare(atlas, token, request.Song.Palette); break;
                 case "tilt": Tilt.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
-                case "pendolo": Pendolo.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token, request.Song.Palette); break;
                 case "sonnet": Sonnet.Prepare(atlas, request.Width, request.Height, request.Scale, request.Family, request.Weight, token); break;
-                case "monet": Monet.Prepare(atlas, request, token); break;
             }
         token.ThrowIfCancellationRequested();
         GlowWords.Prepare(atlas, request.Mode is "classic" or "partita" or "tilt", request.Mode == "classic", token);
@@ -110,7 +112,7 @@ internal sealed class FoliaScenePreparation : IDisposable
     private bool _hasItalicRequest;
     private FoliaModePlan? _plan;
     private (string? Id, FoliaMachi? Asset) _machiCache;
-    private byte[]? _cover;
+    private (byte[]? Pixels, int Width, int Height) _cover;
     private Vector3[] _colors = [];
     private readonly FoliaThemeResolver _themes = new();
 
@@ -127,7 +129,7 @@ internal sealed class FoliaScenePreparation : IDisposable
             if (_working is not { } working || !FoliaSceneRequest.SameText(working.Song, request.Song)
                 || working.Family != request.Family || working.Weight != request.Weight || working.Mode != request.Mode
                 || working.Width != request.Width || working.Height != request.Height || working.Scale != request.Scale
-                || request.Mode == "machi" && working.MachiScene != request.MachiScene
+                || request.Mode == "machi" && (working.MachiScene != request.MachiScene || working.MachiIdleScene != request.MachiIdleScene)
                 || working.Background != request.Background || working.Theme != request.Theme)
                 _cancellation?.Cancel();
             Interlocked.Exchange(ref _ready, null)?.Dispose();
@@ -206,7 +208,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                     || (request.Mode is "hanabi" or "metaphor" or "machi") && _planRequest.Song.Duration != request.Song.Duration
                     || (request.Mode is "tempera" or "pendolo" or "hanabi" or "metaphor" || request.Mode == "diorama" && request.Song.KeywordRanges.Length > 0)
                         && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
-                    || request.Mode == "machi" && (_planRequest.MachiScene != request.MachiScene
+                    || request.Mode == "machi" && (_planRequest.MachiScene != request.MachiScene || _planRequest.MachiIdleScene != request.MachiIdleScene
                         || !ReferenceEquals(_planRequest.Song.CoverRgba, request.Song.CoverRgba)
                         || !ReferenceEquals(_planRequest.Song.CoverColors, request.Song.CoverColors)
                         || _planRequest.Song.CoverWidth != request.Song.CoverWidth || _planRequest.Song.CoverHeight != request.Song.CoverHeight
@@ -214,7 +216,7 @@ internal sealed class FoliaScenePreparation : IDisposable
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
                 {
-                    string? sceneId = request.Mode == "machi" ? FoliaMachi.ResolveSceneId(request.MachiScene, request.Song) : null;
+                    string? sceneId = request.Mode == "machi" ? request.ResolveMachiScene() : null;
                     var plan = new FoliaModePlan(_atlas, request, token, _machiCache.Id == sceneId ? _machiCache.Asset : null);
                     _machiCache = (sceneId, plan.Machi);
                     token.ThrowIfCancellationRequested();
@@ -223,16 +225,17 @@ internal sealed class FoliaScenePreparation : IDisposable
                 // These keys describe the retained atlas/plan, but need not retain a
                 // superseded full-resolution cover after metadata-only scene updates.
                 _planRequest = request;
-                if (request.Background == "latent" && !ReferenceEquals(_cover, request.Song.CoverRgba))
+                var cover = (request.Song.CoverRgba, request.Song.CoverWidth, request.Song.CoverHeight);
+                if (request.Background == "latent" && _cover != cover)
                 {
                     var colors = FoliaLatent.Extract(request.Song, token);
                     token.ThrowIfCancellationRequested();
                     _colors = colors;
-                    _cover = request.Song.CoverRgba;
+                    _cover = cover;
                 }
                 if (request.Background != "latent")
                 {
-                    _cover = null;
+                    _cover = default;
                     _colors = [];
                 }
                 var result = new FoliaPreparedScene(requested, _atlas, _plan, _colors, renderedSong: request.Song);
@@ -329,7 +332,8 @@ internal sealed class FoliaScenePreparation : IDisposable
         _atlas?.Dispose();
         _atlas = null;
         _plan = null;
-        _cover = null;
+        _machiCache = default;
+        _cover = default;
         _themes.Clear();
         _colors = [];
         _atlasRequest = _planRequest = _italicRequest = default;

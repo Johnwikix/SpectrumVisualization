@@ -665,7 +665,7 @@ export async function exportScene(id, donor, batches) {
     const bytes = writeScene(id, scene, data, signs, lights);
     const steam = scene.steam.mesh.geometry;
     const sources = steam.getAttribute('aSource'), seeds = steam.getAttribute('aSeed');
-    const weather = { ...scene.weather, puddles: [...scene.puddles.offset, scene.puddles.amount],
+    const weather = { ...scene.weather,
         steam: Array.from({length: sources.count}, (_, i) => [sources.getX(i), sources.getY(i), sources.getZ(i),
             sources.getW(i), seeds.getX(i), seeds.getY(i)]),
         glints: scene.weather.glints.map(({ position, radius }) => ({ position: position.toArray(), radius })),

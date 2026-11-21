@@ -136,7 +136,7 @@ internal sealed class FoliaPlaybackService
             string key = sourceId + "\n" + track.CacheKey;
             if (!retry && key == _trackKey)
             {
-                RequestCover(snapshot.Thumbnail, _version);
+                if (title.Length != 0) RequestCover(snapshot.Thumbnail, _version);
                 return;
             }
             _trackKey = key;
@@ -145,18 +145,18 @@ internal sealed class FoliaPlaybackService
             _request = cancellation;
             long version = ++_version;
             // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
-            State.Publish((_songKey == key ? State.Song : FoliaSong.Empty) with
+            State.Publish(title.Length == 0 ? FoliaSong.Empty : (_songKey == key ? State.Song : FoliaSong.Empty) with
             {
-                Title = title, Artist = artist, LyricsPending = title.Length != 0, Duration = track.Duration
+                TrackKey = key, Title = title, Artist = artist, LyricsPending = true, Duration = track.Duration
             });
             _songKey = key;
             _thumbnail = null;
             _coverRequest?.Cancel();
             _coverVersion++;
-            RequestCover(snapshot.Thumbnail, version);
             _status = title.Length == 0 ? "waiting" : "loading";
             if (title.Length != 0)
             {
+                RequestCover(snapshot.Thumbnail, version);
                 // Task.Run also keeps any synchronous parser, image decode and search setup off UI.
                 TrackOperation(Task.Run(() => ResolveAsync(track, sourceId, retry, version, cancellation)));
             }

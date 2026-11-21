@@ -159,6 +159,14 @@ float GlyphPixelRange(float2 atlasUV) {
     float2 dx=ddx(atlasUV)*TextureSize.xy,dy=ddy(atlasUV)*TextureSize.xy;
     return Options.y/max(max(length(dx),length(dy)),.0001);
 }
+float4 SampleGlyph(Instance glyph,float2 uv,out float2 glyphUV,out float range) {
+    float2 atlasUV=glyph.uv.xy+uv*glyph.uv.zw;
+    // Keep bilinear taps within the glyph's MSDF tile.
+    float2 halfTexel=.5/TextureSize.xy;
+    glyphUV=clamp(atlasUV,glyph.uv.xy+halfTexel,glyph.uv.xy+glyph.uv.zw-halfTexel);
+    range=GlyphPixelRange(atlasUV);
+    return AtlasTexture.SampleLevel(LinearClamp,float3(glyphUV,glyph.glyphData.x),0);
+}
 float4 SpritePS(SpriteOutput input):SV_Target {
     Instance v=ReadInstance(input.instance);float2 uv=input.uv;
     float alpha=v.color.a;float3 color=v.color.rgb;
@@ -166,12 +174,9 @@ float4 SpritePS(SpriteOutput input):SV_Target {
     float edge=max(fwidth(local.x),fwidth(local.y));
     int kind=(int)v.shape.x;
     if(kind==0||kind==25) {
-        float2 atlasUV=v.uv.xy+uv*v.uv.zw;
-        // Clamp to this glyph's texel centers: linear filtering must never mix differently colored MSDF channels from a neighbor.
-        float2 halfTexel=.5/TextureSize.xy;
-        float2 glyphUV=clamp(atlasUV,v.uv.xy+halfTexel,v.uv.xy+v.uv.zw-halfTexel);
-        float4 distances=AtlasTexture.SampleLevel(LinearClamp,float3(glyphUV,v.glyphData.x),0);
-        float range=GlyphPixelRange(atlasUV);
+        float2 glyphUV;
+        float range;
+        float4 distances=SampleGlyph(v,uv,glyphUV,range);
         float signedDistance=(Median3(distances.rgb)-.5)*range;
         float trueDistance=(distances.a-.5)*range;
         float blur=kind==25?0:v.transform.z*Screen.x/Screen.z;
@@ -466,10 +471,30 @@ SpriteOutput MachiPanelVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
 }
 
 float4 MachiPanelPS(SpriteOutput input) : SV_Target {
-    float band=Instances[input.instance].glyphData.w;
+    Instance glyph=Instances[input.instance];
+    float band=glyph.glyphData.w;
     float lower=band==0 ? 0 : (band==1 ? 320 : 320+40*band);
     float upper=band==0 ? 320 : (band==1 ? 400 : (band==4 ? 560 : lower+40));
     clip(min(input.position.y-lower,upper-input.position.y));
+    if (band==0 && glyph.glyphData.y>0) {
+        float2 glyphUV;
+        float range;
+        float4 distances=SampleGlyph(glyph,input.uv,glyphUV,range);
+        float coverage=saturate((Median3(distances.rgb)-.5)*range+.5)*glyph.color.a;
+        float progress=glyph.effect.x;
+        float3 color=glyph.effect.yzw;
+        if (progress>=1) color=glyph.color.rgb;
+        else if (progress>=0) {
+            // Sweep across the outline, excluding the distance field's transparent padding.
+            float padding=glyph.glyphData.z;
+            float x=(input.uv.x-padding)/max(1-2*padding,.001);
+            float edge=max(fwidth(x),.012);
+            float fill=smoothstep(-edge,edge,progress-x);
+            float3 swept=lerp(glyph.shape.yzw,glyph.color.rgb,smoothstep(.84,1,progress));
+            color=lerp(color,swept,fill);
+        }
+        return float4(color*coverage,coverage);
+    }
     float4 ink=SpritePS(input);
     // The main LED face feeds DXR in linear light. Preserve MSDF coverage when decoding palette colors.
     if (band==0 && ink.a>0) ink.rgb=ToLinear(saturate(ink.rgb/ink.a))*ink.a;

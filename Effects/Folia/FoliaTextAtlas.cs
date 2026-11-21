@@ -98,6 +98,7 @@ internal sealed class FoliaTextAtlas : IDisposable
     }
     private const float Em = 96;
     private const int Padding = 24;
+    internal const float GlyphPaddingEm = Padding / Em;
     internal int Width
     {
         get;
