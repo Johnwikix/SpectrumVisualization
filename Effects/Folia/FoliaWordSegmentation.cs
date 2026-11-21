@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
@@ -9,6 +10,35 @@ namespace WinExSpectrumTest.Effects.Folia;
 /// The UTF-16 source stays pinned for the complete native iterator lifetime; this is a cold path.</summary>
 internal static unsafe partial class FoliaWordSegmentation
 {
+    // UScriptCode values used to preserve the per-glyph sweep of East Asian syllables.
+    private enum Script { Common = 0, Inherited = 1, Bopomofo = 5, Han = 17, Hangul = 18, Hiragana = 20, Katakana = 22 }
+
+    internal static bool UsesWordSweep(string text)
+    {
+        bool hasLetter = false;
+        foreach (Rune rune in text.EnumerateRunes())
+        {
+            switch (Rune.GetUnicodeCategory(rune))
+            {
+                case UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or UnicodeCategory.TitlecaseLetter:
+                    hasLetter = true;
+                    break;
+                case UnicodeCategory.OtherLetter or UnicodeCategory.ModifierLetter:
+                    int status = 0;
+                    var script = GetScript(rune.Value, ref status);
+                    if (script is Script.Han or Script.Hangul or Script.Hiragana or Script.Katakana or Script.Bopomofo)
+                        return false;
+                    hasLetter |= status == 0 && script is not (Script.Common or Script.Inherited);
+                    break;
+            }
+        }
+        return hasLetter;
+    }
+
+    // The common ICU library is available on the project's minimum Windows version.
+    [LibraryImport("icuuc.dll", EntryPoint = "uscript_getScript")]
+    private static partial Script GetScript(int codePoint, ref int status);
+
     internal static int[] Boundaries(string text)
     {
         if (text.Length == 0)

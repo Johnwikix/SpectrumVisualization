@@ -32,16 +32,21 @@ internal sealed unsafe partial class FoliaGpuEffect
     private bool ShowsSong(FoliaSong current) => _hasScene && current.Title.Length != 0
         && FoliaSong.SameTrack(_activeRequest.Song, current);
 
-    private bool UpdatePreparedScene(FoliaSong current)
+    private bool ChangesSceneTopology(in FoliaSceneRequest request) =>
+        !_hasScene || _activeRequest.Mode != request.Mode || _activeRequest.Background != request.Background;
+
+    private bool UpdatePreparedScene(in FoliaSceneRequest request)
     {
         _glyphAtlas.FinishFrame();
-        var request = DesiredScene(current);
         if (!_hasRequest || !_requested.Matches(request))
         {
             _requested = request;
             _hasRequest = true;
-            _upload?.Dispose();
-            _upload = null;
+            if (_upload != null && !_upload.CanRetainFor(request))
+            {
+                _upload.Dispose();
+                _upload = null;
+            }
             RequestBackgroundTransition(request);
             _preparation.Request(request);
         }
@@ -49,34 +54,46 @@ internal sealed unsafe partial class FoliaGpuEffect
         var ready = _preparation.TakeReady();
         if (ready != null)
         {
-            if (!ready.Request.Matches(request) || ready.Error != null)
+            bool isCurrent = ready.Request.Matches(request);
+            if (!isCurrent || ready.Error != null)
             {
-                if (ready.Error != null)
+                if (isCurrent && ready.Error != null)
                 {
                     App.WriteCrashLog("Folia scene preparation", ready.Error.Message, ready.Error);
-                    if (request.Mode == "machi" && ready.Request.Matches(request))
+                    _upload?.Dispose();
+                    _upload = null;
+                    if (request.Mode == "machi")
                         RecordMachiFailure(request);
                 }
-                ready.Dispose();
+                _preparation.Retire(ready);
             }
-            else if (_upload != null && _upload.Scene.Request.Matches(ready.Request)) ready.Dispose();
+            else if (_upload != null && _upload.Scene.Request.Matches(ready.Request)) _preparation.Retire(ready);
             else
             {
-                _upload?.Dispose();
-                try { _upload = new(ready, _atlas!, _song!, _modeAtlasSource, _glyphAtlas); }
-                catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); ready.Dispose(); throw; }
+                try
+                {
+                    var next = new FoliaSceneUpload(ready, _atlas!, _song!, _modeAtlasSource, _glyphAtlas, _preparation);
+                    if (_upload is { } previous)
+                    {
+                        next.ReuseImagesFrom(previous);
+                        previous.Dispose();
+                    }
+                    _upload = next;
+                }
+                catch (global::System.Exception caughtException) { AppLog.Caught(caughtException); _preparation.Retire(ready); throw; }
             }
         }
-        if (_upload is { Complete: false })
-            try { _upload.Advance(_device, EmptyCover); }
+        var candidate = _upload != null && _upload.Scene.Request.Matches(request) ? _upload : null;
+        if (candidate is { Complete: false })
+            try { candidate.Advance(_device, EmptyCover); }
             catch (Exception error) when (_glyphStore.GpuEnabled || error is FoliaCpuGlyphsRequiredException)
             {
                 // Allocation / generator setup failure is recoverable. The observed CPU
                 // worker generates the missing tiles; the render thread never runs msdfgen.
                 if (error is not FoliaCpuGlyphsRequiredException) App.WriteCrashLog("Folia glyph upload; using CPU fallback", error.Message, error);
                 _glyphStore.SetGpuEnabled(false);
-                _upload.Dispose();
-                _upload = null;
+                candidate.Dispose();
+                candidate = _upload = null;
                 _hasRequest = false;
             }
         if (_glyphVersion != _glyphAtlas.Version)
@@ -84,16 +101,19 @@ internal sealed unsafe partial class FoliaGpuEffect
             _glyphVersion = _glyphAtlas.Version;
             Descriptors();
         }
-        // The host selects temporal reset before PrepareFrame. If completion races that check,
-        // leave the result for the next frame, so the SDK and effect reset on the same frame.
-        if (_upload is { Complete: true } candidate && _transitionPending && (!_temporal || _frame.Reset))
+        // A mode or background replacement still commits on the reset frame. Lyric and
+        // artwork updates within a stage use local rejection and can commit immediately.
+        bool canCommit = candidate is { Complete: true }
+            && (!_temporal || _frame.Reset || !ChangesSceneTopology(request));
+        if (canCommit && _transitionPending)
         {
             _transitionPending = false;
-            if (BackgroundChanges(candidate.Scene))
+            if (BackgroundChanges(candidate!.Scene))
                 CaptureBackgroundTransition();
         }
-        if (_upload is { Complete: true } upload && !_captureBackground && (!_temporal || _frame.Reset))
+        if (canCommit && !_captureBackground)
         {
+            var upload = candidate!;
             var scene = upload.Scene;
             var atlas = scene.Atlas!;
             var plan = scene.Plan!;
@@ -101,7 +121,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             InstallImage(upload.Glyphs);
             InstallImage(upload.Cover);
             InstallImage(upload.ModeAtlas);
-            if (textChanged) _preparation.RetirePixels(atlas.DetachDistancePixels());
+            if (textChanged) _preparation.Retire(atlas.DetachDistancePixels());
             _modeAtlasSource = upload.ModeAtlasSource;
             _atlas = atlas;
             _song = scene.Song;
@@ -134,7 +154,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         }
         // Keep running the committed background during handoff. Its lyrics and metadata
         // belong to the old track as soon as SMTC confirms a different track.
-        _lyricsVisible = ShowsSong(current);
+        _lyricsVisible = ShowsSong(request.Song);
         return textChanged;
     }
 }

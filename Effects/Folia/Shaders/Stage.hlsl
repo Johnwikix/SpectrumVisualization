@@ -105,18 +105,23 @@ TemporalOutput TemporalPS(float4 p:SV_Position,float2 uv:TEXCOORD0) {
     else {
         float2 previousUV=sampleUV+(o.motion+PreviousJitter.xy-Jitter.xy)/Screen.xy;
         float3 previous=PreviousStageTexture.SampleLevel(LinearClamp,previousUV,0).rgb;
-        float3 low=previous,high=previous;
-        // A subpixel raster sample can change edge coverage on a static glyph. Compare
-        // with its previous local color envelope before treating that change as animation.
-        [unroll]for(int axis=0;axis<2;axis++) [unroll]for(int side=-1;side<=1;side+=2) {
-            float2 offset=axis==0?float2(side,0):float2(0,side);
-            float3 neighbor=PreviousStageTexture.SampleLevel(LinearClamp,previousUV+offset/Screen.xy,0).rgb;
-            low=min(low,neighbor);high=max(high,neighbor);
+        float3 delta=abs(current-previous);
+        float sensitivity=4;
+        if(Jitter.w<.5) {
+            float3 low=previous,high=previous;
+            // Static glyph edges can change coverage with jitter. On a lyric cut,
+            // use direct color differences to reject the previous glyph locally.
+            [unroll]for(int axis=0;axis<2;axis++) [unroll]for(int side=-1;side<=1;side+=2) {
+                float2 offset=axis==0?float2(side,0):float2(0,side);
+                float3 neighbor=PreviousStageTexture.SampleLevel(LinearClamp,previousUV+offset/Screen.xy,0).rgb;
+                low=min(low,neighbor);high=max(high,neighbor);
+            }
+            delta=abs(current-clamp(current,low,high));
+            sensitivity=2;
         }
-        float3 delta=abs(current-clamp(current,low,high));
         float difference=max(delta.r,max(delta.g,delta.b));
         float signal=max(max(current.r,max(current.g,current.b)),max(previous.r,max(previous.g,previous.b)));
-        o.reactive=saturate(difference/max(signal,.1)*2);
+        o.reactive=saturate(difference/max(signal,.1)*sensitivity);
     }
     return o;
 }
@@ -487,8 +492,9 @@ float4 MachiPanelPS(SpriteOutput input) : SV_Target {
         else if (progress>=0) {
             // Sweep across the outline, excluding the distance field's transparent padding.
             float padding=glyph.glyphData.z;
-            float x=(input.uv.x-padding)/max(1-2*padding,.001);
-            float edge=max(fwidth(x),.012);
+            float localX=(input.uv.x-padding)/max(1-2*padding,.001);
+            float x=glyph.transform.y+localX*glyph.transform.z;
+            float edge=max(fwidth(x),.012*glyph.transform.z);
             float fill=smoothstep(-edge,edge,progress-x);
             float3 swept=lerp(glyph.shape.yzw,glyph.color.rgb,smoothstep(.84,1,progress));
             color=lerp(color,swept,fill);

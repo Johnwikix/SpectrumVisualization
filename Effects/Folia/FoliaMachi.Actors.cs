@@ -8,9 +8,17 @@ internal sealed partial class FoliaMachi
 {
     private const double DoorCycle = 4.35;
 
-    internal void WriteActorTransforms(Span<Matrix4x4> output, Plan plan, double position, double ambientTime)
+    internal void WriteActorTransforms(Span<Matrix4x4> output, Plan plan, double position, double ambientTime,
+        float delta, ref float? previousDoor)
     {
         float door = DoorOpenness(plan, position);
+        if (previousDoor is float previous)
+        {
+            // Match the door's peak opening speed when a seek or track change moves its target.
+            float travel = 4 * delta;
+            door = Math.Clamp(door, previous - travel, previous + travel);
+        }
+        previousDoor = door;
         int fan = 0;
         int flag = 0;
         for (int i = 0; i < Actors.Length; i++)

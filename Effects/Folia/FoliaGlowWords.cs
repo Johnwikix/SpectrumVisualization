@@ -28,10 +28,17 @@ internal sealed class FoliaGlowWords
     internal float Energy { get; set; }
     internal FoliaChatMotion? Chat { get; private set; }
 
-    internal void Prepare(FoliaTextAtlas atlas, bool handoff = false, bool classic = false, CancellationToken token = default)
+    internal void Prepare(FoliaTextAtlas atlas, string mode, CancellationToken token)
     {
         if (_atlasIdentity == atlas.Identity)
             return;
+        _atlasIdentity = atlas.Identity;
+        _line = -1;
+        if (mode == "cappella")
+        {
+            Chat = new FoliaChatMotion(atlas.Lines.Length);
+            return;
+        }
         int count = 0, maximumGlyphs = 0;
         foreach (var line in atlas.Lines)
         {
@@ -42,11 +49,8 @@ internal sealed class FoliaGlowWords
         // Partita has at most one glyph, one ripple and two guide strokes per
         // grapheme. Keep the former 8192-instance ceiling, sized to this song.
         int handoffCapacity = Math.Min(8192, Math.Min(maximumGlyphs, 2048) * 4 + 32);
-        Handoff = handoff ? new FoliaLineHandoff(handoffCapacity) : null;
-        _atlasIdentity = atlas.Identity;
-        _line = -1;
-        Chat = new FoliaChatMotion(atlas.Lines.Length);
-        if (classic)
+        Handoff = new FoliaLineHandoff(handoffCapacity);
+        if (mode == "classic")
         {
             using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, 1, 1, 1, "", 300), "compileClassic", token));
             _classic = new FoliaPreparedLine[atlas.Lines.Length];

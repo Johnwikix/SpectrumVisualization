@@ -2,6 +2,18 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 修复町景俄文等文字的词内扫光
+
+- `FoliaMachi.Plan`、`FoliaWordSegmentation` 移除拉丁字母白名单，让俄文、希腊文和其他字母文字在原词时间内按实际字宽连续扫光。汉字、假名、韩文沿用原有音节效果。
+
+## 2026-11-21 切歌时保留画面历史，町景英文歌词按词扫光，条屏定点轮播
+
+- `MediaInfoService`、`FoliaPlaybackService` 合并重复的 SMTC 读取，按先后顺序接收曲目与时间线，封面解码串行执行并丢弃过时结果。
+- `FoliaGpuEffect`、`FoliaScenePreparation`、`FoliaSceneUpload` 和 `Stage.hlsl` 在原舞台准备新歌，沿用已上传的图像进度，对变化的歌词像素单独更新时域历史；取消和旧字图清理在后台完成。
+- `FoliaGpuGlyphAtlas` 按字形面积和轮廓复杂度分批生成新字，直接向映射缓冲区写入轮廓，减少渲染线程切歌时的大块分配。
+- `FoliaGpuEffect.NativeStages`、`FoliaMachi.Actors` 和 `FoliaMachi.Plan` 让街区相机、车辆和风扇按场景时钟运行，同一布景中切歌、跳播和补载封面均保留追踪与降噪历史。
+- `FoliaMachi.Plan` 和 `Stage.hlsl` 按英文单词的实际字宽从左至右扫光，三个布景的横条屏均改为静止显示、每三秒整页切换，长文本自动分页。
+
 ## 2026-11-21 切歌保留歌词舞台，町景随机积水并增强逐字扫光
 
 - `FoliaGpuEffect`、`FoliaScenePreparation`、`FoliaLyricLayout` 和 `FoliaPlaybackService` 在切歌、等待歌词和无歌词时保留选中的舞台，收到新曲目后收起旧词，移除通用居中封面卡。
