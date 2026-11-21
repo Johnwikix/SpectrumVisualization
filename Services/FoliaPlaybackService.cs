@@ -23,6 +23,7 @@ internal sealed class FoliaPlaybackService
     private readonly SemaphoreSlim _coverDecodeGate = new(1, 1);
     private readonly HashSet<Task> _operations = [];
     private CancellationTokenSource? _request;
+    private LyricsTrack? _missWithoutDuration;
     private CancellationTokenSource? _coverRequest;
     private IRandomAccessStreamReference? _thumbnail;
     private long _coverVersion;
@@ -66,7 +67,7 @@ internal sealed class FoliaPlaybackService
                     _media.MediaTextChanged += OnMediaChanged;
                     _media.PlaybackChanged += OnPlaybackChanged;
                     _media.TimelineChanged += OnTimelineChanged;
-                    State.SetClock(_media.Position.TotalSeconds, _media.Duration.TotalSeconds, _media.IsPlaying);
+                    State.SetClock(_media.Clock);
                 }
             }
             else
@@ -75,6 +76,7 @@ internal sealed class FoliaPlaybackService
                 _media.PlaybackChanged -= OnPlaybackChanged;
                 _media.TimelineChanged -= OnTimelineChanged;
                 _request?.Cancel();
+                _missWithoutDuration = null;
                 _coverRequest?.Cancel();
                 _coverVersion++;
                 _thumbnail = null;
@@ -109,20 +111,22 @@ internal sealed class FoliaPlaybackService
         lock (_gate)
         {
             if (!_active || _stopped) return;
-            var clock = State.Clock;
-            State.SetClock(clock.Now, clock.Duration, playing);
+            State.SetClock(_media.Clock);
         }
     }
     private void OnTimelineChanged(TimeSpan position, TimeSpan duration)
     {
+        bool retrying;
         lock (_gate)
         {
             if (!_active || _stopped) return;
-            State.SetClock(position.TotalSeconds, duration.TotalSeconds, _media.IsPlaying);
+            State.SetClock(_media.Clock);
+            retrying = RetryWithKnownDuration();
             var song = State.Song;
             if (song.Title.Length != 0 && !song.LyricsPending && song.Duration <= 0 && duration > TimeSpan.Zero)
-                State.Publish(song with { Duration = duration.TotalSeconds });
+                State.Publish(CompleteDuration(song, duration.TotalSeconds));
         }
+        if (retrying) Changed?.Invoke();
     }
 
     private void RequestCurrent(bool retry)
@@ -140,7 +144,7 @@ internal sealed class FoliaPlaybackService
             _trackIdentity = identity;
             string title = snapshot.Title?.Trim() ?? "";
             string artist = snapshot.Artist?.Trim() ?? "";
-            var track = new LyricsTrack(title, artist, snapshot.Album?.Trim() ?? "", _media.Duration.TotalSeconds);
+            var track = new LyricsTrack(title, artist, snapshot.Album?.Trim() ?? "", _media.Clock.Duration);
             string sourceId = snapshot.SourceAppId ?? "";
             string key = sourceId + "\n" + track.CacheKey;
             if (!retry && key == _trackKey)
@@ -150,11 +154,10 @@ internal sealed class FoliaPlaybackService
             }
             _trackKey = key;
             _request?.Cancel();
-            var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            _request = cancellation;
+            _missWithoutDuration = null;
             long version = ++_version;
             if (_songKey != key)
-                State.SetClock(_media.Position.TotalSeconds, track.Duration, _media.IsPlaying);
+                State.SetClock(_media.Clock);
             // Re-entering the effect / retrying the same song retains its decoded cover and published lyrics.
             State.Publish(title.Length == 0 ? FoliaSong.Empty : (_songKey == key ? State.Song : FoliaSong.Empty) with
             {
@@ -168,16 +171,44 @@ internal sealed class FoliaPlaybackService
             if (title.Length != 0)
             {
                 RequestCover(snapshot.Thumbnail, version);
-                // Task.Run also keeps any synchronous parser, image decode and search setup off UI.
-                TrackOperation(Task.Run(() => ResolveAsync(track, sourceId, retry, version, cancellation)));
-            }
-            else
-            {
-                cancellation.Dispose();
-                _request = null;
+                StartLookup(track, sourceId, retry, version);
             }
         }
         Changed?.Invoke();
+    }
+
+    // Called with _gate held. Each lookup owns its cancellation source until its finally block.
+    private void StartLookup(LyricsTrack track, string sourceId, bool retry, long version)
+    {
+        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        _request = cancellation;
+        TrackOperation(Task.Run(() => ResolveAsync(track, sourceId, retry, version, cancellation)));
+    }
+
+    private bool RetryWithKnownDuration()
+    {
+        double duration = State.Clock.Duration;
+        if (_missWithoutDuration is not { } track || duration <= 0) return false;
+        _missWithoutDuration = null;
+        State.Publish(State.Song with { LyricsPending = true, Duration = duration });
+        _status = "loading";
+        StartLookup(track with { Duration = duration }, _trackIdentity.Source ?? "", false, _version);
+        return true;
+    }
+
+    private static FoliaSong CompleteDuration(FoliaSong song, double duration)
+    {
+        // Parse normally holds the last row until track end. A late duration must
+        // give it the same display interval without changing its sung syllables.
+        var lines = song.Lines;
+        if (duration > 0 && lines.Length > 0 && lines[^1].End < duration)
+        {
+            lines = [.. lines];
+            double lastStart = lines[^1].Start;
+            for (int i = lines.Length - 1; i >= 0 && lines[i].Start == lastStart; --i)
+                if (lines[i].End < duration) lines[i] = lines[i] with { End = duration };
+        }
+        return song with { Lines = lines, Duration = duration };
     }
 
     private void TrackOperation(Task task)
@@ -299,8 +330,15 @@ internal sealed class FoliaPlaybackService
             lock (_gate)
             {
                 if (!_active || _stopped || version != _version) return;
+                if (content == null && player.AllowOnline && status == LyricsSearchStatus.NoResult && track.Duration <= 0)
+                {
+                    _missWithoutDuration = track;
+                    if (RetryWithKnownDuration()) return;
+                }
                 var song = State.Song;
-                State.Publish(song with { Lines = lines, LyricsPending = false, Duration = song.Duration > 0 ? song.Duration : State.Clock.Duration });
+                double duration = song.Duration > 0 ? song.Duration : State.Clock.Duration;
+                var resolved = song with { Lines = lines, LyricsPending = false, Duration = duration };
+                State.Publish(track.Duration <= 0 && duration > 0 ? CompleteDuration(resolved, duration) : resolved);
                 _status = lines.Length > 0 ? "ready" : status == LyricsSearchStatus.NetworkError ? "failed" : "missing";
                 published = true;
             }
@@ -383,6 +421,7 @@ internal sealed class FoliaPlaybackService
             lock (_gate)
             {
                 _operations.Clear();
+                _missWithoutDuration = null;
                 _request = null;
                 _coverRequest = null;
                 _thumbnail = null;

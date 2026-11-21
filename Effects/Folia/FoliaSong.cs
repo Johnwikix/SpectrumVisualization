@@ -97,16 +97,11 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
                 words.AddRange(FoliaWordSegmentation.CreateLineSyncedWords(line.Text, start, estimatedWordEnd));
             }
             string sub = (line as IFullLineInfo)?.ChineseTranslation ?? line.SubLine?.Text ?? "";
-            if (translations != null)
-                foreach (var translated in translations)
-                    if (translated.StartTime is int ts && Math.Abs(ts - milliseconds) <= 100)
-                    {
-                        sub = translated.Text;
-                        break;
-                    }
             result.Add(new(line.Text, sub, start, Math.Max(start + .01, end), words.ToArray(), synced));
         }
         result.Sort(static (a, b) => a.Start.CompareTo(b.Start));
+        if (translations is { Count: > 0 } && result.Count > 0)
+            MatchTranslations(result, translations);
         // Folia's text fallback marks only the most repeated trimmed lines; no audio model is required.
         var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
         int maximum = 1;
@@ -125,6 +120,36 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
         return result.ToArray();
     }
 
+    private static void MatchTranslations(List<FoliaLine> lines, List<ILineInfo> translations)
+    {
+        var matches = new (long Distance, string? Text)[lines.Count];
+        foreach (var translation in translations)
+        {
+            if (translation.StartTime is not int time || string.IsNullOrWhiteSpace(translation.Text))
+                continue;
+            int lo = 0, hi = lines.Count;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >> 1;
+                if (Milliseconds(lines[mid]) <= time) lo = mid + 1;
+                else hi = mid;
+            }
+            long previous = lo > 0 ? time - Milliseconds(lines[lo - 1]) : long.MaxValue;
+            long next = lo < lines.Count ? Milliseconds(lines[lo]) - time : long.MaxValue;
+            long distance = Math.Min(previous, next);
+            // Match each translation to its closest original once. Equal offsets give no preference.
+            if (distance > 100 || previous == next) continue;
+            int index = previous < next ? lo - 1 : lo;
+            if (matches[index].Text == null || distance < matches[index].Distance)
+                matches[index] = (distance, translation.Text);
+        }
+        for (int i = 0; i < matches.Length; i++)
+            if (matches[i].Text is string text)
+                lines[i] = lines[i] with { Translation = text };
+
+        static long Milliseconds(FoliaLine line) => (long)Math.Round(line.Start * 1000);
+    }
+
     private static LyricsData? ParseRaw(string lyrics)
     {
         if (string.IsNullOrWhiteSpace(lyrics) || lyrics.Length > Services.Lyrics.LyricsTextFile.MaxBytes) return null;
@@ -137,15 +162,17 @@ internal sealed record FoliaSong(string Title, string Artist, FoliaLine[] Lines,
                 if (unwrapped == lyrics) return Lyricify.Lyrics.Parsers.TtmlParser.Parse(lyrics);
                 lyrics = unwrapped;
             }
+            if (lyrics.Contains('\r'))
+                lyrics = lyrics.Replace("\r\n", "\n").Replace('\r', '\n');
             foreach (var line in lyrics.AsSpan().EnumerateLines())
-            {
-                int end = line.IndexOf(']');
-                if (end > 0 && line[..end].Contains(',') && line[(end + 1)..].TrimStart().StartsWith("<", StringComparison.Ordinal))
+                if (Services.Lyrics.LyricsTextFile.IsKrcLine(line))
                     return Lyricify.Lyrics.Parsers.KrcParser.Parse(lyrics);
-            }
             if (lyrics.Contains('<') && Services.Lyrics.EnhancedLrcParser.TryParse(lyrics, out var enhanced)) return enhanced;
-            var qrc = Lyricify.Lyrics.Parsers.QrcParser.Parse(lyrics);
-            if (qrc.Lines?.Exists(static line => line is SyllableLineInfo { Syllables.Count: > 0 }) == true) return qrc;
+            if (Services.Lyrics.LyricsTextFile.TryNormalizeQrc(lyrics, out string normalized))
+            {
+                var qrc = Lyricify.Lyrics.Parsers.QrcParser.Parse(normalized);
+                if (qrc.Lines?.Exists(static line => line is SyllableLineInfo { Syllables.Count: > 0 }) == true) return qrc;
+            }
             return Lyricify.Lyrics.Parsers.LrcParser.Parse(lyrics);
         }
         catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException or IndexOutOfRangeException

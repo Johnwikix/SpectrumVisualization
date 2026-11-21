@@ -1,5 +1,6 @@
 using WinExSpectrumTest.Service;
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Media.Control;
@@ -45,7 +46,10 @@ namespace WinExSpectrumTest.Services
         private long _mediaRequestVersion;
         private Task? _mediaRefresh;
         private DateTimeOffset _timelineUpdated;
-        private readonly record struct PlaybackTimeline(bool Playing, TimeSpan Position, TimeSpan Duration, DateTimeOffset Updated);
+        private bool _hasTimeline;
+        private readonly record struct PlaybackTimeline(bool Playing, TimeSpan Position, TimeSpan Duration, DateTimeOffset Updated, double Rate = 1);
+        private MediaPlaybackClock _clock = MediaPlaybackClock.Empty;
+        internal MediaPlaybackClock Clock => Volatile.Read(ref _clock);
 
         public event Action<string?, string?, IRandomAccessStreamReference?>? MediaTextChanged;
         public event Action<bool>? PlaybackChanged;
@@ -212,9 +216,11 @@ namespace WinExSpectrumTest.Services
                 // 跳过重绑与重推，避免把正在显示的信息清掉重闪。
                 if (_session != null && selected.SourceAppUserModelId == _session.SourceAppUserModelId)
                 {
-                    // Re-read an empty cache in case the initial media event was missed.
-                    if (string.IsNullOrEmpty(CurrentTitle) && string.IsNullOrEmpty(CurrentArtist))
+                    // A player can publish the artist or a provisional timeline before its title/duration.
+                    if (string.IsNullOrWhiteSpace(CurrentTitle))
                         await RequestMediaRefresh().ConfigureAwait(false);
+                    else if (Clock.Duration <= 0)
+                        RefreshPlaybackAndTimeline();
                     return;
                 }
 
@@ -228,7 +234,9 @@ namespace WinExSpectrumTest.Services
                 {
                     if (_stopping) return;
                     _session = selected;
+                    _hasTimeline = false;
                     _timelineUpdated = default;
+                    Volatile.Write(ref _clock, MediaPlaybackClock.Empty);
                 }
                 selected.MediaPropertiesChanged += OnMediaPropertiesChanged;
                 selected.PlaybackInfoChanged += OnPlaybackInfoChanged;
@@ -340,7 +348,9 @@ namespace WinExSpectrumTest.Services
                 var playbackInfo = session.GetPlaybackInfo();
                 bool playing = playbackInfo?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 var timeline = session.GetTimelineProperties();
-                return new(playing, timeline.Position, timeline.EndTime, timeline.LastUpdatedTime);
+                double rate = playbackInfo?.PlaybackRate ?? 1;
+                return new(playing, timeline.Position, timeline.EndTime, timeline.LastUpdatedTime,
+                    double.IsFinite(rate) && rate != 0 ? rate : 1);
             }
             catch (Exception ex)
             {
@@ -372,8 +382,22 @@ namespace WinExSpectrumTest.Services
             if (timeline is { } clock)
             {
                 playingChanged = IsPlaying != clock.Playing;
-                timelineChanged = Position != clock.Position || Duration != clock.Duration || _timelineUpdated != clock.Updated;
+                bool newPosition = !_hasTimeline || Position != clock.Position || _timelineUpdated != clock.Updated;
+                double rate = clock.Rate == 0 ? 1 : clock.Rate;
+                timelineChanged = newPosition || Duration != clock.Duration || _clock.Rate != rate;
+                if (playingChanged || timelineChanged)
+                {
+                    long timestamp = Stopwatch.GetTimestamp();
+                    // SMTC's Position is as of LastUpdatedTime. A cached opening sample may be
+                    // minutes old. Pause/resume with the same sample preserves the local cursor.
+                    double position = newPosition ? clock.Position.TotalSeconds : _clock.At(timestamp);
+                    if (newPosition && clock.Playing && clock.Updated > DateTimeOffset.UnixEpoch)
+                        position += Math.Max(0, (DateTimeOffset.UtcNow - clock.Updated).TotalSeconds) * rate;
+                    Volatile.Write(ref _clock, new(Math.Max(0, position), Math.Max(0, clock.Duration.TotalSeconds),
+                        clock.Playing, timestamp, rate));
+                }
                 IsPlaying = clock.Playing;
+                _hasTimeline = true;
                 Position = clock.Position;
                 Duration = clock.Duration;
                 _timelineUpdated = clock.Updated;
@@ -415,6 +439,7 @@ namespace WinExSpectrumTest.Services
                 Volatile.Write(ref _currentTrack, EmptyTrack);
                 IsPlaying = false;
                 Position = Duration = TimeSpan.Zero;
+                Volatile.Write(ref _clock, MediaPlaybackClock.Empty);
             }
             finally { _gate.Release(); }
         }

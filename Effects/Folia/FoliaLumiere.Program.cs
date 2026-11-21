@@ -21,7 +21,7 @@ internal sealed partial class FoliaLumiere
     {
         if (_atlasIdentity == atlas.Identity && width == _width && height == _height && scale == _fontScale)
             return;
-        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileLumiere", token);
+        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, token: token), "compileLumiere", token);
         using var document = JsonDocument.Parse(output);
         var root = document.RootElement;
         var shots = new List<Shot>();

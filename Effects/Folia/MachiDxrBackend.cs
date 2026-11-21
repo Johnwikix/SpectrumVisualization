@@ -79,11 +79,11 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private ReconstructionMode _superResolutionMode;
     private string _preset = "k";
     private readonly ID3D12DescriptorHeap _descriptors;
-    private readonly ID3D12RootSignature _traceRoot, _resolveRoot;
-    private readonly ID3D12StateObject _trace;
+    private readonly TracePipeline _tracePipeline;
+    private readonly ID3D12RootSignature _resolveRoot;
     private readonly ID3D12PipelineState _resolve, _resolveRaw, _resolveScale;
     private ID3D12Resource? _resolveInput;
-    private readonly ID3D12Resource _constantBuffer, _shaderTable;
+    private readonly ID3D12Resource _constantBuffer;
     private DispatchRaysDescription _dispatch;
     private byte* _mapped;
     private MachiCamera _previous;
@@ -107,7 +107,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         ReadOnlySpan<byte> signPixels = default, int signWidth = 0, int signHeight = 0,
         int staticIndexCount = 0, ReadOnlySpan<FoliaMachi.Actor> actors = default, bool preferRayReconstruction = false,
         ReadOnlySpan<FoliaMachi.Light> lights = default, int outputWidth = 0, int outputHeight = 0,
-        ReconstructionMode superResolutionMode = ReconstructionMode.Off, string preset = "k", bool disableDenoising = false)
+        ReconstructionMode superResolutionMode = ReconstructionMode.Off, string preset = "k", bool disableDenoising = false,
+        TracePipeline? tracePipeline = null)
     {
         _device = device.QueryInterface<ID3D12Device5>();
         try
@@ -115,51 +116,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             _stride = (int)device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
             _descriptors = Keep(device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView,
                 FrameSlots * DescriptorsPerFrame, DescriptorHeapFlags.ShaderVisible)));
-            _traceRoot = Keep(device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
-                [
-                    Root(RootParameterType.ConstantBufferView, 0),
-                    Root(RootParameterType.ShaderResourceView, 0),
-                    Root(RootParameterType.ShaderResourceView, 1),
-                    Root(RootParameterType.ShaderResourceView, 2),
-                    Table(DescriptorRangeType.UnorderedAccessView, TraceOutputs, 0),
-                    Table(DescriptorRangeType.ShaderResourceView, 2, 3),
-                    Root(RootParameterType.ShaderResourceView, 5),
-                    Root(RootParameterType.ShaderResourceView, 6),
-                    Root(RootParameterType.ShaderResourceView, 7),
-                    Root(RootParameterType.ShaderResourceView, 8)
-                ],
-                [new StaticSamplerDescription(0, Filter.MinMagMipLinear, TextureAddressMode.Clamp, TextureAddressMode.Clamp,
-                    TextureAddressMode.Clamp, 0, 1, ComparisonFunction.Never, StaticBorderColor.TransparentBlack,
-                    0, float.MaxValue, ShaderVisibility.All, 0)])));
-            byte[] library = ShaderCompiler.Compile(MachiDxrShaders.Trace, "", "lib_6_3");
-            _trace = Keep(_device.CreateStateObject<ID3D12StateObject>(new StateObjectDescription(StateObjectType.RaytracingPipeline,
-                [
-                    new(new DxilLibraryDescription(library, [new("RayGen"), new("Miss"), new("ClosestHit"), new("AnyHit")])),
-                    new(new HitGroupDescription("MachiTriangles", HitGroupType.Triangles,
-                        anyHitShaderImport: "AnyHit", closestHitShaderImport: "ClosestHit")),
-                    new(new GlobalRootSignature(_traceRoot)),
-                    new(new RaytracingPipelineConfig(1)),
-                    new(new RaytracingShaderConfig(20, 8))
-                ])));
-            _shaderTable = Buffer(192);
-            using (var properties = _trace.QueryInterface<ID3D12StateObjectProperties>())
-            {
-                byte* table = _shaderTable.Map<byte>(0);
-                new Span<byte>(table, 192).Clear();
-                CopyIdentifier(properties, "RayGen", table);
-                CopyIdentifier(properties, "Miss", table + 64);
-                CopyIdentifier(properties, "MachiTriangles", table + 128);
-                _shaderTable.Unmap(0);
-            }
-            ulong address = _shaderTable.GPUVirtualAddress;
-            _dispatch = new DispatchRaysDescription
-            {
-                RayGenerationShaderRecord = new(address, 32),
-                MissShaderTable = new(address + 64, 32, 32),
-                HitGroupTable = new(address + 128, 32, 32),
-                Depth = 1
-            };
-
+            _tracePipeline = tracePipeline ?? Keep(new TracePipeline(_device));
+            _dispatch = _tracePipeline.Dispatch;
             _resolveRoot = Keep(device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
                 [Table(DescriptorRangeType.ShaderResourceView, ResolveDenoiserInputs, 0),
                     Table(DescriptorRangeType.ShaderResourceView, 1, ResolveDenoiserInputs),
@@ -330,17 +288,6 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         _owned.Add(item);
         return item;
     }
-    private static RootParameter1 Root(RootParameterType type, uint register) =>
-        new(type, new RootDescriptor1(register, 0), ShaderVisibility.All);
-    private static RootParameter1 Table(DescriptorRangeType type, uint count, uint register) =>
-        new(new RootDescriptorTable1(new DescriptorRange1(type, count, register)), ShaderVisibility.All);
-
-    private static void CopyIdentifier(ID3D12StateObjectProperties properties, string name, byte* target)
-    {
-        nint identifier = properties.GetShaderIdentifier(name);
-        if (identifier == 0) throw new InvalidOperationException("Machi ray tracing shader export is missing.");
-        NativeMemory.Copy((void*)identifier, target, 32);
-    }
     private ID3D12Resource Buffer(ulong size, HeapType heap = HeapType.Upload, ResourceStates state = ResourceStates.GenericRead,
         ResourceFlags flags = ResourceFlags.None) =>
         Keep(CreateBuffer(size, heap, state, flags));
@@ -429,7 +376,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         }
         TransitionTraceSignals(list, Read, Write, requestRayReconstruction, needsFsrDepth);
         list.SetDescriptorHeaps(_descriptors);
-        list.SetComputeRootSignature(_traceRoot);
+        list.SetComputeRootSignature(_tracePipeline.TraceRoot);
         list.SetComputeRootConstantBufferView(0, _constantBuffer.GPUVirtualAddress + (uint)offset);
         list.SetComputeRootShaderResourceView(1, _tlas.GPUVirtualAddress);
         list.SetComputeRootShaderResourceView(2, _vertices.GPUVirtualAddress);
@@ -440,7 +387,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         list.SetComputeRootShaderResourceView(7, _emitters.GPUVirtualAddress);
         list.SetComputeRootShaderResourceView(8, _emitterPdf.GPUVirtualAddress);
         list.SetComputeRootShaderResourceView(9, _analyticLights.GPUVirtualAddress);
-        list.SetPipelineState1(_trace);
+        list.SetPipelineState1(_tracePipeline.Trace);
         list.DispatchRays(_dispatch);
         TransitionTraceSignals(list, Write, Read, requestRayReconstruction, needsFsrDepth);
 

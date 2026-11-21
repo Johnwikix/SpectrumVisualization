@@ -298,6 +298,51 @@ function metaphor(json) {
     }) });
 }
 
+function wrapNebbiaRows(ctx, maxWidth) {
+    const { advanceOf, emitBlock, FLOW_GAP, measureBlock, STACK_GAP } = require('nebbia/nebbiaBlocks');
+    const rows = [];
+    let row = { dir: 'h', items: [], w: 0, h: 0 };
+    const append = (items, width, height, gap) => {
+        if (row.items.length && row.w + gap + width > maxWidth) {
+            rows.push(row);
+            row = { dir: 'h', items: [], w: 0, h: 0 };
+        }
+        const offset = row.items.length ? row.w + gap : 0;
+        for (const item of items) row.items.push({ ...item, off: item.off + offset });
+        row.w = offset + width;
+        row.h = Math.max(row.h, height);
+    };
+    for (const block of ctx.blocks) {
+        const measured = measureBlock(block, ctx.chars, 'h');
+        if (measured.w <= maxWidth) {
+            append(measured.items, measured.w, measured.h, FLOW_GAP);
+            continue;
+        }
+        for (const word of block.words) {
+            const run = measureBlock({ words: [word] }, ctx.chars, 'h');
+            if (run.w <= maxWidth) {
+                append(run.items, run.w, run.h, FLOW_GAP);
+                continue;
+            }
+            // An unbroken word can exceed a whole row. Split it at grapheme boundaries.
+            let gap = FLOW_GAP;
+            for (const item of run.items) {
+                const width = advanceOf(ctx.chars[item.k].ch) * item.s;
+                append([{ ...item, off: width / 2 }], width, item.s, gap);
+                gap = 0;
+            }
+        }
+    }
+    if (row.items.length) rows.push(row);
+    const items = [];
+    let top = 0;
+    for (const line of rows) {
+        emitBlock(line, 0, top + line.h / 2, items);
+        top += line.h + STACK_GAP;
+    }
+    return { items, vRot: 0 };
+}
+
 function nebbia(json) {
     const input = JSON.parse(json);
     const { buildNebbiaLines, NEBBIA_DEFAULT_DOODLES, isIconChar } = require('nebbia/nebbiaChars');

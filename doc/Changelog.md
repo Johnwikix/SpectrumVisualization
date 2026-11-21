@@ -2,6 +2,14 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 修复在播启动的歌词和双语字幕，加快歌词模式切换
+
+- `MediaInfoService`、`MediaPlaybackClock` 和 `FoliaPlaybackService` 按 SMTC 样本时间、播放状态和倍速定位首帧，时长暂缺时继续走时，同曲补齐时长后可重新匹配此前未找到的歌词。
+- `LyricsTextFile` 和 `FoliaSong` 保留 QRC 文件的原始换行，并按行头和逐字时间恢复旧缓存的歌词分行。`Build/FoliaNative` 让雾笺的超长文字折行，保留逐字时序。
+- `FoliaLyricLayout`、`FoliaSong` 和 `FoliaGpuEffect.NativeStages` 用当前行的原文、译文绘制底部字幕，按字形边界适配小窗口，并在雾笺玻璃层合成后叠加字幕。
+- `FoliaSourcePlanner` 复用同一字图的分词、字形宽度与逐字时序。`FoliaSonnet` 和 `FoliaTempera` 通过弱引用复用最近一次匹配的镜头布局，切回时重新建立本次动画状态。
+- `FoliaGpuEffect.MachiPipeline`、`MachiDxrBackend.Pipelines` 和 `FoliaScenePreparation` 在后台准备町景追踪管线，快速返回时复用同设备管线及尚可用的街区模型，等待期间继续绘制当前模式。
+
 ## 2026-11-21 修复雾笺英俄歌词，降低歌词合成、路径追踪和频谱显示开销
 
 - `FoliaNebbiaStrokes`、`FoliaNebbia` 和 `Build/FoliaNative` 按字体字宽、基线和连续笔画绘制雾笺的回退字形，保留字腔、附加符号和标点。`FoliaDistanceField` 复用 DirectWrite 接口读取 NativeAOT 所需的基线，纯俄文可提前结束汉字笔顺表的扫描。

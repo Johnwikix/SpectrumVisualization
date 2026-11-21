@@ -8712,9 +8712,20 @@ const layoutNebbiaSong = (lines                    , opts                     ) 
         if (!best) {
             const blocks = makeBlocks(chars, words, roles, ROLE_SCALE_FAST, 9);
             const ctx                     = { blocks, h: 0, chars };
-            const res = COMPOSITIONS.lines3(ctx) ?? COMPOSITIONS.lines2(ctx) ?? COMPOSITIONS.ribbon(ctx) ;
-            const bb = bboxOf(res.items);
-            const S = Math.min(Smax, (W - mx * 2) / bb.w, (H - my * 2) / bb.h);
+            let res = COMPOSITIONS.lines3(ctx) ?? COMPOSITIONS.lines2(ctx) ?? COMPOSITIONS.ribbon(ctx);
+            let bb = bboxOf(res.items);
+            const fit = box => Math.min(Smax, (W - mx * 2) / box.w, (H - my * 2) / box.h);
+            let S = fit(bb);
+            if (S < Smin * 0.75) {
+                const wrapped = wrapNebbiaRows(ctx, (W - mx * 2) / (Smin * 0.75));
+                const bounds = bboxOf(wrapped.items);
+                const wrappedSize = fit(bounds);
+                if (wrappedSize > S) {
+                    res = wrapped;
+                    bb = bounds;
+                    S = wrappedSize;
+                }
+            }
             best = { score: 0, name: 'lines3', items: res.items, bb, S, cx: W / 2, cy: H / 2, box: { x0: W / 2 - bb.w * S / 2, x1: W / 2 + bb.w * S / 2, y0: H / 2 - bb.h * S / 2, y1: H / 2 + bb.h * S / 2 } };
         }
         const chosen            = best;
@@ -9573,6 +9584,51 @@ function metaphor(json) {
         });
         return { ...cue, glyphs: layout.glyphs, shapes, collisions, notes, shots };
     }) });
+}
+
+function wrapNebbiaRows(ctx, maxWidth) {
+    const { advanceOf, emitBlock, FLOW_GAP, measureBlock, STACK_GAP } = require('nebbia/nebbiaBlocks');
+    const rows = [];
+    let row = { dir: 'h', items: [], w: 0, h: 0 };
+    const append = (items, width, height, gap) => {
+        if (row.items.length && row.w + gap + width > maxWidth) {
+            rows.push(row);
+            row = { dir: 'h', items: [], w: 0, h: 0 };
+        }
+        const offset = row.items.length ? row.w + gap : 0;
+        for (const item of items) row.items.push({ ...item, off: item.off + offset });
+        row.w = offset + width;
+        row.h = Math.max(row.h, height);
+    };
+    for (const block of ctx.blocks) {
+        const measured = measureBlock(block, ctx.chars, 'h');
+        if (measured.w <= maxWidth) {
+            append(measured.items, measured.w, measured.h, FLOW_GAP);
+            continue;
+        }
+        for (const word of block.words) {
+            const run = measureBlock({ words: [word] }, ctx.chars, 'h');
+            if (run.w <= maxWidth) {
+                append(run.items, run.w, run.h, FLOW_GAP);
+                continue;
+            }
+            // An unbroken word can exceed a whole row. Split it at grapheme boundaries.
+            let gap = FLOW_GAP;
+            for (const item of run.items) {
+                const width = advanceOf(ctx.chars[item.k].ch) * item.s;
+                append([{ ...item, off: width / 2 }], width, item.s, gap);
+                gap = 0;
+            }
+        }
+    }
+    if (row.items.length) rows.push(row);
+    const items = [];
+    let top = 0;
+    for (const line of rows) {
+        emitBlock(line, 0, top + line.h / 2, items);
+        top += line.h + STACK_GAP;
+    }
+    return { items, vRot: 0 };
 }
 
 function nebbia(json) {

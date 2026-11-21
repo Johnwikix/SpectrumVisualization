@@ -19,7 +19,7 @@ internal sealed partial class FoliaFume
     {
         if (atlas.Identity == _atlasIdentity && width == _width && height == _height && scale == _scale)
             return;
-        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileFume", token);
+        string output = FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, token: token), "compileFume", token);
         using var document = JsonDocument.Parse(output);
         var blocks = new List<Block>();
         var camera = new List<Vector3>();

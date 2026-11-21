@@ -40,7 +40,7 @@ internal sealed class FoliaTilt
     {
         if (atlas.Identity == _atlasIdentity && _width == width && _height == height && _scale == scale)
             return;
-        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight), "compileTilt", token));
+        using var document = JsonDocument.Parse(FoliaSourcePlanner.Compile(FoliaSourcePlanner.CreateInput(atlas, width, height, scale, family, weight, token: token), "compileTilt", token));
         var layouts = new List<Layout>();
         int li = 0;
         foreach (var item in document.RootElement.EnumerateArray())

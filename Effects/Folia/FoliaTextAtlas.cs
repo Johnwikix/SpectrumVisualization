@@ -16,9 +16,33 @@ namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct FoliaGlyph(float U, float V, float Uw, float Vh, float Width, float Height, float Advance, float BearingX, float BearingY, float CanvasCenterY = 0, float LineHeight = 1.32f, int Page = 0);
 internal readonly record struct FoliaPreparedGlyph(FoliaGlyph Glyph, float Offset, double Start, double End, int Word, int Index, Vector3? ActiveColor = null);
+internal readonly record struct FoliaTextBounds(float Left, float Top, float Right, float Bottom)
+{
+    internal float Width => Right - Left;
+    internal float Height => Bottom - Top;
+
+    internal static FoliaTextBounds Measure(ReadOnlySpan<FoliaPreparedGlyph> glyphs)
+    {
+        if (glyphs.IsEmpty) return default;
+        float left = float.PositiveInfinity, top = float.PositiveInfinity;
+        float right = float.NegativeInfinity, bottom = float.NegativeInfinity;
+        foreach (ref readonly var glyph in glyphs)
+        {
+            float x = glyph.Offset + glyph.Glyph.BearingX, y = glyph.Glyph.BearingY;
+            left = Math.Min(left, x);
+            top = Math.Min(top, y);
+            right = Math.Max(right, x + glyph.Glyph.Width);
+            bottom = Math.Max(bottom, y + glyph.Glyph.Height);
+        }
+        return new(left, top, right, bottom);
+    }
+}
+
 internal sealed record FoliaPreparedLine(FoliaLine Source, FoliaPreparedGlyph[] Glyphs, float Width, FoliaPreparedGlyph[] Translation, float TranslationWidth)
 {
     internal FoliaGlyph[] TiltItalic { get; init; } = [];
+    internal FoliaTextBounds OriginalBounds { get; } = FoliaTextBounds.Measure(Glyphs);
+    internal FoliaTextBounds TranslationBounds { get; } = FoliaTextBounds.Measure(Translation);
 }
 
 /// <summary>Scene layouts reference reusable glyph tiles. A private CPU atlas remains available for capacity fallback.</summary>
