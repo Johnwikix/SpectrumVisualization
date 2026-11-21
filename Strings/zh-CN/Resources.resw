@@ -384,6 +384,7 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>雾笺</value></data>
   <data name="FoliaMachiTimeOfDay.Header" xml:space="preserve"><value>时段</value></data>
   <data name="FoliaMachiTimeOfDay_auto.Content" xml:space="preserve"><value>自动</value></data>
+  <data name="FoliaMachiTimeOfDay_cycle.Content" xml:space="preserve"><value>昼夜循环（4 分钟）</value></data>
   <data name="FoliaMachiTimeOfDay_day.Content" xml:space="preserve"><value>白天</value></data>
   <data name="FoliaMachiTimeOfDay_dusk.Content" xml:space="preserve"><value>黄昏</value></data>
   <data name="FoliaMachiTimeOfDay_night.Content" xml:space="preserve"><value>夜晚</value></data>

@@ -384,6 +384,7 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaOption_nebbia.Content" xml:space="preserve"><value>Nebbia</value></data>
   <data name="FoliaMachiTimeOfDay.Header" xml:space="preserve"><value>Time of day</value></data>
   <data name="FoliaMachiTimeOfDay_auto.Content" xml:space="preserve"><value>Automatic</value></data>
+  <data name="FoliaMachiTimeOfDay_cycle.Content" xml:space="preserve"><value>Day–night cycle (4 minutes)</value></data>
   <data name="FoliaMachiTimeOfDay_day.Content" xml:space="preserve"><value>Day</value></data>
   <data name="FoliaMachiTimeOfDay_dusk.Content" xml:space="preserve"><value>Dusk</value></data>
   <data name="FoliaMachiTimeOfDay_night.Content" xml:space="preserve"><value>Night</value></data>

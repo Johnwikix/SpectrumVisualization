@@ -90,7 +90,7 @@ internal sealed class FoliaGlowWords
 
     internal static void Ripple(ref FoliaPainter painter, bool chorus, double start, double end, double time, Vector2 center, float font, Vector3 color, in FoliaLineTiming timing)
     {
-        float age = (float)(time - start + timing.Lookahead);
+        float age = (float)(time - timing.WordEntrance(start));
         if (!chorus || age < 0 || age >= .5f || time > timing.WordEnd(start, end)) return;
         float progress = 1 - MathF.Pow(1 - age / .5f, 3);
         float targetScale = 1.5f + FoliaPainter.Random(start, 71.3) * 2;
@@ -114,7 +114,7 @@ internal sealed class FoliaGlowWords
     internal Pose Resolve(int index, double start, double end, double time, Vector2 offset, float rotation, float scale, float passedRotation)
     {
         if (_timing.Mode == 2)
-            return new(offset, scale, rotation, time >= start - _timing.Lookahead ? 1 : 0, 0, 1, 0);
+            return new(offset, scale, rotation, time >= _timing.WordEntrance(start) ? 1 : 0, 0, 1, 0);
         ref var motion = ref _words[index];
         if (!motion.Initialized)
         {
@@ -122,7 +122,7 @@ internal sealed class FoliaGlowWords
             motion.Current = new(offset + new Vector2(MathF.Sin(offset.Y) * 100, MathF.Cos(offset.X) * 50), .5f, rotation + 20 * MathF.PI / 180, 0, 10, 0, 0);
         }
         end = _timing.WordEnd(start, end);
-        int status = time < start - _timing.Lookahead ? 0 : time <= end ? 1 : 2;
+        int status = time < _timing.WordEntrance(start) ? 0 : time <= end ? 1 : 2;
         if (motion.Status != status)
         {
             motion.Status = status;

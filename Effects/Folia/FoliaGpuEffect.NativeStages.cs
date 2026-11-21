@@ -300,14 +300,15 @@ internal sealed unsafe partial class FoliaGpuEffect
                 _data[39] = new(focus, (float)_nebbiaTime, 0);
                 break;
             case FoliaNativeStage.Machi:
-                UpdateMachiFrame(song, position, anchor, reset);
-                _nativeForegroundCount = _machiPlan!.WritePanel(instances, position, _animation, scale);
+                int active = FoliaLyricLayout.FindActiveLine(atlas.Lines, position);
+                int board = _machiPlan!.LyricTarget(active);
+                UpdateMachiFrame(song, position, anchor, board, reset);
+                _nativeForegroundCount = _machiPlan.WritePanel(instances, board, position, _animation, scale);
                 if (anchor < 0) return _nativeForegroundCount;
                 var subtitles = new FoliaPainter(instances[_nativeForegroundCount..], width, height);
                 // The traced stage is already linear HDR. Use linear white for the final overlay.
                 var subtitleWhite = new Vector3(.807f, .828f, .933f);
-                FoliaLyricLayout.Subtitle(ref subtitles, atlas, FoliaLyricLayout.FindActiveLine(atlas.Lines, position),
-                    anchor, position, subtitleWhite, subtitleWhite);
+                FoliaLyricLayout.Subtitle(ref subtitles, atlas, active, anchor, position, subtitleWhite, subtitleWhite);
                 return _nativeForegroundCount + subtitles.Count;
         }
         _nativeForegroundCount = painter.Count;
@@ -410,6 +411,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _lightData[214+2*i] = new(layout.Steam[i].Seed, 0, 0);
         }
         _lightData[13] = default;
+        new Span<Vector4>(_lightData + 14, 4).Clear();
         for (int i = 0; i < roofs; ++i)
         {
             var r = layout.Roofs[i];
@@ -428,11 +430,15 @@ internal sealed unsafe partial class FoliaGpuEffect
 
     private FoliaMachi.EnvironmentState _machiEnvironment;
     private float _machiChorus, _machiVacancyChorus;
-    private void UpdateMachiFrame(FoliaSong song, double position, int anchor, bool reset)
+    private double _machiCycleSeconds;
+    private void UpdateMachiFrame(FoliaSong song, double position, int anchor, int board, bool reset)
     {
         reset |= _machiEnvironment.Song == null;
-        var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, AppSettings.FoliaMachiTimeOfDay,
-            AppSettings.FoliaMachiWeather, song, DateTime.Now, (float)_data[1].W, reset, _machiPlan!.SceneId);
+        string timeOfDay = AppSettings.FoliaMachiTimeOfDay;
+        if (timeOfDay == "cycle")
+            _machiCycleSeconds = (_machiCycleSeconds + Math.Max(0, _data[1].W)) % FoliaMachi.CycleDurationSeconds;
+        var environment = FoliaMachi.UpdateEnvironment(ref _machiEnvironment, timeOfDay,
+            AppSettings.FoliaMachiWeather, song, DateTime.Now, _data[1].W, reset, _machiPlan!.SceneId, _machiCycleSeconds);
         float delta = Math.Clamp(_data[1].W, 0, .1f);
         _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
         var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _animation, _machiMotionWeight);
@@ -451,15 +457,18 @@ internal sealed unsafe partial class FoliaGpuEffect
                 flash = environment.Rain * MathF.Min(1, MathF.Exp(-first*first) + .7f*MathF.Exp(-second*second) + .25f*MathF.Exp(-since*3.5f));
             }
         }
-        _lightData[10] = new(_machi.SceneHalf, (float)(_animation % 3600), flash, MachiHdrOutput ? 1 : 0);
+        float weatherTime = (float)(_backgroundTime % 3600);
+        _lightData[10] = new(_machi.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
         _lightData[11] = new(environment.SkyTop, 0);
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
             environment.Wetness, (float)_data[1].W, reset, MachiRayReconstructionRequested)
         {
             SamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel, MaxBounces = AppSettings.FoliaMachiMaxBounces,
             HemiSky = environment.HemiSky, HemiGround = environment.HemiGround, CityGlow = environment.CityGlow,
-            NoVacancy = _machiPlan.UpdateVacancy(position, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
+            NoVacancy = _machiPlan.UpdateVacancy(board, delta, reset, ref _machiChorus, ref _machiVacancyChorus),
             AmbientTime = (float)(_animation % 3600), Rain = environment.Rain, Puddles = _machi.Weather.Puddles,
+            PuddleFill = environment.PuddleFill, RainTime = weatherTime,
+            RainShelters = *(Matrix4x4*)(_lightData + 14),
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,
             SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze
         };
@@ -508,7 +517,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         if (_lightData[9].X + _lightData[9].Y > .001f)
         {
             commands.SetPipelineState(_machiWeather!);
-            const int WeatherInstances = 3072 * 2 + 640;
+            const int WeatherInstances = 3072 * 2;
             commands.DrawInstanced(6, (uint)(WeatherInstances + _machiDrips), 0, 0);
         }
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);

@@ -128,7 +128,7 @@ float GroundHeight(float2 xz) {
 }
 struct Particle {float4 pos:SV_Position;float2 uv:TEXCOORD0;nointerpolation uint kind:TEXCOORD1;float strength:TEXCOORD2;float glint:TEXCOORD3;};
 // Paired with the instance count in FoliaGpuEffect.NativeStages.
-static const uint FlakesPerLayer = 3072, SplashStart = FlakesPerLayer * 2, DripStart = SplashStart + 640;
+static const uint FlakesPerLayer = 3072, DripStart = FlakesPerLayer * 2;
 Particle WeatherVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     Particle o;
     float2 q=float2(vertex==1||vertex==2||vertex==4,vertex>=2&&vertex<=4);
@@ -136,30 +136,16 @@ Particle WeatherVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
     o.uv=q; o.strength=1; o.glint=0;
     float2 base=(float2(Hash(float2(id,3)),Hash(float2(id,8)))*2-1)*Scene.x;
     float3 head;
-    if (id>=SplashStart) {
-        float cycle=Scene.y*2*(.8+.4*seed)+phase;
-        float life=frac(cycle);
-        float2 center=(float2(Hash(float2(id,floor(cycle))),Hash(float2(floor(cycle),id+33)))*2-1)*(Scene.x-.05);
-        float3 p=float3(center.x,GroundHeight(center)+.012,center.y);
-        float size=.06+.24*life;
+    if (id>=DripStart) {
+        uint drip=(id-DripStart)*2;
+        float4 d=Drips[drip], timing=Drips[drip+1];
+        float t=fmod(Scene.y+timing.y*timing.x,timing.x);
+        float falling=sqrt(2*max(0,d.z-d.w)/9.8);
+        float3 p=float3(d.x,d.z-.5*9.8*t*t,d.y);
+        p.xz+=(q-.5)*.025;
+        p.y+=(q.y-.5)*(.03+.05*t/max(falling,.001));
         o.kind=2;
-        if(id>=DripStart) {
-            uint drip=(id-DripStart)*2;
-            float4 d=Drips[drip], timing=Drips[drip+1];
-            float t=fmod(Scene.y+timing.y*timing.x,timing.x);
-            float falling=sqrt(2*max(0,d.z-d.w)/9.8);
-            p=float3(d.x,d.z-.5*9.8*t*t,d.y);
-            if(t<falling){
-                o.kind=3; size=.025;
-                p.y+=(q.y-.5)*(.03+.05*t/max(falling,.001));
-            } else {
-                life=(t-falling)/.28;
-                size=.04+.2*saturate(life);
-                p.y=d.w+.014;
-            }
-        }
-        p.xz+=(q-.5)*size;
-        o.strength=(o.kind==3 ? 1 : saturate(1-life))*Weather.x;
+        o.strength=t<falling ? Weather.x : 0;
         o.pos=mul(float4(p,1),Camera);
         return o;
     }
@@ -193,7 +179,6 @@ float4 WeatherPS(Particle p):SV_Target {
     float a;
     if(p.kind==0) a=.24*(1-.85*p.uv.y);
     else if(p.kind==1){a=.72*saturate(1-edge);color=float3(.78,.86,.96);}
-    else if(p.kind==2)a=.32*smoothstep(.62,.86,edge)*(1-smoothstep(.86,1,edge));
     else a=.18;
     a*=p.strength;
     return float4(color*a,a);

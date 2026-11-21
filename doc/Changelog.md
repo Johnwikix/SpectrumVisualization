@@ -2,6 +2,14 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-21 町景积水随雨势扩张，歌词屏跟随封面配色，新增昼夜循环并校准歌词时间轴
+
+- `MachiTrace.hlsl`、`Stage.hlsl` 和 `MachiDxrBackend` 提高三块主歌词屏的发光强度，按实时字色从屏幕正面照亮街区，同步调整面积光源采样权重。
+- `FoliaMachi.Plan`、`FoliaScenePreparation` 从传入封面提取广告牌字色和底色，同曲稍后收到封面时更新配色，无封面时使用暖色。
+- `FoliaMachi.Environment`、`MachiTrace.hlsl` 分开计算路面湿润和积水深度；雨中低洼处扩张连片，停雨后逐渐退水，边缘露出湿润颗粒，屋檐下积水较少。`Machi.hlsl` 移除地面圆环叠图，涟漪只扰动明水的反射。
+- `FoliaMachi.Environment` 和「町景设置 → 时段」新增四分钟昼夜循环，日月沿相对的轨道升落，雨、雾、雪夜继续遮蔽月光。
+- `FoliaMachi.Plan` 和 `FoliaGpuEffect.NativeStages` 让广告牌和字幕共用早期模式的当前行，按原始音节时间高亮；纯行时间戳歌词整句点亮。
+
 ## 2026-11-21 调整町景日月照明，开放路径追踪采样和反弹设置
 
 - `FoliaMachi.Environment` 降低晴夜月光和夜间天光，雨、雾、雪夜完全遮蔽月光；提高夜间灯具出光和晴昼直射日光。

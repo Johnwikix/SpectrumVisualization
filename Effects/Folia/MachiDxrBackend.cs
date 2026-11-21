@@ -20,6 +20,9 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal Vector3? HemiGround { get; init; }
     internal Vector3 CityGlow { get; init; }
     internal Vector3 Puddles { get; init; }
+    internal float PuddleFill { get; init; }
+    internal float RainTime { get; init; }
+    internal Matrix4x4 RainShelters { get; init; }
     internal float AmbientTime { get; init; }
     internal float Rain { get; init; }
     internal bool NoVacancy { get; init; }
@@ -56,6 +59,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         public Matrix4x4 Inverse, ViewProjection, PreviousViewProjection, View;
         public Vector4 SkyWetness, SunDirectionFrame, SunRadianceFar, SizeJitter, Lighting, SkyBottom, AnalyticLightControl;
         public Vector4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
+        public Matrix4x4 RainShelters;
         public uint SamplesPerPixel, MaxBounces;
     }
 
@@ -403,13 +407,13 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             // Ray origins move opposite to the projection shift passed to the SDKs.
             SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),
             Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : needsFsrDepth ? -1 : 0),
-            SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, 0),
+            SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, frame.RainTime),
             AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0,
                 DenoisingDisabled ? requestSuperResolution ? 2 : 1 : 0),
             HemiSkyRain = new(frame.HemiSky ?? frame.Sky, frame.Rain),
             HemiGroundTime = new(frame.HemiGround ?? frame.SkyBottom ?? frame.Sky * .45f, frame.AmbientTime),
-            CityGlow = new(frame.CityGlow, 0),
-            Puddles = new(frame.Puddles, 0),
+            CityGlow = new(frame.CityGlow, FoliaMachi.BoardWhiteRadiance * frame.Artificial),
+            Puddles = new(frame.Puddles, frame.PuddleFill), RainShelters = frame.RainShelters,
             SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces
         };
 

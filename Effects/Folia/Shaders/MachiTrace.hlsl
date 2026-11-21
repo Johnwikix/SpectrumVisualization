@@ -26,7 +26,11 @@ cbuffer Camera : register(b0)
     float4 SkyWetness, SunDirectionFrame, SunRadianceFar, SizeJitter, Lighting, SkyBottom;
     float2 AnalyticLightControl;
     float NoVacancy, TraceGuideMode;
-    float4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
+    float4 HemiSkyRain, HemiGroundTime;
+    float3 CityGlow;
+    float BoardWhiteRadiance;
+    float4 Puddles;
+    float4 RainShelters[4];
     uint SamplesPerPixel, MaxBounces;
 }
 
@@ -238,30 +242,43 @@ float2 RainRipple(float2 position, float scale, float time, float salt)
 }
 void WetGround(inout Surface s)
 {
-    float wetness = SkyWetness.w * (1 - saturate(Lighting.y * 1.5));
-    if (wetness <= 0 || s.n.y <= .5) return;
+    float exposed = 1 - saturate(Lighting.y * 1.5);
+    if (exposed <= 0 || max(SkyWetness.w, Puddles.w) <= 0 || s.face.y <= .5) return;
     float2 p = s.p.xz;
-    float n = PuddleNoise(p * .62 + Puddles.xy) * .62 + PuddleNoise(p * 1.7 - Puddles.xy * 1.3) * .38;
-    float edge = lerp(.78, .46, Puddles.z) + (s.material == 9 ? .08 : 0);
-    float puddle = smoothstep(edge, edge + .05, n) * smoothstep(.15, .85, wetness);
-    // The binder holds a thin film between protruding grains. Only filled
-    // depressions provide an uninterrupted air/water interface.
-    s.wetCoverage = wetness * lerp(.40 + .27*n, 1, puddle);
-    // Rough film follows the pavement relief. Standing water has a narrower
-    // microfacet distribution, with resolved waves carried by the normal.
-    s.waterRoughness = lerp(.28, .055, puddle);
-    float2 wobble = float2(PuddleNoise(p * 2.7 + 3.1), PuddleNoise(p * 2.7 - 11.4)) - .5;
-    float2 slope = wobble * lerp(.012, .005, puddle);
-    if (HemiSkyRain.w > 0)
+    float shelter = 0;
+    [unroll] for (uint i = 0; i < 4; i++)
     {
-        float time = HemiGroundTime.w;
-        float2 ripple = RainRipple(p, 2.3, time, 0) + .7 * RainRipple(p, 3.9, time * 1.13, 19);
-        slope += ripple * lerp(.004, .018, puddle);
+        float2 inset = min(p - RainShelters[i].xy, RainShelters[i].zw - p);
+        shelter = max(shelter, smoothstep(.05, .95, min(inset.x, inset.y)));
     }
-    s.n = normalize(s.n + float3(slope.x, 0, slope.y) * wetness);
+    float fill = Puddles.w * exposed * (1 - .94 * shelter);
+    float film = max(SkyWetness.w, fill) * exposed * (1 - .82 * shelter);
+    float basin = .61 * PuddleNoise(p * .34 + Puddles.xy) + .29 * PuddleNoise(p * .89 - Puddles.xy)
+        + .10 * PuddleNoise(p * 2.7 + Puddles.xy);
+    float bank = lerp(.82, .40, fill) + .06 * (.5 - Puddles.z) + (s.material == 9 ? .07 : 0);
+    // Gravel crests interrupt the shallow margin. Higher water joins the same fixed depressions.
+    float depth = basin - bank - .10 * length(s.n.xz);
+    float footprint = 2 * length(InverseViewProjection[0].xyz) / SizeJitter.x;
+    float edgeWidth = clamp(.24 * footprint, .004, .022);
+    float pool = smoothstep(-edgeWidth, .045 + edgeWidth, depth) * smoothstep(0, .14, fill);
+    float dampBank = smoothstep(-.14, -.015, depth) * film;
+    s.base *= 1 - .17 * dampBank;
+    s.wetCoverage = lerp(film * (.26 + .23 * basin + .17 * dampBank), 1, pool);
+    s.waterRoughness = lerp(.30 - .07 * dampBank, .045, pool);
+    float2 wobble = float2(PuddleNoise(p * 2.7 + 3.1), PuddleNoise(p * 2.7 - 11.4)) - .5;
+    float2 slope = wobble * lerp(.009, .003, pool);
+    if (HemiSkyRain.w > 0 && pool > 0 && shelter < 1)
+    {
+        float time = SkyBottom.w;
+        float2 ripple = RainRipple(p, 2.3, time, 0) + .7 * RainRipple(p, 3.9, time * 1.13, 19);
+        slope += ripple * (.018 * pool * (1 - shelter));
+    }
+    float3 up = float3(0, 1, 0);
+    float3 rippleNormal = float3(slope.x, 0, slope.y) * film;
+    s.n = normalize(lerp(s.n, up, pool) + rippleNormal);
     // Reuse the small local perturbation for the prior rigid normal. The
     // moving ripple itself is stochastic shading, not geometric screen motion.
-    s.previousNormal = normalize(s.previousNormal + float3(slope.x, 0, slope.y) * wetness);
+    s.previousNormal = normalize(lerp(s.previousNormal, up, pool) + rippleNormal);
 }
 
 float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneInstance instance)
@@ -319,7 +336,18 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
     s.metal = (materialParameters & 15) / 15.0;
     if (s.material == 1)
         s.roughness = .035;
-    if (s.material == 2 || s.material == 6)
+    if (s.material == 2)
+    {
+        if (frontFace)
+        {
+            float3 pixels = Lyrics.SampleLevel(LinearClamp, uv, 0).rgb;
+            float diffuser = PanelDots(uv, s.material, a, b, c, instance);
+            s.emission = BoardWhiteRadiance * pixels * diffuser;
+        }
+        s.base *= .14;
+        s.roughness = .45;
+    }
+    if (s.material == 6)
     {
         float3 letters = max(Lyrics.SampleLevel(LinearClamp, uv, 0).rgb, 0) * 1.55;
         float peak = max(letters.r, max(letters.g, letters.b));

@@ -207,6 +207,9 @@ internal sealed class FoliaScenePreparation : IDisposable
                     || (request.Mode is "tempera" or "pendolo" or "hanabi" or "metaphor" || request.Mode == "diorama" && request.Song.KeywordRanges.Length > 0)
                         && !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette)
                     || request.Mode == "machi" && (_planRequest.MachiScene != request.MachiScene
+                        || !ReferenceEquals(_planRequest.Song.CoverRgba, request.Song.CoverRgba)
+                        || !ReferenceEquals(_planRequest.Song.CoverColors, request.Song.CoverColors)
+                        || _planRequest.Song.CoverWidth != request.Song.CoverWidth || _planRequest.Song.CoverHeight != request.Song.CoverHeight
                         || _planRequest.Song.IsLightTheme != request.Song.IsLightTheme || !ReferenceEquals(_planRequest.Song.Palette, request.Song.Palette))
                     || request.Mode == "tempera" && _planRequest.TemperaDecor != request.TemperaDecor
                     || request.Mode == "monet" && (_planRequest.Song.CoverWidth > 0) != (request.Song.CoverWidth > 0))
