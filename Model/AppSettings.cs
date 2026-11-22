@@ -52,7 +52,7 @@ namespace WinExSpectrumTest.Model
         public static bool FoliaSonnetPostProcess { get => _FoliaSonnetPostProcess; set => Set(ref _FoliaSonnetPostProcess, value); }
         private static string _foliaMachiScene = "auto";
         private static bool _foliaMachiMotion;
-        public const int MachiMinimumFocalLengthMm = 28, MachiDefaultFocalLengthMm = 40, MachiMaximumFocalLengthMm = 65;
+        public const int MachiMinimumFocalLengthMm = 28, MachiDefaultFocalLengthMm = 55, MachiMaximumFocalLengthMm = 105;
         private static int _foliaMachiFocalLengthMm = MachiDefaultFocalLengthMm;
         public static int FoliaMachiFocalLengthMm
         {
