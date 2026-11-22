@@ -142,6 +142,13 @@
 	<AppxPackageDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\$(TargetFramework)\win-x64\AppPackages\</AppxPackageDir>
 	<WindowsPackageType>MSIX</WindowsPackageType>
   </PropertyGroup>
+  <!-- NativeAOT publish items already provide the PDB for the packaged executable. -->
+  <Target Name="ExcludeManagedSymbolsFromNativeAotMsix" BeforeTargets="GetPackagingOutputs"
+          Condition="'$(WindowsPackageType)' == 'MSIX' and '$(PublishAot)' == 'true' and '$(IncludePublishItemsOutputGroup)' == 'true'">
+    <PropertyGroup>
+      <IncludeDebugSymbolsProjectOutputGroup>false</IncludeDebugSymbolsProjectOutputGroup>
+    </PropertyGroup>
+  </Target>
   <!-- Native unpackaged publishing must replace any old loose XAML resource index. -->
   <Target Name="CopyUnpackagedXamlResources" AfterTargets="Publish" Condition="'$(WindowsPackageType)' == 'None' and Exists('$(TargetDir)$(AssemblyName).pri')">
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)resources.pri" />
