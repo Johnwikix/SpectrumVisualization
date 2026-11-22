@@ -2,6 +2,11 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-22 缩短 DLSS 启动等待
+
+- `App.xaml.cs`、`GpuShaderWarmup` 和 `GpuRenderer` 根据启动效果选择预热路径。以 GPU 效果启动时，后台仅探测同一设备支持的重建能力，渲染线程提交首帧后再初始化已选模式。从 Win2D 切到 GPU 时，后台预热在当前工作和 SDK 清理结束后交接。
+- `Native/Reconstruction/Reconstruction.cpp` 优先查询同一显卡的 DLSS 超分和光线重建支持要求，查询不可用时回退到各自原有的 NGX 初始化探测。实际创建效果时仍完整初始化 SDK。
+
 ## 2026-11-22 修复町景便利店的架空电线，优化路径追踪的光源数据读取
 
 - `Build/FoliaMachi` 和 `konbini.machi.br` 将便利店两侧的五线跨距接到电杆瓷瓶，给中性线增加独立支架，并把变压器引线接至店外入户管。

@@ -190,20 +190,26 @@ internal sealed class GpuRenderer
                     if (graphics == null)
                     {
                         Publish(HdrOutputMode.Starting);
-                        // Draw through the spatial fallback during startup. Vendor contexts must not
-                        // overlap warmup's device-wide NGX initialization/shutdown.
+                        _warmup.RequestRendererHandoff();
+                        // Bind and submit the first scene before creating an SDK feature. Vendor contexts
+                        // must also wait for warmup's device-wide NGX initialization/shutdown.
                         graphics = new GpuGraphics(_analyzer, _bind, settings.Width, settings.Height,
-                            settings.Effect.CreateGpu!, settings.Scene, deferReconstruction: !_warmup.IsReady);
+                            settings.Effect.CreateGpu!, settings.Scene, deferReconstruction: true);
                         activeEffect = settings.Effect.Id;
                         pacer.Reset();
                         previous = Stopwatch.GetTimestamp();
                         displayChecked = 0;
                         previousRequest = null;
+                        // Construction and binding can span UI changes or a pause request.
+                        continue;
                     }
-                    if (_warmup.IsReady)
+                    bool reconstructionReady = graphics.LastFrameRendered && _warmup.IsReady;
+                    if (reconstructionReady && graphics.CompleteWarmup(_warmup))
                     {
-                        graphics.CompleteWarmup();
                         _warmup.ReleaseDeviceCache();
+                        // A fresh device may need a synchronous probe. Read current resize, scale
+                        // and pause state again before rebuilding resources for the selected mode.
+                        continue;
                     }
                     // Keep rendering while a slider is moving; only the latest scale is applied.
                     var scene = Environment.TickCount64 - scaleChangedAt < 150
@@ -255,7 +261,7 @@ internal sealed class GpuRenderer
                             graphics.LastPresentMilliseconds, graphics.LastGpuWaitMilliseconds, graphics.RenderSize,
                             graphics.Reconstruction.Active, settings.Scene.DlssPreset, hdr, graphics.AllowsTearing, settings.FramesPerSecond,
                             graphics.LastAntialiasMilliseconds));
-                    if (_warmup.IsReady && _lastReconstruction != graphics.Reconstruction)
+                    if (reconstructionReady && _lastReconstruction != graphics.Reconstruction)
                     {
                         _lastReconstruction = graphics.Reconstruction;
                         _publishReconstruction(graphics.Reconstruction);

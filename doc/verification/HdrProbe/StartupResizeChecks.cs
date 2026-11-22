@@ -19,8 +19,8 @@ internal static class StartupResizeChecks
             using var input = new SpectrumAnalyzer(captureAudio: false);
             ProbeSignal.Update(input, 60, true);
             long started = Stopwatch.GetTimestamp();
-            Task work = warmup.Start();
-            Require(ReferenceEquals(work, warmup.Start()), "Warmup must be single-flight");
+            Task work = warmup.Start(EffectHost.Win2D);
+            Require(ReferenceEquals(work, warmup.Start(EffectHost.Win2D)), "Warmup must be single-flight");
             Require(Stopwatch.GetElapsedTime(started).TotalMilliseconds < 1000, "Start blocked the caller");
             using (var live = new GpuGraphics(input, static (_, _, _) => { }, 320, 180,
                 static () => new SonicGpuEffect(), new(50, ReconstructionMode.Dlss, 80), deferReconstruction: true))
@@ -34,7 +34,7 @@ internal static class StartupResizeChecks
                 } while (!work.IsCompleted && Stopwatch.GetElapsedTime(started).TotalSeconds < 90);
                 Require(work.Wait(TimeSpan.FromSeconds(30)), "Warmup did not finish");
                 Require(warmup.IsReady, "Warmup did not publish completion");
-                live.CompleteWarmup();
+                live.CompleteWarmup(warmup);
                 warmup.ReleaseDeviceCache();
                 var preferred = (live.Reconstruction.Capabilities & (1u << (int)ReconstructionMode.Dlss)) != 0
                     ? ReconstructionMode.Dlss : ReconstructionMode.Fsr;
@@ -134,10 +134,10 @@ internal static class StartupResizeChecks
     private static void VerifyCancelledStartup()
     {
         var cancelled = new GpuShaderWarmup();
-        Task work = cancelled.Start();
+        Task work = cancelled.Start(EffectHost.Win2D);
         Task stop = cancelled.StopAsync();
         Require(stop.Wait(TimeSpan.FromSeconds(30)) && work.IsCompleted, "Startup cancellation released before work finished");
-        Require(ReferenceEquals(stop, cancelled.Start()), "Stopped warmup restarted");
+        Require(ReferenceEquals(stop, cancelled.Start(EffectHost.Win2D)), "Stopped warmup restarted");
         Console.WriteLine("PASS startup cancellation, repeated stop and no restart after shutdown");
     }
 

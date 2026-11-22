@@ -113,7 +113,7 @@ namespace WinExSpectrumTest
                 Model.AppSettings.WallpaperEnabled = false;
             }
             if (IsExiting) return;
-            _ = ShaderWarmup.Start();
+            _ = ShaderWarmup.Start(Effects.EffectRegistry.Resolve(Model.AppSettings.VisualEffect).Host);
             MainWindow = new MainWindow();
             MainWindow.Activate();
             var dispatcher = MainWindow.DispatcherQueue;

@@ -1,5 +1,7 @@
 using ComputeSharp;
+using ComputeSharp.Interop;
 using System;
+using Vortice.Direct3D12;
 
 namespace WinExSpectrumTest.Rendering;
 
@@ -13,6 +15,14 @@ internal sealed class GpuDeviceLease : IDisposable
     internal GraphicsDevice Device { get; }
 
     private GpuDeviceLease(GraphicsDevice device) => Device = device;
+
+    internal unsafe ID3D12Device OpenNativeDevice()
+    {
+        Guid deviceId = new("189819F1-1DB6-4B57-BE54-1821339B85F7");
+        void* native = null;
+        InteropServices.GetID3D12Device(Device, &deviceId, &native);
+        return new ID3D12Device((nint)native);
+    }
 
     internal static GpuDeviceLease Acquire()
     {

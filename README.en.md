@@ -80,7 +80,7 @@
 
 ### NativeAOT and trimming
 - Release publishes set `PublishAot=true` / `PublishTrimmed=true` / `SelfContained=true` / `BuiltInComInteropSupport=true` / `PublishReadyToRun=true`. x64 only.
-- The C++ bridge (`Native/Reconstruction/`) exposes a C ABI that only borrows the host D3D12 device, command list and textures; it does not own a swap chain, audio endpoint, UI thread or frame loop. A dedicated low-priority thread warms up spatial AA and the available SR modes at startup. HLSL bytecode and the device are handed to the live renderer when ready.
+- The C++ bridge (`Native/Reconstruction/`) exposes a C ABI that borrows the host D3D12 device, command list and textures. When starting with a Win2D effect, a dedicated low-priority thread warms up spatial AA and available SR modes offscreen and hands off the device and caches as needed. When starting with a GPU effect, the background thread probes device capabilities and the render thread initializes the selected reconstruction mode after submitting the first frame.
 
 ---
 
