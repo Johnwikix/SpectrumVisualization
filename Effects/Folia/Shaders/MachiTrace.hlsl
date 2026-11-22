@@ -97,14 +97,6 @@ static const float DiskRadianceScale = 1 / (Pi * sin(CelestialRadius) * sin(Cele
 static const float Epsilon = .001;
 static const uint OpticalLightSamples = 4;
 
-uint Hash(uint x)
-{
-    x ^= x >> 16;
-    x *= 0x7feb352d;
-    x ^= x >> 15;
-    x *= 0x846ca68b;
-    return x ^ (x >> 16);
-}
 uint PathSeed(uint2 pixel, uint vertex, uint effect)
 {
     return Hash32Combine(Hash32Combine(Hash32(pixel.x + 0x035f9f29u), pixel.y), Hash32Combine(vertex, effect));
@@ -278,6 +270,35 @@ float PuddleNoise(float2 position)
     return lerp(lerp(PuddleHash(cell), PuddleHash(cell + float2(1, 0)), smooth.x),
         lerp(PuddleHash(cell + float2(0, 1)), PuddleHash(cell + 1), smooth.x), smooth.y);
 }
+
+float SnowCoverage(Surface s, float3 incident)
+{
+    float accumulation = saturate(Lighting.y);
+    float upward = smoothstep(.6, .9, s.n.y);
+    [branch] if (accumulation <= 0 || accumulation >= 1 || upward <= 0)
+        return accumulation * upward;
+
+    float footprint = WorldPixelWidth(s.p) / max(.18, abs(dot(normalize(incident), s.face)));
+    float patchVisibility = 1 - smoothstep(.35, 1.2, footprint);
+    if (patchVisibility <= 0) return accumulation * upward;
+
+    // Fixed world-space thresholds let the same patches grow and retreat as snow depth changes.
+    float2 p = s.p.xz;
+    float2 rotated = float2(dot(p, float2(.8, .6)), dot(p, float2(-.6, .8)));
+    float buildup = .74 * (PuddleNoise(rotated * .85) - .5);
+    if (footprint < .48)
+    {
+        float detail = 1 - smoothstep(.16, .48, footprint);
+        buildup += .26 * detail * (PuddleNoise(p * 2.35 + float2(6.4, -4.1)) - .5);
+    }
+    float threshold = clamp(.5 + 1.5 * buildup, .13, .87);
+    float edgeWidth = lerp(.17, .23, smoothstep(.06, .40, footprint));
+    float patch = smoothstep(threshold - edgeWidth, threshold + edgeWidth, accumulation);
+    // A thin layer has little contrast. The maximum weight stays below .75 to keep coverage monotonic.
+    float patchWeight = .55 * (4 * accumulation * (1 - accumulation)) * patchVisibility;
+    return lerp(accumulation, patch, patchWeight) * upward;
+}
+
 float2 RainRipple(float2 position, float scale, float time, float salt)
 {
     float2 gridPosition = position * scale;
@@ -294,9 +315,8 @@ float2 RainRipple(float2 position, float scale, float time, float salt)
     float ring = 1 - smoothstep(0, .07, abs(wave));
     return (delta / max(distance, 1e-4)) * sin(wave * 48) * ring * (1 - phase);
 }
-void WetGround(inout Surface s)
+void WetGround(inout Surface s, float exposed)
 {
-    float exposed = 1 - saturate(Lighting.y * 1.5);
     if (exposed <= 0 || max(SkyWetness.w, Puddles.w) <= 0 || s.face.y <= .5) return;
     float2 p = s.p.xz;
     float shelter = 0;
@@ -305,8 +325,8 @@ void WetGround(inout Surface s)
         float2 inset = min(p - RainShelters[i].xy, RainShelters[i].zw - p);
         shelter = max(shelter, smoothstep(.05, .95, min(inset.x, inset.y)));
     }
-    float fill = Puddles.w * exposed * (1 - .94 * shelter);
-    float film = max(SkyWetness.w, fill) * exposed * (1 - .82 * shelter);
+    float fill = Puddles.w * (1 - .94 * shelter);
+    float film = max(SkyWetness.w, fill) * (1 - .82 * shelter);
     float basin = .61 * PuddleNoise(p * .34 + Puddles.xy) + .29 * PuddleNoise(p * .89 - Puddles.xy)
         + .10 * PuddleNoise(p * 2.7 + Puddles.xy);
     float bank = lerp(.82, .40, fill) + .06 * (.5 - Puddles.z) + (s.material == 9 ? .07 : 0);
@@ -317,7 +337,7 @@ void WetGround(inout Surface s)
     float pool = smoothstep(-edgeWidth, .045 + edgeWidth, depth) * smoothstep(0, .14, fill);
     float dampBank = smoothstep(-.14, -.015, depth) * film;
     s.base *= 1 - .17 * dampBank;
-    s.wetCoverage = lerp(film * (.26 + .23 * basin + .17 * dampBank), 1, pool);
+    s.wetCoverage = lerp(film * (.26 + .23 * basin + .17 * dampBank), 1, pool) * exposed;
     s.waterRoughness = lerp(.30 - .07 * dampBank, .045, pool);
     float2 wobble = float2(PuddleNoise(p * 2.7 + 3.1), PuddleNoise(p * 2.7 - 11.4)) - .5;
     float2 slope = wobble * lerp(.009, .003, pool);
@@ -328,11 +348,12 @@ void WetGround(inout Surface s)
         slope += ripple * (.018 * pool * (1 - shelter));
     }
     float3 up = float3(0, 1, 0);
-    float3 rippleNormal = float3(slope.x, 0, slope.y) * film;
-    s.n = normalize(lerp(s.n, up, pool) + rippleNormal);
+    float3 rippleNormal = float3(slope.x, 0, slope.y) * (film * exposed);
+    float exposedPool = pool * exposed;
+    s.n = normalize(lerp(s.n, up, exposedPool) + rippleNormal);
     // Reuse the small local perturbation for the prior rigid normal. The
     // moving ripple itself is stochastic shading, not geometric screen motion.
-    s.previousNormal = normalize(lerp(s.previousNormal, up, pool) + rippleNormal);
+    s.previousNormal = normalize(lerp(s.previousNormal, up, exposedPool) + rippleNormal);
 }
 
 float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneInstance instance, float3 position)
@@ -433,9 +454,21 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         s.emission = hologram.rgb * float3(.28, 1.05, 1.27) * 2.8;
         s.base = 0;
     }
-    if (GroundMaterial(s.material) || (s.material >= 14 && s.material <= 16))
+    bool ground = GroundMaterial(s.material);
+    bool textured = ground || (s.material >= 14 && s.material <= 16);
+    float snow = s.material == 0 || textured ? SnowCoverage(s, direction) : 0;
+    if (textured)
+    {
+        float3 smoothNormal = s.n;
+        float3 previousSmoothNormal = s.previousNormal;
         SurfaceTexture(s, direction);
-    if (GroundMaterial(s.material)) WetGround(s);
+        if (ground) WetGround(s, 1 - snow);
+        if (snow > 0)
+        {
+            s.n = normalize(lerp(s.n, smoothNormal, .65 * snow));
+            s.previousNormal = normalize(lerp(s.previousNormal, previousSmoothNormal, .65 * snow));
+        }
+    }
     if (s.material == 5 || s.material == 7 || s.material == 10)
     {
         float2 alternateUv = a.v.yz * weights.x + b.v.yz * weights.y + c.v.yz * weights.z;
@@ -456,10 +489,8 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         s.base = s.base * (1 - sign.a) + sign.rgb;
         s.emission = sign.rgb * color.w * Lighting.z;
     }
-    if (s.material == 0 || GroundMaterial(s.material) || (s.material >= 14 && s.material <= 16))
+    if (snow > 0)
     {
-        float grain = Hash(asuint(floor(s.p.x * 18)) ^ Hash(asuint(floor(s.p.z * 18)))) / 4294967295.0;
-        float snow = saturate((Lighting.y - grain * .33) * 3) * smoothstep(.6, .9, s.n.y);
         s.base = lerp(s.base, float3(.77, .84, .91), snow);
         s.roughness = lerp(s.roughness, .82, snow);
     }

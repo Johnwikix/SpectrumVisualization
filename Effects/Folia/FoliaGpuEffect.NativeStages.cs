@@ -34,6 +34,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private FoliaMachi.Plan? _machiPlan;
     private MachiDxrBackend? _machiBackend;
     private MachiDxrFrame _machiFrame;
+    private (FoliaMachi? Asset, float Aspect, int FocalLengthMm) _machiStaticCameraKey;
     private Matrix4x4[] _actorTransforms = [];
     private ID3D12PipelineState? _machiAtmosphere, _machiLens, _machiWeather, _machiSteam;
     private float _machiMotionWeight;
@@ -210,7 +211,12 @@ internal sealed unsafe partial class FoliaGpuEffect
         string source = FoliaShaderLibrary.Background(file);
         bool multipleTargets = geometry != Format.Unknown;
         bool mesh = multipleTargets && depth;
-        int pipelineVersion = file == "Machi" ? 13 : 10;
+        int pipelineVersion = (file, vs) switch
+        {
+            ("Machi", "WeatherVS") => 14,
+            ("Machi", _) => 13,
+            _ => 10
+        };
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,
@@ -248,6 +254,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         GpuGraphics.DisposeResource(_machiBackend);
         _machiBackend = null;
         _installedMachiScene = null;
+        _machiStaticCameraKey = default;
         _actorTransforms = [];
         GpuGraphics.DisposeResource(_stageRtv);
         _windowTexture = _panelTexture = null;
@@ -469,10 +476,13 @@ internal sealed unsafe partial class FoliaGpuEffect
             AppSettings.FoliaMachiWeather, song, DateTime.Now, delta, firstEnvironmentFrame, _machiPlan!.SceneId, _machiCycleSeconds);
         _machiMotionWeight = Math.Clamp(_machiMotionWeight + (AppSettings.FoliaMachiMotion ? delta : -delta) * .25f, 0, 1);
         // SMTC can briefly stop its clock between tracks. The street keeps its own time.
-        var camera = _machi!.CreateCamera((float)_size.Width / _size.Height, _backgroundTime, _machiMotionWeight,
-            AppSettings.FoliaMachiFocalLengthMm);
+        var asset = _machi!;
+        var cameraKey = (Asset: asset, Aspect: (float)_size.Width / _size.Height, FocalLengthMm: AppSettings.FoliaMachiFocalLengthMm);
+        var camera = _machiMotionWeight == 0 && cameraKey == _machiStaticCameraKey
+            ? _machiFrame.Camera
+            : asset.CreateCamera(cameraKey.Aspect, _backgroundTime, _machiMotionWeight, cameraKey.FocalLengthMm);
         bool focalLengthChanged = camera.VerticalFieldOfView != _machiFrame.Camera.VerticalFieldOfView;
-        _machi.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _backgroundTime, delta, ref _machiDoor);
+        asset.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _backgroundTime, delta, ref _machiDoor);
         *(Matrix4x4*)_lightData = camera.ViewProjection;
         *(Matrix4x4*)(_lightData + 4) = camera.Inverse;
         _lightData[8] = new(environment.SkyBottom, environment.Mist);
@@ -488,7 +498,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             }
         }
         float weatherTime = (float)(_backgroundTime % 3600);
-        _lightData[10] = new(_machi.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
+        _lightData[10] = new(asset.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
         _lightData[MachiSteamLighting] = new((environment.HemiSky + environment.HemiGround) * .5f
             + environment.CityGlow + new Vector3(.014f, .02f, .028f), 0);
         _lightData[MachiSteamLighting + 1] = new(environment.SunDirection, 0);
@@ -508,6 +518,8 @@ internal sealed unsafe partial class FoliaGpuEffect
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,
             SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze
         };
+        // The key describes the static camera already published in _machiFrame.
+        _machiStaticCameraKey = _machiMotionWeight == 0 ? cameraKey : default;
     }
 
     private void RecordMachi(ID3D12GraphicsCommandList commands)
@@ -550,14 +562,24 @@ internal sealed unsafe partial class FoliaGpuEffect
         SetFoliaState(commands);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.PixelShaderResource, ResourceStates.RenderTarget);
         RecordFullStage(commands, Rtv(0), _machiLens!, 1);
-        if (_lightData[9].X + _lightData[9].Y > .001f)
-        {
-            commands.SetPipelineState(_machiWeather!);
-            const int WeatherInstances = 3072 * 2;
-            commands.DrawInstanced(6, (uint)(WeatherInstances + _machiDrips), 0, 0);
-        }
+        RecordMachiWeather(commands);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         commands.ResourceBarrierTransition(depth, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
+    }
+
+    private void RecordMachiWeather(ID3D12GraphicsCommandList commands)
+    {
+        const int ParticlesPerLayer = 3072; // Matches Machi.hlsl.
+        float rain = _lightData[9].X, snow = _lightData[9].Y;
+        if (rain + snow <= .001f) return;
+
+        // Roof drips belong to the rain layer. The shader restores the original
+        // instance IDs when the draw omits a layer.
+        int count = (rain > 0 ? ParticlesPerLayer + _machiDrips : 0) + (snow > 0 ? ParticlesPerLayer : 0);
+        uint firstSkipped = rain <= 0 ? 0u : snow <= 0 ? ParticlesPerLayer : uint.MaxValue;
+        commands.SetPipelineState(_machiWeather!);
+        SetInstanceOffset(commands, firstSkipped);
+        commands.DrawInstanced(6, (uint)count, 0, 0);
     }
 
     private void RecordNativeInstances(ID3D12GraphicsCommandList commands, CpuDescriptorHandle target, ID3D12PipelineState pipeline)

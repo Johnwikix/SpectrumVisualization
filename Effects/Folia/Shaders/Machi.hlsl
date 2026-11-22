@@ -141,7 +141,10 @@ float GroundHeight(float2 xz) {
 struct Particle {float4 pos:SV_Position;float2 uv:TEXCOORD0;nointerpolation uint kind:TEXCOORD1;float strength:TEXCOORD2;float glint:TEXCOORD3;};
 // Paired with the instance count in FoliaGpuEffect.NativeStages.
 static const uint FlakesPerLayer = 3072, DripStart = FlakesPerLayer * 2;
+cbuffer WeatherDraw : register(b2) { uint FirstSkippedParticle; };
 Particle WeatherVS(uint vertex:SV_VertexID,uint id:SV_InstanceID) {
+    // Keep the original particle seeds and drip indices when either layer is absent.
+    id += id >= FirstSkippedParticle ? FlakesPerLayer : 0;
     Particle o;
     float2 q=float2(vertex==1||vertex==2||vertex==4,vertex>=2&&vertex<=4);
     float seed=Hash(float2(id,41)), phase=Hash(float2(id,27));

@@ -406,6 +406,13 @@ def _japanese_annex(front, width, depth, m, tinted=False, fascia=None):
     for index in range(5):
         u = -width * .41 + index * width * .113
         front.box("Faded cotton noren flap", u, 2.025, .342, width * .096, .17, .031, m["linen"], .006)
+    if front.facing == "rear":
+        back = Facade(front.kit, front.name + " rear wall", *front.point(0, 0, -depth))
+        _window(back, -.32, 1.56, width * .30, .60, m["wood"], m["plinth"],
+                m["warmWindow"], m["curtains"], divisions=2)
+        gable = Facade(front.kit, front.name + " service gable",
+                        *front.point(-width / 2, 0, -depth / 2), "right")
+        _window(gable, -.26, 1.54, .83, .53, m["wood"], m["plinth"], m["warmWindow"], m["curtains"])
 
 
 def _konbini(kit, curb, paint):
@@ -503,7 +510,7 @@ def _konbini(kit, curb, paint):
                     4.61, 3.81, m)
     _outer_blocks(kit, "Konbini", .122, 2.50, (2, 2, 3, 2),
                   (m["plaster"], m["tile"], m["cedar"]), m["gutter"], m["roofBlue"],
-                  m["glass"], m["curtains"], "gable")
+                  m["glass"], m["curtains"], (m["warmWindow"], blue_window), "gable")
 
 
 def _window_cage(front, u, y, width, height, metal):
@@ -745,18 +752,19 @@ def _kowloon(kit, curb, paint):
     _parking_pocket(kit, "Kowloon/Small loading court", 7.34, 11.53, 1.83, 5.10, .029, 3,
                     m["stain"], curb, paint)
     _surface(kit, "Kowloon/Shopfront concrete apron", -6.38, 17.65, 9.64, 16.38, .041, m["slab"])
-    for label, x, z, width, depth, wall in [
-        ("Metal merchant", -3.62, 10.72, 4.48, 3.18, "blue"),
-        ("Shuttered market depot", 2.32, 11.80, 4.66, 3.77, "ochre"),
-        ("Alley machine shop", 9.02, 10.55, 4.84, 3.86, "dust"),
-        ("Market storage and deliveries", 14.64, 11.46, 4.79, 4.19, "salt"),
+    for label, x, z, width, depth, wall, pane in [
+        ("Metal merchant", -3.62, 10.72, 4.48, 3.18, "blue", m["shop"]),
+        ("Shuttered market depot", 2.32, 11.80, 4.66, 3.77, "ochre", m["window"]),
+        ("Alley machine shop", 9.02, 10.55, 4.84, 3.86, "dust", m["shop"]),
+        ("Market storage and deliveries", 14.64, 11.46, 4.79, 4.19, "salt", m["window"]),
     ]:
         workshop = Facade(kit, f"Kowloon/Opposite {label}", x, .041, z, "rear")
-        _service_shed(workshop, width, depth, m[wall], m["iron"], m["slab"], m["shutter"], m["dark"])
+        _service_shed(workshop, width, depth, m[wall], m["iron"], m["slab"], m["shutter"], m["dark"],
+                      pane, m["tube"])
         _flat_roof(workshop, width, depth, 2.46, m["slab"], m["tar"])
     _outer_blocks(kit, "Kowloon", .022, 2.52, (4, 6, 5, 4, 7),
                   (m["dust"], m["blue"], m["ochre"], m["salt"]), m["slab"], m["tar"],
-                  m["dark"], m["cloth"], "flat")
+                  m["dark"], m["cloth"], (m["window"], m["shop"]), "flat")
 
 
 def _motel_stair(front, u, y, base_depth, concrete, rail):
@@ -835,7 +843,7 @@ def _service_return(front, width, m, bright=False, fascia=None):
     _side_lintel(front, -.09, 2.078, width * .78, m["teal"], m["rail"], m["porch"], fascia)
 
 
-def _service_shed(front, width, depth, wall, frame, plinth, shutter, glass):
+def _service_shed(front, width, depth, wall, frame, plinth, shutter, glass, pane, work_light):
     front.span("Workshop walls", -width / 2, width / 2, 0, 2.46, -depth, 0, wall, .027)
     front.box("Loading step", 0, .062, .24, width, .124, .50, plinth, .018)
     u = -width * .18
@@ -843,9 +851,13 @@ def _service_shed(front, width, depth, wall, frame, plinth, shutter, glass):
     for slat in range(14):
         front.box("Door slat", u, .24 + .13 * slat, .087, width * .53, .048, .037, shutter)
     front.box("Entry lintel", u, 2.18, .182, width * .64, .12, .41, frame, .012)
+    front.ceiling_light(u, 2.065, .275, .43, .079, frame, work_light)
     _door(front, width * .32, .12, .66, 1.87, frame, shutter, glass)
-    back = Facade(front.kit, front.name + " rear wall", front.x, front.y, front.z + depth)
-    _window(back, -.24, 1.47, width * .51, .67, frame, plinth, glass, divisions=3)
+    back = Facade(front.kit, front.name + " rear wall", *front.point(0, 0, -depth))
+    _window(back, -.24, 1.57, width * .36, .62, frame, plinth, pane, divisions=3)
+    side = Facade(front.kit, front.name + " service return",
+                  *front.point(-width / 2, 0, -depth / 2), "right")
+    _window(side, .24, 1.56, 1.08, .48, frame, plinth, pane)
 
 
 def _station(kit, curb, paint):
@@ -925,14 +937,18 @@ def _station(kit, curb, paint):
     _parking_pocket(kit, "Station/East lay-by", 8.67, 14.51, 7.20, 10.17, .123, 3,
                     m["walk"], curb, paint)
     _surface(kit, "Station/Opposite service road pavement", -12.2, 18.6, 10.21, 17.5, .037, m["walk"])
-    _motel_wing(Facade(kit, "Station/Opposite ticket office", -6.01, .037, 11.42, "rear"), 4.48, 3.35, 2, 1, m)
-    for name, x, z, width, depth, roof in [
-        ("Road maintenance garage", .76, 11.10, 4.88, 3.97, "saltbox"),
-        ("Roadside electrical workshop", 7.86, 11.34, 5.30, 4.36, "gable"),
-        ("Highway delivery depot", 14.86, 12.51, 5.20, 4.27, "hip"),
+    ticket_office = Facade(kit, "Station/Opposite ticket office", -6.01, .037, 11.42, "rear")
+    _motel_wing(ticket_office, 4.48, 3.35, 2, 1, m)
+    _service_return(Facade(kit, ticket_office.name + " service return",
+                           *ticket_office.point(-2.24, 0, -1.675), "right"), 3.35, m, bright=True)
+    for name, x, z, width, depth, roof, pane in [
+        ("Road maintenance garage", .76, 11.10, 4.88, 3.97, "saltbox", m["window"]),
+        ("Roadside electrical workshop", 7.86, 11.34, 5.30, 4.36, "gable", m["coolWindow"]),
+        ("Highway delivery depot", 14.86, 12.51, 5.20, 4.27, "hip", m["window"]),
     ]:
         shed = Facade(kit, f"Station/{name}", x, .037, z, "rear")
-        _service_shed(shed, width, depth, m["stucco"], m["rail"], m["walk"], m["teal"], m["dark"])
+        _service_shed(shed, width, depth, m["stucco"], m["rail"], m["walk"], m["teal"], m["dark"],
+                      pane, m["office"])
         _roof(shed, width, depth, 2.52, .51, m["standing"], m["rail"], roof)
 
     # Leave the station apron and the through lanes in front of the service court open.
@@ -947,16 +963,18 @@ def _station(kit, curb, paint):
         _bollard(kit, "Station/Apron corner bollard", x, .021, z, m["aluminum"], m["rail"])
     _outer_blocks(kit, "Station", .021, 2.62, (2, 1, 3, 2, 2),
                   (m["stucco"], m["brick"], m["walk"]), m["walk"], m["standing"],
-                  m["dark"], m["curtains"], "hip")
+                  m["dark"], m["curtains"], (m["window"], m["coolWindow"]), "hip")
 
 
-def _outer_blocks(kit, district, ground, pitch, storeys, walls, trim, roofing, glass, shades, profile):
+def _outer_blocks(kit, district, ground, pitch, storeys, walls, trim, roofing, glass, shades, lit_glass, profile):
     # Two street grids carry the far facades through the left and right margins of
     # the orbit. Leave the original east-west and north-south streets as clear gaps.
     west_streets = (-26, -42, -63, -88)
     north_streets = (-25, -41, -62, -86)
     west_lots = (-64, -53, -41, -28, -16, -5, 10, 22, 34)
     north_lots = (-20, -9, -.9, 9.8, 20, 32, 44, 56, 69, 83)
+    window_width, window_height = 1.05, .94
+    warm, cool = lit_glass
     for facing, streets, lots in (("right", west_streets, west_lots), ("front", north_streets, north_lots)):
         for row, street in enumerate(streets):
             for lot, along in enumerate(lots):
@@ -985,15 +1003,31 @@ def _outer_blocks(kit, district, ground, pitch, storeys, walls, trim, roofing, g
                 end = front.point(width / 2 if facing == "front" else -width / 2, 0, -depth / 2)
                 side = Facade(kit, name + " return", *end, "right" if facing == "front" else "front")
                 for face, span in ((front, width), (side, depth)):
+                    # Each exposed facade gets an occupied window even on a single storey.
+                    rooms = Random(face.name)
+                    occupied = rooms.sample(range(3 * levels), rooms.randint(1, (levels + 1) // 2))
+                    lit = {room: cool if rooms.randrange(5) == 0 else warm for room in occupied}
                     for level in range(levels):
                         floor = pitch * level
                         face.box("Slab band", 0, floor + .12, .035, span, .16, .10, trim)
                         for bay in range(3):
                             u = (bay - 1) * span * .30
                             y = floor + pitch * .59
-                            pane = shades if (seed + 3 * level + bay) % 7 in (0, 1) else glass
                             face.box("Window reveal", u, y, .026, 1.21, 1.11, .067, trim)
-                            face.panel("Window inset", u, y, .063, 1.05, .94, pane)
+                            pane = lit.get(3 * level + bay)
+                            if pane is None:
+                                pane = shades if (seed + 3 * level + bay) % 7 in (0, 1) else glass
+                                face.panel("Window inset", u, y, .063, window_width, window_height, pane)
+                                continue
+                            # Expose part of the glass so the far windows take a small share
+                            # of the path tracer's area-weighted direct light samples.
+                            opening = rooms.uniform(.20, .32)
+                            covered = window_width - opening
+                            open_side = rooms.choice((-1, 1))
+                            face.panel("Window inset", u + open_side * covered / 2, y, .063,
+                                       opening, window_height, pane)
+                            face.panel("Window curtain", u - open_side * opening / 2, y, .063,
+                                       covered, window_height, shades)
 
 
 def build(scene_id, kit):

@@ -21,9 +21,9 @@ The donor extraction culls or decimates repeated hardware details in Blender. Cl
 
 | Scene | Indexed vertices | Triangles | Sign and surface atlas | Analytic lights | Actors | Brotli bytes |
 | --- | ---: | ---: | --- | ---: | ---: | ---: |
-| Convenience store | 377,555 | 271,376 | 2048 × 1215 | 0 | 10 | 3,400,832 |
-| Gas station | 481,999 | 359,620 | 2048 × 1626 | 2 | 4 | 4,240,422 |
-| Kowloon | 469,143 | 320,116 | 2048 × 1022 | 5 | 1 | 3,820,349 |
+| Convenience store | 380,271 | 272,734 | 2048 × 1215 | 0 | 10 | 3,414,885 |
+| Gas station | 486,235 | 361,738 | 2048 × 1626 | 2 | 4 | 4,265,142 |
+| Kowloon | 473,023 | 322,056 | 2048 × 1022 | 5 | 1 | 3,843,419 |
 
 The 600,000-triangle limit includes static geometry and all actors in each packed scene. Street luminaires, occupied windows, under-awning diffusers and vehicle lights contribute through emissive mesh triangles.
 
@@ -32,6 +32,8 @@ Ceiling strips, pole lamps and the Kowloon stall bulb emit from their actual mes
 The convenience store pairs coral and cyan awning strips with mint door lights and amber sidelights. The gas station uses ice-blue canopy and column lights, amber at the pumps and rose-pink motel neon. Indigo and ruby lights flank the Kowloon bar, and a golden downlight illuminates the stall counter. Each scene's paint colors and static sign colors are baked during export. The live lyrics have a separate glyph atlas.
 
 Selected neighboring shops carry those colors beyond the main facades. The convenience store's neighbors have glazed shopfronts and enamel awnings. The motel and roadside workshops have colored fascias and reception windows. In Kowloon, lit signs distinguish the ground-floor shops from the apartment windows above.
+
+Each of the four outer rows has occupied rooms on both street-facing facades. Partially drawn curtains limit the emitting area of their warm and cool windows. Service windows and loading-bay lamps also light the opposite side of the near streets.
 
 The Kowloon handcart keeps the original wooden body and handles. Its through axle connects both hubs to hangers beneath the bed. The exporter seats both tires and the rear parking foot on the finished alley pavement.
 
