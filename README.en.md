@@ -9,7 +9,7 @@
 
   <p>
     A lightweight audio-spectrum visualizer built with WinUI 3 / Win2D / D3D12 / ComputeSharp<br>
-    WASAPI loopback · Three effects · HDR10 · AA / temporal reconstruction · GPU lyrics · Wallpaper mode
+    WASAPI loopback · Three effects · HDR10 · AA / temporal reconstruction · Hardware path tracing · GPU lyrics · Wallpaper mode
   </p>
 
   <p>
@@ -44,6 +44,16 @@
 - **Sonic Topography:** A dedicated D3D12 + ComputeSharp render thread. Writes an FP16 linear scene that ends up encoded as either SDR or HDR10; the terrain height field follows a 15-dim audio feature vector in real time, and beats / meteor bursts leave ripples and particles behind.
 - **Folia:** A D3D12 GPU lyric stage with 17 lyric modes (Luminous, Mindscape, Partita, Fume, Cappella, Tilt, Claddagh, Monet, Diorama, Pendolo, Sonnet, Tempera, Lumiere, Hanabi, Metaphor, Nebbia, Machi), 5 animated backgrounds (Fluid, Latent, Monet, Nomand, Sora) and 5 cover filters (Dithering, Fluted glass, Paper texture, Halftone dots, Lens distortion). Machi uses hardware DXR for its orthographic convenience store, gas station and Kowloon dioramas. It defaults to cross-vendor NRD and offers DLSS Ray Reconstruction on compatible hardware. All three use the existing HDR / SDR output.
 
+### Hardware path tracing in Machi
+- **One backend and a real device gate:** the convenience store, gas station and Kowloon sets share a single hardware DXR backend (Tier 1.0 / SM 6.3, NRD on SM 6.0 DXIL). Devices with DXR 1.1 and Shader Model 6.5 switch to inline ray queries that reuse the holographic lyric alpha test, while older hardware keeps the TraceRay pipeline. Software adapters are rejected; without DXR, Machi is disabled in Settings with the reason shown.
+- **Sets and scene clock:** the three sets are rebuilt in Blender and capped at 500k triangles. Set, time of day, weather and camera motion are selectable; time of day offers a four-minute day-night cycle whose sun and moon rise and set on opposite tracks while rain, fog and snow keep hiding the moon.
+- **Light and materials:** lamp housings keep their linear HDR emission and flux is distributed by actual luminaire area; street lamps are emissive meshes traced as real geometry instead of stacked light cones and ground fill. Asphalt, paving, wall tiles and metal roofs sample tiled maps with roughness and bump, and car paint gets its own clear-coat reflection layer.
+- **Wet surfaces, puddles and glass:** road wetness and puddle depth are computed separately, so low spots spread into sheets during rain and drain afterwards. Wet reflections solve against the IOR of air and water, surface roughness and the actually visible lights. Glass resolves closed thin windows for both reflection and transmission, keeping thickness, closure and inner / outer normals, and light passing through glass is counted once along the refracted path.
+- **Denoising and reconstruction:** cross-vendor NRD by default, DLSS Ray Reconstruction on compatible hardware, or no denoising at all, which uses the raw traced radiance. If RR fails on a frame, NRD inputs are completed from that frame's samples, motion and jitter. NRD can drive DLSS / XeSS / FSR while RR reconstructs straight to output resolution; Machi owns its denoise and reconstruction instead of running the host's global temporal pass.
+- **Sampling and lens:** 1–16 samples per pixel and 1–32 bounces, with older settings defaulting to 1 SPP and 8 bounces. Dispersion, depth of field and bloom toggle independently, and depth of field and rain composite at output size after denoising. Machi can override anti-aliasing and resolution scale on its own, and the status text names the reconstruction actually running.
+- **Song switches, camera moves and stability:** street cameras, vehicles and fans run on the scene clock, and song switches, seeks and late cover loads keep trace and denoise history in the same set. The reconstructor receives the exact orthographic projection with the subtitle framing offset folded into the view translation, and primary rays, depth and denoising share one pixel sample centre, so camera moves show neither ghosting nor wobbly silhouettes.
+- **Measured frame cost:** at 1080p on an RTX 5070 Ti with night rain, 1 SPP, 8 bounces and NRD, GPU frame cost including post and lyrics fell from 14.91 / 16.59 / 17.89 ms to 7.14 / 7.12 / 6.93 ms across the three sets (offscreen measurement, median of two 84-frame rounds; not a presented on-screen frame rate, and on-device look still needs a manual pass).
+
 ### Lyrics matching and GPU glyphs
 - Lyrics are matched through SMTC by title / artist / album / duration: the OriginalSound player's source priority is honoured by **reading its lyrics database read-only** (no writable open, no player service calls, no write-back), then Spectrum's network cache and online sources fill in; online they try QQ word-by-word, NetEase line-by-line and QQ line-by-line in order, and local / cached lyrics cover KRC / QRC / LRC / TTML, with translations and time offsets. Unmatched songs show song information.
 - The network lyrics cache is on by default, stores successful results only as per-title / artist / album JSON, and its directory can be chosen on the About page; the OriginalSound lyrics directory is never modified.
@@ -53,6 +63,7 @@
 ### Anti-aliasing and temporal reconstruction
 - **Off / FXAA 3.11 / SMAA 1x HIGH** for spatial AA, with no extra DLL dependencies for the closed variant.
 - **XeSS / FSR 3.1 / DLSS + DLAA** for temporal reconstruction, with explicit DLSS J / K / L / M presets. SDK headers and DLLs are pinned by SHA-256; SDK initialization failure silently falls back to FXAA while keeping the user's selection.
+- **DLSS RR shares the same native reconstruction bridge:** same device, command list and texture borrowing as SR, with no extra swap chain or frame loop. Machi owns its own denoise and reconstruction; see the path-tracing section above.
 - **A shared output pipeline** owns SDR / HDR10 brightness mapping, PQ / sRGB encoding and dither. Toggling HDR or AA does not rewrite saved preferences.
 - **Shader lifecycle** precompiles every built-in HLSL entry at build time; bytecode invalidates by full source / entry / target / compile options, while driver pipelines rebuild from GPU, driver and OS identifiers. The Settings page offers a one-click clear-and-rebuild whose result the render worker reloads at a safe boundary.
 
@@ -76,7 +87,7 @@
 ### Localization and settings
 - zh-CN / en-US resw files are kept in sync; the resource keys are checked statically before commit. The first-launch language follows `Windows.System.UserProfile.GlobalizationPreferences`.
 - Three-layer settings: `AppSettings` (runtime state + `Changed` event), `SaveSetting` (persistence DTO whose property names are the JSON field names) and `SettingManager` with the source-generated `SettingsJsonContext`. Adding a setting touches at least four locations; the default must be written and kept identical in both `AppSettings` and `SaveSetting`.
-- The Settings window has General / Aurora Ring / Sonic Topography / Folia / About pages: HDR, refresh rate, render scale, AA / DLSS presets and shader management live under General, while Folia offers lyric mode, animated background, cover filter, cover overlay, font / size / weight, lyric source status and manual retry.
+- The Settings window has General / Aurora Ring / Sonic Topography / Folia / About pages: HDR, refresh rate, render scale, AA / DLSS presets and shader management live under General, while Folia offers lyric mode, animated background, cover filter, cover overlay, font / size / weight, lyric source status and manual retry, plus a collapsed Machi group for set / time of day / weather / camera motion, denoiser, samples per pixel and bounces, dispersion / depth of field / bloom, and its own quality override.
 
 ### NativeAOT and trimming
 - Release publishes set `PublishAot=true` / `PublishTrimmed=true` / `SelfContained=true` / `BuiltInComInteropSupport=true` / `PublishReadyToRun=true`. x64 only.
@@ -90,7 +101,9 @@
 
 | Microsoft Store (Recommended) | Manual Install |
 | :---: | :---: |
-| Not yet published | **Build from source (Release NativeAOT):** see [Contribute & Build](#contribute--build) below |
+| <a href="https://apps.microsoft.com/detail/9PL2DSHJ79W7?hl=en-us&gl=US"><picture><source media="(prefers-color-scheme: dark)" srcset="https://get.microsoft.com/images/en-us%20dark.svg"><img src="https://get.microsoft.com/images/en-us%20light.svg" width="200" alt="Get Audio Visualization from Microsoft Store"></picture></a><br>[Audio Visualization · Microsoft Store](https://apps.microsoft.com/detail/9PL2DSHJ79W7?hl=en-us&gl=US) | **Build from source (Release NativeAOT):** see [Contribute & Build](#contribute--build) below |
+
+The Store build ships as MSIX and updates through the Store. Requirements: Windows 10 1809 (10.0.17763.0) or later, x64 only.
 
 **[Changelog](doc/Changelog.md) · [Design & verification](doc/design/) · [License](LICENSE.txt)**
 
