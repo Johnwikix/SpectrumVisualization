@@ -19,7 +19,7 @@ struct Plane
 
 cbuffer Camera : register(b0)
 {
-    row_major float4x4 InverseViewProjection;
+    row_major float4x4 RayBasis;
     row_major float4x4 ViewProjection;
     row_major float4x4 PreviousViewProjection;
     row_major float4x4 WorldToView;
@@ -271,6 +271,20 @@ float PuddleNoise(float2 position)
         lerp(PuddleHash(cell + float2(0, 1)), PuddleHash(cell + 1), smooth.x), smooth.y);
 }
 
+static const float SnowThresholdRange = .33;
+static const float SnowGrainRamp = 1.0 / 3.0;
+static const float SnowGrainsPerMeter = 17;
+
+float2 SnowGrain(int2 cell, float2 position)
+{
+    uint hash = Hash32(asuint(cell.x) * 0x9e3779b9u + asuint(cell.y) * 0x85ebca6bu + 0x035f9f29u);
+    float2 center = .25 + (.50 / 255) * float2(hash & 255u, (hash >> 8) & 255u);
+    float shape = .96 + (.08 / 63) * ((hash >> 16) & 63u);
+    float threshold = ((hash >> 22) + .5) * (SnowThresholdRange / 1024);
+    float2 offset = position - center;
+    return float2(dot(offset, offset * float2(shape, 2 - shape)), threshold);
+}
+
 float SnowCoverage(Surface s, float3 incident)
 {
     float accumulation = saturate(Lighting.y);
@@ -278,25 +292,44 @@ float SnowCoverage(Surface s, float3 incident)
     [branch] if (accumulation <= 0 || accumulation >= 1 || upward <= 0)
         return accumulation * upward;
 
-    float footprint = WorldPixelWidth(s.p) / max(.18, abs(dot(normalize(incident), s.face)));
-    float patchVisibility = 1 - smoothstep(.35, 1.2, footprint);
-    if (patchVisibility <= 0) return accumulation * upward;
+    // Keep the thin layer's original threshold distribution and let the thick layer close gradually.
+    float depth = accumulation * (1 - (1 - SnowThresholdRange - SnowGrainRamp)
+        * smoothstep(.11, 1, accumulation));
+    // Integrate the clamped opacity ramp over the uniform threshold distribution.
+    float2 ramp = max(depth - float2(0, SnowThresholdRange), 0);
+    float2 clipped = max(ramp - SnowGrainRamp, 0);
+    float2 area = ramp * ramp - clipped * clipped;
+    float mean = saturate((area.x - area.y) / (2 * SnowThresholdRange * SnowGrainRamp));
 
-    // Fixed world-space thresholds let the same patches grow and retreat as snow depth changes.
-    float2 p = s.p.xz;
-    float2 rotated = float2(dot(p, float2(.8, .6)), dot(p, float2(-.6, .8)));
-    float buildup = .74 * (PuddleNoise(rotated * .85) - .5);
-    if (footprint < .48)
+    float facing = max(.18, abs(dot(normalize(incident), s.face)));
+    float footprint = WorldPixelWidth(s.p) * SnowGrainsPerMeter / facing;
+    [branch] if (footprint >= 1.35) return mean * upward;
+
+    // The hash grid places grains. Jittered centers and aspect ratios give them irregular outlines.
+    float2 position = s.p.xz * SnowGrainsPerMeter;
+    int2 cell = (int2)floor(position);
+    float2 local = position - cell;
+    float2 grains[9];
+    float nearest = 2;
+    [unroll] for (int i = 0; i < 9; i++)
     {
-        float detail = 1 - smoothstep(.16, .48, footprint);
-        buildup += .26 * detail * (PuddleNoise(p * 2.35 + float2(6.4, -4.1)) - .5);
+        int2 neighbor = int2(i % 3 - 1, i / 3 - 1);
+        grains[i] = SnowGrain(cell + neighbor, local - neighbor);
+        nearest = min(nearest, grains[i].x);
     }
-    float threshold = clamp(.5 + 1.5 * buildup, .13, .87);
-    float edgeWidth = lerp(.17, .23, smoothstep(.06, .40, footprint));
-    float patch = smoothstep(threshold - edgeWidth, threshold + edgeWidth, accumulation);
-    // A thin layer has little contrast. The maximum weight stays below .75 to keep coverage monotonic.
-    float patchWeight = .55 * (4 * accumulation * (1 - accumulation)) * patchVisibility;
-    return lerp(accumulation, patch, patchWeight) * upward;
+
+    // Blend competing grains across their edges. The cap excludes any site outside the 3x3 window.
+    float inverseWidth = rcp(min(.30, .035 + .80 * footprint));
+    float2 coverage = 0;
+    [unroll] for (int i = 0; i < 9; i++)
+    {
+        float weight = saturate(1 - (grains[i].x - nearest) * inverseWidth);
+        weight *= weight;
+        float cover = saturate((depth - grains[i].y) / SnowGrainRamp);
+        coverage += float2(weight * cover, weight);
+    }
+    float visibility = 1 - smoothstep(.52, 1.35, footprint);
+    return lerp(mean, coverage.x / coverage.y, visibility) * upward;
 }
 
 float2 RainRipple(float2 position, float scale, float time, float salt)
@@ -1016,10 +1049,12 @@ void RayGen()
 {
     uint2 pixel = DispatchRaysIndex().xy;
     float2 ndc = (float2(pixel) + .5 + SizeJitter.zw) / SizeJitter.xy * float2(2, -2) + float2(-1, 1);
-    float4 nearPlane = mul(float4(ndc, 0, 1), InverseViewProjection);
-    float4 farPlane = mul(float4(ndc, 1, 1), InverseViewProjection);
-    float3 origin = nearPlane.xyz / nearPlane.w;
-    float3 primary = normalize(farPlane.xyz / farPlane.w - origin);
+    // Generating the ray directly avoids cancellation from unprojecting device Z=1.
+    float3 eyeRay = mul(float3(ndc, 1), (float3x3)RayBasis);
+    float nearDistance = RayBasis[2].w;
+    float rayLength = length(eyeRay);
+    float3 origin = RayBasis[3].xyz + eyeRay * nearDistance;
+    float3 primary = eyeRay / rayLength;
     // 0: NRD guides. 1: raw only. 2: raw with temporal AA. 3: DLSS Ray Reconstruction guides.
     bool writeDenoiser = TraceGuideMode == 0;
     bool writeRayReconstruction = TraceGuideMode == 3;
@@ -1042,7 +1077,7 @@ void RayGen()
     reflection.hitDistance = transmission.hitDistance = SunRadianceFar.w;
     reflection.normal = transmission.normal = -primary;
     reflection.roughness = transmission.roughness = 1;
-    Hit hit = Trace(origin, primary, length(farPlane.xyz / farPlane.w - origin));
+    Hit hit = Trace(origin, primary, (SunRadianceFar.w - nearDistance) * rayLength);
     if (hit.primitive != 0xffffffff)
     {
         Surface s = Evaluate(hit, origin);

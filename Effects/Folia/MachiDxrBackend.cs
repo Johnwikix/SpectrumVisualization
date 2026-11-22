@@ -57,7 +57,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     private struct Constants
     {
-        public Matrix4x4 Inverse, ViewProjection, PreviousViewProjection, View;
+        public Matrix4x4 RayBasis, ViewProjection, PreviousViewProjection, View;
         public Vector4 SkyWetness, SunDirectionFrame, SunRadianceFar, SizeJitter, Lighting, SkyBottom, AnalyticLightControl;
         public Vector4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
         public Matrix4x4 RainShelters;
@@ -349,7 +349,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         int offset = frameSlot * 2 * ConstantsStride;
         var constants = new Constants
         {
-            Inverse = camera.Inverse, ViewProjection = camera.ViewProjection, PreviousViewProjection = previous.ViewProjection,
+            RayBasis = camera.RayBasis, ViewProjection = camera.ViewProjection, PreviousViewProjection = previous.ViewProjection,
             View = camera.View, SkyWetness = new(frame.Sky, frame.Wetness), SunDirectionFrame = new(sun, _frameIndex & 0xffff),
             // Ray origins move opposite to the projection shift passed to the SDKs.
             SunRadianceFar = new(frame.SunRadiance, FoliaMachi.Far), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),

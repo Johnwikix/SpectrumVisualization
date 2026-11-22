@@ -484,7 +484,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         bool focalLengthChanged = camera.VerticalFieldOfView != _machiFrame.Camera.VerticalFieldOfView;
         asset.WriteActorTransforms(_actorTransforms, _machiPlan!, position, _backgroundTime, delta, ref _machiDoor);
         *(Matrix4x4*)_lightData = camera.ViewProjection;
-        *(Matrix4x4*)(_lightData + 4) = camera.Inverse;
+        *(Matrix4x4*)(_lightData + 4) = camera.RayBasis;
         _lightData[8] = new(environment.SkyBottom, environment.Mist);
         _lightData[9] = new(environment.Rain, environment.Snow, environment.Haze, environment.Daylight);
         float flash = 0;

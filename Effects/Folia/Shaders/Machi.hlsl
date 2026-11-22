@@ -6,7 +6,7 @@ struct SteamEmitter {
     float4 LightPosition, LightRadiance;
 };
 cbuffer MachiPost : register(b1) {
-    row_major float4x4 Camera, InverseCamera;
+    row_major float4x4 Camera, RayBasis;
     float4 HorizonMist, Weather, Scene;
     float3 SkyTop;
     float FocusDistance;
@@ -29,8 +29,12 @@ float SampleDeviceDepth(float2 uv) {
     return BackgroundHistoryTexture.SampleLevel(LinearClamp,uv+DepthUvOffset,0).x;
 }
 float ViewDistance(float depth) {
-    // The inverse projection's W column is independent of XY for a perspective camera.
-    return rcp(depth * InverseCamera[2].w + InverseCamera[3].w);
+    // Perspective device Z is -projection.M33 + projection.M43 / view distance.
+    return RayBasis[1].w / (depth + RayBasis[0].w);
+}
+float3 CameraRay(float2 uv) {
+    float2 ndc=uv*float2(2,-2)+float2(-1,1);
+    return mul(float3(ndc,1),(float3x3)RayBasis);
 }
 float SurfaceDepth(float2 position) {
     uint width,height;
@@ -51,8 +55,7 @@ float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
         rgb+=HorizonMist.rgb*(cloud*.55+wisp*.18)+float3(.58,.69,1)*Scene.z*(.18+1.1*cloud+.4*wisp);
         rgb=lerp(rgb,HorizonMist.rgb,Weather.z*.7);
     } else {
-        float4 world=mul(float4(uv*float2(2,-2)+float2(-1,1),depth,1),InverseCamera);
-        world.xyz/=world.w;
+        float3 world=RayBasis[3].xyz+CameraRay(uv)*ViewDistance(depth);
         float2 wind=float2(.04,.024)*Scene.y;
         float drift=.65*Fbm(world.xz*.32+wind)+.35*Fbm(world.xz*.9-wind*1.7);
         float h=max(world.y,0);
@@ -275,16 +278,13 @@ float SteamDensity(SteamEmitter source, float3 world, float2 drift) {
     return density;
 }
 
-float3 SteamWorldAtDepth(float2 ndc, float depth) {
-    float4 p = mul(float4(ndc, depth, 1), InverseCamera);
-    return p.xyz / p.w;
-}
-
 float4 SteamPS(SteamVertex i):SV_Target {
     SteamEmitter source = Steam[i.emitter];
-    float2 ndc = i.pos.xy / Screen.xy * float2(2, -2) + float2(-1, 1);
-    float3 origin = SteamWorldAtDepth(ndc, 0);
-    float3 ray = normalize(SteamWorldAtDepth(ndc, 1) - origin);
+    float3 eyeRay = CameraRay(i.pos.xy / Screen.xy);
+    float nearDistance = RayBasis[2].w;
+    float rayLength = length(eyeRay);
+    float3 origin = RayBasis[3].xyz + eyeRay * nearDistance;
+    float3 ray = eyeRay / rayLength;
     float3 lower, upper;
     SteamBounds(source, lower, upper);
     float3 inverseRay = (2 * step(0, ray) - 1) / max(abs(ray), .00001);
@@ -298,8 +298,7 @@ float4 SteamPS(SteamVertex i):SV_Target {
     // DXR depth is device Z. Clip the ray segment at the first surface
     // before sampling density so thin roofs and rails occlude the whole volume behind them.
     [branch] if (depth < 1) {
-        float3 surface = SteamWorldAtDepth(ndc, depth);
-        end = min(end, dot(surface - origin, ray) - .008);
+        end = min(end, (ViewDistance(depth) - nearDistance) * rayLength - .008);
     }
     [branch] if (end <= start) return 0;
 

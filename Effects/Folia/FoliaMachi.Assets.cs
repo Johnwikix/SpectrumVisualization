@@ -10,7 +10,7 @@ using WinExSpectrumTest.Model;
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct MachiCamera(Matrix4x4 ViewProjection, Matrix4x4 View,
-    Matrix4x4 Projection, Matrix4x4 Inverse, float VerticalFieldOfView, float FocusDistance);
+    Matrix4x4 Projection, Matrix4x4 RayBasis, float VerticalFieldOfView, float FocusDistance);
 
 internal sealed partial class FoliaMachi
 {
@@ -20,6 +20,7 @@ internal sealed partial class FoliaMachi
     private static readonly float DefaultHalfFov = MathF.Atan(HalfFrameHeightMm / AppSettings.MachiDefaultFocalLengthMm);
     private const float SubtitleReserve = .05f;
     private const float FramingLimit = .96f;
+    private const float MovingFramingBlend = .15f;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private readonly record struct PackedVertex(
@@ -174,9 +175,9 @@ internal sealed partial class FoliaMachi
         float azimuth = _azimuth;
         float elevation = _elevation;
         float dolly = 1;
+        float weight = motionWeight * motionWeight * (3 - 2 * motionWeight);
         if (motionWeight > 0)
         {
-            float weight = motionWeight * motionWeight * (3 - 2 * motionWeight);
             const float Degrees = MathF.PI / 180;
             azimuth += Degrees * weight * (15 * Wave(ambientTime, 67, 0) + 5 * Wave(ambientTime, 29, 1.3));
             elevation = Math.Clamp(elevation + Degrees * weight * 4 * Wave(ambientTime, 47, .7), 20 * Degrees, 70 * Degrees);
@@ -204,6 +205,9 @@ internal sealed partial class FoliaMachi
         float horizontalLimit = 1 / (framingTanHalfFov * FramingLimit * aspect);
         float minimumDistance = Near;
         float baselineDistance = Near;
+        float blend = MovingFramingBlend * weight;
+        Span<float> constraints = blend > 0 ? stackalloc float[3 * _framingPoints.Length + 2] : [];
+        int constraintCount = 0;
         foreach (ref readonly FramingPoint point in _framingPoints.AsSpan())
         {
             Vector3 authored = point.Authored;
@@ -219,18 +223,46 @@ internal sealed partial class FoliaMachi
             float top = (z * FramingLimit + y) / (FramingLimit - SubtitleReserve);
             float bottom = (z * FramingLimit - y) / (FramingLimit + SubtitleReserve);
             minimumDistance = MathF.Max(minimumDistance, MathF.Max(horizontal, MathF.Max(top, bottom)));
+            if (blend > 0)
+            {
+                constraints[constraintCount++] = horizontal;
+                constraints[constraintCount++] = top;
+                constraints[constraintCount++] = bottom;
+            }
         }
 
-        float distance = MathF.Max(baselineDistance * dolly, minimumDistance);
+        float authoredDistance = baselineDistance * dolly;
+        float distance = MathF.Max(authoredDistance, minimumDistance);
+        if (blend > 0)
+        {
+            constraints[constraintCount++] = authoredDistance;
+            constraints[constraintCount++] = Near;
+            // Smooth the winning constraint as the camera moves. Referencing the exact
+            // maximum keeps each exponential in range and the result keeps all margins.
+            // Even together, terms below this cutoff are smaller than float precision.
+            float cutoff = distance - 24 * blend;
+            float sum = 0;
+            foreach (float constraint in constraints[..constraintCount])
+                if (constraint >= cutoff)
+                    sum += MathF.Exp((constraint - distance) / blend);
+            distance += blend * MathF.Log(sum);
+        }
         // Lower the optical axis so the set sits slightly above the subtitle area.
         target -= up * (distance * tanHalfFov * SubtitleReserve);
-        var view = Matrix4x4.CreateLookAt(target + back * distance, target, Vector3.UnitY);
+        Vector3 eye = target + back * distance;
+        var view = Matrix4x4.CreateLookAt(eye, target, Vector3.UnitY);
         float verticalFieldOfView = 2 * halfFov;
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(verticalFieldOfView, aspect, Near, Far);
         var viewProjection = view * projection;
-        if (!Matrix4x4.Invert(viewProjection, out var inverse))
-            throw new InvalidOperationException("Machi camera projection is singular.");
-        return new(viewProjection, view, projection, inverse, verticalFieldOfView, distance);
+        // Screen-space axes for a world-space ray with unit forward depth. The W
+        // column supplies device-depth coefficients and the near clipping distance.
+        float invProjectionX = 1 / projection.M11, invProjectionY = 1 / projection.M22;
+        var rayBasis = new Matrix4x4(
+            view.M11 * invProjectionX, view.M21 * invProjectionX, view.M31 * invProjectionX, projection.M33,
+            view.M12 * invProjectionY, view.M22 * invProjectionY, view.M32 * invProjectionY, projection.M43,
+            -view.M13, -view.M23, -view.M33, Near,
+            eye.X, eye.Y, eye.Z, 0);
+        return new(viewProjection, view, projection, rayBasis, verticalFieldOfView, distance);
     }
 
     private static Vector3 OrbitDirection(float azimuth, float elevation) =>
