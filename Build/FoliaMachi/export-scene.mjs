@@ -13,7 +13,7 @@ const atlasWidth = 2048;
 const stride = 32;
 const ignored = new Set(['Steam', 'LightCones', 'ReflectionWindow', 'Hologram/beam', 'HeadlightPool', 'TaxiLamp']);
 const panelHeight = 560;
-const maxSceneTriangles = 500_000;
+const maxSceneTriangles = 600_000;
 
 function modelFactory(batches, materials) {
     const templates = new Map();
@@ -101,6 +101,69 @@ function packedSurface(material) {
     return (unorm4(roughness) << 4) | unorm4(metalness);
 }
 
+function fitAcFan(target, replacement, materials) {
+    const fan = target.children.find(child => child.name === 'Fan');
+    const casing = replacement.getObjectByName('RainyCorner/ac/white');
+    const donorGuard = replacement.getObjectByName('RainyCorner/ac/steel');
+    if (!fan || !casing || !donorGuard) throw new Error(`Missing air conditioner components for ${target.name}.`);
+
+    // Use the fitted condenser's outlet coordinates, in the unit's local frame.
+    // The animation rotates the new propeller in the cavity along this same axis.
+    replacement.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(casing).max.z;
+    const guard = new THREE.Box3().setFromObject(donorGuard);
+    const center = guard.getCenter(new THREE.Vector3());
+    const size = guard.getSize(new THREE.Vector3());
+    const radius = Math.min(size.x, size.y) * .5;
+    const depth = guard.max.z - back;
+    if (depth <= 0 || radius <= 0) throw new Error(`No air conditioner outlet clearance for ${target.name}.`);
+    donorGuard.removeFromParent();
+
+    const dark = materials.toon('darkMetal');
+    const mount = new THREE.Shape();
+    mount.absarc(0, 0, radius, 0, Math.PI * 2, false);
+    const aperture = new THREE.Path();
+    aperture.absarc(0, 0, radius * .88, 0, Math.PI * 2, true);
+    mount.holes.push(aperture);
+    const shroud = new THREE.Mesh(new THREE.ExtrudeGeometry(mount,
+        { depth: depth + .001, curveSegments: 12, bevelEnabled: false }), casing.material);
+    shroud.position.set(center.x, center.y, back - .001);
+    const recess = new THREE.Mesh(new THREE.CylinderGeometry(radius * .89, radius * .89, depth * .13, 32)
+        .rotateX(Math.PI / 2), dark);
+    recess.position.set(center.x, center.y, back + depth * .04);
+    target.add(shroud, recess);
+
+    for (let index = -4; index <= 4; ++index) {
+        const x = index * .192 * radius;
+        const halfLength = Math.sqrt((radius * .91) ** 2 - x * x);
+        const wire = new THREE.Mesh(new THREE.BoxGeometry(radius * .027, halfLength * 2, depth * .18),
+            donorGuard.material);
+        wire.position.set(center.x + x, center.y, back + depth * .84);
+        target.add(wire);
+    }
+
+    fan.clear();
+    fan.position.set(center.x, center.y, back + depth * .49);
+    const bladeShape = new THREE.Shape();
+    const bladeRadius = radius * .85;
+    bladeShape.moveTo(.12 * bladeRadius, -.06 * bladeRadius);
+    bladeShape.quadraticCurveTo(.49 * bladeRadius, -.25 * bladeRadius, .93 * bladeRadius, -.12 * bladeRadius);
+    bladeShape.quadraticCurveTo(.99 * bladeRadius, .04 * bladeRadius, .92 * bladeRadius, .20 * bladeRadius);
+    bladeShape.quadraticCurveTo(.61 * bladeRadius, .29 * bladeRadius, .14 * bladeRadius, .10 * bladeRadius);
+    bladeShape.closePath();
+    const blade = new THREE.ExtrudeGeometry(bladeShape, { depth: depth * .22, curveSegments: 5, bevelEnabled: false })
+        .translate(0, 0, -depth * .11);
+    const rotor = materials.toon('trim');
+    for (let index = 0; index < 5; ++index) {
+        const part = new THREE.Mesh(blade, rotor);
+        part.rotation.z = index * Math.PI * 2 / 5;
+        fan.add(part);
+    }
+    const hubRadius = radius * .20;
+    const hub = new THREE.CylinderGeometry(hubRadius * .9, hubRadius, depth * .32, 16).rotateX(Math.PI / 2);
+    fan.add(new THREE.Mesh(hub, dark));
+}
+
 function fitRainyCorner(scene, donor, materials, palette) {
     const applied = {};
     const presets = {
@@ -175,6 +238,7 @@ function fitRainyCorner(scene, donor, materials, palette) {
             replacement.scale.copy(bounds.getSize(new THREE.Vector3()).divide(sourceSize));
             replacement.position.copy(bounds.min).sub(sourceBounds.min.clone().multiply(replacement.scale));
             replacement.name = `RainyCorner/${category}`;
+            if (category === 'ac') fitAcFan(target, replacement, materials);
             target.remove(...original);
             target.add(replacement);
         }
@@ -182,6 +246,78 @@ function fitRainyCorner(scene, donor, materials, palette) {
     const cans = scene.root.getObjectByName('SampleCans');
     cans?.removeFromParent();
     return applied;
+}
+
+function fitWindowPlants(root, model) {
+    const placeholders = [];
+    root.traverse(object => {
+        if (object.isMesh && object.name === 'Plant') placeholders.push(object);
+    });
+    for (const [index, placeholder] of placeholders.entries()) {
+        placeholder.geometry.computeBoundingBox();
+        const plant = model('window-plant');
+        plant.name = 'Window plant';
+        plant.position.copy(placeholder.position);
+        plant.position.y += placeholder.geometry.boundingBox.min.y + .001;
+        plant.rotation.y = index * 2.39996;
+        placeholder.parent.add(plant);
+        placeholder.removeFromParent();
+    }
+}
+
+function fitKowloonHandcart(root, materials) {
+    const props = root.getObjectByName('Props');
+    const surface = root.getObjectByName('Surface/alley');
+    const parts = props?.children.filter(part => part.name === 'Cart');
+    if (!surface || parts?.length !== 8) throw new Error('Missing Kowloon handcart or alley surface.');
+
+    const [bed, , , firstHandle, secondHandle, firstWheel, secondWheel, foot] = parts;
+    const steel = materials.toon('darkMetal');
+    const hub = materials.toon('chrome');
+    const add = (name, geometry, material, x, y, z) => {
+        const part = new THREE.Mesh(geometry, material);
+        part.name = 'Cart/' + name;
+        part.position.set(x, y, z);
+        props.add(part);
+        return part;
+    };
+    props.updateWorldMatrix(true, true);
+    const ground = surface.getWorldPosition(new THREE.Vector3()).y;
+    const bounds = part => new THREE.Box3().setFromObject(part, true);
+    const bedBounds = bounds(bed);
+    const railY = bedBounds.min.y - .025;
+
+    // Seat the actual tire vertices on the finished alley plane, including its surface lift.
+    for (const wheel of [firstWheel, secondWheel]) {
+        wheel.position.y += ground - bounds(wheel).min.y;
+        const { x, y, z } = wheel.position;
+        add('Hub', new THREE.CylinderGeometry(.071, .071, .084, 20), hub, x, y, z).rotation.x = Math.PI / 2;
+    }
+
+    const { x: axleX, y: axleY, z: axleStart } = firstWheel.position;
+    const axleEnd = secondWheel.position.z;
+    add('Axle', new THREE.CylinderGeometry(.024, .024, axleEnd - axleStart, 12), steel,
+        axleX, axleY, (axleStart + axleEnd) / 2).rotation.x = Math.PI / 2;
+
+    const hangerBottom = axleY - .04;
+    for (const handle of [firstHandle, secondHandle]) {
+        const { z } = handle.position;
+        add('Frame rail', new THREE.BoxGeometry(bedBounds.max.x - bedBounds.min.x - .06, .085, .065), bed.material,
+            bed.position.x, railY, z);
+        add('Axle hanger', new THREE.BoxGeometry(.092, railY - hangerBottom, .05), steel,
+            axleX, (railY + hangerBottom) / 2, z);
+    }
+
+    const crossWidth = secondHandle.position.z - firstHandle.position.z + .065;
+    add('Foot crossmember', new THREE.BoxGeometry(.095, .085, crossWidth), bed.material,
+        foot.position.x, railY, foot.position.z);
+    const footTop = bounds(foot).max.y;
+    const footHeight = foot.geometry.parameters.height;
+    const footBase = ground + .012;
+    foot.position.y = (footTop + footBase) / 2;
+    foot.scale.y = (footTop - footBase) / footHeight;
+    add('Foot shoe', new THREE.BoxGeometry(.098, .024, .107), steel,
+        foot.position.x, ground + .012, foot.position.z);
 }
 
 function collectScene(id, scene, blend) {
@@ -673,6 +809,10 @@ export async function exportScene(id, donor, batches) {
     const donorInstances = donor ? fitRainyCorner(scene, donor, materials, palette) : null;
     const model = modelFactory(batches, materials);
     const vehicles = fitVehicles(scene, id, model);
+    if (id === 'kowloon') {
+        fitWindowPlants(scene.root, model);
+        fitKowloonHandcart(scene.root, materials);
+    }
     if (id === 'konbini') {
         const pole = scene.root.getObjectByName('UtilityPole');
         const wire = materials.toon('wire');
@@ -700,11 +840,7 @@ export async function exportScene(id, donor, batches) {
     if (data.indexCount / 3 > maxSceneTriangles)
         throw new Error(`${id} exceeds the ${maxSceneTriangles}-triangle budget: ${data.indexCount / 3}`);
     const bytes = writeScene(id, scene, data, signs, lights);
-    const steam = scene.steam.mesh.geometry;
-    const sources = steam.getAttribute('aSource'), seeds = steam.getAttribute('aSeed');
     const weather = { ...scene.weather,
-        steam: Array.from({length: sources.count}, (_, i) => [sources.getX(i), sources.getY(i), sources.getZ(i),
-            sources.getW(i), seeds.getX(i), seeds.getY(i)]),
         glints: scene.weather.glints.map(({ position, radius }) => ({ position: position.toArray(), radius })),
     };
     scene.dispose();

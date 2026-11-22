@@ -89,7 +89,8 @@ internal sealed unsafe partial class MachiDxrBackend
             Output = output.NativePointer, Width = (uint)_width, Height = (uint)_height,
             JitterX = temporal.JitterX, JitterY = temporal.JitterY,
             Milliseconds = Math.Clamp(seconds * 1000, .01f, 200),
-            Reset = temporal.Reset ? 1u : 0, NearPlane = .1f, FarPlane = 200,
+            Reset = temporal.Reset ? 1u : 0, NearPlane = FoliaMachi.Near, FarPlane = FoliaMachi.Far,
+            VerticalFieldOfView = camera.VerticalFieldOfView,
             DiffuseAlbedo = Signal(MachiDxrSignal.Albedo).NativePointer, SpecularAlbedo = Signal(MachiDxrSignal.SpecularAlbedo).NativePointer,
             NormalRoughness = Signal(MachiDxrSignal.LinearNormal).NativePointer, SpecularHitDistance = Signal(MachiDxrSignal.SpecularDistance).NativePointer, ReflectionMotion = Signal(MachiDxrSignal.ReflectionMotion).NativePointer,
             WorldToView = camera.View, ViewToClip = camera.Projection
@@ -121,11 +122,12 @@ internal sealed unsafe partial class MachiDxrBackend
         return _superResolution != null;
     }
 
-    private bool TrySuperResolution(ID3D12GraphicsCommandList commands, ID3D12Resource output, in TemporalFrame temporal, float seconds)
+    private bool TrySuperResolution(ID3D12GraphicsCommandList commands, ID3D12Resource output, in MachiCamera camera,
+        in TemporalFrame temporal, float seconds)
     {
-        var depth = Signal(_superResolutionMode == ReconstructionMode.Fsr ? MachiDxrSignal.ReconstructionDepth : MachiDxrSignal.Depth);
-        SuperResolutionResult = _superResolution!.Execute(commands, _resolveInput!, depth,
-            Signal(MachiDxrSignal.Motion), null, output, new TemporalCamera(.1f, 200, MathF.PI / 3), temporal, seconds);
+        var lens = new TemporalCamera(FoliaMachi.Near, FoliaMachi.Far, camera.VerticalFieldOfView);
+        SuperResolutionResult = _superResolution!.Execute(commands, _resolveInput!, SurfaceDepth,
+            Signal(MachiDxrSignal.Motion), null, output, lens, temporal, seconds);
         if (SuperResolutionResult != 0)
         {
             _superResolutionFailed = true;

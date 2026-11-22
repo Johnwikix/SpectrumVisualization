@@ -154,6 +154,8 @@ def export(model_id, directory):
     if model_id in SCENES:
         neighborhood.build(model_id, kit)
         fixtures.build(model_id, kit)
+    elif model_id == "window-plant":
+        neighborhood.window_plant(kit)
     elif model_id in VEHICLES:
         vehicles.build(model_id, kit)
     else:
@@ -168,5 +170,5 @@ def export(model_id, directory):
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     directory = sys.argv[sys.argv.index("--") + 1]
-    for model_id in (*SCENES, *VEHICLES):
+    for model_id in (*SCENES, *VEHICLES, "window-plant"):
         export(model_id, directory)

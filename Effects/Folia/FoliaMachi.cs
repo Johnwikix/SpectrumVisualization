@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
-/// <summary>Prepared orthographic Machi scene geometry, signs and playback inputs for DXR.</summary>
+/// <summary>Prepared Machi scene geometry, signs and playback inputs for DXR.</summary>
 internal sealed partial class FoliaMachi
 {
     internal const int PanelWidth = 1024;

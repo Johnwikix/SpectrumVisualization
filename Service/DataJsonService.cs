@@ -107,6 +107,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.FoliaMachiWeather = settings.FoliaMachiWeather;
             AppSettings.FoliaMachiScene = settings.FoliaMachiScene;
             AppSettings.FoliaMachiMotion = settings.FoliaMachiMotion;
+            AppSettings.FoliaMachiFocalLengthMm = settings.FoliaMachiFocalLengthMm;
             AppSettings.FoliaMachiDenoiser = settings.FoliaMachiDenoiser;
             AppSettings.FoliaMachiSamplesPerPixel = settings.FoliaMachiSamplesPerPixel;
             AppSettings.FoliaMachiMaxBounces = settings.FoliaMachiMaxBounces;
@@ -261,6 +262,7 @@ namespace WinExSpectrumTest.Service
                 FoliaMachiWeather = AppSettings.FoliaMachiWeather,
                 FoliaMachiScene = AppSettings.FoliaMachiScene,
                 FoliaMachiMotion = AppSettings.FoliaMachiMotion,
+                FoliaMachiFocalLengthMm = AppSettings.FoliaMachiFocalLengthMm,
                 FoliaMachiDenoiser = AppSettings.FoliaMachiDenoiser,
                 FoliaMachiSamplesPerPixel = AppSettings.FoliaMachiSamplesPerPixel,
                 FoliaMachiMaxBounces = AppSettings.FoliaMachiMaxBounces,

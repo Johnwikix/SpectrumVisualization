@@ -52,6 +52,13 @@ namespace WinExSpectrumTest.Model
         public static bool FoliaSonnetPostProcess { get => _FoliaSonnetPostProcess; set => Set(ref _FoliaSonnetPostProcess, value); }
         private static string _foliaMachiScene = "auto";
         private static bool _foliaMachiMotion;
+        public const int MachiMinimumFocalLengthMm = 28, MachiDefaultFocalLengthMm = 40, MachiMaximumFocalLengthMm = 65;
+        private static int _foliaMachiFocalLengthMm = MachiDefaultFocalLengthMm;
+        public static int FoliaMachiFocalLengthMm
+        {
+            get => _foliaMachiFocalLengthMm;
+            set => Set(ref _foliaMachiFocalLengthMm, Math.Clamp(value, MachiMinimumFocalLengthMm, MachiMaximumFocalLengthMm));
+        }
         private static string _foliaMachiTimeOfDay = "cycle";
         public static string FoliaMachiTimeOfDay { get => _foliaMachiTimeOfDay; set => Set(ref _foliaMachiTimeOfDay, value is "auto" or "day" or "dusk" or "night" ? value : "cycle"); }
         private static string _foliaMachiWeather = "auto";
@@ -201,14 +208,16 @@ namespace WinExSpectrumTest.Model
         /// <summary>Gets or sets the explicit DLSS model preset independently of resolution.</summary>
         public static string GpuDlssPreset { get => _gpuQuality.DlssPreset; set => GpuQuality = _gpuQuality with { DlssPreset = value }; }
 
-        private static bool _foliaMachiGpuQualityOverride;
+        public const bool MachiDefaultGpuQualityOverride = true;
+        public const int MachiDefaultRenderScalePercent = 67;
+        private static bool _foliaMachiGpuQualityOverride = MachiDefaultGpuQualityOverride;
         public static bool FoliaMachiGpuQualityOverride
         {
             get => _foliaMachiGpuQualityOverride;
             set => Set(ref _foliaMachiGpuQualityOverride, value);
         }
 
-        private static GpuQualitySettings _foliaMachiGpuQuality = GpuQualitySettings.Default;
+        private static GpuQualitySettings _foliaMachiGpuQuality = GpuQualitySettings.Default with { RenderScalePercent = MachiDefaultRenderScalePercent };
         // Store the two local choices. The DLSS model preset is shared with the global profile.
         public static GpuQualitySettings FoliaMachiGpuQuality
         {

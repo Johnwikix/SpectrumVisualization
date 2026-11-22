@@ -397,6 +397,8 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>町景设置</value></data>
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>布景</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>缓慢运镜</value></data>
+  <data name="FoliaMachiFocalLength.Header" xml:space="preserve"><value>镜头焦距（mm）</value></data>
+  <data name="FoliaMachiFocalLength.Description" xml:space="preserve"><value>按 35 mm 全画幅的 24 mm 成像高度换算。焦距越长，取景越紧。</value></data>
   <data name="FoliaMachiSamplesPerPixel.Header" xml:space="preserve"><value>每像素采样数（SPP）</value></data>
   <data name="FoliaMachiSamplesPerPixel.Description" xml:space="preserve"><value>每帧每个渲染像素的光照采样次数。提高可减少噪点。</value></data>
   <data name="FoliaMachiMaxBounces.Header" xml:space="preserve"><value>最大反弹次数</value></data>

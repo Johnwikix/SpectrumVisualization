@@ -23,6 +23,7 @@ namespace WinExSpectrumTest.Model
         /// <summary>Whether Metaphor uses light ink on dark paper.</summary>
         public string FoliaMachiScene { get; set; } = "auto";
         public bool FoliaMachiMotion { get; set; }
+        public int FoliaMachiFocalLengthMm { get; set; } = AppSettings.MachiDefaultFocalLengthMm;
         public string FoliaMachiTimeOfDay { get; set; } = "cycle";
         public string FoliaMachiWeather { get; set; } = "auto";
         public string FoliaMachiDenoiser { get; set; } = "nrd";
@@ -31,9 +32,9 @@ namespace WinExSpectrumTest.Model
         public bool FoliaMachiChromaticAberration { get; set; } = true;
         public bool FoliaMachiDepthOfField { get; set; } = true;
         public bool FoliaMachiBloom { get; set; } = true;
-        public bool FoliaMachiGpuQualityOverride { get; set; }
+        public bool FoliaMachiGpuQualityOverride { get; set; } = AppSettings.MachiDefaultGpuQualityOverride;
         public string FoliaMachiAntiAliasing { get; set; } = "fxaa";
-        public int FoliaMachiRenderScalePercent { get; set; } = 100;
+        public int FoliaMachiRenderScalePercent { get; set; } = AppSettings.MachiDefaultRenderScalePercent;
         public bool FoliaMetaphorNegative { get; set; } = false;
         /// <summary>Gets or sets whether realtime motion is enabled.</summary>
         public bool FoliaRealtimeMotion { get; set; } = false;

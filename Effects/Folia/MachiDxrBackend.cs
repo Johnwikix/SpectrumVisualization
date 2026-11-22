@@ -30,7 +30,7 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal int MaxBounces { get; init; } = 8;
 }
 
-/// <summary>Records orthographic path tracing and reconstruction on the caller's ordered direct queue.</summary>
+/// <summary>Records Machi path tracing and reconstruction on the caller's ordered direct queue.</summary>
 internal sealed unsafe partial class MachiDxrBackend : IDisposable
 {
     private const int FrameSlots = 2;
@@ -62,6 +62,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         public Vector4 HemiSkyRain, HemiGroundTime, CityGlow, Puddles;
         public Matrix4x4 RainShelters;
         public uint SamplesPerPixel, MaxBounces;
+        public float PixelWidthAtUnitDepth;
     }
 
     private int _width, _height;
@@ -213,7 +214,6 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
 
     private bool AllocateTraceSignal(MachiDxrSignal signal, ReconstructionMode mode)
     {
-        if (signal == MachiDxrSignal.ReconstructionDepth) return mode == ReconstructionMode.Fsr;
         if (DenoisingDisabled)
             return signal is MachiDxrSignal.Noisy or MachiDxrSignal.Depth ||
                 signal == MachiDxrSignal.Motion && mode >= ReconstructionMode.XeSS;
@@ -334,7 +334,6 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         // The Folia host completes the preceding Machi frame before recording the next.
         if (!requestRayReconstruction) DisposeRayReconstruction();
         bool requestSuperResolution = !requestRayReconstruction && PrepareSuperResolution(list);
-        bool needsFsrDepth = requestSuperResolution && _superResolutionMode == ReconstructionMode.Fsr;
 
         bool reset = frame.ResetHistory || !_historyValid || frame.DeltaSeconds is <= 0 or > .25f
             || _previousSamplesPerPixel != frame.SamplesPerPixel || _previousMaxBounces != frame.MaxBounces
@@ -353,8 +352,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             Inverse = camera.Inverse, ViewProjection = camera.ViewProjection, PreviousViewProjection = previous.ViewProjection,
             View = camera.View, SkyWetness = new(frame.Sky, frame.Wetness), SunDirectionFrame = new(sun, _frameIndex & 0xffff),
             // Ray origins move opposite to the projection shift passed to the SDKs.
-            SunRadianceFar = new(frame.SunRadiance, 200), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),
-            Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : needsFsrDepth ? -1 : 0),
+            SunRadianceFar = new(frame.SunRadiance, FoliaMachi.Far), SizeJitter = new(_width, _height, -jitter.X, -jitter.Y),
+            Lighting = new(_emitterCount, frame.SnowCover, frame.Artificial, requestRayReconstruction ? 1 : 0),
             SkyBottom = new(frame.SkyBottom ?? frame.Sky * .45f, frame.RainTime),
             AnalyticLightControl = new(_analyticCount, _analyticFraction, frame.NoVacancy ? 1 : 0,
                 requestRayReconstruction ? RayReconstructionGuides : DenoisingDisabled ? requestSuperResolution ? 2 : 1 : 0),
@@ -362,7 +361,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             HemiGroundTime = new(frame.HemiGround ?? frame.SkyBottom ?? frame.Sky * .45f, frame.AmbientTime),
             CityGlow = new(frame.CityGlow, FoliaMachi.BoardWhiteRadiance * frame.Artificial),
             Puddles = new(frame.Puddles, frame.PuddleFill), RainShelters = frame.RainShelters,
-            SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces
+            SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces,
+            PixelWidthAtUnitDepth = 2 / (camera.Projection.M11 * _width)
         };
 
         if (_lyrics[frameSlot] != lyrics.NativePointer)
@@ -376,7 +376,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             _outputs[frameSlot] = output.NativePointer;
         }
         *(Constants*)(_mapped + offset) = constants;
-        RecordTrace(list, frameSlot, offset, requestRayReconstruction, needsFsrDepth);
+        RecordTrace(list, frameSlot, offset, requestRayReconstruction);
 
         SuperResolutionActive = ReconstructionMode.Off;
         RayReconstructionActive = requestRayReconstruction && TryRayReconstruction(list, camera, output, temporal, frame.DeltaSeconds);
@@ -391,7 +391,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
                 constants.AnalyticLightControl.W = 0;
                 int fallbackOffset = offset + ConstantsStride;
                 *(Constants*)(_mapped + fallbackOffset) = constants;
-                RecordTrace(list, frameSlot, fallbackOffset, false, false);
+                RecordTrace(list, frameSlot, fallbackOffset, false);
             }
             bool denoised = DenoiserAvailable &&
                 Denoise(list, frameSlot, camera, previous, reset || wasRayReconstruction, -jitter, frame.DeltaSeconds);
@@ -410,7 +410,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             if (!resolveDirect)
             {
                 list.ResourceBarrierTransition(_resolveInput!, Write, Read);
-                if (!requestSuperResolution || !TrySuperResolution(list, output, temporal, frame.DeltaSeconds))
+                if (!requestSuperResolution || !TrySuperResolution(list, output, camera, temporal, frame.DeltaSeconds))
                 {
                     if (requestSuperResolution) list.ResourceBarrierUnorderedAccessView(output);
                     Resolve(list, frameSlot, _resolveScale, ResolveOutput, _renderSize.OutputWidth, _renderSize.OutputHeight);
@@ -427,9 +427,9 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     }
 
     private void RecordTrace(ID3D12GraphicsCommandList4 list, int frameSlot, int offset,
-        bool rayReconstruction, bool needsFsrDepth)
+        bool rayReconstruction)
     {
-        TransitionTraceSignals(list, Read, Write, rayReconstruction, needsFsrDepth);
+        TransitionTraceSignals(list, Read, Write, rayReconstruction);
         list.SetDescriptorHeaps(_descriptors);
         list.SetComputeRootSignature(_tracePipeline.TraceRoot);
         list.SetComputeRootConstantBufferView(0, _constantBuffer.GPUVirtualAddress + (uint)offset);
@@ -444,11 +444,11 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         list.SetComputeRootShaderResourceView(9, _analyticLights.GPUVirtualAddress);
         list.SetPipelineState1(_tracePipeline.Trace);
         list.DispatchRays(_dispatch);
-        TransitionTraceSignals(list, Write, Read, rayReconstruction, needsFsrDepth);
+        TransitionTraceSignals(list, Write, Read, rayReconstruction);
     }
 
     private void TransitionTraceSignals(ID3D12GraphicsCommandList4 list, ResourceStates before, ResourceStates after,
-        bool rayReconstruction, bool needsFsrDepth)
+        bool rayReconstruction)
     {
         Span<ResourceBarrier> barriers = stackalloc ResourceBarrier[TraceOutputs];
         int count = 0;
@@ -457,7 +457,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             var binding = (MachiDxrSignal)i;
             bool used = rayReconstruction
                 ? binding is MachiDxrSignal.Noisy or MachiDxrSignal.Depth or MachiDxrSignal.ReflectionMotion || IsRayReconstructionGuide(i)
-                : !IsRayReconstructionGuide(i) || needsFsrDepth && binding == MachiDxrSignal.ReconstructionDepth;
+                : !IsRayReconstructionGuide(i);
             if (used && _signals[i] is { } signal)
                 barriers[count++] = ResourceBarrier.BarrierTransition(signal, before, after);
         }

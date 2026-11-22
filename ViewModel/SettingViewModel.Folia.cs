@@ -229,6 +229,12 @@ public partial class SettingViewModel
         set => AppSettings.FoliaMachiMotion = value;
     }
 
+    public double FoliaMachiFocalLengthMm
+    {
+        get => AppSettings.FoliaMachiFocalLengthMm;
+        set { if (_isInitialized && double.IsFinite(value)) AppSettings.FoliaMachiFocalLengthMm = (int)Math.Round(value); }
+    }
+
     public bool MachiAvailable => !Rendering.ReconstructionAvailability.Known || Rendering.ReconstructionAvailability.Status.HardwareRaytracing;
 
     public string MachiRendererStatus
@@ -328,6 +334,7 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaMachiWeather));
         OnPropertyChanged(nameof(FoliaMachiScene));
         OnPropertyChanged(nameof(FoliaMachiMotion));
+        OnPropertyChanged(nameof(FoliaMachiFocalLengthMm));
         OnPropertyChanged(nameof(FoliaMachiDenoiserIndex));
         OnPropertyChanged(nameof(FoliaMachiSamplesPerPixel));
         OnPropertyChanged(nameof(FoliaMachiMaxBounces));

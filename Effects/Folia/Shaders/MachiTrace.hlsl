@@ -32,6 +32,7 @@ cbuffer Camera : register(b0)
     float4 Puddles;
     float4 RainShelters[4];
     uint SamplesPerPixel, MaxBounces;
+    float PixelWidthAtUnitDepth;
 }
 
 RaytracingAccelerationStructure Scene : register(t0);
@@ -234,6 +235,11 @@ float4 TileMip(float2 uv, uint tile, uint level, float2 dimensions)
     return Sign.SampleLevel(LinearClamp, (origin + 1 + frac(uv) * n) / dimensions, 0);
 }
 
+float WorldPixelWidth(float3 position)
+{
+    return abs(mul(float4(position, 1), WorldToView).z) * PixelWidthAtUnitDepth;
+}
+
 void SurfaceTexture(inout Surface s, float3 incident)
 {
     uint width, height;
@@ -245,7 +251,7 @@ void SurfaceTexture(inout Surface s, float3 incident)
     float3 v = a.y >= max(a.x, a.z) ? float3(0,0,1) : float3(0,1,0);
     float period = tile == 0 ? .92 : tile == 1 ? 2 : tile == 2 ? 1.2 : 2.6;
     float2 uv = float2(dot(s.p, u), dot(s.p, v)) / period;
-    float pixelWidth = 2 * length(InverseViewProjection[0].xyz) / SizeJitter.x;
+    float pixelWidth = WorldPixelWidth(s.p);
     float footprint = pixelWidth * 256 / (period * max(.18, abs(dot(normalize(incident), s.face))));
     float level = clamp(log2(max(footprint, 1)), 0, 4);
     uint mip = (uint)level;
@@ -306,7 +312,7 @@ void WetGround(inout Surface s)
     float bank = lerp(.82, .40, fill) + .06 * (.5 - Puddles.z) + (s.material == 9 ? .07 : 0);
     // Gravel crests interrupt the shallow margin. Higher water joins the same fixed depressions.
     float depth = basin - bank - .10 * length(s.n.xz);
-    float footprint = 2 * length(InverseViewProjection[0].xyz) / SizeJitter.x;
+    float footprint = WorldPixelWidth(s.p);
     float edgeWidth = clamp(.24 * footprint, .004, .022);
     float pool = smoothstep(-edgeWidth, .045 + edgeWidth, depth) * smoothstep(0, .14, fill);
     float dampBank = smoothstep(-.14, -.015, depth) * film;
@@ -329,7 +335,7 @@ void WetGround(inout Surface s)
     s.previousNormal = normalize(lerp(s.previousNormal, up, pool) + rippleNormal);
 }
 
-float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneInstance instance)
+float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneInstance instance, float3 position)
 {
     float2 cells = a.v.yz * 1024;
     if (any(cells < 1)) return 1;
@@ -340,8 +346,15 @@ float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneIns
     float2 acUv = float2(c.normalU.w - a.normalU.w, (c.v.x - a.v.x) * (560 / span)) * cells;
     float3 ab = mul(float4(b.positionMaterial.xyz - a.positionMaterial.xyz, 0), instance.current).xyz;
     float3 ac = mul(float4(c.positionMaterial.xyz - a.positionMaterial.xyz, 0), instance.current).xyz;
-    float2 abScreen = mul(float4(ab, 0), ViewProjection).xy * .5 * SizeJitter.xy;
-    float2 acScreen = mul(float4(ac, 0), ViewProjection).xy * .5 * SizeJitter.xy;
+    // Differentiate clip.xy / clip.w at the hit, including foreshortening across the sign.
+    float4 clip = mul(float4(position, 1), ViewProjection);
+    if (clip.w < .001) return .73;
+    float4 abClip = mul(float4(ab, 0), ViewProjection);
+    float4 acClip = mul(float4(ac, 0), ViewProjection);
+    float2 ndc = clip.xy / clip.w;
+    float2 scale = .5 * SizeJitter.xy / clip.w;
+    float2 abScreen = (abClip.xy - ndc * abClip.w) * scale;
+    float2 acScreen = (acClip.xy - ndc * acClip.w) * scale;
     float determinant = abScreen.x * acScreen.y - acScreen.x * abScreen.y;
     float2 dX = abUv * acScreen.y - acUv * abScreen.y;
     float2 dY = acUv * abScreen.x - abUv * acScreen.x;
@@ -389,7 +402,7 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         if (frontFace)
         {
             float3 pixels = Lyrics.SampleLevel(LinearClamp, uv, 0).rgb;
-            float diffuser = PanelDots(uv, s.material, a, b, c, instance);
+            float diffuser = PanelDots(uv, s.material, a, b, c, instance, s.p);
             s.emission = BoardWhiteRadiance * pixels * diffuser;
         }
         s.base *= .14;
@@ -400,7 +413,7 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         float3 letters = max(Lyrics.SampleLevel(LinearClamp, uv, 0).rgb, 0) * 1.55;
         float peak = max(letters.r, max(letters.g, letters.b));
         letters *= min(1, 1.25 / max(peak, 1e-6));
-        s.emission = s.base * .06 + letters * PanelDots(uv, s.material, a, b, c, instance);
+        s.emission = s.base * .06 + letters * PanelDots(uv, s.material, a, b, c, instance, s.p);
         s.base *= .14;
         s.roughness = .45;
     }
@@ -941,12 +954,18 @@ Plane FollowOptical(float3 origin, float3 direction, float3 throughput, uint3 pa
     return result;
 }
 
-float2 Project(float3 position, row_major float4x4 matrix)
+float2 MotionFromClip(float4 current, float4 previous)
 {
-    float4 clip = mul(float4(position, 1), matrix);
-    return clip.xy / clip.w * float2(.5, -.5) * SizeJitter.xy;
+    // A virtual reflection can cross the eye plane. Send its history lookup
+    // off screen and keep even a grazing projection representable in RG16F.
+    if (min(current.w, previous.w) <= .0001) return -SizeJitter.xy;
+    float2 delta = previous.xy / previous.w - current.xy / current.w;
+    return clamp(delta, -2, 2) * float2(.5, -.5) * SizeJitter.xy;
 }
-float2 Reproject(float3 p, float3 previous) { return Project(previous, PreviousViewProjection) - Project(p, ViewProjection); }
+float2 Reproject(float3 p, float3 previous)
+{
+    return MotionFromClip(mul(float4(p, 1), ViewProjection), mul(float4(previous, 1), PreviousViewProjection));
+}
 float SignedViewZ(float3 p) { return mul(float4(p, 1), WorldToView).z; }
 void ReflectPlane(Surface s, inout Plane plane)
 {
@@ -992,7 +1011,7 @@ void RayGen()
     reflection.hitDistance = transmission.hitDistance = SunRadianceFar.w;
     reflection.normal = transmission.normal = -primary;
     reflection.roughness = transmission.roughness = 1;
-    Hit hit = Trace(origin, primary, SunRadianceFar.w);
+    Hit hit = Trace(origin, primary, length(farPlane.xyz / farPlane.w - origin));
     if (hit.primitive != 0xffffffff)
     {
         Surface s = Evaluate(hit, origin);
@@ -1123,6 +1142,11 @@ void RayGen()
             }
         }
     }
+    else if (writeMotion || writeRayReconstruction)
+    {
+        // A sky direction reprojects under camera rotation, independently of translation.
+        motion = MotionFromClip(mul(float4(primary, 0), ViewProjection), mul(float4(primary, 0), PreviousViewProjection));
+    }
 
     bool validR = false, validT = false;
     float reflectedZ = 0, transmittedZ = 0;
@@ -1131,8 +1155,8 @@ void RayGen()
     {
         reflectedZ = SignedViewZ(reflection.position);
         transmittedZ = SignedViewZ(transmission.position);
-        validR = reflection.hitDistance < SunRadianceFar.w && abs(reflectedZ) < SunRadianceFar.w;
-        validT = transmission.hitDistance < SunRadianceFar.w && abs(transmittedZ) < SunRadianceFar.w;
+        validR = reflection.hitDistance < SunRadianceFar.w && reflectedZ < -.1 && reflectedZ > -SunRadianceFar.w;
+        validT = transmission.hitDistance < SunRadianceFar.w && transmittedZ < -.1 && transmittedZ > -SunRadianceFar.w;
         reflectionMotion = validR ? Reproject(reflection.position, reflection.previousPosition) : motion;
         transmissionMotion = validT ? Reproject(transmission.position, transmission.previousPosition) : 0;
         ReflectionMotion[pixel] = reflectionMotion;
@@ -1163,14 +1187,6 @@ void RayGen()
     Noisy[pixel] = float4(min(NRD_FP16_MAX, deterministic + reflection.deterministic + transmission.deterministic
         + d + r + reflection.color + transmission.color), 1);
     Depth[pixel] = depth;
-    if (Lighting.w < 0)
-    {
-        // FSR's near/far linearization expects perspective device depth.
-        const float nearPlane = .1;
-        float farPlane = SunRadianceFar.w;
-        float viewDistance = lerp(nearPlane, farPlane, depth);
-        ReconstructionDepth[pixel] = farPlane * depth / viewDistance;
-    }
     if (writeRayReconstruction)
     {
         // RR has one G-buffer. Choose its optical lobe from the Fresnel

@@ -158,6 +158,22 @@ def _downlight(kit, name, center, size, bezel, reflector, lens, backing=True):
                     (x + offset, y - .013, z + side * (depth / 2 - .010)), .006, reflector, sides=8)
 
 
+def _wall_light(kit, name, mount, size, housing, lens, right=False):
+    x, y, z = mount
+    width, height = size
+
+    def point(u, v, depth):
+        return (x + depth, y + v, z - u) if right else (x + u, y + v, z + depth)
+
+    frame_width, frame_height, frame_depth = width + .029, height + .031, .036
+    frame_size = (frame_depth, frame_height, frame_width) if right else (frame_width, frame_height, frame_depth)
+    kit.box(f"{name}/Housing", point(0, 0, .016), frame_size, housing, bevel=.008)
+    # Only the exposed front panel emits. The opaque frame mounts flush to the wall.
+    kit.mesh(f"{name}/Diffuser", [point(u * width / 2, v * height / 2, .035)
+                                  for u, v in ((-1, -1), (1, -1), (1, 1), (-1, 1))],
+             [(0, 1, 2, 3)], lens)
+
+
 def _awning(kit, name, runs, world, dimensions, shell, edge, steel):
     # A continuous standing fold forms both the outer drip lip and its tucked return.
     section = [
@@ -189,7 +205,7 @@ def _awning(kit, name, runs, world, dimensions, shell, edge, steel):
 
 
 def _konbini(kit):
-    shell = kit.mat("Konbini/Baked blue-grey sheet", "#465565", .32, .58)
+    shell = kit.mat("Konbini/Petrol blue enamel hood", "#236278", .32, .43)
     edge = kit.mat("Konbini/Trim and channel", "#344048", .40, .54)
     silver = kit.mat("Konbini/Galvanized hardware", "#9ba7ac", .31, .83)
     drain = kit.mat("Konbini/Gutter finish", "#647277", .37, .72)
@@ -197,8 +213,10 @@ def _konbini(kit):
     dark = kit.mat("Konbini/Recessed vent", "#263038", .55, .21)
     lens = kit.mat("Konbini/Warm entry diffuser", "#fff0da", .42, emission=(12.0, 9.3, 6.6))
     cool_lens = kit.mat("Konbini/Cyan service diffuser", "#77ebff", .43, emission=(2.8, 11.5, 15.4))
-    pink_strip = kit.mat("Konbini/Coral rain hood strip", "#ff5d99", .36, emission=(6.0, .55, 1.9))
-    cyan_strip = kit.mat("Konbini/Cyan rain hood strip", "#55e1ff", .36, emission=(.45, 4.6, 6.2))
+    pink_strip = kit.mat("Konbini/Coral rain hood strip", "#ff477f", .36, emission=(9.5, .72, 2.62))
+    cyan_strip = kit.mat("Konbini/Cyan rain hood strip", "#31e7ff", .36, emission=(.36, 6.2, 8.4))
+    jade = kit.mat("Konbini/Mint door diffuser", "#48facc", .36, emission=(.58, 6.8, 4.1))
+    gold = kit.mat("Konbini/Amber sidelight diffuser", "#ffc553", .37, emission=(9.0, 4.9, .46))
 
     def front(u, y, depth):
         return (u, y, .4 + depth)
@@ -233,6 +251,10 @@ def _konbini(kit):
     for z in (-1.43, -3.39):
         kit.box("Konbini/Service lamp saddle", (1.11, 2.52, z), (.075, .065, .87), edge, bevel=.008)
         _downlight(kit, "Konbini/Service luminaire", (1.11, 2.462, z), (.074, .86), edge, silver, cool_lens)
+    for x in (-1.34, .54):
+        _wall_light(kit, "Konbini/Automatic door jamb light", (x, 1.28, .48), (.039, 1.51), edge, jade)
+    _wall_light(kit, "Konbini/Corner wall sidelight", (-5.02, 1.79, .40), (.16, .36), edge, gold)
+    _wall_light(kit, "Konbini/Vending bay sidelight", (.80, 1.28, -4.98), (.062, 1.36), edge, gold, right=True)
 
     # Collect the return's runoff at the solid jamb beyond the glass and ahead of the vending bay.
     x, z = .913, -2.64
@@ -288,6 +310,14 @@ def _kowloon(kit):
     rubber = kit.mat("Kowloon/Isolation gasket", "#353139", .64, .13)
     pipe = kit.mat("Kowloon/Weathered brass", "#aa8961", .31, .80)
     red = kit.mat("Kowloon/Valve enamel", "#9b4435", .42, .22)
+    indigo = kit.mat("Kowloon/Indigo bar jamb diffuser", "#9a65ff", .39, emission=(3.2, 1.0, 9.4))
+    rose = kit.mat("Kowloon/Ruby bar jamb diffuser", "#ff4f96", .38, emission=(10.4, .55, 3.0))
+    lemon = kit.mat("Kowloon/Golden stall counter diffuser", "#ffd453", .38, emission=(8.5, 5.7, .49))
+
+    _wall_light(kit, "Kowloon/Bar west pier light", (-.20, 1.48, -1.47), (.088, 1.71), frame, indigo)
+    _wall_light(kit, "Kowloon/Bar east pier light", (4.41, 1.48, -1.47), (.088, 1.71), frame, rose)
+    _wall_light(kit, "Kowloon/Passage lintel light", (5.59, 2.88, -2.30), (.71, .088), frame, indigo)
+    _downlight(kit, "Kowloon/Stall awning light", (4.97, 2.025, 2.67), (1.50, .065), frame, stainless, lemon)
 
     for index, (x, roof, z) in enumerate(_TANKS):
         name = f"Kowloon/Water tank {index + 1}"
@@ -441,16 +471,17 @@ def _pump(kit, x, z, name, steel, dark, rubber, nozzle, lamp):
 
 
 def _station(kit):
-    finish = kit.mat("Station/Ribbed coated canopy", "#697782", .43, .59)
-    seam = kit.mat("Station/Canopy lock seam", "#576572", .39, .67)
+    finish = kit.mat("Station/Ribbed petrol-blue canopy", "#306581", .43, .52)
+    seam = kit.mat("Station/Canopy lock seam", "#224858", .39, .59)
     steel = kit.mat("Station/Brushed equipment steel", "#a8b3b5", .28, .86)
     dark = kit.mat("Station/Housings and safety rings", "#373c43", .39, .42)
     rubber = kit.mat("Station/Fuel hose rubber", "#222631", .53, .09)
-    nozzle_red = kit.mat("Station/Regular nozzle enamel", "#bd5340", .33, .34)
-    nozzle_blue = kit.mat("Station/Super nozzle enamel", "#336580", .34, .38)
+    nozzle_red = kit.mat("Station/Regular nozzle enamel", "#d74c26", .33, .34)
+    nozzle_blue = kit.mat("Station/Super nozzle enamel", "#1c799c", .34, .38)
     lamp = kit.mat("Station/Payment indicator", "#b7fff4", .38, emission=(.6, 2.2, 1.9))
-    yellow = kit.mat("Station/Hazard yellow enamel", "#c99635", .35, .35)
-    trim_light = kit.mat("Station/Cyan canopy edge strip", "#51ddff", .36, emission=(.45, 5.1, 7.4))
+    yellow = kit.mat("Station/Hazard yellow enamel", "#efad28", .35, .35)
+    cyan = kit.mat("Station/Glacier blue canopy diffuser", "#49daff", .36, emission=(.44, 6.8, 11.0))
+    gold = kit.mat("Station/Amber forecourt diffuser", "#ffb938", .36, emission=(11.7, 5.3, .32))
     for index in range(8):
         x = 1.41 + index * .559
         kit.box("Station/Standing seam roof sheet", (x + .279, 4.31, -3.50), (.551, .030, 4.15),
@@ -475,12 +506,14 @@ def _station(kit):
         for z in (-4.4, -2.6):
             _downlight(kit, "Station/Canopy panel trim", (x, 3.845, z), (.9, .5),
                        finish, steel, None, backing=False)
-    kit.box("Station/Street-facing canopy light strip", (3.65, 3.819, -1.414), (4.38, .026, .059),
-            trim_light)
-    kit.box("Station/Return canopy light strip", (5.89, 3.819, -3.52), (.059, .026, 4.15),
-            trim_light)
+    _wall_light(kit, "Station/Front canopy light strip", (3.65, 3.811, -1.426), (4.38, .031), seam, gold)
+    _wall_light(kit, "Station/Return canopy light strip", (5.887, 3.811, -3.52), (4.15, .031), seam, cyan, right=True)
+    for x in (2.05, 5.25):
+        _wall_light(kit, "Station/Forecourt column light", (x, 2.57, -1.94), (.115, .83), seam, cyan)
 
     for island, z in enumerate((-4.35, -2.75)):
+        _wall_light(kit, "Station/Island marker strip", (3.65, .21, z + .25), (2.12, .048), seam,
+                    cyan if island == 0 else gold)
         for number, x in enumerate((3.05, 4.25)):
             _pump(kit, x, z, f"Station/Island {island + 1} pump {number + 1}", steel, dark, rubber,
                   nozzle_red if number == 0 else nozzle_blue, lamp)

@@ -717,6 +717,17 @@
                                 <controls:SettingsCard x:Uid="FoliaMachiMotion">
                                     <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMachiMotion, Mode=TwoWay}" />
                                 </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="FoliaMachiFocalLengthCard" x:Uid="FoliaMachiFocalLength">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Slider Width="160"
+                                            Minimum="{x:Bind model:AppSettings.MachiMinimumFocalLengthMm}"
+                                            Maximum="{x:Bind model:AppSettings.MachiMaximumFocalLengthMm}"
+                                            SmallChange="1" LargeChange="5" StepFrequency="1"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaMachiFocalLengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaMachiFocalLengthMm, Mode=TwoWay}" />
+                                        <TextBlock Width="28" VerticalAlignment="Center" Text="{x:Bind ViewModel.FoliaMachiFocalLengthMm, Mode=OneWay}" />
+                                    </StackPanel>
+                                </controls:SettingsCard>
                                 <controls:SettingsCard x:Name="FoliaMachiDenoiserCard" x:Uid="FoliaMachiDenoiser">
                                     <ComboBox
                                         Width="220"

@@ -397,6 +397,8 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaMachiSettings.Header" xml:space="preserve"><value>Machi settings</value></data>
   <data name="FoliaMachiScene.Header" xml:space="preserve"><value>Scene</value></data>
   <data name="FoliaMachiMotion.Header" xml:space="preserve"><value>Camera drift</value></data>
+  <data name="FoliaMachiFocalLength.Header" xml:space="preserve"><value>Focal length (mm)</value></data>
+  <data name="FoliaMachiFocalLength.Description" xml:space="preserve"><value>35 mm full-frame equivalent based on the 24 mm frame height. Longer focal lengths give a tighter view.</value></data>
   <data name="FoliaMachiSamplesPerPixel.Header" xml:space="preserve"><value>Samples per pixel (SPP)</value></data>
   <data name="FoliaMachiSamplesPerPixel.Description" xml:space="preserve"><value>Lighting samples per rendered pixel per frame. Higher values reduce noise.</value></data>
   <data name="FoliaMachiMaxBounces.Header" xml:space="preserve"><value>Maximum bounces</value></data>

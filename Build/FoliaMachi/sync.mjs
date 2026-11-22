@@ -72,7 +72,7 @@ try {
     await page.addScriptTag({ content: code });
     for (const id of ['konbini', 'station', 'kowloon']) {
         const modelIds = id === 'station' ? ['traffic', 'sedan', 'taxi', 'kei', 'ad-truck'] :
-            id === 'konbini' ? ['traffic'] : ['scooter'];
+            id === 'konbini' ? ['traffic'] : ['scooter', 'window-plant'];
         const models = Object.fromEntries(await Promise.all([id, ...modelIds].map(async name =>
             [name, JSON.parse(await readFile(resolve(process.argv[4], name + '.json'), 'utf8'))])));
         const result = await page.evaluate(({ id, donor, models }) => SpectrumMachi.exportScene(id, donor, models),
@@ -104,7 +104,6 @@ function writeWeather(id, weather) {
     const roof = ({ x0, z0, x1, z1, y }) => `new(${entries([x0, z0, x1, z1, y])})`;
     const drip = ({ x, z, from, to, period, phase }) => `new(${entries([x, z, from, to, period, phase])})`;
     const glint = ({ position, radius }) => `new(new Vector3(${entries(position)}), ${entries([radius])})`;
-    const puff = values => `new(new(${entries(values.slice(0,4))}), new(${entries(values.slice(4))}))`;
     const name = id[0].toUpperCase() + id.slice(1) + 'Weather';
-    return `    private static readonly WeatherLayout ${name} = new(\n        ${entries([weather.half, weather.groundY, weather.windYaw, weather.windSlant])},\n        [\n${rows(weather.roofs, roof)}\n        ],\n        [\n${rows(weather.drips, drip)}\n        ],\n        [\n${rows(weather.glints, glint)}\n        ],\n        [\n${rows(weather.steam, puff)}\n        ]);`;
+    return `    private static readonly WeatherLayout ${name} = new(\n        ${entries([weather.half, weather.groundY, weather.windYaw, weather.windSlant])},\n        [\n${rows(weather.roofs, roof)}\n        ],\n        [\n${rows(weather.drips, drip)}\n        ],\n        [\n${rows(weather.glints, glint)}\n        ]);`;
 }

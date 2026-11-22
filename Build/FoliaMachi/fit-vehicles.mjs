@@ -133,14 +133,22 @@ export function fitVehicles(scene, id, models) {
 
     if (id === 'kowloon') {
         const scooters = findGroups(scene.root, group => group.name === 'Scooter');
-        if (scooters.length !== 2) throw new Error(`Expected two Kowloon scooters, found ${scooters.length}.`);
-        for (const scooter of scooters) {
+        // The Blender scooters are longer than the upstream props. Park
+        // perpendicular to the wall and clear of the gas bottles and crates.
+        const bays = [[-2.36, 4.58, Math.PI / 2 - .065], [-2.12, 5.39, Math.PI / 2 + .085]];
+        if (scooters.length !== bays.length) throw new Error(`Expected two Kowloon scooters, found ${scooters.length}.`);
+        for (const [index, scooter] of scooters.entries()) {
             const body = requirePart(scooter, 'Body');
             const group = replacement(models, 'scooter', { [vehiclePaint]: body.material.color });
-            group.rotation.y = Math.PI / 2;
+            const [x, z, yaw] = bays[index];
+            scooter.position.x = x;
+            scooter.position.z = z;
+            scooter.rotation.y = yaw;
             fit(scooter, group, []);
             add('scooter');
         }
+        const [first, second] = scooters.map(scooter => new Box3().setFromObject(scooter, true));
+        if (first.intersectsBox(second)) throw new Error('The parked Kowloon scooter meshes overlap.');
     }
 
     return counts;

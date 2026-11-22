@@ -5,18 +5,21 @@ using System.IO.Compression;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.Effects.Folia;
 
 internal readonly record struct MachiCamera(Matrix4x4 ViewProjection, Matrix4x4 View,
-    Matrix4x4 Projection, Matrix4x4 Inverse);
+    Matrix4x4 Projection, Matrix4x4 Inverse, float VerticalFieldOfView, float FocusDistance);
 
 internal sealed partial class FoliaMachi
 {
     private const uint SceneMagic = 0x3448434D;
-    private const int MaximumIndices = 500_000 * 3;
+    private const int MaximumIndices = 600_000 * 3;
+    private const float HalfFrameHeightMm = 12;
+    private static readonly float DefaultHalfFov = MathF.Atan(HalfFrameHeightMm / AppSettings.MachiDefaultFocalLengthMm);
     private const float SubtitleReserve = .05f;
-    private const float UsableFrustum = 1 - 2 * .02f - SubtitleReserve;
+    private const float FramingLimit = .96f;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private readonly record struct PackedVertex(
@@ -24,8 +27,10 @@ internal sealed partial class FoliaMachi
         short Nx, short Ny, short Nz, ushort U, ushort V,
         byte Material, byte Gain, byte R, byte G, byte B, byte Surface, ushort OverlayU, ushort OverlayV);
 
-    private readonly Vector3 _fitCenter, _fitUp;
-    private readonly float _fitWidth, _fitHeight;
+    private readonly record struct FramingPoint(Vector3 World, Vector3 Authored);
+
+    private readonly Vector3 _fitCenter;
+    private readonly FramingPoint[] _framingPoints;
     private readonly float _azimuth, _elevation, _zoom;
 
     internal readonly record struct Actor(uint FirstIndex, uint IndexCount, uint Kind, Vector3 Pivot, Vector3 Axis);
@@ -39,10 +44,12 @@ internal sealed partial class FoliaMachi
     internal int SignHeight { get; }
     internal float SceneHalf { get; }
     internal WeatherLayout Weather { get; }
+    internal SteamEmitter[] Steam { get; }
 
-    private FoliaMachi(BinaryReader reader, CancellationToken cancellationToken, WeatherLayout weather)
+    private FoliaMachi(BinaryReader reader, CancellationToken cancellationToken, WeatherLayout weather, SteamEmitter[] steam)
     {
         Weather = weather;
+        Steam = steam;
         if (reader.ReadUInt32() != SceneMagic)
             throw new InvalidDataException("Unsupported Machi scene format.");
 
@@ -61,23 +68,24 @@ internal sealed partial class FoliaMachi
         StaticIndexCount = ReadCount(reader, indexCount);
         int lights = ReadCount(reader, 128, minimum: 0);
 
-        Vector3 forward = -OrbitDirection(_azimuth, _elevation);
-        Vector3 right = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitY));
-        _fitUp = Vector3.Cross(right, forward);
-        Vector2 minimum = new(float.PositiveInfinity);
-        Vector2 maximum = new(float.NegativeInfinity);
+        Vector3 back = OrbitDirection(_azimuth, _elevation);
+        Vector3 right = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, back));
+        Vector3 up = Vector3.Cross(back, right);
+        Vector3 minimum = new(float.PositiveInfinity);
+        Vector3 maximum = new(float.NegativeInfinity);
+        _framingPoints = new FramingPoint[points];
         for (int i = 0; i < points; i++)
         {
             var point = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-            var projected = new Vector2(Vector3.Dot(point, right), Vector3.Dot(point, _fitUp));
-            minimum = Vector2.Min(minimum, projected);
-            maximum = Vector2.Max(maximum, projected);
+            var local = new Vector3(Vector3.Dot(point, right), Vector3.Dot(point, up), Vector3.Dot(point, back));
+            _framingPoints[i] = new(point, local);
+            minimum = Vector3.Min(minimum, local);
+            maximum = Vector3.Max(maximum, local);
         }
-        Vector2 center = (maximum + minimum) * .5f;
-        _fitCenter = right * center.X + _fitUp * center.Y;
-        Vector2 half = (maximum - minimum) * .5f;
-        _fitWidth = half.X;
-        _fitHeight = half.Y;
+        Vector3 center = (maximum + minimum) * .5f;
+        _fitCenter = right * center.X + up * center.Y + back * center.Z;
+        for (int i = 0; i < points; i++)
+            _framingPoints[i] = _framingPoints[i] with { Authored = _framingPoints[i].Authored - center };
 
         Actors = new Actor[actorCount];
         uint nextIndex = (uint)StaticIndexCount;
@@ -124,12 +132,13 @@ internal sealed partial class FoliaMachi
             ?? throw new InvalidDataException($"The Machi scene '{sceneId}' is missing.");
         using var brotli = new BrotliStream(stream, CompressionMode.Decompress);
         using var reader = new BinaryReader(brotli);
-        return new FoliaMachi(reader, cancellationToken, sceneId switch
+        var (weather, steam) = sceneId switch
         {
-            "station" => StationWeather,
-            "kowloon" => KowloonWeather,
-            _ => KonbiniWeather
-        });
+            "station" => (StationWeather, StationSteam),
+            "kowloon" => (KowloonWeather, KowloonSteam),
+            _ => (KonbiniWeather, KonbiniSteam)
+        };
+        return new FoliaMachi(reader, cancellationToken, weather, steam);
     }
 
     internal static string ResolveSceneId(string requested, FoliaSong song)
@@ -158,41 +167,70 @@ internal sealed partial class FoliaMachi
         return hash;
     }
 
-    internal MachiCamera CreateCamera(float aspect, double ambientTime = 0, float motionWeight = 0)
+    internal MachiCamera CreateCamera(float aspect, double ambientTime = 0, float motionWeight = 0,
+        int focalLengthMm = AppSettings.MachiDefaultFocalLengthMm)
     {
-        float fittedHalfHeight = MathF.Max(_fitHeight, _fitWidth / aspect) / UsableFrustum;
-        float overflow = MathF.Max(0, _fitHeight / UsableFrustum - fittedHalfHeight / _zoom);
-        Vector3 target = _fitCenter + _fitUp * (overflow * .7f);
+        Vector3 target = _fitCenter;
         float azimuth = _azimuth;
         float elevation = _elevation;
-        float zoom = _zoom;
+        float dolly = 1;
         if (motionWeight > 0)
         {
             float weight = motionWeight * motionWeight * (3 - 2 * motionWeight);
             const float Degrees = MathF.PI / 180;
             azimuth += Degrees * weight * (15 * Wave(ambientTime, 67, 0) + 5 * Wave(ambientTime, 29, 1.3));
             elevation = Math.Clamp(elevation + Degrees * weight * 4 * Wave(ambientTime, 47, .7), 20 * Degrees, 70 * Degrees);
-            zoom = Math.Clamp(zoom * MathF.Exp(.08f * Wave(ambientTime, 41, 2.1) * weight), .75f, 3.6f);
+            dolly = MathF.Exp(-.08f * Wave(ambientTime, 41, 2.1) * weight);
             var panRight = new Vector3(MathF.Cos(_azimuth), 0, -MathF.Sin(_azimuth));
             var panBack = new Vector3(-MathF.Sin(_azimuth), 0, -MathF.Cos(_azimuth));
             target += weight * (.45f * Wave(ambientTime, 53, .4) * panRight + .3f * Wave(ambientTime, 71, 2.6) * panBack);
         }
-        Vector3 eye = target + OrbitDirection(azimuth, elevation) * 60;
-        float halfHeight = fittedHalfHeight / zoom;
-        float halfWidth = halfHeight * aspect;
-        float shift = fittedHalfHeight * SubtitleReserve;
-        var view = Matrix4x4.CreateLookAt(eye, target, Vector3.UnitY);
-        var viewProjection = view * Matrix4x4.CreateOrthographicOffCenter(
-            -halfWidth, halfWidth, -halfHeight - shift, halfHeight - shift, Near, Far);
+
+        // The 24 mm height of a 35 mm frame sets the vertical angle at any aspect.
+        float tanHalfFov = HalfFrameHeightMm / focalLengthMm;
+        float halfFov = MathF.Atan(tanHalfFov);
+        // A wider lens adds room below the set while keeping the top edge aimed
+        // into the modeled district, even at the shallowest point of the orbit.
+        elevation += MathF.Max(0, halfFov - DefaultHalfFov);
+        Vector3 back = OrbitDirection(azimuth, elevation);
+        Vector3 right = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, back));
+        Vector3 up = Vector3.Cross(back, right);
+
+        // Fit the set at the default lens. Move the camera partway toward the fit
+        // for other lenses so they change both perspective and composition.
+        float framingTanHalfFov = HalfFrameHeightMm / MathF.Sqrt(AppSettings.MachiDefaultFocalLengthMm * focalLengthMm);
+        float verticalFit = 1 / (framingTanHalfFov * (FramingLimit - SubtitleReserve) * _zoom);
+        float horizontalFit = verticalFit / aspect;
+        float horizontalLimit = 1 / (framingTanHalfFov * FramingLimit * aspect);
+        float minimumDistance = Near;
+        float baselineDistance = Near;
+        foreach (ref readonly FramingPoint point in _framingPoints.AsSpan())
+        {
+            Vector3 authored = point.Authored;
+            float fitted = authored.Z + MathF.Max(MathF.Abs(authored.X) * horizontalFit, MathF.Abs(authored.Y) * verticalFit);
+            baselineDistance = MathF.Max(baselineDistance, fitted);
+            if (point.World.Y <= 0) continue;
+
+            Vector3 offset = point.World - target;
+            float x = Vector3.Dot(offset, right);
+            float y = Vector3.Dot(offset, up) / framingTanHalfFov;
+            float z = Vector3.Dot(offset, back);
+            float horizontal = z + MathF.Abs(x) * horizontalLimit;
+            float top = (z * FramingLimit + y) / (FramingLimit - SubtitleReserve);
+            float bottom = (z * FramingLimit - y) / (FramingLimit + SubtitleReserve);
+            minimumDistance = MathF.Max(minimumDistance, MathF.Max(horizontal, MathF.Max(top, bottom)));
+        }
+
+        float distance = MathF.Max(baselineDistance * dolly, minimumDistance);
+        // Lower the optical axis so the set sits slightly above the subtitle area.
+        target -= up * (distance * tanHalfFov * SubtitleReserve);
+        var view = Matrix4x4.CreateLookAt(target + back * distance, target, Vector3.UnitY);
+        float verticalFieldOfView = 2 * halfFov;
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(verticalFieldOfView, aspect, Near, Far);
+        var viewProjection = view * projection;
         if (!Matrix4x4.Invert(viewProjection, out var inverse))
             throw new InvalidOperationException("Machi camera projection is singular.");
-
-        // Move the subtitle framing into view-space Y for the SDKs. RELAX
-        // reconstructs orthographic world positions along the centered frustum
-        // forward axis and classifies the projection by its exact W.
-        view.M42 += shift;
-        var projection = Matrix4x4.CreateOrthographic(halfWidth * 2, halfHeight * 2, Near, Far);
-        return new(viewProjection, view, projection, inverse);
+        return new(viewProjection, view, projection, inverse, verticalFieldOfView, distance);
     }
 
     private static Vector3 OrbitDirection(float azimuth, float elevation) =>

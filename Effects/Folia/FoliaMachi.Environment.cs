@@ -8,10 +8,39 @@ internal sealed partial class FoliaMachi
     internal readonly record struct WeatherRoof(float X0, float Z0, float X1, float Z1, float Y);
     internal readonly record struct WeatherDrip(float X, float Z, float From, float To, float Period, float Phase);
     internal readonly record struct WeatherGlint(Vector3 Position, float Radius);
-    internal readonly record struct SteamPuff(Vector4 Source, Vector2 Seed);
     internal sealed record WeatherLayout(float Half, float GroundY, float WindYaw, float WindSlant,
-        WeatherRoof[] Roofs, WeatherDrip[] Drips, WeatherGlint[] Glints,
-        SteamPuff[] Steam);
+        WeatherRoof[] Roofs, WeatherDrip[] Drips, WeatherGlint[] Glints);
+
+    internal readonly record struct SteamEmitter(Vector3 Position, float Height, float BaseRadius, float TipRadius,
+        float Extinction, float WeatherResponse, Vector2 Drift, float Turbulence, float SunVisibility,
+        Vector3 LightPosition, Vector3 LightRadiance);
+
+    private static readonly SteamEmitter[] KonbiniSteam =
+    [
+        // The louver sits beneath the return hood. Exhaust escapes toward its cyan edge.
+        new(new(.98f, 2.16f, -4.32f), .24f, .12f, .22f, 2.1f, .48f,
+            new(.46f, .04f), .045f, .12f, new(1.33f, 2.435f, -4.32f), new(.018f, .13f, .20f)),
+        new(new(-2.4f, .02f, 4.15f), 1.18f, .13f, .40f, 2.55f, .46f,
+            new(.04f, .28f), .14f, 1, new(-1.9f, 1.5f, 1.3f), new(.36f, .24f, .14f))
+    ];
+
+    private static readonly SteamEmitter[] StationSteam =
+    [
+        new(new(-.65f, 3.10f, -3.78f), .97f, .11f, .32f, 2.1f, .48f,
+            new(-.09f, .22f), .10f, 1, new(-.7f, 2.4f, .9f), new(.30f, .26f, .16f)),
+        new(new(-2.60f, .02f, 4.575f), 1.12f, .12f, .36f, 2.4f, .46f,
+            new(-.07f, .30f), .13f, 1, new(-.7f, 2.4f, .9f), new(.25f, .21f, .14f))
+    ];
+
+    private static readonly SteamEmitter[] KowloonSteam =
+    [
+        // The sloped tarp reaches y=1.97 near its front hem. Steam stays below it
+        // and drifts from the wok at z=1.875 toward the open front of the stall.
+        new(new(4.60f, 1.34f, 1.875f), .60f, .14f, .34f, 2.8f, .1f,
+            new(-.025f, 1.15f), .075f, .06f, new(5.175f, 1.67f, 2.60f), new(.56f, .28f, .115f)),
+        new(new(1.60f, .04f, 4.10f), 1.04f, .12f, .36f, 2.4f, .46f,
+            new(.03f, .28f), .13f, 1, new(2.10f, 1.90f, -.50f), new(.32f, .13f, .26f))
+    ];
 
     private const float Dusk = .45f;
     internal const double CycleDurationSeconds = 240;
