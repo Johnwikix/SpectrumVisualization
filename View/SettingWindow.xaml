@@ -623,7 +623,69 @@
                                 <ComboBoxItem x:Uid="FoliaOption_machi" Tag="machi" IsEnabled="{x:Bind ViewModel.MachiAvailable, Mode=OneWay}" />
                             </ComboBox>
                         </controls:SettingsCard>
-                        <controls:SettingsExpander x:Uid="FoliaMachiSettings" Margin="10,0,10,0" IsExpanded="False"
+                        <controls:SettingsExpander x:Uid="FoliaThemeSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaThemeSource">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeSource, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_cover" Tag="cover" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_preset" Tag="preset" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeVariant">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeVariant, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_dark" Tag="dark" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_light" Tag="light" />
+                                        <ComboBoxItem x:Uid="FoliaThemeOption_system" Tag="system" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaThemeRegenerate" IsEnabled="{x:Bind ViewModel.IsFoliaCoverTheme, Mode=OneWay}">
+                                    <Button x:Uid="FoliaThemeRegenerateButton" Command="{x:Bind ViewModel.RegenerateFoliaThemeCommand}" />
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaKeywordColors">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaKeywordColorsEnabled, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0">
+                            <ComboBox
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaBackground"
+                                SelectedValue="{x:Bind ViewModel.FoliaBackground, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="FoliaOption_common" Tag="common" />
+                                <ComboBoxItem x:Uid="FoliaOption_latent" Tag="latent" />
+                                <ComboBoxItem x:Uid="FoliaOption_monet" Tag="monet" />
+                                <ComboBoxItem x:Uid="FoliaOption_nomand" Tag="nomand" />
+                                <ComboBoxItem x:Uid="FoliaOption_sora" Tag="sora" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard
+                            x:Uid="FoliaImageMode"
+                            Margin="10,0,10,0"
+                            IsEnabled="{x:Bind ViewModel.IsFoliaImageBackground, Mode=OneWay}">
+                            <ComboBox
+                                Width="220"
+                                AutomationProperties.AutomationId="FoliaImageEffect"
+                                SelectedValue="{x:Bind ViewModel.FoliaImageEffect, Mode=TwoWay}"
+                                SelectedValuePath="Tag">
+                                <ComboBoxItem x:Uid="FoliaOption_dithering" Tag="dithering" />
+                                <ComboBoxItem x:Uid="FoliaOption_fluted-glass" Tag="fluted-glass" />
+                                <ComboBoxItem x:Uid="FoliaOption_paper-texture" Tag="paper-texture" />
+                                <ComboBoxItem x:Uid="FoliaOption_halftone-dots" Tag="halftone-dots" />
+                                <ComboBoxItem x:Uid="FoliaOption_lens-distortion" Tag="lens-distortion" />
+                            </ComboBox>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="FoliaCoverBackground" Margin="10,0,10,0">
+                            <ToggleSwitch VerticalAlignment="Center" IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" />
+                        </controls:SettingsCard>
+                        <TextBlock
+                            x:Uid="FoliaLyricModeSection"
+                            Margin="10,20,10,10"
+                            FontSize="16" />
+                        <controls:SettingsExpander
+                            x:Uid="FoliaMachiSettings"
+                            Margin="10,0,10,0"
+                            IsExpanded="False"
                             Description="{x:Bind ViewModel.MachiRendererStatus, Mode=OneWay}">
                             <controls:SettingsExpander.Items>
                                 <controls:SettingsCard x:Uid="FoliaMachiScene">
@@ -742,90 +804,6 @@
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaMetaphorSettings" Margin="10,0,10,0" IsExpanded="False">
-                            <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaMetaphorNegative">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMetaphorNegative, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                            </controls:SettingsExpander.Items>
-                        </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaNebbiaSettings" Margin="10,0,10,0" IsExpanded="False">
-                            <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaNebbiaBehind">
-                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaBehind, Mode=TwoWay}">
-                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_night" Tag="night" />
-                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_aquarium" Tag="aquarium" />
-                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_backdrop" Tag="backdrop" />
-                                    </ComboBox>
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaNebbiaGlass">
-                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaGlass, Mode=TwoWay}">
-                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_rain" Tag="rain" />
-                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_dew" Tag="dew" />
-                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_snow" Tag="snow" />
-                                    </ComboBox>
-                                </controls:SettingsCard>
-                            </controls:SettingsExpander.Items>
-                        </controls:SettingsExpander>
-                        <controls:SettingsExpander x:Uid="FoliaThemeSettings" Margin="10,0,10,0" IsExpanded="False">
-                            <controls:SettingsExpander.Items>
-                                <controls:SettingsCard x:Uid="FoliaThemeSource">
-                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeSource, Mode=TwoWay}">
-                                        <ComboBoxItem x:Uid="FoliaThemeOption_cover" Tag="cover" />
-                                        <ComboBoxItem x:Uid="FoliaThemeOption_preset" Tag="preset" />
-                                    </ComboBox>
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaThemeVariant">
-                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaThemeVariant, Mode=TwoWay}">
-                                        <ComboBoxItem x:Uid="FoliaThemeOption_dark" Tag="dark" />
-                                        <ComboBoxItem x:Uid="FoliaThemeOption_light" Tag="light" />
-                                        <ComboBoxItem x:Uid="FoliaThemeOption_system" Tag="system" />
-                                    </ComboBox>
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaThemeRegenerate" IsEnabled="{x:Bind ViewModel.IsFoliaCoverTheme, Mode=OneWay}">
-                                    <Button x:Uid="FoliaThemeRegenerateButton" Command="{x:Bind ViewModel.RegenerateFoliaThemeCommand}" />
-                                </controls:SettingsCard>
-                                <controls:SettingsCard x:Uid="FoliaKeywordColors">
-                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaKeywordColorsEnabled, Mode=TwoWay}" />
-                                </controls:SettingsCard>
-                            </controls:SettingsExpander.Items>
-                        </controls:SettingsExpander>
-                        <controls:SettingsCard x:Uid="FoliaBackgroundMode" Margin="10,0,10,0">
-                            <ComboBox
-                                Width="220"
-                                AutomationProperties.AutomationId="FoliaBackground"
-                                SelectedValue="{x:Bind ViewModel.FoliaBackground, Mode=TwoWay}"
-                                SelectedValuePath="Tag">
-                                <ComboBoxItem x:Uid="FoliaOption_common" Tag="common" />
-                                <ComboBoxItem x:Uid="FoliaOption_latent" Tag="latent" />
-                                <ComboBoxItem x:Uid="FoliaOption_monet" Tag="monet" />
-                                <ComboBoxItem x:Uid="FoliaOption_nomand" Tag="nomand" />
-                                <ComboBoxItem x:Uid="FoliaOption_sora" Tag="sora" />
-                            </ComboBox>
-                        </controls:SettingsCard>
-                        <controls:SettingsCard
-                            x:Uid="FoliaImageMode"
-                            Margin="10,0,10,0"
-                            IsEnabled="{x:Bind ViewModel.IsFoliaImageBackground, Mode=OneWay}">
-                            <ComboBox
-                                Width="220"
-                                AutomationProperties.AutomationId="FoliaImageEffect"
-                                SelectedValue="{x:Bind ViewModel.FoliaImageEffect, Mode=TwoWay}"
-                                SelectedValuePath="Tag">
-                                <ComboBoxItem x:Uid="FoliaOption_dithering" Tag="dithering" />
-                                <ComboBoxItem x:Uid="FoliaOption_fluted-glass" Tag="fluted-glass" />
-                                <ComboBoxItem x:Uid="FoliaOption_paper-texture" Tag="paper-texture" />
-                                <ComboBoxItem x:Uid="FoliaOption_halftone-dots" Tag="halftone-dots" />
-                                <ComboBoxItem x:Uid="FoliaOption_lens-distortion" Tag="lens-distortion" />
-                            </ComboBox>
-                        </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="FoliaCoverBackground" Margin="10,0,10,0">
-                            <ToggleSwitch VerticalAlignment="Center" IsOn="{x:Bind ViewModel.FoliaCoverBackground, Mode=TwoWay}" />
-                        </controls:SettingsCard>
-                        <TextBlock
-                            x:Uid="FoliaLyricModeSection"
-                            Margin="10,20,10,10"
-                            FontSize="16" />
                         <controls:SettingsExpander
                             x:Uid="FoliaFumeSettings"
                             Margin="10,0,10,0"
@@ -1431,6 +1409,31 @@
                                             AutomationProperties.LabeledBy="{x:Bind FoliaPendoloMotionStrengthCard}"
                                             Value="{x:Bind ViewModel.FoliaPendoloMotionStrength, Mode=TwoWay}" />
                                     </Grid>
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsExpander x:Uid="FoliaMetaphorSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaMetaphorNegative">
+                                    <ToggleSwitch IsOn="{x:Bind ViewModel.FoliaMetaphorNegative, Mode=TwoWay}" />
+                                </controls:SettingsCard>
+                            </controls:SettingsExpander.Items>
+                        </controls:SettingsExpander>
+                        <controls:SettingsExpander x:Uid="FoliaNebbiaSettings" Margin="10,0,10,0" IsExpanded="False">
+                            <controls:SettingsExpander.Items>
+                                <controls:SettingsCard x:Uid="FoliaNebbiaBehind">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaBehind, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_night" Tag="night" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_aquarium" Tag="aquarium" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaBehind_backdrop" Tag="backdrop" />
+                                    </ComboBox>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="FoliaNebbiaGlass">
+                                    <ComboBox Width="220" SelectedValuePath="Tag" SelectedValue="{x:Bind ViewModel.FoliaNebbiaGlass, Mode=TwoWay}">
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_rain" Tag="rain" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_dew" Tag="dew" />
+                                        <ComboBoxItem x:Uid="FoliaNebbiaGlass_snow" Tag="snow" />
+                                    </ComboBox>
                                 </controls:SettingsCard>
                             </controls:SettingsExpander.Items>
                         </controls:SettingsExpander>
