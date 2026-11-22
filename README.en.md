@@ -215,15 +215,17 @@ See [`doc/verification/README.md`](doc/verification/README.md) and [`doc/design/
 
 ## License & Credits
 
-This project is open-source under the **[GNU AGPL-3.0 License](LICENSE.txt)**. The Folia effect ports its lyric modes, animated backgrounds and layout algorithms from [folia-major](https://github.com/chthollyphile/folia-major) (GNU AGPL-3.0), so the whole project ships under AGPL-3.0: distributing or network-serving a modified version requires providing the corresponding complete source.
+This project is open-source under the **[GNU AGPL-3.0 License](LICENSE.txt)**. The Folia effect ports and adapts its lyric modes, animated backgrounds and layout algorithms from [folia-major](https://github.com/chthollyphile/folia-major) (GNU AGPL-3.0): the upstream layout / stage-planning scripts, theme generator, Paper shader formulas and some artwork ship with this project (including the MSIX package) and run through Jint on cold paths such as song, font or viewport changes; steady-state frames read immutable native plans and HLSL only. The whole project therefore ships under AGPL-3.0: distributing or network-serving a modified version requires providing the corresponding complete source.
 
 ### References & Inspiration
+
+**Implementation boundary.** Upstream supplies planning and theme generation (`native-layout.js`, `native-stages.js`, `sonnet-graphics.js`, `themes.js`). The per-mode D3D12 renderers, MTSDF glyph pipeline, HDR output, SMTC and lyric adapters, plus Machi's DXR backend, NRD / DLSS Ray Reconstruction integration and Blender sets are Spectrum code; upstream contributes only Machi's framing points, signage and weather parameters.
 
 | Project | Use |
 | --- | --- |
 | [BetterLyrics](https://github.com/jayfunc/BetterLyrics) | Early inspiration for SMTC text and cover reading |
 | [OriginalSound (music_player)](https://github.com/Johnwikix/original-sound-hq-player) | Custom title bar, layered click-through lock, adaptive desktop-lyrics text color, `AnimatedTextBlock` text animations, desktop wallpaper host; Folia matches its lyrics database read-only in the player's source order |
-| [folia-major](https://github.com/chthollyphile/folia-major) | Folia lyric modes, animated backgrounds and layout algorithms (GNU AGPL-3.0) |
+| [folia-major](https://github.com/chthollyphile/folia-major) | Folia lyric modes, animated backgrounds and layout algorithms; `External/Folia/*.js` is redistributed and executed on cold paths (GNU AGPL-3.0) |
 | [Paper Shaders](https://github.com/paper-design/shaders) | Origin of the Paper background GLSL (shipped with folia-major, Apache-2.0) |
 | [Lyricify-Lyrics-Helper](https://github.com/WXRIW/Lyricify-Lyrics-Helper) | Lyric parsing, word timings and QQ / NetEase search (Apache-2.0) |
 | [msdfgen](https://github.com/Chlumsky/msdfgen) | Glyph MTSDF distance-field generation (MIT) |

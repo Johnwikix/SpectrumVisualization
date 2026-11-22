@@ -213,15 +213,17 @@ doc/verification/
 
 ## 许可与致谢
 
-本项目采用 **[GNU AGPL-3.0 许可证](LICENSE.txt)**。辞曲新境（Folia）的歌词模式、动态背景与布局算法移植自 [folia-major](https://github.com/chthollyphile/folia-major)（GNU AGPL-3.0），因此整个项目以 AGPL-3.0 发布：分发或通过网络提供修改版时，必须按该许可证提供对应的完整源码。
+本项目采用 **[GNU AGPL-3.0 许可证](LICENSE.txt)**。辞曲新境（Folia）的歌词模式、动态背景与布局算法移植并改编自 [folia-major](https://github.com/chthollyphile/folia-major)（GNU AGPL-3.0）：其布局 / 分镜规划脚本、主题生成脚本、Paper 着色器公式及部分美术资源随本项目一同分发（含 MSIX 包），并在切歌、换字体、改视口等冷路径上由 Jint 执行；逐帧播放只读取不可变原生规划与 HLSL。因此整个项目以 AGPL-3.0 发布：分发或通过网络提供修改版时，必须按该许可证提供对应的完整源码。
 
 ### 引用与灵感
+
+**实现边界。** 上游提供规划与主题生成（`native-layout.js`、`native-stages.js`、`sonnet-graphics.js`、`themes.js`）；各模式的 D3D12 渲染器、MTSDF 字形管线、HDR 输出、SMTC 与歌词适配，以及町景的 DXR 后端、NRD / DLSS Ray Reconstruction 集成与 Blender 布景为 Spectrum 自有实现，上游仅提供町景的取景点、招牌与天气参数。
 
 | 项目 | 用途 |
 | --- | --- |
 | [BetterLyrics](https://github.com/jayfunc/BetterLyrics) | 早期的 SMTC 文本与封面读取灵感 |
 | [OriginalSound（music_player）](https://github.com/Johnwikix/original-sound-hq-player) | 自定义标题栏、锁定态穿透、桌面歌词自适应文字色、`AnimatedTextBlock` 文字切换动画、桌面壁纸宿主；辞曲新境按其来源优先级只读匹配歌词库 |
-| [folia-major](https://github.com/chthollyphile/folia-major) | 辞曲新境的歌词模式、动态背景与布局算法（GNU AGPL-3.0） |
+| [folia-major](https://github.com/chthollyphile/folia-major) | 辞曲新境的歌词模式、动态背景与布局算法；`External/Folia/*.js` 随二进制分发并在冷路径执行（GNU AGPL-3.0） |
 | [Paper Shaders](https://github.com/paper-design/shaders) | Paper 动态背景 GLSL 来源（随 folia-major 分发，Apache-2.0） |
 | [Lyricify-Lyrics-Helper](https://github.com/WXRIW/Lyricify-Lyrics-Helper) | 歌词解析、逐字时间与 QQ / 网易云搜索（Apache-2.0） |
 | [msdfgen](https://github.com/Chlumsky/msdfgen) | 字形 MTSDF 距离场生成（MIT） |
