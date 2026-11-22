@@ -1,7 +1,9 @@
+using ComputeSharp;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using WinExSpectrumTest.Audio;
+using WinExSpectrumTest.Effects;
 using WinExSpectrumTest.Effects.Sonic;
 
 namespace WinExSpectrumTest.Rendering;
@@ -10,10 +12,12 @@ namespace WinExSpectrumTest.Rendering;
 internal sealed class GpuShaderWarmup
 {
     private readonly object _gate = new();
-    private readonly CancellationTokenSource _stop = new();
+    private int _stopRequested;
     private Task? _work;
     private Task? _shutdown;
     private GpuDeviceLease? _device;
+    private uint? _capabilities;
+    private bool _sweep;
     internal uint PreparedModes { get; private set; }
     internal uint PreparedDlssPresets { get; private set; }
 
@@ -21,28 +25,47 @@ internal sealed class GpuShaderWarmup
     // NGX initialization/shutdown is device-wide and must not race the warmup contexts.
     internal bool IsReady => Volatile.Read(ref _work)?.IsCompleted ?? true;
 
-    internal Task Start()
+    internal Task Start(EffectHost startupHost)
     {
         lock (_gate)
         {
             if (_shutdown != null) return _shutdown;
-            return _work ??= Task.Factory.StartNew(Run, CancellationToken.None,
+            if (_work != null) return _work;
+            _sweep = startupHost == EffectHost.Win2D;
+            return _work = Task.Factory.StartNew(Run, CancellationToken.None,
                 TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
     }
+
+    // Entering GPU rendering from Win2D only needs to wait for current work and SDK cleanup.
+    internal void RequestRendererHandoff()
+    {
+        if (_sweep) Volatile.Write(ref _stopRequested, 1);
+    }
+
+    // Called after IsReady, before releasing the retained lease. A recreated device must be probed again.
+    internal uint? GetPreparedCapabilities(GraphicsDevice device) =>
+        ReferenceEquals(Volatile.Read(ref _device)?.Device, device) ? _capabilities : null;
 
     private void Run()
     {
         try
         {
             Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
-            if (_stop.IsCancellationRequested) return;
+            if (Volatile.Read(ref _stopRequested) != 0) return;
             // Keep pipeline caches until a live renderer takes ownership, or application shutdown.
             _device = GpuDeviceLease.Acquire();
+            if (!_sweep)
+            {
+                using var native = _device.OpenNativeDevice();
+                _capabilities = TemporalReconstruction.Capabilities(native);
+                return;
+            }
             // 仅用静默合成输入预热；禁止为了预热启动 WASAPI 环回采集。
             using var analyzer = new SpectrumAnalyzer(captureAudio: false);
             using var graphics = new GpuGraphics(analyzer, static (_, _, _) => { }, 256, 144,
                 static () => new SonicGpuEffect(), new(100, ReconstructionMode.Fxaa, 80));
+            _capabilities = graphics.Reconstruction.Capabilities;
             foreach (var mode in new[] { ReconstructionMode.Off, ReconstructionMode.Fxaa, ReconstructionMode.Smaa,
                 ReconstructionMode.XeSS, ReconstructionMode.Fsr, ReconstructionMode.Dlss })
             {
@@ -53,7 +76,7 @@ internal sealed class GpuShaderWarmup
                     string name = preset switch { 1 => "j", 2 => "l", 3 => "m", _ => "k" };
                     for (int scale = mode >= ReconstructionMode.XeSS ? 50 : 100; scale <= 100; scale += 50)
                     {
-                        if (_stop.IsCancellationRequested) return;
+                        if (Volatile.Read(ref _stopRequested) != 0) return;
                         try
                         {
                             graphics.Configure(new(scale, mode, 80, name));
@@ -83,14 +106,13 @@ internal sealed class GpuShaderWarmup
         lock (_gate)
         {
             if (_shutdown != null) return _shutdown;
-            _stop.Cancel();
+            Volatile.Write(ref _stopRequested, 1);
             Task work = _work ?? Task.CompletedTask;
             // Even an already completed warmup must release the device off the UI thread.
             return _shutdown = Task.Run(async () =>
             {
                 await work.ConfigureAwait(false);
                 ReleaseDeviceCache();
-                _stop.Dispose();
             });
         }
     }

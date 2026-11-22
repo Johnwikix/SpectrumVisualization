@@ -78,7 +78,7 @@
 
 ### NativeAOT 与裁剪
 - Release 启用 `PublishAot=true` / `PublishTrimmed=true` / `SelfContained=true` / `BuiltInComInteropSupport=true` / `PublishReadyToRun=true`，仅 x64。
-- 原生桥 (`Native/Reconstruction/`) 通过 C ABI 借用宿主 D3D12 设备、命令列表与纹理，不创建交换链 / 音频端点 / UI 线程 / 帧循环；启动期独立线程、低优先级离屏预热空间 AA 与可用 SR，HLSL 字节码与设备在渲染线程就绪后按需移交。
+- 原生桥 (`Native/Reconstruction/`) 通过 C ABI 借用宿主 D3D12 设备、命令列表与纹理，不创建交换链 / 音频端点 / UI 线程 / 帧循环。以 Win2D 效果启动时，独立低优先级线程离屏预热空间 AA 与可用 SR，设备与缓存按需移交。以 GPU 效果启动时，后台仅探测设备的重建能力，渲染线程提交首帧后初始化所选重建模式。
 
 ---
 

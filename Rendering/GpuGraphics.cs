@@ -1,6 +1,5 @@
 using WinExSpectrumTest.Service;
 using ComputeSharp;
-using ComputeSharp.Interop;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -112,10 +111,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         {
             _deviceLease = GpuDeviceLease.Acquire();
             _compute = _deviceLease.Device;
-            Guid deviceId = new("189819F1-1DB6-4B57-BE54-1821339B85F7");
-            void* native = null;
-            InteropServices.GetID3D12Device(_compute, &deviceId, &native);
-            _device = new ID3D12Device((nint)native);
+            _device = _deviceLease.OpenNativeDevice();
             _queue = _device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
             _allocator = _device.CreateCommandAllocator(CommandListType.Direct);
             _commands = _device.CreateCommandList<ID3D12GraphicsCommandList>(0, CommandListType.Direct, _allocator, null);
@@ -216,14 +212,15 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _options = options;
     }
 
-    /// <summary>Called on the live worker only after startup releases all of its SDK contexts.</summary>
-    internal void CompleteWarmup()
+    /// <summary>Returns true when vendor initialization becomes available on the live worker.</summary>
+    internal bool CompleteWarmup(GpuShaderWarmup warmup)
     {
-        if (!_reconstructionDeferred) return;
-        _capabilities = TemporalReconstruction.Capabilities(_device);
+        if (!_reconstructionDeferred) return false;
+        _capabilities = warmup.GetPreparedCapabilities(_compute) ?? TemporalReconstruction.Capabilities(_device);
         _reconstructionDeferred = false;
         (_effect as IMachiRenderEffect)?.EnableVendorInitialization();
         _reconstructionDirty = _options.Mode >= ReconstructionMode.XeSS || _stageOwnsReconstruction;
+        return true;
     }
 
     public void ChangeEffect(Func<IGpuVisualizerEffect> factory)

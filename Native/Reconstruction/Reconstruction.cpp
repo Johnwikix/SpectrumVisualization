@@ -112,20 +112,23 @@ struct Context
     }
 };
 
-static bool Nvidia(ID3D12Device* device)
+static ComPtr<IDXGIAdapter1> NvidiaAdapter(ID3D12Device* device)
 {
     ComPtr<IDXGIFactory4> factory;
     ComPtr<IDXGIAdapter1> adapter;
     DXGI_ADAPTER_DESC1 desc{};
-    return SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))
-        && SUCCEEDED(factory->EnumAdapterByLuid(device->GetAdapterLuid(), IID_PPV_ARGS(&adapter)))
-        && SUCCEEDED(adapter->GetDesc1(&desc)) && desc.VendorId == 0x10DE;
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) ||
+        FAILED(factory->EnumAdapterByLuid(device->GetAdapterLuid(), IID_PPV_ARGS(&adapter))) ||
+        FAILED(adapter->GetDesc1(&desc)) || desc.VendorId != 0x10DE) return {};
+    return adapter;
 }
 
-static bool InitNgx(Context& context, bool rayReconstruction = false)
+// The same project and search paths apply to feature discovery and initialization.
+static constexpr NVSDK_NGX_ProjectIdDescription NgxProject{
+    "8796023e-91c2-4811-8465-6b9756d1ef0a", NVSDK_NGX_ENGINE_TYPE_CUSTOM, "1.0" };
+
+static bool PrepareNgxInfo(Context& context)
 {
-    if (!Nvidia(context.device)) return false;
-    // A private project identifier, not an NVIDIA-issued application identifier.
     context.ngxDirectory = Directory();
     context.ngxPaths[0] = context.ngxDirectory.c_str();
     context.ngxInfo.PathListInfo.Path = context.ngxPaths;
@@ -133,13 +136,45 @@ static bool InitNgx(Context& context, bool rayReconstruction = false)
     wchar_t cache[32768];
     if (!GetTempPathW(_countof(cache), cache)) return false;
     context.ngxCache = cache;
-    auto result = NVSDK_NGX_D3D12_Init_with_ProjectID("8796023e-91c2-4811-8465-6b9756d1ef0a",
-        NVSDK_NGX_ENGINE_TYPE_CUSTOM, "1.0", context.ngxCache.c_str(), context.device, &context.ngxInfo);
+    return true;
+}
+
+static bool InitNgx(Context& context, bool rayReconstruction = false)
+{
+    if (!NvidiaAdapter(context.device) || !PrepareNgxInfo(context)) return false;
+    auto result = NVSDK_NGX_D3D12_Init_with_ProjectID(NgxProject.ProjectId, NgxProject.EngineType,
+        NgxProject.EngineVersion, context.ngxCache.c_str(), context.device, &context.ngxInfo);
     if (!NgxResult(result, "NGX initialization")) return false;
     context.ngx = true;
     if (NVSDK_NGX_FAILED(NVSDK_NGX_D3D12_GetCapabilityParameters(&context.parameters))) return false;
     int available = 0;
     return NVSDK_NGX_SUCCEED(context.parameters->Get(rayReconstruction ? NVSDK_NGX_Parameter_SuperSamplingDenoising_Available : NVSDK_NGX_Parameter_SuperSampling_Available, &available)) && available;
+}
+
+static bool SupportsNgxFeature(ID3D12Device* device, NVSDK_NGX_Feature feature)
+{
+    auto adapter = NvidiaAdapter(device);
+    if (!adapter) return false;
+    Context context;
+    context.device = device;
+    if (!PrepareNgxInfo(context)) return false;
+    NVSDK_NGX_FeatureDiscoveryInfo discovery{};
+    discovery.SDKVersion = NVSDK_NGX_Version_API;
+    discovery.FeatureID = feature;
+    discovery.Identifier.IdentifierType = NVSDK_NGX_Application_Identifier_Type_Project_Id;
+    discovery.Identifier.v.ProjectDesc = NgxProject;
+    discovery.ApplicationDataPath = context.ngxCache.c_str();
+    discovery.FeatureInfo = &context.ngxInfo;
+    NVSDK_NGX_FeatureRequirement requirements{};
+    if (NVSDK_NGX_D3D12_GetFeatureRequirements(adapter.Get(), &discovery, &requirements) == NVSDK_NGX_Result_Success)
+    {
+        if (requirements.FeatureSupported == NVSDK_NGX_FeatureSupportResult_Supported) return true;
+        constexpr unsigned knownUnsupported = NVSDK_NGX_FeatureSupportResult_DriverVersionUnsupported |
+            NVSDK_NGX_FeatureSupportResult_AdapterUnsupported | NVSDK_NGX_FeatureSupportResult_OSVersionBelowMinimumSupported;
+        if ((static_cast<unsigned>(requirements.FeatureSupported) & ~knownUnsupported) == 0) return false;
+    }
+    // Older SDK implementations can fail the pre-init query or report that a check is unavailable.
+    return InitNgx(context, feature == NVSDK_NGX_Feature_RayReconstruction);
 }
 
 static bool InitFsr(Context& context)
@@ -186,7 +221,7 @@ API uint32_t ReconstructionCapabilities(ID3D12Device* device) noexcept
         }
     } catch (...) {}
     try { Context f; f.device = device; if (InitFsr(f)) bits |= 1u << 4; } catch (...) {}
-    try { Context n; n.device = device; if (InitNgx(n)) bits |= 1u << 5; } catch (...) {}
+    try { if (SupportsNgxFeature(device, NVSDK_NGX_Feature_SuperSampling)) bits |= 1u << 5; } catch (...) {}
     return bits;
 }
 
@@ -399,10 +434,6 @@ API int ReconstructionExecuteDlssd(Context* ctx, ID3D12GraphicsCommandList* comm
 API int ReconstructionRayReconstructionAvailable(ID3D12Device* device) noexcept
 {
     if (!device) return 0;
-    try {
-        Context context;
-        context.device = device;
-        return InitNgx(context, true) ? 1 : 0;
-    }
+    try { return SupportsNgxFeature(device, NVSDK_NGX_Feature_RayReconstruction) ? 1 : 0; }
     catch (...) { return 0; }
 }

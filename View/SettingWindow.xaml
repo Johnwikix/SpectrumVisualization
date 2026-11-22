@@ -363,7 +363,7 @@
                                 VerticalAlignment="Center"
                                 IsOn="{x:Bind ViewModel.ShowDebugOverlay, Mode=TwoWay}" />
                         </controls:SettingsCard>
-                        <controls:SettingsCard x:Uid="RunInBackground" Margin="10,0,10,4">
+                        <controls:SettingsCard x:Uid="RunInBackground" Margin="10,0,10,0">
                             <ToggleSwitch
                                 x:Uid="RunInBackgroundToggle"
                                 VerticalAlignment="Center"
