@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:WinExSpectrumTest.Control"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:extensions="using:WinExSpectrumTest.Extensions"
     xmlns:local="using:WinExSpectrumTest"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:myCanvas="using:WinExSpectrumTest.Canvas"
@@ -27,7 +28,7 @@
         </Grid>
 
         <!--
-            自绘标题栏（music_player 同款）：悬停显示，左侧窗口控制 + 右侧最小化/最大化/关闭，
+            自绘标题栏（music_player 同款）：悬停显示，左侧锁定/场景/设置 + 右侧窗口控制，
             中段为系统拖动区（SetDragRectangles，见代码）
         -->
         <Grid
@@ -42,6 +43,10 @@
             <Grid.OpacityTransition>
                 <ScalarTransition />
             </Grid.OpacityTransition>
+            <Grid.KeyboardAccelerators>
+                <KeyboardAccelerator Key="Left" Modifiers="Control" Invoked="PreviousEffectKeyboardAccelerator_Invoked" />
+                <KeyboardAccelerator Key="Right" Modifiers="Control" Invoked="NextEffectKeyboardAccelerator_Invoked" />
+            </Grid.KeyboardAccelerators>
             <StackPanel
                 x:Name="LeftButtons"
                 Margin="0"
@@ -50,6 +55,7 @@
                 Spacing="2">
                 <Button
                     x:Name="LockBtn"
+                    x:Uid="LockButton"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind MainViewModel.ToggleLockCommand}">
@@ -58,29 +64,35 @@
                         <KeyboardAccelerator Key="L" />
                     </Button.KeyboardAccelerators>
                 </Button>
+                <DropDownButton
+                    x:Name="SceneSwitcher"
+                    x:Uid="SceneSwitcher"
+                    Height="32"
+                    MinWidth="180"
+                    MaxWidth="240"
+                    Margin="2,0"
+                    Padding="12,0,8,0"
+                    HorizontalContentAlignment="Left"
+                    VerticalAlignment="Center"
+                    AutomationProperties.AutomationId="SceneSwitcher"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="14" Glyph="&#xE71D;" />
+                        <TextBlock
+                            MaxWidth="164"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind ViewModel.ActiveSceneName, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <DropDownButton.Flyout>
+                        <MenuFlyout
+                            extensions:MenuFlyoutExtensions.ItemsSource="{x:Bind ViewModel.SceneMenu, Mode=OneWay}"
+                            extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareSceneMenuCommand}" />
+                    </DropDownButton.Flyout>
+                </DropDownButton>
                 <Button
-                    AutomationProperties.Name="上一效果"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Command="{x:Bind ViewModel.PreviousEffectCommand}">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="Left" Modifiers="Control" />
-                    </Button.KeyboardAccelerators>
-                    <FontIcon FontSize="14" Glyph="&#xE76B;" />
-                </Button>
-                <Button
-                    AutomationProperties.Name="下一效果"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Command="{x:Bind ViewModel.NextEffectCommand}">
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="Right" Modifiers="Control" />
-                    </Button.KeyboardAccelerators>
-                    <FontIcon FontSize="14" Glyph="&#xE76C;" />
-                </Button>
-                <Button
+                    x:Uid="SettingsButton"
                     AutomationProperties.AutomationId="OpenSettings"
-                    AutomationProperties.Name="设置"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind ViewModel.ShowSettingsCommand}">
@@ -103,6 +115,7 @@
                 </Button>
                 <Button
                     x:Name="FullScreenBtn"
+                    x:Uid="FullScreenButton"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind MainViewModel.ToggleFullScreenCommand}">
@@ -114,12 +127,14 @@
                         Glyph="{x:Bind MainViewModel.FullScreenGlyph, Mode=OneWay}" />
                 </Button>
                 <Button
+                    x:Uid="MinimizeButton"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind MainViewModel.MinimizeCommand}">
                     <FontIcon FontSize="14" Glyph="&#xE738;" />
                 </Button>
                 <Button
+                    x:Uid="MaximizeButton"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind MainViewModel.ToggleMaximizeCommand}">
@@ -128,6 +143,7 @@
                         Glyph="{x:Bind MainViewModel.MaximizeGlyph, Mode=OneWay}" />
                 </Button>
                 <Button
+                    x:Uid="CloseButton"
                     Background="Transparent"
                     BorderThickness="0"
                     Command="{x:Bind MainViewModel.CloseWindowCommand}">

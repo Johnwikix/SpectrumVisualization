@@ -180,9 +180,20 @@
   <data name="UnlockWindow.Text" xml:space="preserve">
     <value>Unlock</value>
   </data>
-  <data name="SwitchEffect.Text" xml:space="preserve">
-    <value>Switch Effect</value>
-  </data>
+  <data name="SceneSwitcher.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Switch scene</value></data>
+  <data name="SceneSwitcher.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Choose an effect or Folia style by name; Ctrl+Left/Right cycles effects</value></data>
+  <data name="LockButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Lock or unlock window</value></data>
+  <data name="LockButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Lock or unlock window (L)</value></data>
+  <data name="SettingsButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Open settings</value></data>
+  <data name="FullScreenButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Toggle full screen</value></data>
+  <data name="FullScreenButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Toggle full screen (F)</value></data>
+  <data name="MinimizeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Minimize</value></data>
+  <data name="MinimizeButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Minimize window</value></data>
+  <data name="MaximizeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Maximize or restore</value></data>
+  <data name="MaximizeButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Maximize or restore window</value></data>
+  <data name="CloseButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Close window</value></data>
+  <data name="CloseButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Close window</value></data>
   <data name="EffectPage.Header" xml:space="preserve">
     <value>Effect Pages</value>
   </data>
@@ -424,6 +435,10 @@ Submit rate is not the display frame rate</value></data>
   <data name="MachiSceneKonbini.Content" xml:space="preserve"><value>Convenience store</value></data>
   <data name="MachiSceneStation.Content" xml:space="preserve"><value>Gas station</value></data>
   <data name="MachiSceneKowloon.Content" xml:space="preserve"><value>Kowloon bar</value></data>
+  <data name="MachiSceneName_auto" xml:space="preserve"><value>Choose by song</value></data>
+  <data name="MachiSceneName_konbini" xml:space="preserve"><value>Convenience store</value></data>
+  <data name="MachiSceneName_station" xml:space="preserve"><value>Gas station</value></data>
+  <data name="MachiSceneName_kowloon" xml:space="preserve"><value>Kowloon bar</value></data>
   <data name="MachiCapabilityPending" xml:space="preserve"><value>Machi requires a GPU with DXR support.</value></data>
   <data name="MachiRequiresDxr" xml:space="preserve"><value>This GPU does not support DXR. Saved Machi selections use Classic for this session.</value></data>
   <data name="MachiDxrAvailable" xml:space="preserve"><value>Hardware ray tracing is available.</value></data>

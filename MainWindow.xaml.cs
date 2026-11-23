@@ -196,6 +196,18 @@ namespace WinExSpectrumTest
             }
         }
 
+        private void PreviousEffectKeyboardAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            ViewModel.PreviousEffectCommand.Execute(null);
+            args.Handled = true;
+        }
+
+        private void NextEffectKeyboardAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            ViewModel.NextEffectCommand.Execute(null);
+            args.Handled = true;
+        }
+
         // ==== 标题栏命令入口（MainViewModel 经 App.MainWindow 回调，窗口实现在此）====
 
         public void MinimizeWindow()

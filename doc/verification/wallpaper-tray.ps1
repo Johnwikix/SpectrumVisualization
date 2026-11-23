@@ -60,7 +60,7 @@ if ($Action -eq 'Menu') {
     $items | ForEach-Object { [pscustomobject]@{ Text=$_.text; Toggle=$_.properties.'Toggle.ToggleState'; Enabled=$_.properties.IsEnabled } }
     return
 }
-$id = switch ($Action) { Toggle { 'WallpaperMode' }; Settings { 'Settings' }; Cycle { 'SwitchEffect' }; Unlock { 'Unlock' }; Exit { 'Exit' } }
+$id = switch ($Action) { Toggle { 'WallpaperMode' }; Settings { 'Settings' }; Cycle { 'SwitchEffect_sonic-topography' }; Unlock { 'Unlock' }; Exit { 'Exit' } }
 $item = $items | Where-Object { $_.properties.AutomationId -eq $id } | Select-Object -First 1
 if (!$item) { throw "Tray item not found: $id" }
 # Target the owning window; activating the popup HWND itself dismisses the menu.
@@ -69,15 +69,6 @@ if (!$item) { throw "Tray item not found: $id" }
 $verb = if ($Action -eq 'Toggle') { 'double-click' } else { 'click' }
 Invoke-Lvt $verb "uia:$($item.properties.RuntimeId)" --hwnd $menu.target.hwnd
 if ($Action -eq 'Cycle') {
-    # Switch Effect is now a submenu: the click above only expands it. Re-dump the
-    # same menu host (submenus are nested popups in that window), invoke one effect
-    # radio item, then dismiss because radio items keep the menu open.
-    Start-Sleep -Milliseconds 250
-    $menu = Invoke-Lvt dump --hwnd ('0x{0:X}' -f $menuHost.Handle) --uia --format json
-    $items = @(Read-Nodes $menu.root | Where-Object type -eq 'MenuItem')
-    $effect = $items | Where-Object { $_.properties.AutomationId -eq 'SwitchEffect_sonic-topography' } | Select-Object -First 1
-    if (!$effect) { throw 'Tray item not found: SwitchEffect_sonic-topography' }
-    Invoke-Lvt click "uia:$($effect.properties.RuntimeId)" --hwnd $menu.target.hwnd
     Start-Sleep -Milliseconds 150
     Invoke-Lvt press-key Escape --hwnd ('0x{0:X}' -f $menuHost.Handle)
 }

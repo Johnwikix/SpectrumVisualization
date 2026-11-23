@@ -1,49 +1,88 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Windows.ApplicationModel.Resources;
 using WinExSpectrumTest.Effects;
 using WinExSpectrumTest.Effects.Folia;
+using WinExSpectrumTest.Effects.Sonic;
 using WinExSpectrumTest.Model;
 
 namespace WinExSpectrumTest.ViewModel;
 
-/// <summary>托盘"切换效果"子菜单（MVVM 绑定，见 Extensions/MenuFlyoutExtensions）。</summary>
+/// <summary>主窗口与托盘共用的场景快捷切换。</summary>
 public partial class SettingViewModel
 {
-    /// <summary>三个效果单选一组；folia 本体无勾选态，其激活状态由歌词模式子级的选中项体现。</summary>
-    private const string EffectGroup = "TrayEffect";
-    private const string FoliaLyricGroup = "TrayFoliaLyricMode";
+    private const string EffectGroup = "QuickSceneEffect";
+    private const string FoliaLyricGroup = "QuickSceneFoliaLyricMode";
+    private const string MachiSceneGroup = "QuickSceneMachiScene";
+    private static readonly string[] MachiScenes = ["auto", "konbini", "station", "kowloon"];
 
-    private ObservableCollection<MenuModel>? _trayEffectMenu;
+    private ObservableCollection<MenuModel>? _sceneMenu;
+    private MenuModel[]? _foliaSceneMenu;
+    private MenuModel[]? _machiSceneMenu;
 
-    /// <summary>
-    /// 托盘效果子菜单模型树：结构固定（EffectRegistry 目录 + FoliaSettings.LyricModes），
-    /// 选中态由 <see cref="PrepareTrayEffectMenuCommand"/> 在每次展开前刷新。
-    /// </summary>
-    public ObservableCollection<MenuModel> TrayEffectMenu => _trayEffectMenu ??= CreateEffectMenu();
+    public string AuroraEffectName => EffectRegistry.GetDisplayName(AuroraRingEffect.EffectId);
+    public string SonicEffectName => EffectRegistry.GetDisplayName(SonicTopographyEffect.EffectId);
+    public string ActiveSceneName
+    {
+        get
+        {
+            string id = EffectRegistry.Resolve(AppSettings.VisualEffect).Id;
+            string name = EffectRegistry.GetDisplayName(id);
+            if (id != FoliaGpuEffect.EffectId) return name;
+            name += " · " + CurrentFoliaModeName;
+            return AppSettings.FoliaLyricMode == "machi" ? name + " · " + CurrentMachiSceneName : name;
+        }
+    }
+    public string FoliaSceneMenuTitle => EffectRegistry.GetDisplayName(FoliaGpuEffect.EffectId) + " · " + CurrentFoliaModeName;
+    public bool IsAuroraSelected => EffectRegistry.Resolve(AppSettings.VisualEffect).Id == AuroraRingEffect.EffectId;
+    public bool IsSonicSelected => EffectRegistry.Resolve(AppSettings.VisualEffect).Id == SonicTopographyEffect.EffectId;
+    private static string CurrentFoliaModeName =>
+        new ResourceLoader().GetString("FoliaModeName_" + FoliaSettings.NormalizeLyricMode(AppSettings.FoliaLyricMode));
+    private static string CurrentMachiSceneName =>
+        new ResourceLoader().GetString("MachiSceneName_" + AppSettings.FoliaMachiScene);
+    private static string MachiSceneMenuTitle =>
+        new ResourceLoader().GetString("FoliaModeName_machi") + " · " + CurrentMachiSceneName;
 
-    /// <summary>菜单展开前刷新选中态；RadioMenuFlyoutItem 的勾选在重建时读取这里的最新值。</summary>
+    public ObservableCollection<MenuModel> SceneMenu => _sceneMenu ??= CreateSceneMenu();
+    public IReadOnlyList<MenuModel> FoliaSceneMenu => _foliaSceneMenu ??= CreateFoliaSceneMenu();
+    private IReadOnlyList<MenuModel> MachiSceneMenu => _machiSceneMenu ??= CreateMachiSceneMenu();
+
     [RelayCommand]
-    private void PrepareTrayEffectMenu()
+    private void PrepareSceneMenu()
     {
         string active = EffectRegistry.Resolve(AppSettings.VisualEffect).Id;
         string lyricMode = AppSettings.FoliaLyricMode;
-        foreach (var item in TrayEffectMenu)
+        string machiScene = AppSettings.FoliaMachiScene;
+        foreach (var item in SceneMenu)
         {
             if (item.Children is { } children)
             {
                 foreach (var child in children)
-                    if (child.Tag is string mode)
-                    {
-                        child.IsChecked = mode == lyricMode;
-                        child.IsEnabled = mode != "machi" || MachiAvailable;
-                    }
+                {
+                    if (child.Tag is not string mode) continue;
+                    child.IsChecked = mode == lyricMode;
+                    child.IsEnabled = mode != "machi" || MachiAvailable;
+                    if (mode != "machi" || child.Children is not { } machiItems) continue;
+                    child.Title = MachiSceneMenuTitle;
+                    foreach (var sceneItem in machiItems)
+                        if (sceneItem.Tag is string scene)
+                            sceneItem.IsChecked = scene == machiScene;
+                }
             }
             else if (item.Tag is string id)
             {
                 item.IsChecked = id == active;
             }
         }
+    }
+
+    private void NotifySceneSelection()
+    {
+        OnPropertyChanged(nameof(ActiveSceneName));
+        OnPropertyChanged(nameof(FoliaSceneMenuTitle));
+        OnPropertyChanged(nameof(IsAuroraSelected));
+        OnPropertyChanged(nameof(IsSonicSelected));
     }
 
     [RelayCommand]
@@ -62,33 +101,24 @@ public partial class SettingViewModel
         VisualEffect = FoliaGpuEffect.EffectId;
     }
 
-    private ObservableCollection<MenuModel> CreateEffectMenu()
+    [RelayCommand]
+    private void SelectFoliaMachiScene(string? scene)
+    {
+        if (string.IsNullOrEmpty(scene) || !MachiAvailable) return;
+        FoliaMachiScene = scene;
+        FoliaLyricMode = "machi";
+        VisualEffect = FoliaGpuEffect.EffectId;
+    }
+
+    private ObservableCollection<MenuModel> CreateSceneMenu()
     {
         string active = EffectRegistry.Resolve(AppSettings.VisualEffect).Id;
-        string lyricMode = AppSettings.FoliaLyricMode;
         var menu = new ObservableCollection<MenuModel>();
         foreach (var (id, name) in EffectRegistry.GetCatalog())
         {
             if (id == FoliaGpuEffect.EffectId)
             {
-                // folia 挂歌词模式子级；歌词模式名称使用无属性后缀的独立资源键。
-                var resources = new ResourceLoader();
-                var lyricItems = new MenuModel[FoliaSettings.LyricModes.Length];
-                for (int i = 0; i < lyricItems.Length; i++)
-                {
-                    string mode = FoliaSettings.LyricModes[i];
-                    lyricItems[i] = new MenuModel
-                    {
-                        Title = resources.GetString("FoliaModeName_" + mode),
-                        Tag = mode,
-                        GroupName = FoliaLyricGroup,
-                        IsEnabled = mode != "machi" || MachiAvailable,
-                        IsChecked = mode == lyricMode,
-                        AutomationId = "SwitchEffect_" + id + "_" + mode,
-                        Command = SelectFoliaLyricModeCommand
-                    };
-                }
-                menu.Add(new MenuModel { Title = name, Tag = id, Children = lyricItems, AutomationId = "SwitchEffect_" + id });
+                menu.Add(new MenuModel { Title = name, Tag = id, Children = FoliaSceneMenu, AutomationId = "SwitchEffect_" + id });
             }
             else
             {
@@ -104,5 +134,58 @@ public partial class SettingViewModel
             }
         }
         return menu;
+    }
+
+    private MenuModel[] CreateFoliaSceneMenu()
+    {
+        var resources = new ResourceLoader();
+        string lyricMode = AppSettings.FoliaLyricMode;
+        var items = new MenuModel[FoliaSettings.LyricModes.Length];
+        for (int i = 0; i < items.Length; i++)
+        {
+            string mode = FoliaSettings.LyricModes[i];
+            if (mode == "machi")
+            {
+                items[i] = new MenuModel
+                {
+                    Title = MachiSceneMenuTitle,
+                    Tag = mode,
+                    IsEnabled = MachiAvailable,
+                    Children = MachiSceneMenu,
+                    AutomationId = "SwitchEffect_" + FoliaGpuEffect.EffectId + "_" + mode
+                };
+                continue;
+            }
+            items[i] = new MenuModel
+            {
+                Title = resources.GetString("FoliaModeName_" + mode),
+                Tag = mode,
+                GroupName = FoliaLyricGroup,
+                IsChecked = mode == lyricMode,
+                AutomationId = "SwitchEffect_" + FoliaGpuEffect.EffectId + "_" + mode,
+                Command = SelectFoliaLyricModeCommand
+            };
+        }
+        return items;
+    }
+
+    private MenuModel[] CreateMachiSceneMenu()
+    {
+        var resources = new ResourceLoader();
+        var items = new MenuModel[MachiScenes.Length];
+        for (int i = 0; i < items.Length; i++)
+        {
+            string scene = MachiScenes[i];
+            items[i] = new MenuModel
+            {
+                Title = resources.GetString("MachiSceneName_" + scene),
+                Tag = scene,
+                GroupName = MachiSceneGroup,
+                IsChecked = scene == AppSettings.FoliaMachiScene,
+                AutomationId = "SwitchEffect_" + FoliaGpuEffect.EffectId + "_machi_" + scene,
+                Command = SelectFoliaMachiSceneCommand
+            };
+        }
+        return items;
     }
 }

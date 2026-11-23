@@ -30,6 +30,8 @@ public static class MenuFlyoutExtensions
 
     public static IEnumerable<MenuModel> GetItemsSource(DependencyObject element) => (IEnumerable<MenuModel>)element.GetValue(ItemsSourceProperty);
 
+    internal static void Refresh(MenuFlyoutSubItem subItem) => Rebuild(subItem);
+
     private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         switch (d)

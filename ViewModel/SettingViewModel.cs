@@ -367,6 +367,7 @@ namespace WinExSpectrumTest.ViewModel
                     }
                     // Sonic 参数区仅在 Sonic 页激活时展示，避免误导
                     OnPropertyChanged(nameof(SonicSectionVisibility));
+                    NotifySceneSelection();
                 }
             }
         }
@@ -679,6 +680,8 @@ namespace WinExSpectrumTest.ViewModel
                     OnPropertyChanged(nameof(IsFoliaImageBackground));
                 if (name == nameof(AppSettings.FoliaFontFamily))
                     OnPropertyChanged(nameof(SelectedFoliaFont));
+                if (name is nameof(AppSettings.FoliaLyricMode) or nameof(AppSettings.FoliaMachiScene))
+                    NotifySceneSelection();
                 _hdrSaveTimer.Stop();
                 _hdrSaveTimer.Start();
                 return;
@@ -792,6 +795,7 @@ namespace WinExSpectrumTest.ViewModel
             SonicPeakIntensity = AppSettings.SonicPeakIntensity * 100f;
             CoverPulseEnabled = AppSettings.CoverPulseEnabled;
             SmtcTextAnimation = AppSettings.SmtcTextAnimation;
+            NotifySceneSelection();
             _isInitialized = initialized;
         }
 

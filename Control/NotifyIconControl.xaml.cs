@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using WinExSpectrumTest.Helper;
+using WinExSpectrumTest.Extensions;
 using WinExSpectrumTest.Model;
 using WinExSpectrumTest.View;
 
@@ -19,6 +20,11 @@ namespace WinExSpectrumTest.Control
             InitializeComponent();
             UpdateTrayState();
             AppSettings.Changed += OnSettingsChanged;
+        }
+
+        private void TrayMenu_Opening(object sender, object e)
+        {
+            MenuFlyoutExtensions.Refresh(SwitchEffect);
         }
 
         [RelayCommand]

@@ -21,7 +21,32 @@
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             NoLeftClickDelay="True">
             <tb:TaskbarIcon.ContextFlyout>
-                <MenuFlyout>
+                <MenuFlyout x:Name="TrayMenu" Opening="TrayMenu_Opening">
+                    <RadioMenuFlyoutItem
+                        Text="{x:Bind ViewModel.AuroraEffectName, Mode=OneWay}"
+                        AutomationProperties.AutomationId="SwitchEffect_aurora-ring"
+                        Command="{x:Bind ViewModel.SelectEffectCommand}"
+                        CommandParameter="aurora-ring"
+                        GroupName="TrayScene"
+                        IsChecked="{x:Bind ViewModel.IsAuroraSelected, Mode=OneWay}" />
+                    <RadioMenuFlyoutItem
+                        Text="{x:Bind ViewModel.SonicEffectName, Mode=OneWay}"
+                        AutomationProperties.AutomationId="SwitchEffect_sonic-topography"
+                        Command="{x:Bind ViewModel.SelectEffectCommand}"
+                        CommandParameter="sonic-topography"
+                        GroupName="TrayScene"
+                        IsChecked="{x:Bind ViewModel.IsSonicSelected, Mode=OneWay}" />
+                    <MenuFlyoutSubItem
+                        x:Name="SwitchEffect"
+                        Text="{x:Bind ViewModel.FoliaSceneMenuTitle, Mode=OneWay}"
+                        AutomationProperties.AutomationId="SwitchEffect_folia"
+                        extensions:MenuFlyoutExtensions.ItemsSource="{x:Bind ViewModel.FoliaSceneMenu, Mode=OneWay}"
+                        extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareSceneMenuCommand}">
+                        <MenuFlyoutSubItem.Icon>
+                            <FontIcon Glyph="&#xE71D;" />
+                        </MenuFlyoutSubItem.Icon>
+                    </MenuFlyoutSubItem>
+                    <MenuFlyoutSeparator />
                     <ToggleMenuFlyoutItem
                         x:Name="WallpaperMode"
                         x:Uid="WallpaperMode"
@@ -32,7 +57,6 @@
                             <SymbolIcon Symbol="Pictures" />
                         </ToggleMenuFlyoutItem.Icon>
                     </ToggleMenuFlyoutItem>
-                    <MenuFlyoutSeparator />
                     <MenuFlyoutItem
                         x:Name="Unlock"
                         x:Uid="UnlockWindow"
@@ -41,17 +65,6 @@
                             <FontIcon Glyph="&#xE785;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <!-- 效果子菜单走 MVVM：模型树由 ViewModel.TrayEffectMenu 提供，
-                         展开时经 PrepareCommand 刷新选中态后重建（见 Extensions/MenuFlyoutExtensions）。 -->
-                    <MenuFlyoutSubItem
-                        x:Name="SwitchEffect"
-                        x:Uid="SwitchEffect"
-                        extensions:MenuFlyoutExtensions.ItemsSource="{x:Bind ViewModel.TrayEffectMenu, Mode=OneWay}"
-                        extensions:MenuFlyoutExtensions.PrepareCommand="{x:Bind ViewModel.PrepareTrayEffectMenuCommand}">
-                        <MenuFlyoutSubItem.Icon>
-                            <FontIcon Glyph="&#xE71D;" />
-                        </MenuFlyoutSubItem.Icon>
-                    </MenuFlyoutSubItem>
                     <MenuFlyoutItem
                         x:Name="Settings"
                         x:Uid="Settings"
@@ -60,6 +73,7 @@
                             <FontIcon Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <MenuFlyoutSeparator />
                     <MenuFlyoutItem
                         x:Name="Exit"
                         x:Uid="Exit"
