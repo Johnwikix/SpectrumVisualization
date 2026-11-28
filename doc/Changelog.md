@@ -2,6 +2,12 @@
 
 功能变更记录，最新在前；格式约定见根目录 AGENTS.md。
 
+## 2026-11-28 对齐在线歌词匹配顺序
+
+- `LyricsOnlineSearch` 依次查找 QQ 逐字、酷狗逐字、网易云逐行与 LRCLIB。中文界面启用译文时，能对齐显示的中文译文优先于同步精度。
+- `LyricsOnlineSearch.Providers` 核对曲名、艺人、时长与版本标记，支持酷狗 KRC 和 LRCLIB 同步歌词。
+- `Lyricify.Lyrics.Helper` 同步 QQ 移动搜索与桌面回退、网易云新版接口优先、单次请求头隔离及可取消的酷狗请求。
+
 ## 2026-11-28 町景霓虹随音乐平滑变色
 
 - `MachiNeonMotion` 与 `MachiTrace` 让三个招牌及周围灯具沿原有色系平滑变色，保持发光明度稳定。

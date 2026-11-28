@@ -305,7 +305,8 @@ internal sealed class FoliaPlaybackService
             var status = LyricsSearchStatus.NoResult;
             if (content is null && player.AllowOnline)
             {
-                var online = await _onlineLyrics.SearchAsync(track, retry, token).ConfigureAwait(false);
+                var online = await _onlineLyrics.SearchAsync(track, retry, App.IsChineseLanguage && player.ShowTranslation, token)
+                    .ConfigureAwait(false);
                 content = online.Content;
                 status = online.Status;
             }
