@@ -7,7 +7,7 @@ struct SteamEmitter {
 };
 cbuffer MachiPost : register(b1) {
     row_major float4x4 Camera, RayBasis;
-    float4 HorizonMist, Weather, Scene; // Scene.w: 0 SDR, 1 HDR, 2 HDR with active neon peak coverage.
+    float4 HorizonMist, Weather, Scene; // Scene.w: 0 SDR, 1 HDR, 2 HDR with neon core coverage.
     float3 SkyTop;
     float FocusDistance;
     float4 Precipitation, RoofY, Roofs[4], Glints[3], Drips[192];
@@ -67,7 +67,7 @@ float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
         rgb=lerp(rgb,mist,distanceFog)*(1+.18*Scene.z);
         [branch] if (Scene.w>1.5) {
             float transmittance=(1-groundFog)*(1-distanceFog);
-            // Reserve HDR headroom for exposed diffusers through light and moderate fog.
+            // Preserve the exposed HDR cores through light and moderate fog.
             // Dense fog can still obscure them; geometric edge coverage remains independent.
             float visibleCore=smoothstep(.15,.70,transmittance);
             neonPeak=PreviousStageTexture.SampleLevel(LinearClamp,uv+DepthUvOffset,0).x*visibleCore;

@@ -6,16 +6,18 @@ internal sealed partial class FoliaMachi
     private const int BassNeonBand = 0;
     private const int MidNeonBand = 1;
     private const int TrebleNeonBand = 2;
+    private const int LandmarkNeonBand = 3;
+    private const int NeonCoreFlag = 4; // Matches MachiTrace's packed band flag.
 
     // The packed meshes have no object names. Identify the existing diffuser and sign faces
     // in the pinned exports by material and world coordinates, including a small rounding margin.
-    // Only static artwork (material 5) and physical diffusers (material 11) can respond.
+    // Static artwork, physical diffusers and the motel's emissive tubes can respond.
     private static int FindNeonBand(string sceneId, in PackedVertex vertex) => (sceneId, vertex.Material) switch
     {
         ("konbini", 11) => vertex switch
         {
             // Keep the front lip steady where it can cross the window poster at narrow aspect ratios.
-            // Pulse the cyan return and the sheltered downlights across the entrance and service bay.
+            // The cyan return and sheltered downlights cover the entrance and service bay.
             { Y: > 2.42f and < 2.45f, X: > 1.31f and < 1.36f, Z: > -4.49f and < .32f } => MidNeonBand,
             { Y: > 2.455f and < 2.457f, Z: > .69f and < .77f, X: > -3.95f and < .16f } => BassNeonBand,
             { Y: > 2.461f and < 2.463f, X: > 1.06f and < 1.16f, Z: > -3.83f and < -.99f } => MidNeonBand,
@@ -33,15 +35,29 @@ internal sealed partial class FoliaMachi
             { Y: > 3.79f and < 3.83f, X: > 5.921f and < 5.923f, Z: > -5.61f and < -1.43f } => MidNeonBand,
             { Y: > 3.844f and < 3.846f, X: > 1.79f and < 5.51f, Z: > -4.66f and < -2.34f } => TrebleNeonBand,
             // The column diffusers carry the treble into the foreground at eye level.
+            // Keep a small HDR core in the left diffuser.
+            { Y: > 2.15f and < 2.99f, Z: > -1.906f and < -1.904f, X: > 1.98f and < 2.12f } => TrebleNeonBand | NeonCoreFlag,
             { Y: > 2.15f and < 2.99f, Z: > -1.906f and < -1.904f, X: > 1.98f and < 5.32f } => TrebleNeonBand,
             // Low pump-island guides sit below the pump displays and across from the motel's panels.
             { Y: > .18f and < .24f, X: > 2.58f and < 4.72f, Z: > -4.08f and < -2.45f } => MidNeonBand,
             _ => NoNeonBand,
         },
+        ("konbini", 5) when vertex.Gain > 0 => vertex switch
+        {
+            // Both faces of the pole-mounted 24-hour store logo form one lightbox.
+            { X: > 1.06f and < 2.18f, Y: > 3.55f and < 4.60f, Z: > -5.96f and < -4.84f } => LandmarkNeonBand,
+            _ => NoNeonBand,
+        },
+        ("station", 3) => vertex switch
+        {
+            // The pink MOTEL letters and outline are modeled tubes in front of the dark sign face.
+            { X: > -5.39f and < -4.42f, Y: > 3.80f and < 6.40f, Z: > 1.35f and < 2.03f } => LandmarkNeonBand,
+            _ => NoNeonBand,
+        },
         ("kowloon", 5) when vertex.Gain > 0 => vertex switch
         {
             // The original 九龍城寨 rooftop sign, 網吧 billboard, and 牙科 vertical sign.
-            { X: > -.03f and < 2.43f, Y: > 6.62f and < 7.48f, Z: > -2.147f and < -2.145f } => BassNeonBand,
+            { X: > -.03f and < 2.43f, Y: > 6.62f and < 7.48f, Z: > -2.147f and < -2.145f } => LandmarkNeonBand | NeonCoreFlag,
             { X: > -3.57f and < -1.38f, Y: > 5.18f and < 5.92f, Z: > .633f and < .635f } => MidNeonBand,
             { X: > -3.32f and < -2.70f, Y: > 3.33f and < 5.47f, Z: > -.767f and < -.765f } => TrebleNeonBand,
             _ => NoNeonBand,

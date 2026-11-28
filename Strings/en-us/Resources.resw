@@ -421,7 +421,7 @@ Submit rate is not the display frame rate</value></data>
   <data name="FoliaMachiBloom.Header" xml:space="preserve"><value>Bloom</value></data>
   <data name="FoliaMachiBloom.Description" xml:space="preserve"><value>Bloom and horizontal light streaks.</value></data>
   <data name="FoliaMachiNeonStrength.Header" xml:space="preserve"><value>Neon response strength</value></data>
-  <data name="FoliaMachiNeonStrength.Description" xml:space="preserve"><value>Adjusts how strongly neon lights react to the music spectrum when realtime motion is on.</value></data>
+  <data name="FoliaMachiNeonStrength.Description" xml:space="preserve"><value>Adjusts how much neon colors shift with the music spectrum when realtime motion is on.</value></data>
   <data name="MachiRawActive" xml:space="preserve"><value>Hardware path tracing without denoising is active.</value></data>
   <data name="MachiRawSuperResolutionActive" xml:space="preserve"><value>Hardware path tracing without denoising is using {0}.</value></data>
   <data name="MachiRawFallback" xml:space="preserve"><value>The selected reconstruction mode is unavailable. Using FXAA without denoising.</value></data>

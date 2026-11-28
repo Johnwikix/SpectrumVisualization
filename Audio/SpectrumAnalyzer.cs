@@ -3,6 +3,7 @@ using NAudio.Dsp;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System;
+using Vector3 = System.Numerics.Vector3;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +33,10 @@ namespace WinExSpectrumTest.Audio
         public const int Density = 12;
         public const int SpectralCentroid = 13;
         public const int Energy = 14;
-        public const int Count = 15;
+        internal const int MotionBass = 15;
+        internal const int MotionMid = 16;
+        internal const int MotionTreble = 17;
+        public const int Count = 18;
     }
 
     /// <summary>
@@ -311,9 +315,16 @@ namespace WinExSpectrumTest.Audio
             var capture = _capture;
             if (bytesRecorded <= 0 || capture == null) return;
             ReadOnlySpan<float> samples = MemoryMarshal.Cast<byte, float>(raw.Slice(0, bytesRecorded));
-            int channels = Math.Max(1, capture.WaveFormat.Channels);
+            var format = capture.WaveFormat;
+            ProcessSamples(samples, format.Channels, format.SampleRate);
+        }
+
+        // This is also the PCM entry point for isolated analysis without a WASAPI endpoint.
+        internal void ProcessSamples(ReadOnlySpan<float> samples, int channels, int sampleRate)
+        {
+            channels = Math.Max(1, channels);
             int frames = samples.Length / channels;
-            if (frames <= 0) return;
+            if (frames <= 0 || sampleRate <= 0) return;
 
             if (frames >= FftSize)
             {
@@ -350,20 +361,27 @@ namespace WinExSpectrumTest.Audio
             }
 
             float[] bands = _bandsBack;
-            TransformBands(_mono, bands);
+            Vector3 motionEnergy = TransformBands(_mono, bands, sampleRate);
             TransformBands(_left, _bandsLBack);
             TransformBands(_right, _bandsRBack);
 
-            Analyze(bands, (float)bytesRecorded / capture.WaveFormat.AverageBytesPerSecond);
+            Analyze(bands, motionEnergy, (float)frames / sampleRate);
             Interlocked.Increment(ref _publicationCount);
         }
 
         /// <summary>RealForward 带 1/N 缩放（满幅正弦峰值 0.5），聚合到 512 段取段内峰值。</summary>
-        private void TransformBands(float[] samples, float[] bands)
+        private Vector3 TransformBands(float[] samples, float[] bands, int motionSampleRate = 0)
         {
             _fft.RealForward(samples, _spectrum);
             float binScale = InputGain * 16f;
             int binsPerBand = (SpectrumLength - 1) / BandCount;
+            Vector3 motionPower = default;
+            // These boundaries correspond to roughly 600 Hz, 3.8 kHz and 12 kHz
+            // at 48 kHz. Keep the circuits in those ranges for other device formats.
+            bool measureMotion = motionSampleRate > 0;
+            int bassEnd = measureMotion ? 13 * 48000 / motionSampleRate : 0;
+            int midEnd = measureMotion ? 82 * 48000 / motionSampleRate : 0;
+            int trebleEnd = measureMotion ? 256 * 48000 / motionSampleRate : 0;
             for (int i = 0; i < BandCount; i++)
             {
                 int start = i * binsPerBand;
@@ -378,7 +396,16 @@ namespace WinExSpectrumTest.Audio
                 }
                 float magnitude = MathF.Sqrt(peakPower) * binScale;
                 bands[i] = magnitude > 0f ? MathF.Min(magnitude, 1f) : 0f;
+                // The attack detector needs the unclipped magnitudes independently of
+                // display sensitivity. Only the mono transform supplies this signal.
+                if (measureMotion)
+                {
+                    if (i < bassEnd) motionPower.X += peakPower;
+                    else if (i < midEnd) motionPower.Y += peakPower;
+                    else if (i < trebleEnd) motionPower.Z += peakPower;
+                }
             }
+            return Vector3.SquareRoot(motionPower);
         }
 
         private void AppendStereo(ReadOnlySpan<float> samples, int channels, int frames, int ringOffset)
@@ -394,7 +421,7 @@ namespace WinExSpectrumTest.Audio
             }
         }
 
-        private void Analyze(float[] bands, float dt)
+        private void Analyze(float[] bands, Vector3 motionEnergy, float dt)
         {
             float sum = 0f, weighted = 0f, diffSum = 0f;
             float sub = 0f, bass = 0f, lowMid = 0f, mid = 0f, highMid = 0f;
@@ -478,10 +505,13 @@ namespace WinExSpectrumTest.Audio
 
             float follow = 1f - MathF.Pow(1f - SmoothingRate, MathF.Max(dt, 0f) * 60f);
             float[] smoothed = _featuresFront;
-            for (int i = 0; i < FeatureIndex.Count; i++)
+            for (int i = 0; i <= FeatureIndex.Energy; i++)
             {
                 target[i] = smoothed[i] + (target[i] - smoothed[i]) * follow;
             }
+            target[FeatureIndex.MotionBass] = motionEnergy.X;
+            target[FeatureIndex.MotionMid] = motionEnergy.Y;
+            target[FeatureIndex.MotionTreble] = motionEnergy.Z;
 
             // Publish: swap front/back references (atomic reference writes, no allocation).
             float[] tmpBands = _bandsFront;

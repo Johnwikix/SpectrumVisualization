@@ -256,6 +256,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         _machiBackend = null;
         _installedMachiScene = null;
         _machiStaticCameraKey = default;
+        _machiNeonMotion = default;
         _actorTransforms = [];
         GpuGraphics.DisposeResource(_stageRtv);
         _windowTexture = _panelTexture = null;
@@ -507,11 +508,10 @@ internal sealed unsafe partial class FoliaGpuEffect
         _lightData[11] = new(environment.SkyTop, camera.FocusDistance);
         float neonStrength = AppSettings.FoliaRealtimeMotion ? AppSettings.FoliaMachiNeonStrength : 0;
         long audioPublication = _analyzer.PublicationCount;
-        Vector3 neonPulse = _machiNeonMotion.Update(_analyzer.LatestFeatures, _data[1].W, neonStrength,
-            resetLyrics || firstEnvironmentFrame, audioPublication);
-        var neonEmission = neonPulse * (new Vector3(.75f) + 19.25f * neonPulse);
-        bool neonPeakEnabled = MachiHdrOutput && Math.Max(neonEmission.X, Math.Max(neonEmission.Y, neonEmission.Z)) > 6;
-        _lightData[10] = new(asset.SceneHalf, weatherTime, flash, MachiHdrOutput ? neonPeakEnabled ? 2 : 1 : 0);
+        var neonColorShift = _machiNeonMotion.Update(_analyzer.LatestFeatures, _data[1].W, neonStrength,
+            firstEnvironmentFrame, audioPublication);
+        bool neonPeakEnabled = MachiHdrOutput;
+        _lightData[10] = new(asset.SceneHalf, weatherTime, flash, neonPeakEnabled ? 2 : 0);
         // Lyrics replace the panel texture in place. World history belongs to the camera,
         // geometry and reconstruction, whose discontinuities the backend also detects.
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
@@ -525,7 +525,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             RainShelters = *(Matrix4x4*)(_lightData + 14),
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,
             SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze,
-            NeonEnabled = neonStrength > 0, NeonPeakEnabled = neonPeakEnabled, NeonEmission = neonEmission
+            NeonEnabled = neonStrength > 0, NeonPeakEnabled = neonPeakEnabled, NeonColorShift = neonColorShift
         };
         // The key describes the static camera already published in _machiFrame.
         _machiStaticCameraKey = _machiMotionWeight == 0 ? cameraKey : default;

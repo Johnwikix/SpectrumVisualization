@@ -34,7 +34,7 @@ cbuffer Camera : register(b0)
     uint SamplesPerPixel, MaxBounces;
     float PixelWidthAtUnitDepth;
     uint NeonPeakEnabled;
-    float3 NeonEmission;
+    float4 NeonColorShift; // Bass, mid, treble and landmark color envelopes.
 }
 
 RaytracingAccelerationStructure Scene : register(t0);
@@ -420,6 +420,24 @@ float PanelDots(float2 uv, uint material, Vertex a, Vertex b, Vertex c, SceneIns
     return lerp(.73, .45 + .9 * mask, 1 - smoothstep(.22, .9, footprint));
 }
 
+static const uint NeonBandMask = 3;
+static const uint NeonCoreFlag = 4;
+
+float3 TintNeon(float3 color, float amount)
+{
+    if (amount <= 0) return color;
+    float peak = max(color.r, max(color.g, color.b));
+    // Move toward rose or violet within each existing color family. Exchange
+    // channels at equal Rec.709 luminance, and keep the highlight shoulder stable
+    // by limiting the new channels to the original peak.
+    const float blueToGreen = .0722 / .7152;
+    const float redToGreen = .2126 / .7152;
+    float blue = min(.62 * peak * amount, min(peak - color.b, color.g / blueToGreen));
+    float red = min(.38 * peak * amount, min(peak - color.r, color.g / redToGreen));
+    float cool = smoothstep(.75, .98, color.b / max(peak, 1e-6));
+    return color + lerp(float3(0, -blueToGreen * blue, blue), float3(red, -redToGreen * red, 0), cool);
+}
+
 Surface Evaluate(Hit hit, float3 rayOrigin)
 {
     uint offset = TriangleOffset(hit);
@@ -476,16 +494,24 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         s.roughness = .45;
     }
     if (s.material == 3)
+    {
         s.emission = s.base * color.w * Lighting.z;
+        if (a.v.z >= 0)
+            s.emission = TintNeon(s.emission, NeonColorShift[(uint)a.v.z]);
+    }
     if (s.material == 11 && frontFace)
     {
         s.emission = float3(a.normalU.w, a.v.xy) * Lighting.z;
         if (a.v.z >= 0)
         {
-            float emission = NeonEmission[(uint)a.v.z];
-            // Modulate the original diffuser and reserve the HDR override for its exposed face.
-            s.emission *= 1 + .0325 * emission;
-            s.neonPeak = NeonPeakEnabled != 0 ? smoothstep(6, 20, emission) : 0;
+            uint band = (uint)a.v.z;
+            s.emission = TintNeon(s.emission, NeonColorShift[band & NeonBandMask]);
+            if (NeonPeakEnabled != 0 && (band & NeonCoreFlag) != 0)
+            {
+                // The station column's short center segment is a steady diffuser core.
+                float core = 1 - smoothstep(.10, .16, abs(s.p.y - 2.57));
+                s.neonPeak = core * smoothstep(.35, .85, Lighting.z);
+            }
         }
     }
     if (s.material == 12)
@@ -534,10 +560,21 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         }
         s.base = s.base * (1 - sign.a) + sign.rgb;
         s.emission = sign.rgb * color.w * Lighting.z;
-        // Use the original sign texture as the emissive mask. Dark ink and transparent
-        // areas stay dark, and the HDR peak override remains confined to diffuser faces.
         if (s.material == 5 && a.v.z >= 0 && frontFace)
-            s.emission *= 1 + .075 * NeonEmission[(uint)a.v.z];
+        {
+            uint band = (uint)a.v.z;
+            s.emission = TintNeon(s.emission, NeonColorShift[band & NeonBandMask]);
+            if (NeonPeakEnabled != 0 && (band & NeonBandMask) == NeonBandMask)
+            {
+                // The convenience store uses the nearly white ink. In Kowloon only
+                // a short cyan corner of the original border carries the extra headroom.
+                float whiteInk = min(sign.r, min(sign.g, sign.b));
+                float core = smoothstep(.88, .98, whiteInk);
+                if ((band & NeonCoreFlag) != 0)
+                    core = smoothstep(.18, .42, min(sign.g, sign.b) - sign.r) * (1 - smoothstep(.35, .50, s.p.x));
+                s.neonPeak = core * smoothstep(.35, .85, Lighting.z);
+            }
+        }
     }
     if (snow > 0)
     {

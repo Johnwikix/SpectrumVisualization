@@ -308,7 +308,7 @@ internal sealed partial class FoliaMachi
                                 source.Material == 12 ? source.U : source.U / 65535f),
                         new(fixture ? (float)BitConverter.UInt16BitsToHalf(source.V) : source.V / 65535f,
                             fixture ? (float)BitConverter.UInt16BitsToHalf(source.OverlayU) : source.OverlayU / 16383.75f - 2,
-                            source.Material is 5 or 11 ? FindNeonBand(sceneId, in source) : source.OverlayV / 16383.75f - 2,
+                            source.Material is 3 or 5 or 11 ? FindNeonBand(sceneId, in source) : source.OverlayV / 16383.75f - 2,
                             source.Surface));
                 }
             }

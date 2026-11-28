@@ -28,7 +28,7 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal bool NoVacancy { get; init; }
     internal bool NeonEnabled { get; init; }
     internal bool NeonPeakEnabled { get; init; }
-    internal Vector3 NeonEmission { get; init; }
+    internal Vector4 NeonColorShift { get; init; }
     internal int SamplesPerPixel { get; init; } = 1;
     internal int MaxBounces { get; init; } = 8;
 }
@@ -67,7 +67,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         public uint SamplesPerPixel, MaxBounces;
         public float PixelWidthAtUnitDepth;
         public uint NeonPeakEnabled;
-        public Vector3 NeonEmission;
+        public Vector4 NeonColorShift;
     }
 
     private int _width, _height;
@@ -371,7 +371,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             Puddles = new(frame.Puddles, frame.PuddleFill), RainShelters = frame.RainShelters,
             SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces,
             PixelWidthAtUnitDepth = 2 / (camera.Projection.M11 * _width),
-            NeonEmission = frame.NeonEnabled ? frame.NeonEmission : Vector3.Zero,
+            NeonColorShift = frame.NeonEnabled ? frame.NeonColorShift : Vector4.Zero,
             NeonPeakEnabled = frame.NeonPeakEnabled ? 1u : 0u
         };
 
