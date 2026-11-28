@@ -77,6 +77,13 @@ namespace WinExSpectrumTest.Model
         public static bool FoliaMachiDepthOfField { get => _foliaMachiDepthOfField; set => Set(ref _foliaMachiDepthOfField, value); }
         private static bool _foliaMachiBloom = true;
         public static bool FoliaMachiBloom { get => _foliaMachiBloom; set => Set(ref _foliaMachiBloom, value); }
+        public const float MachiDefaultNeonStrength = 1;
+        private static float _foliaMachiNeonStrength = MachiDefaultNeonStrength;
+        public static float FoliaMachiNeonStrength
+        {
+            get => _foliaMachiNeonStrength;
+            set => Set(ref _foliaMachiNeonStrength, float.IsFinite(value) ? Math.Clamp(value, 0, 2) : MachiDefaultNeonStrength);
+        }
 
         private static bool _foliaMetaphorNegative = false;
         /// <summary>Controls the paper and ink polarity of the Metaphor stage.</summary>

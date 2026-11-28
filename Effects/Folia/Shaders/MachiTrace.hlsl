@@ -7,7 +7,7 @@ struct Hit { float t; uint primitive; float2 bary; uint instance; };
 struct Surface
 {
     float3 p, previousP, n, previousNormal, face, base, emission;
-    float roughness, metal, waterRoughness, wetCoverage;
+    float roughness, metal, waterRoughness, wetCoverage, neonPeak;
     uint material, entering;
 };
 struct Plane
@@ -33,6 +33,8 @@ cbuffer Camera : register(b0)
     float4 RainShelters[4];
     uint SamplesPerPixel, MaxBounces;
     float PixelWidthAtUnitDepth;
+    uint NeonPeakEnabled;
+    float3 NeonEmission;
 }
 
 RaytracingAccelerationStructure Scene : register(t0);
@@ -87,6 +89,7 @@ RWTexture2D<float> Depth : register(u22);
 RWTexture2D<float> SpecularDistance : register(u23);
 RWTexture2D<float> ReconstructionDepth : register(u24);
 RWTexture2D<float2> ReconstructionMotion : register(u25);
+RWTexture2D<float> NeonPeak : register(u26);
 
 static const float WaterEta = 1.0 / 1.333;
 static const float WaterF0 = ((1.333 - 1.0) / (1.333 + 1.0)) * ((1.333 - 1.0) / (1.333 + 1.0));
@@ -444,6 +447,7 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         + float2(c.normalU.w, c.v.x) * weights.z;
     s.base = saturate(color.rgb);
     s.emission = 0;
+    s.neonPeak = 0;
     s.waterRoughness = 0;
     s.wetCoverage = 0;
     uint materialParameters = (uint)a.v.w;
@@ -474,7 +478,16 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
     if (s.material == 3)
         s.emission = s.base * color.w * Lighting.z;
     if (s.material == 11 && frontFace)
+    {
         s.emission = float3(a.normalU.w, a.v.xy) * Lighting.z;
+        if (a.v.z >= 0)
+        {
+            float emission = NeonEmission[(uint)a.v.z];
+            // Modulate the original diffuser and reserve the HDR override for its exposed face.
+            s.emission *= 1 + .0325 * emission;
+            s.neonPeak = NeonPeakEnabled != 0 ? smoothstep(6, 20, emission) : 0;
+        }
+    }
     if (s.material == 12)
     {
         float phase = frac((a.normalU.w - 6 * HemiGroundTime.w) / 4);
@@ -521,6 +534,10 @@ Surface Evaluate(Hit hit, float3 rayOrigin)
         }
         s.base = s.base * (1 - sign.a) + sign.rgb;
         s.emission = sign.rgb * color.w * Lighting.z;
+        // Use the original sign texture as the emissive mask. Dark ink and transparent
+        // areas stay dark, and the HDR peak override remains confined to diffuser faces.
+        if (s.material == 5 && a.v.z >= 0 && frontFace)
+            s.emission *= 1 + .075 * NeonEmission[(uint)a.v.z];
     }
     if (snow > 0)
     {
@@ -1072,7 +1089,7 @@ void RayGen()
     float roughness = 1, z = -1e6, depth = 1;
     float2 motion = 0;
     float3 rawAlbedo = 0, rawSpecular = 0;
-    float reflectionDominance = 0;
+    float reflectionDominance = 0, neonPeak = 0;
     Plane reflection = (Plane)0, transmission = (Plane)0;
     reflection.hitDistance = transmission.hitDistance = SunRadianceFar.w;
     reflection.normal = transmission.normal = -primary;
@@ -1082,6 +1099,7 @@ void RayGen()
     {
         Surface s = Evaluate(hit, origin);
         deterministic = s.emission;
+        neonPeak = s.neonPeak;
         if (needsGeometryGuides)
         {
             worldNormal = s.n;
@@ -1253,6 +1271,7 @@ void RayGen()
     Noisy[pixel] = float4(min(NRD_FP16_MAX, deterministic + reflection.deterministic + transmission.deterministic
         + d + r + reflection.color + transmission.color), 1);
     Depth[pixel] = depth;
+    if (NeonPeakEnabled != 0) NeonPeak[pixel] = neonPeak;
     if (writeRayReconstruction)
     {
         // RR has one G-buffer. Choose its optical lobe from the Fresnel

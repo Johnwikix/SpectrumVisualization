@@ -31,6 +31,7 @@ internal interface IMachiRenderEffect
     void ConfigureMachi(in GpuRenderSize size, ReconstructionMode mode, string preset, MachiDenoisingMode denoising);
     void ResetMachiHistory();
     bool MachiHdrOutput { set; }
+    bool HasMachiNeonPeak { get; }
     MachiRenderStatus MachiStatus { get; }
     void EnableVendorInitialization();
 }

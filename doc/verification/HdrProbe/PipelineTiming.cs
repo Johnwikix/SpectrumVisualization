@@ -48,7 +48,8 @@ internal sealed unsafe partial class GpuGraphics
         _commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         _commands.RSSetViewport(0, 0, Width, Height, 0, 1);
         _commands.RSSetScissorRect(Width, Height);
-        _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + (_temporal != null ? 2 * _srvStride : 0));
+        var sceneSrv = _srvs.GetGPUDescriptorHandleForHeapStart() + (_temporal != null ? 2 * _srvStride : 0);
+        _commands.SetGraphicsRootDescriptorTable(0, sceneSrv);
         float* constants = stackalloc float[6] { _hdr ? 1 : 0, 200, 1000, 0, 1f / Width, 1f / Height };
         _commands.SetGraphicsRoot32BitConstants(1, 6, constants, 0);
         if (_antialias != null)
@@ -67,6 +68,7 @@ internal sealed unsafe partial class GpuGraphics
             }
             _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + _srvStride);
         }
+        _commands.SetGraphicsRootDescriptorTable(2, sceneSrv);
         int buffer = (int)_swapChain.CurrentBackBufferIndex;
         Transition(_backBuffers[buffer]!, ResourceStates.Common, ResourceStates.RenderTarget);
         _commands.OMSetRenderTargets(Rtv(buffer), null);

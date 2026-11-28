@@ -420,6 +420,8 @@ CPU 工作 {3:F2} ms | Present {4:F2} ms | GPU 等待 {5:F2} ms
   <data name="FoliaMachiDepthOfField.Header" xml:space="preserve"><value>景深模糊</value></data>
   <data name="FoliaMachiBloom.Header" xml:space="preserve"><value>泛光</value></data>
   <data name="FoliaMachiBloom.Description" xml:space="preserve"><value>控制亮部光晕和横向光晕。</value></data>
+  <data name="FoliaMachiNeonStrength.Header" xml:space="preserve"><value>霓虹灯动感强度</value></data>
+  <data name="FoliaMachiNeonStrength.Description" xml:space="preserve"><value>开启实时动感后，调节霓虹灯随音乐频谱变化的幅度。</value></data>
   <data name="MachiRawActive" xml:space="preserve"><value>正在使用硬件路径追踪，未启用降噪。</value></data>
   <data name="MachiRawSuperResolutionActive" xml:space="preserve"><value>正在使用硬件路径追踪和 {0}，未启用降噪。</value></data>
   <data name="MachiRawFallback" xml:space="preserve"><value>所选重建模式不可用，正在使用 FXAA，未启用降噪。</value></data>

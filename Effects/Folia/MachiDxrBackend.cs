@@ -26,6 +26,9 @@ internal readonly record struct MachiDxrFrame(MachiCamera Camera, Vector3 Sky, V
     internal float AmbientTime { get; init; }
     internal float Rain { get; init; }
     internal bool NoVacancy { get; init; }
+    internal bool NeonEnabled { get; init; }
+    internal bool NeonPeakEnabled { get; init; }
+    internal Vector3 NeonEmission { get; init; }
     internal int SamplesPerPixel { get; init; } = 1;
     internal int MaxBounces { get; init; } = 8;
 }
@@ -42,7 +45,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private const int ResolveProxy = ResolveRawSource + 1;
     private const int ResolveOutput = ResolveProxy + 1;
     private const int DescriptorsPerFrame = ResolveOutput + 1;
-    private const int ConstantsStride = 512;
+    private const int ConstantsStride = 3 * 256; // CBV addresses are 256-byte aligned.
     private const int RayReconstructionGuides = 3;
     private const Format HdrFormat = Format.R16G16B16A16_Float;
     private const ResourceStates Read = ResourceStates.NonPixelShaderResource;
@@ -63,6 +66,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         public Matrix4x4 RainShelters;
         public uint SamplesPerPixel, MaxBounces;
         public float PixelWidthAtUnitDepth;
+        public uint NeonPeakEnabled;
+        public Vector3 NeonEmission;
     }
 
     private int _width, _height;
@@ -94,12 +99,14 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private bool _denoiserAttempted;
     private uint _frameIndex;
     private int _previousSamplesPerPixel, _previousMaxBounces;
+    private bool _previousNeonEnabled;
 
     internal bool DenoiserAvailable { get; private set; }
     internal bool DenoisingDisabled { get; private set; }
     internal bool RayReconstructionAvailable { get; private set; }
     internal bool RayReconstructionActive { get; private set; }
     internal ID3D12Resource SurfaceDepth => Signal(MachiDxrSignal.Depth);
+    internal ID3D12Resource NeonPeak => Signal(MachiDxrSignal.NeonPeak);
     internal Vector2 SurfaceDepthUvOffset => RayReconstructionActive || SuperResolutionActive >= ReconstructionMode.XeSS
         ? new(-_previousJitter.X / _width, -_previousJitter.Y / _height) : Vector2.Zero;
     private ID3D12Resource Signal(MachiDxrSignal slot) => _signals[(int)slot];
@@ -215,7 +222,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
     private bool AllocateTraceSignal(MachiDxrSignal signal, ReconstructionMode mode)
     {
         if (DenoisingDisabled)
-            return signal is MachiDxrSignal.Noisy or MachiDxrSignal.Depth ||
+            return signal is MachiDxrSignal.Noisy or MachiDxrSignal.Depth or MachiDxrSignal.NeonPeak ||
                 signal == MachiDxrSignal.Motion && mode >= ReconstructionMode.XeSS;
         return !IsRayReconstructionGuide((int)signal);
     }
@@ -337,6 +344,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
 
         bool reset = frame.ResetHistory || !_historyValid || frame.DeltaSeconds is <= 0 or > .25f
             || _previousSamplesPerPixel != frame.SamplesPerPixel || _previousMaxBounces != frame.MaxBounces
+            || _previousNeonEnabled != frame.NeonEnabled
             || requestRayReconstruction != wasRayReconstruction
             || requestSuperResolution && SuperResolutionActive != _superResolutionMode;
         if (reset) _jitterIndex = 0;
@@ -362,7 +370,9 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
             CityGlow = new(frame.CityGlow, FoliaMachi.BoardWhiteRadiance * frame.Artificial),
             Puddles = new(frame.Puddles, frame.PuddleFill), RainShelters = frame.RainShelters,
             SamplesPerPixel = (uint)frame.SamplesPerPixel, MaxBounces = (uint)frame.MaxBounces,
-            PixelWidthAtUnitDepth = 2 / (camera.Projection.M11 * _width)
+            PixelWidthAtUnitDepth = 2 / (camera.Projection.M11 * _width),
+            NeonEmission = frame.NeonEnabled ? frame.NeonEmission : Vector3.Zero,
+            NeonPeakEnabled = frame.NeonPeakEnabled ? 1u : 0u
         };
 
         if (_lyrics[frameSlot] != lyrics.NativePointer)
@@ -420,6 +430,7 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         _historyValid = true;
         _previousSamplesPerPixel = frame.SamplesPerPixel;
         _previousMaxBounces = frame.MaxBounces;
+        _previousNeonEnabled = frame.NeonEnabled;
         _previous = camera;
         _previousJitter = -jitter;
         _jitterIndex++;
@@ -456,7 +467,8 @@ internal sealed unsafe partial class MachiDxrBackend : IDisposable
         {
             var binding = (MachiDxrSignal)i;
             bool used = rayReconstruction
-                ? binding is MachiDxrSignal.Noisy or MachiDxrSignal.Depth or MachiDxrSignal.ReflectionMotion || IsRayReconstructionGuide(i)
+                ? binding is MachiDxrSignal.Noisy or MachiDxrSignal.Depth or MachiDxrSignal.ReflectionMotion or MachiDxrSignal.NeonPeak
+                    || IsRayReconstructionGuide(i)
                 : !IsRayReconstructionGuide(i);
             if (used && _signals[i] is { } signal)
                 barriers[count++] = ResourceBarrier.BarrierTransition(signal, before, after);

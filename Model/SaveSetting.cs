@@ -32,6 +32,7 @@ namespace WinExSpectrumTest.Model
         public bool FoliaMachiChromaticAberration { get; set; } = true;
         public bool FoliaMachiDepthOfField { get; set; } = true;
         public bool FoliaMachiBloom { get; set; } = true;
+        public float FoliaMachiNeonStrength { get; set; } = AppSettings.MachiDefaultNeonStrength;
         public bool FoliaMachiGpuQualityOverride { get; set; } = AppSettings.MachiDefaultGpuQualityOverride;
         public string FoliaMachiAntiAliasing { get; set; } = "fxaa";
         public int FoliaMachiRenderScalePercent { get; set; } = AppSettings.MachiDefaultRenderScalePercent;

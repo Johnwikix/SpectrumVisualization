@@ -7,7 +7,7 @@ struct SteamEmitter {
 };
 cbuffer MachiPost : register(b1) {
     row_major float4x4 Camera, RayBasis;
-    float4 HorizonMist, Weather, Scene;
+    float4 HorizonMist, Weather, Scene; // Scene.w: 0 SDR, 1 HDR, 2 HDR with active neon peak coverage.
     float3 SkyTop;
     float FocusDistance;
     float4 Precipitation, RoofY, Roofs[4], Glints[3], Drips[192];
@@ -46,6 +46,7 @@ float SurfaceDepth(float2 position) {
 float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float3 rgb=BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb;
     float depth=SampleDeviceDepth(uv);
+    float neonPeak=0;
     if (depth>=1) {
         // DXR supplies the sky gradient and the finite solar or lunar disk.
         float2 p=float2(uv.x*Screen.x/Screen.y,1-uv.y)*2.4+float2(Scene.y*.012,0);
@@ -60,10 +61,20 @@ float4 AtmospherePS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
         float drift=.65*Fbm(world.xz*.32+wind)+.35*Fbm(world.xz*.9-wind*1.7);
         float h=max(world.y,0);
         float3 mist=HorizonMist.rgb*(1.35-.4*Weather.w);
-        rgb=lerp(rgb,mist,saturate((.65*Weather.z+.025*Weather.x)*exp(-h/.55)*(.35+.9*drift)));
-        rgb=lerp(rgb,mist,Weather.z*(.3+.7*smoothstep(-10,10,ViewDistance(depth)-FocusDistance)))*(1+.18*Scene.z);
+        float groundFog=saturate((.65*Weather.z+.025*Weather.x)*exp(-h/.55)*(.35+.9*drift));
+        float distanceFog=Weather.z*(.3+.7*smoothstep(-10,10,ViewDistance(depth)-FocusDistance));
+        rgb=lerp(rgb,mist,groundFog);
+        rgb=lerp(rgb,mist,distanceFog)*(1+.18*Scene.z);
+        [branch] if (Scene.w>1.5) {
+            float transmittance=(1-groundFog)*(1-distanceFog);
+            // Reserve HDR headroom for exposed diffusers through light and moderate fog.
+            // Dense fog can still obscure them; geometric edge coverage remains independent.
+            float visibleCore=smoothstep(.15,.70,transmittance);
+            neonPeak=PreviousStageTexture.SampleLevel(LinearClamp,uv+DepthUvOffset,0).x*visibleCore;
+        }
     }
-    return float4(rgb,1);
+    // Source-over steam, weather and subtitles attenuate peak coverage in this alpha encoding.
+    return float4(rgb,1-neonPeak);
 }
 // Keep the foreground and backdrop apertures continuous as tilt crosses the focus plane.
 float2 BlurRadii(float2 uv) {
@@ -74,7 +85,9 @@ float2 BlurRadii(float2 uv) {
 }
 float4 LensPS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     float2 centered=uv-.5;
-    float3 color=LayerTexture.SampleLevel(LinearClamp,uv,0).rgb;
+    float4 atmosphere=LayerTexture.SampleLevel(LinearClamp,uv,0);
+    float3 color=atmosphere.rgb;
+    float neonPeak=1-atmosphere.a;
     [branch] if (ChromaticAberrationEnabled>.5) {
         float2 shift=centered*dot(centered,centered)*.003;
         color.r=LayerTexture.SampleLevel(LinearClamp,uv+shift,0).r;
@@ -83,6 +96,7 @@ float4 LensPS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     [branch] if (DepthOfFieldEnabled>.5) {
         float radius=.006*Screen.y;
         float2 mid=BlurRadii(uv);
+        neonPeak*=1-.65*saturate(max(mid.x,mid.y));
         float2 dir=float2(1,0);
         // The center anchors a barely defocused edge. Opposite taps enter the aperture
         // together so changing focus cannot translate a straight pole sideways.
@@ -130,7 +144,7 @@ float4 LensPS(float4 pos:SV_Position,float2 uv:TEXCOORD0):SV_Target {
         float mapped=1-.24*.24/(peak-.52);
         color=lerp(color*(mapped/peak),mapped,1-1/(1+.15*(peak-mapped)));
     }
-    return float4(color,1);
+    return float4(color,1-neonPeak);
 }
 // Roof bounds and downspout cycles are baked from the corresponding upstream set.
 float GroundHeight(float2 xz) {

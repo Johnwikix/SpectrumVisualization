@@ -22,7 +22,8 @@ internal sealed class ColorOutputPipelines : IDisposable
         {
             Root = device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
                 [new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,0,0,0,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel),
-                 new RootParameter1(new RootConstants(0,0,6),ShaderVisibility.Pixel)],
+                 new RootParameter1(new RootConstants(0,0,6),ShaderVisibility.Pixel),
+                 new RootParameter1(new RootDescriptorTable1([new DescriptorRange1(DescriptorRangeType.ShaderResourceView,1,1,0,0,DescriptorRangeFlags.None)]),ShaderVisibility.Pixel)],
                 [new StaticSamplerDescription(0,Filter.MinMagMipLinear,TextureAddressMode.Clamp,TextureAddressMode.Clamp,TextureAddressMode.Clamp,
                     0,0,ComparisonFunction.Never,StaticBorderColor.TransparentBlack,0,float.MaxValue,ShaderVisibility.Pixel,0)]));
             byte[] vs = ShaderCompiler.Compile(ColorOutputShaderSource.Source,"VS","vs_5_0");
@@ -48,7 +49,7 @@ internal sealed class ColorOutputPipelines : IDisposable
             BlendState = BlendDescription.Opaque,
             RasterizerState = new RasterizerDescription { CullMode = CullMode.None, FillMode = FillMode.Solid },
             DepthStencilState = new DepthStencilDescription { DepthEnable = false, StencilEnable = false }
-        }, $"Output/root-v1/{entry}/{format}");
+        }, $"Output/root-v2/{entry}/{format}");
 
     public void Dispose()
     {

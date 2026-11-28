@@ -30,7 +30,7 @@ float4 Combine(Vertex v):SV_Target {
 
 // Machi keeps HDR radiance, including overbright signage and the horizontals of the anamorphic streak.
 float4 CombineLinear(Vertex v):SV_Target {
- float3 base=Source.SampleLevel(LinearClamp,v.uv,0).rgb;
+ float4 base=Source.SampleLevel(LinearClamp,v.uv,0);
  float3 bloom=Add.SampleLevel(LinearClamp,v.uv,0).rgb;
  float3 streak=0;
  if(Options.w>.005) {
@@ -40,5 +40,5 @@ float4 CombineLinear(Vertex v):SV_Target {
    streak+=weight*(Add.SampleLevel(LinearClamp,v.uv-offset,0).rgb+Add.SampleLevel(LinearClamp,v.uv+offset,0).rgb);
   }
  }
- return float4(base+bloom*Options.z+streak*float3(.62,.74,1)*Options.w,1);
+ return float4(base.rgb+bloom*Options.z+streak*float3(.62,.74,1)*Options.w,base.a);
 }

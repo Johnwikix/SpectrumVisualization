@@ -47,7 +47,8 @@ internal sealed partial class FoliaMachi
     internal WeatherLayout Weather { get; }
     internal SteamEmitter[] Steam { get; }
 
-    private FoliaMachi(BinaryReader reader, CancellationToken cancellationToken, WeatherLayout weather, SteamEmitter[] steam)
+    private FoliaMachi(BinaryReader reader, CancellationToken cancellationToken, WeatherLayout weather, SteamEmitter[] steam,
+        string sceneId)
     {
         Weather = weather;
         Steam = steam;
@@ -113,7 +114,7 @@ internal sealed partial class FoliaMachi
             Lights[i] = new Light(position, direction, color, reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
         }
 
-        Mesh = ReadVertices(reader.BaseStream, vertexCount, cancellationToken);
+        Mesh = ReadVertices(reader.BaseStream, vertexCount, sceneId, cancellationToken);
         Indices = new uint[indexCount];
         reader.BaseStream.ReadExactly(MemoryMarshal.AsBytes(Indices.AsSpan()));
         foreach (uint index in Indices)
@@ -139,7 +140,7 @@ internal sealed partial class FoliaMachi
             "kowloon" => (KowloonWeather, KowloonSteam),
             _ => (KonbiniWeather, KonbiniSteam)
         };
-        return new FoliaMachi(reader, cancellationToken, weather, steam);
+        return new FoliaMachi(reader, cancellationToken, weather, steam, sceneId);
     }
 
     internal static string ResolveSceneId(string requested, FoliaSong song)
@@ -277,7 +278,7 @@ internal sealed partial class FoliaMachi
         return value >= minimum && value <= limit ? value : throw new InvalidDataException("Invalid Machi scene size.");
     }
 
-    private static Vertex[] ReadVertices(Stream stream, int count, CancellationToken cancellationToken)
+    private static Vertex[] ReadVertices(Stream stream, int count, string sceneId, CancellationToken cancellationToken)
     {
         const int BlockVertices = 2048;
         const int Stride = 32;
@@ -307,7 +308,8 @@ internal sealed partial class FoliaMachi
                                 source.Material == 12 ? source.U : source.U / 65535f),
                         new(fixture ? (float)BitConverter.UInt16BitsToHalf(source.V) : source.V / 65535f,
                             fixture ? (float)BitConverter.UInt16BitsToHalf(source.OverlayU) : source.OverlayU / 16383.75f - 2,
-                            source.OverlayV / 16383.75f - 2, source.Surface));
+                            source.Material is 5 or 11 ? FindNeonBand(sceneId, in source) : source.OverlayV / 16383.75f - 2,
+                            source.Surface));
                 }
             }
             return result;

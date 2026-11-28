@@ -85,8 +85,9 @@ float4 VignettePS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
 float Cross2(float2 a,float2 b){return a.x*b.y-a.y*b.x;}
 float InversionLuminance(float2 uv){return dot(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,float3(.2126,.7152,.0722));}
 float4 CopyPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
-    float3 color = max(BackdropTexture.SampleLevel(LinearClamp,uv,0).rgb,0);
-    return float4(NativeLyric.x == 4 ? color : ToLinear(color),1);
+    float4 stage = BackdropTexture.SampleLevel(LinearClamp,uv,0);
+    float3 color = max(stage.rgb,0);
+    return NativeLyric.x == 4 ? float4(color,stage.a) : float4(ToLinear(color),1);
 }
 float4 BackgroundSnapshotPS(float4 p:SV_Position,float2 uv:TEXCOORD0):SV_Target {
     return BackdropTexture.SampleLevel(LinearClamp,uv,0);

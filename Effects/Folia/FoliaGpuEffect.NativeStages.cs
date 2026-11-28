@@ -52,6 +52,7 @@ internal sealed unsafe partial class FoliaGpuEffect
             _failedMachiSelection = (request.Song, request.MachiScene, requested);
     }
     public bool MachiHdrOutput { private get; set; }
+    public bool HasMachiNeonPeak => _nativeStage == FoliaNativeStage.Machi && _machiFrame.NeonPeakEnabled;
     public bool UsesMachiReconstruction => _hardwareRaytracing && _failedMachiSelection == null
         && (AppSettings.FoliaLyricMode == "machi" || (_hasScene && _activeRequest.Mode == "machi"));
     public MachiDenoisingMode RequestedMachiDenoising => ResolveMachiDenoising(AppSettings.FoliaMachiDenoiser);
@@ -463,6 +464,7 @@ internal sealed unsafe partial class FoliaGpuEffect
     private float _machiChorus, _machiVacancyChorus;
     private float? _machiDoor;
     private double _machiCycleSeconds;
+    private MachiNeonMotion _machiNeonMotion;
     private void UpdateMachiFrame(FoliaSong song, double position, int anchor, int board, bool resetLyrics)
     {
         bool firstEnvironmentFrame = _machiEnvironment.TimeOfDay == null;
@@ -498,12 +500,18 @@ internal sealed unsafe partial class FoliaGpuEffect
             }
         }
         float weatherTime = (float)(_backgroundTime % 3600);
-        _lightData[10] = new(asset.SceneHalf, weatherTime, flash, MachiHdrOutput ? 1 : 0);
         _lightData[MachiSteamLighting] = new((environment.HemiSky + environment.HemiGround) * .5f
             + environment.CityGlow + new Vector3(.014f, .02f, .028f), 0);
         _lightData[MachiSteamLighting + 1] = new(environment.SunDirection, 0);
         _lightData[MachiSteamLighting + 2] = new(environment.SunRadiance, 0);
         _lightData[11] = new(environment.SkyTop, camera.FocusDistance);
+        float neonStrength = AppSettings.FoliaRealtimeMotion ? AppSettings.FoliaMachiNeonStrength : 0;
+        long audioPublication = _analyzer.PublicationCount;
+        Vector3 neonPulse = _machiNeonMotion.Update(_analyzer.LatestFeatures, _data[1].W, neonStrength,
+            resetLyrics || firstEnvironmentFrame, audioPublication);
+        var neonEmission = neonPulse * (new Vector3(.75f) + 19.25f * neonPulse);
+        bool neonPeakEnabled = MachiHdrOutput && Math.Max(neonEmission.X, Math.Max(neonEmission.Y, neonEmission.Z)) > 6;
+        _lightData[10] = new(asset.SceneHalf, weatherTime, flash, MachiHdrOutput ? neonPeakEnabled ? 2 : 1 : 0);
         // Lyrics replace the panel texture in place. World history belongs to the camera,
         // geometry and reconstruction, whose discontinuities the backend also detects.
         _machiFrame = new(camera, environment.SkyTop, environment.SunDirection, environment.SunRadiance,
@@ -516,7 +524,8 @@ internal sealed unsafe partial class FoliaGpuEffect
             PuddleFill = environment.PuddleFill, RainTime = weatherTime,
             RainShelters = *(Matrix4x4*)(_lightData + 14),
             SkyBottom = environment.SkyBottom, Artificial = environment.Artificial,
-            SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze
+            SnowCover = environment.SnowCover, Mist = environment.Mist, Haze = environment.Haze,
+            NeonEnabled = neonStrength > 0, NeonPeakEnabled = neonPeakEnabled, NeonEmission = neonEmission
         };
         // The key describes the static camera already published in _machiFrame.
         _machiStaticCameraKey = _machiMotionWeight == 0 ? cameraKey : default;
@@ -539,10 +548,12 @@ internal sealed unsafe partial class FoliaGpuEffect
             RecordMachiFailure(_activeRequest);
 
         var depth = _machiBackend.SurfaceDepth;
+        var neonPeak = _machiBackend.NeonPeak;
         _lightData[MachiDepthPostIndex] = new(_machiBackend.SurfaceDepthUvOffset,
             AppSettings.FoliaMachiChromaticAberration ? 1 : 0, AppSettings.FoliaMachiDepthOfField ? 1 : 0);
         SetFoliaState(commands);
         commands.ResourceBarrierTransition(depth, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
+        commands.ResourceBarrierTransition(neonPeak, ResourceStates.NonPixelShaderResource, ResourceStates.PixelShaderResource);
         var atmosphere = Rtv(1);
         var bloom = _bloom;
         if (bloom != null)
@@ -565,6 +576,7 @@ internal sealed unsafe partial class FoliaGpuEffect
         RecordMachiWeather(commands);
         commands.ResourceBarrierTransition(_textures[3]!, ResourceStates.RenderTarget, ResourceStates.PixelShaderResource);
         commands.ResourceBarrierTransition(depth, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
+        commands.ResourceBarrierTransition(neonPeak, ResourceStates.PixelShaderResource, ResourceStates.NonPixelShaderResource);
     }
 
     private void RecordMachiWeather(ID3D12GraphicsCommandList commands)

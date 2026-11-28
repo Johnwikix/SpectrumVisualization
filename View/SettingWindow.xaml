@@ -771,6 +771,29 @@
                                         AutomationProperties.LabeledBy="{x:Bind FoliaMachiBloomCard}"
                                         IsOn="{x:Bind ViewModel.FoliaMachiBloom, Mode=TwoWay}" />
                                 </controls:SettingsCard>
+                                <controls:SettingsCard
+                                    x:Name="FoliaMachiNeonStrengthCard"
+                                    x:Uid="FoliaMachiNeonStrength"
+                                    IsEnabled="{x:Bind ViewModel.FoliaRealtimeMotion, Mode=OneWay}">
+                                    <Grid ColumnDefinitions="48,220" ColumnSpacing="12">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{x:Bind converters:SliderValueTextConverter.Format(FoliaMachiNeonStrengthSlider.Value), Mode=OneWay}" />
+                                        <Slider
+                                            x:Name="FoliaMachiNeonStrengthSlider"
+                                            Grid.Column="1"
+                                            Style="{StaticResource FoliaSliderStyle}"
+                                            Minimum="0"
+                                            Maximum="2"
+                                            SmallChange="0.05"
+                                            LargeChange="0.25"
+                                            StepFrequency="0.05"
+                                            AutomationProperties.LabeledBy="{x:Bind FoliaMachiNeonStrengthCard}"
+                                            Value="{x:Bind ViewModel.FoliaMachiNeonStrength, Mode=TwoWay}" />
+                                    </Grid>
+                                </controls:SettingsCard>
                                 <controls:SettingsCard x:Uid="FoliaMachiGpuQualityOverride">
                                     <ToggleSwitch
                                         x:Uid="FoliaMachiGpuQualityToggle"

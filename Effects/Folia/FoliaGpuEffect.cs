@@ -182,7 +182,7 @@ internal sealed unsafe partial class FoliaGpuEffect : IGpuVisualizerEffect, ITem
     private ID3D12PipelineState Pipeline(string file, string vs, string ps, bool sprites = false, bool temporal = false, bool screen = false)
     {
         string shader = FoliaShaderLibrary.Background(file);
-        int pipelineVersion = file == "Machi" ? 14 : file == "Print" ? 13 : ps == "MachiPanelPS" ? 12 : temporal ? 11 : 10;
+        int pipelineVersion = file == "Machi" ? 16 : file == "Print" ? 13 : ps is "MachiPanelPS" or "CopyPS" or "TemporalPS" ? 12 : 10;
         return GpuPipelineCache.Create(_device, new GraphicsPipelineStateDescription
         {
             RootSignature = _root,

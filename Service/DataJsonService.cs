@@ -114,6 +114,7 @@ namespace WinExSpectrumTest.Service
             AppSettings.FoliaMachiChromaticAberration = settings.FoliaMachiChromaticAberration;
             AppSettings.FoliaMachiDepthOfField = settings.FoliaMachiDepthOfField;
             AppSettings.FoliaMachiBloom = settings.FoliaMachiBloom;
+            AppSettings.FoliaMachiNeonStrength = settings.FoliaMachiNeonStrength;
             AppSettings.FoliaMetaphorNegative = settings.FoliaMetaphorNegative;
             AppSettings.FoliaNebbiaBehind = settings.FoliaNebbiaBehind;
             AppSettings.FoliaNebbiaGlass = settings.FoliaNebbiaGlass;
@@ -269,6 +270,7 @@ namespace WinExSpectrumTest.Service
                 FoliaMachiChromaticAberration = AppSettings.FoliaMachiChromaticAberration,
                 FoliaMachiDepthOfField = AppSettings.FoliaMachiDepthOfField,
                 FoliaMachiBloom = AppSettings.FoliaMachiBloom,
+                FoliaMachiNeonStrength = AppSettings.FoliaMachiNeonStrength,
                 FoliaMachiGpuQualityOverride = AppSettings.FoliaMachiGpuQualityOverride,
                 FoliaMachiAntiAliasing = AppSettings.FoliaMachiGpuQuality.AntiAliasing,
                 FoliaMachiRenderScalePercent = AppSettings.FoliaMachiGpuQuality.RenderScalePercent,

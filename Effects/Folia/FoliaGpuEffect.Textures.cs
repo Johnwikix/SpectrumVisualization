@@ -77,7 +77,9 @@ internal sealed unsafe partial class FoliaGpuEffect
             var shadow = _atlas!.IsShared ? _glyphAtlas.Shadow! : _textures[5]!;
             _device.CreateShaderResourceView(shadow, FoliaGpuGlyphAtlas.Srv(shadow), _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 5) * _srvStride);
             _device.CreateShaderResourceView(_textures[5] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 6) * _srvStride);
-            _device.CreateShaderResourceView(_textures[6] ?? _textures[1]!, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 7) * _srvStride);
+            // Machi's atmosphere pass uses the previous-stage slot for the current primary-hit mask.
+            var previous = (table == 2 ? _machiBackend?.NeonPeak : null) ?? _textures[6] ?? _textures[1]!;
+            _device.CreateShaderResourceView(previous, null, _srv.GetCPUDescriptorHandleForHeapStart() + (table * 9 + 7) * _srvStride);
             var extra = table switch
             {
                 0 => _backgroundHistory,

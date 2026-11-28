@@ -65,7 +65,7 @@ internal sealed unsafe class FoliaBloom : IDisposable
         BlendState = BlendDescription.Opaque,
         RasterizerState = new() { CullMode = CullMode.None, FillMode = FillMode.Solid },
         DepthStencilState = new() { DepthEnable = false, StencilEnable = false }
-    }, "FoliaBloom/root-v1/" + entry);
+    }, (entry == "CombineLinear" ? "FoliaBloom/root-v2/" : "FoliaBloom/root-v1/") + entry);
     internal void Resize(int width, int height, ID3D12Resource backdrop)
     {
         _width = width;

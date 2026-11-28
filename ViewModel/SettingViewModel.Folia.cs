@@ -183,6 +183,12 @@ public partial class SettingViewModel
         set => AppSettings.FoliaMachiBloom = value;
     }
 
+    public double FoliaMachiNeonStrength
+    {
+        get => AppSettings.FoliaMachiNeonStrength;
+        set => AppSettings.FoliaMachiNeonStrength = (float)value;
+    }
+
     public bool FoliaMachiGpuQualityOverride
     {
         get => AppSettings.FoliaMachiGpuQualityOverride;
@@ -341,6 +347,7 @@ public partial class SettingViewModel
         OnPropertyChanged(nameof(FoliaMachiChromaticAberration));
         OnPropertyChanged(nameof(FoliaMachiDepthOfField));
         OnPropertyChanged(nameof(FoliaMachiBloom));
+        OnPropertyChanged(nameof(FoliaMachiNeonStrength));
         OnPropertyChanged(nameof(MachiAvailable));
         OnPropertyChanged(nameof(MachiRendererStatus));
         OnPropertyChanged(nameof(FoliaMetaphorNegative));

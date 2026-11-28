@@ -507,8 +507,11 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
         _commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         _commands.RSSetViewport(0, 0, Width, Height, 0, 1);
         _commands.RSSetScissorRect(Width, Height);
-        _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + (_temporal != null ? 2 * _srvStride : 0));
-        float* constants = stackalloc float[6] { _hdr ? 1 : 0, white, peak, 0, 1f / Width, 1f / Height };
+        var sceneSrv = _srvs.GetGPUDescriptorHandleForHeapStart() + (_temporal != null ? 2 * _srvStride : 0);
+        _commands.SetGraphicsRootDescriptorTable(0, sceneSrv);
+        bool machiPeak = _hdr && _effect is IMachiRenderEffect { HasMachiNeonPeak: true };
+        float* constants = stackalloc float[6] { _hdr ? 1 : 0, white, peak, machiPeak ? 1 : 0,
+            1f / Width, 1f / Height };
         _commands.SetGraphicsRoot32BitConstants(1, 6, constants, 0);
         if (spatial)
         {
@@ -527,6 +530,7 @@ internal sealed unsafe partial class GpuGraphics : IDisposable
             }
             _commands.SetGraphicsRootDescriptorTable(0, _srvs.GetGPUDescriptorHandleForHeapStart() + _srvStride);
         }
+        _commands.SetGraphicsRootDescriptorTable(2, sceneSrv);
         int buffer = (int)_swapChain.CurrentBackBufferIndex;
         Transition(_backBuffers[buffer]!, ResourceStates.Common, ResourceStates.RenderTarget);
         _commands.OMSetRenderTargets(Rtv(buffer), null);
